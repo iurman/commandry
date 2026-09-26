@@ -9,4 +9,5 @@ export * from "./simulated-approval";
 export * from "./work-item-status";
 export * from "./resource-topology";
 export * from "./project-decision";
+export * from "./local-automation";
 export * from "./capture-triage";

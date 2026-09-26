@@ -344,6 +344,38 @@ export const listProjectDecisionRevisionsResponseSchema = z.object({
   nextCursor: z.uuid().nullable(),
 });
 
+export const createAutomationDefinitionRequestSchema = z.strictObject({
+  projectId: z.uuid(),
+  name: z.string().trim().min(1).max(200),
+  enabled: z.boolean(),
+});
+export const setAutomationEnabledRequestSchema = z.strictObject({
+  enabled: z.boolean(),
+  expectedEnabled: z.boolean(),
+});
+export const triggerAutomationRunRequestSchema = z.strictObject({
+  occurrenceId: z.uuid(),
+});
+export const automationDefinitionSchema = z.object({
+  id: z.uuid(),
+  projectId: z.uuid(),
+  name: z.string(),
+  routine: z.literal("local_project_summary_v1"),
+  triggerType: z.literal("on_creation_once"),
+  enabled: z.boolean(),
+  sourceOfTruth: z.literal("local-only"),
+  createdAt: z.iso.datetime({ offset: true }),
+  updatedAt: z.iso.datetime({ offset: true }),
+});
+export const listAutomationDefinitionsResponseSchema = z.object({
+  items: z.array(automationDefinitionSchema),
+  nextCursor: z.uuid().nullable(),
+});
+export const listAutomationDefinitionsQuerySchema =
+  listResourcesQuerySchema.extend({
+    projectId: z.uuid().optional(),
+  });
+
 export const searchQuerySchema = listResourcesQuerySchema.extend({
   q: z.string().trim().min(1).max(200),
   projectId: z.uuid().optional(),
@@ -537,6 +569,68 @@ export const evidenceReferenceSchema = z.object({
   occurredAt: z.iso.datetime({ offset: true }).nullable(),
   sourceLabel: z.string().min(1),
   isSynthetic: z.boolean(),
+});
+
+export const automationRunResultSchema = z.object({
+  summary: z.string().min(1),
+  asOf: z.iso.datetime({ offset: true }),
+  evidence: z.array(evidenceReferenceSchema).min(1),
+  sourceLabel: z.literal("Synthetic local automation"),
+  isSynthetic: z.literal(true),
+  verificationStatus: z.literal("unverified"),
+  externalActions: z.tuple([]),
+});
+export const automationRunSchema = z.object({
+  id: z.uuid(),
+  definitionId: z.uuid(),
+  projectId: z.uuid(),
+  occurrenceId: z.uuid(),
+  trigger: z.enum(["on_creation", "manual"]),
+  state: z.enum(["queued", "running", "succeeded", "failed", "skipped"]),
+  attempts: z.number().int().min(0),
+  result: automationRunResultSchema.nullable(),
+  error: z.string().nullable(),
+  createdAt: z.iso.datetime({ offset: true }),
+  startedAt: z.iso.datetime({ offset: true }).nullable(),
+  completedAt: z.iso.datetime({ offset: true }).nullable(),
+});
+export const automationRunAttemptSchema = z.object({
+  id: z.uuid(),
+  runId: z.uuid(),
+  ordinal: z.number().int().min(1),
+  state: z.enum(["running", "succeeded", "failed"]),
+  error: z.string().nullable(),
+  createdAt: z.iso.datetime({ offset: true }),
+  completedAt: z.iso.datetime({ offset: true }).nullable(),
+});
+export const automationAuditEventSchema = z.object({
+  id: z.uuid(),
+  definitionId: z.uuid(),
+  runId: z.uuid().nullable(),
+  actor: z.string(),
+  operation: z.string(),
+  details: z.record(
+    z.string(),
+    z.union([z.string(), z.number(), z.boolean(), z.null()]),
+  ),
+  createdAt: z.iso.datetime({ offset: true }),
+});
+export const listAutomationRunsResponseSchema = z.object({
+  items: z.array(automationRunSchema),
+  nextCursor: z.uuid().nullable(),
+});
+export const listAutomationRunAttemptsResponseSchema = z.object({
+  items: z.array(automationRunAttemptSchema),
+  nextCursor: z.uuid().nullable(),
+});
+export const listAutomationAuditResponseSchema = z.object({
+  items: z.array(automationAuditEventSchema),
+  nextCursor: z.uuid().nullable(),
+});
+export const automationJobV1Schema = z.strictObject({
+  version: z.literal(1),
+  runId: z.uuid(),
+  definitionId: z.uuid(),
 });
 
 export const briefFactSchema = z.object({
@@ -1038,6 +1132,21 @@ export type CreateProjectDecisionRequest = z.infer<
 export type ReviseProjectDecisionRequest = z.infer<
   typeof reviseProjectDecisionRequestSchema
 >;
+export type CreateAutomationDefinitionRequest = z.infer<
+  typeof createAutomationDefinitionRequestSchema
+>;
+export type SetAutomationEnabledRequest = z.infer<
+  typeof setAutomationEnabledRequestSchema
+>;
+export type TriggerAutomationRunRequest = z.infer<
+  typeof triggerAutomationRunRequestSchema
+>;
+export type AutomationDefinition = z.infer<typeof automationDefinitionSchema>;
+export type AutomationRunResult = z.infer<typeof automationRunResultSchema>;
+export type AutomationRun = z.infer<typeof automationRunSchema>;
+export type AutomationRunAttempt = z.infer<typeof automationRunAttemptSchema>;
+export type AutomationAuditEvent = z.infer<typeof automationAuditEventSchema>;
+export type AutomationJobV1 = z.infer<typeof automationJobV1Schema>;
 export type FileCaptureResponse = z.infer<typeof fileCaptureResponseSchema>;
 export type CaptureTriageSuggestion = z.infer<
   typeof captureTriageSuggestionSchema

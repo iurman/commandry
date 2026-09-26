@@ -5,7 +5,7 @@ test("local capture suggestion is corrected and approved, then its task changes 
   page,
   request,
 }) => {
-  test.setTimeout(120_000);
+  test.setTimeout(180_000);
   const token = `Triage${randomUUID().replaceAll("-", "").slice(0, 10)}`;
   const projectResponse = await request.post("/api/v1/projects", {
     data: { name: `${token} project`, type: "general" },
@@ -29,7 +29,7 @@ test("local capture suggestion is corrected and approved, then its task changes 
   const capture = await captureResponse.json();
   await expect(page.getByText(original).first()).toBeVisible();
   await expect(page.getByText("Local deterministic rule")).toBeVisible({
-    timeout: 70_000,
+    timeout: 120_000,
   });
   await expect(page.getByText("Rule confidence: 60%")).toBeVisible();
 

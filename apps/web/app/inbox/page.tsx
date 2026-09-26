@@ -179,17 +179,18 @@ export default function InboxPage() {
           setTitle(review.suggestion.title);
           setProjectId(review.suggestion.proposedProjectId ?? "");
           suggestionPrefilledFor.current = review.suggestion.id;
-        } else if (
-          !review.suggestion &&
-          detail?.state === "unfiled" &&
-          attempts < 60
-        ) {
+        } else if (!review.suggestion && detail?.state === "unfiled") {
           attempts += 1;
-          timer = setTimeout(loadReview, 1_000);
+          timer = setTimeout(
+            loadReview,
+            Math.min(5_000, 1_000 + attempts * 250),
+          );
         }
       } catch (cause) {
-        if (active)
+        if (active) {
           setTriageError(message(cause, "Triage suggestion is unavailable."));
+          timer = setTimeout(loadReview, 5_000);
+        }
       } finally {
         if (active) setTriageLoading(false);
       }

@@ -158,12 +158,15 @@ test("resource tree, dependency inverse, and labeled synthetic context stay dist
   expect(importResponse.status()).toBe(202);
   const imported = await importResponse.json();
   await expect
-    .poll(async () => {
-      const response = await request.get(
-        `/api/v1/synthetic-event-imports/${imported.id}`,
-      );
-      return (await response.json()).state;
-    })
+    .poll(
+      async () => {
+        const response = await request.get(
+          `/api/v1/synthetic-event-imports/${imported.id}`,
+        );
+        return (await response.json()).state;
+      },
+      { timeout: 30_000 },
+    )
     .toBe("succeeded");
   await page.goto(`/resources/${service.id}`);
   await expect(

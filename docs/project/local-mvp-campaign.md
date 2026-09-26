@@ -91,6 +91,13 @@ local experience lab.
   audit trail, with an unauthenticated local reviewer label. Approval permits
   only a worker-recorded `simulated_only` outcome and never changes a resource
   or invokes a real integration. OQ-003 and OQ-007 remain open.
+- The first local automation will be a project-summary routine with an
+  `on_creation_once` trigger. Enabled definitions queue one worker read at
+  creation; disabled definitions remain inert. Manual reruns are explicit.
+  The worker reads only the bound project's evidence-linked brief, records
+  attempts and audit events, and returns a synthetic, unverified preview with
+  no external action. This is a local scheduler/source-of-truth assumption,
+  not a choice of live integration scheduler or an Overnight Queue policy.
 
 ## Evidence expected before campaign completion
 

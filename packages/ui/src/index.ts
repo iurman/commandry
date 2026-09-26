@@ -19,6 +19,8 @@ export { ResourceTreeRow } from "./components/ResourceTreeRow";
 export type { ResourceTreeRowView } from "./components/ResourceTreeRow";
 export { DecisionCard } from "./components/DecisionCard";
 export type { DecisionCardProps } from "./components/DecisionCard";
+export { AutomationCard } from "./components/AutomationCard";
+export type { AutomationCardView } from "./components/AutomationCard";
 export { ProjectBrief } from "./components/ProjectBrief";
 export type {
   ProjectBriefView,

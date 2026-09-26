@@ -1,6 +1,6 @@
 import type { ReactNode } from "react";
 
-const plannedDestinations = ["Work", "Automations", "Knowledge"] as const;
+const plannedDestinations = ["Work", "Knowledge"] as const;
 
 export function AppShell({
   children,
@@ -15,7 +15,8 @@ export function AppShell({
     | "Activity"
     | "Search"
     | "Agents"
-    | "Approvals";
+    | "Approvals"
+    | "Automations";
 }) {
   return (
     <div className="cmd-shell">
@@ -83,6 +84,13 @@ export function AppShell({
             href="/approvals"
           >
             Approvals
+          </a>
+          <a
+            aria-current={current === "Automations" ? "page" : undefined}
+            className={`cmd-nav-link ${current === "Automations" ? "cmd-nav-current" : ""}`}
+            href="/automations"
+          >
+            Automations
           </a>
           {plannedDestinations.map((destination) => (
             <span

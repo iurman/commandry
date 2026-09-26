@@ -2,18 +2,28 @@ import { and, eq, sql } from "drizzle-orm";
 import { PgBoss, fromDrizzle } from "pg-boss";
 import { Pool } from "pg";
 import type {
+  CreateAutomationDefinitionRequest,
+  SetAutomationEnabledRequest,
+  TriggerAutomationRunRequest,
+} from "@commandry/contracts";
+import type {
   PreparedSimulatedApprovalDecision,
   PreparedLocalAgentRun,
   PreparedSyntheticEventImport,
 } from "@commandry/application";
 import type { CommandryDatabase } from "@commandry/db";
 import {
+  automationDefinitionRecord,
+  automationRunRecord,
   createLocalAgentRunRepository,
   createSimulatedApprovalRepository,
   createSyntheticEventImportRepository,
   schema,
 } from "@commandry/db";
 import {
+  LocalAutomationError,
+  requireAutomationEnabled,
+  requireExpectedAutomationEnabled,
   LocalAgentError,
   SimulatedApprovalError,
   SyntheticEventImportConflictError,
@@ -34,6 +44,9 @@ export const SIMULATED_APPROVAL_DEAD_LETTER_QUEUE =
   "commandry-simulated-approval-dlq";
 export const CAPTURE_TRIAGE_QUEUE = "commandry-capture-triage-v1";
 export const CAPTURE_TRIAGE_DEAD_LETTER_QUEUE = "commandry-capture-triage-dlq";
+export const LOCAL_AUTOMATION_QUEUE = "commandry-local-automation-v1";
+export const LOCAL_AUTOMATION_DEAD_LETTER_QUEUE =
+  "commandry-local-automation-dlq";
 
 function bossOptions(connectionString: string, max: number, migrate: boolean) {
   return {
@@ -91,6 +104,13 @@ export async function installPgBossSchema(options: {
       retryBackoff: true,
       deadLetter: CAPTURE_TRIAGE_DEAD_LETTER_QUEUE,
     });
+    await boss.createQueue(LOCAL_AUTOMATION_DEAD_LETTER_QUEUE);
+    await boss.createQueue(LOCAL_AUTOMATION_QUEUE, {
+      retryLimit: 3,
+      retryDelay: 1,
+      retryBackoff: true,
+      deadLetter: LOCAL_AUTOMATION_DEAD_LETTER_QUEUE,
+    });
   } finally {
     await boss.stop();
   }
@@ -130,6 +150,192 @@ export function createCaptureTriageSubmission(boss: PgBoss) {
         captureId,
       });
       if (!jobId) throw new Error("Capture triage job was not enqueued");
+    },
+  };
+}
+
+export function createLocalAutomationSubmission(
+  db: CommandryDatabase,
+  boss: PgBoss,
+) {
+  return {
+    async createDefinition(input: CreateAutomationDefinitionRequest) {
+      return db.transaction(async (tx) => {
+        const [owner] = await tx
+          .select({ id: schema.project.id })
+          .from(schema.project)
+          .where(eq(schema.project.id, input.projectId))
+          .limit(1);
+        if (!owner)
+          throw new LocalAutomationError(
+            "PROJECT_NOT_FOUND",
+            "Project not found",
+          );
+        const now = new Date();
+        const id = crypto.randomUUID();
+        const [row] = await tx
+          .insert(schema.automationDefinition)
+          .values({
+            id,
+            projectId: input.projectId,
+            name: input.name,
+            enabled: input.enabled,
+            createdAt: now,
+            updatedAt: now,
+          })
+          .returning();
+        if (!row) throw new Error("Automation insert returned no row");
+        await tx.insert(schema.automationAuditEvent).values({
+          id: crypto.randomUUID(),
+          definitionId: id,
+          actor: "local-user:unattributed",
+          operation: "automation.created",
+          details: { enabled: input.enabled, triggerType: "on_creation_once" },
+          createdAt: now,
+        });
+        if (input.enabled) {
+          const runId = crypto.randomUUID();
+          await tx.insert(schema.automationRun).values({
+            id: runId,
+            definitionId: id,
+            projectId: input.projectId,
+            occurrenceId: crypto.randomUUID(),
+            trigger: "on_creation",
+            createdAt: now,
+          });
+          const jobId = await boss.send(
+            LOCAL_AUTOMATION_QUEUE,
+            {
+              version: 1,
+              runId,
+              definitionId: id,
+            },
+            { db: fromDrizzle(tx, sql) },
+          );
+          if (!jobId) throw new Error("Local automation job was not enqueued");
+          await tx.insert(schema.automationAuditEvent).values({
+            id: crypto.randomUUID(),
+            definitionId: id,
+            runId,
+            actor: "system:local-automation",
+            operation: "automation.run_queued",
+            details: { trigger: "on_creation", jobId },
+            createdAt: now,
+          });
+        }
+        return automationDefinitionRecord(row);
+      });
+    },
+    async setEnabled(id: string, input: SetAutomationEnabledRequest) {
+      return db.transaction(async (tx) => {
+        const [current] = await tx
+          .select()
+          .from(schema.automationDefinition)
+          .where(eq(schema.automationDefinition.id, id))
+          .for("update")
+          .limit(1);
+        if (!current)
+          throw new LocalAutomationError(
+            "AUTOMATION_NOT_FOUND",
+            "Automation not found",
+          );
+        requireExpectedAutomationEnabled(
+          current.enabled,
+          input.expectedEnabled,
+          input.enabled,
+        );
+        const now = new Date();
+        const [updated] = await tx
+          .update(schema.automationDefinition)
+          .set({ enabled: input.enabled, updatedAt: now })
+          .where(eq(schema.automationDefinition.id, id))
+          .returning();
+        if (!updated) throw new Error("Locked automation disappeared");
+        await tx.insert(schema.automationAuditEvent).values({
+          id: crypto.randomUUID(),
+          definitionId: id,
+          actor: "local-user:unattributed",
+          operation: "automation.enabled_changed",
+          details: { previousEnabled: current.enabled, enabled: input.enabled },
+          createdAt: now,
+        });
+        return automationDefinitionRecord(updated);
+      });
+    },
+    async triggerRun(id: string, input: TriggerAutomationRunRequest) {
+      return db.transaction(async (tx) => {
+        const [definition] = await tx
+          .select()
+          .from(schema.automationDefinition)
+          .where(eq(schema.automationDefinition.id, id))
+          .for("update")
+          .limit(1);
+        if (!definition)
+          throw new LocalAutomationError(
+            "AUTOMATION_NOT_FOUND",
+            "Automation not found",
+          );
+        const [prior] = await tx
+          .select()
+          .from(schema.automationRun)
+          .where(eq(schema.automationRun.occurrenceId, input.occurrenceId))
+          .limit(1);
+        if (prior) {
+          if (prior.definitionId !== id)
+            throw new LocalAutomationError(
+              "AUTOMATION_OCCURRENCE_CONFLICT",
+              "Occurrence belongs to another automation",
+            );
+          return automationRunRecord(prior);
+        }
+        requireAutomationEnabled(definition.enabled);
+        const now = new Date();
+        const [inserted] = await tx
+          .insert(schema.automationRun)
+          .values({
+            id: crypto.randomUUID(),
+            definitionId: id,
+            projectId: definition.projectId,
+            occurrenceId: input.occurrenceId,
+            trigger: "manual",
+            createdAt: now,
+          })
+          .onConflictDoNothing({ target: schema.automationRun.occurrenceId })
+          .returning();
+        if (inserted) {
+          const jobId = await boss.send(
+            LOCAL_AUTOMATION_QUEUE,
+            {
+              version: 1,
+              runId: inserted.id,
+              definitionId: id,
+            },
+            { db: fromDrizzle(tx, sql) },
+          );
+          if (!jobId) throw new Error("Local automation job was not enqueued");
+          await tx.insert(schema.automationAuditEvent).values({
+            id: crypto.randomUUID(),
+            definitionId: id,
+            runId: inserted.id,
+            actor: "local-user:unattributed",
+            operation: "automation.run_queued",
+            details: { trigger: "manual", jobId },
+            createdAt: now,
+          });
+          return automationRunRecord(inserted);
+        }
+        const [existing] = await tx
+          .select()
+          .from(schema.automationRun)
+          .where(eq(schema.automationRun.occurrenceId, input.occurrenceId))
+          .limit(1);
+        if (!existing || existing.definitionId !== id)
+          throw new LocalAutomationError(
+            "AUTOMATION_OCCURRENCE_CONFLICT",
+            "Occurrence belongs to another automation",
+          );
+        return automationRunRecord(existing);
+      });
     },
   };
 }

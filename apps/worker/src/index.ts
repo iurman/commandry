@@ -3,6 +3,7 @@ import {
   createAgentContextService,
   createCaptureTriageProcessor,
   createLocalAgentRunProcessor,
+  createLocalAutomationProcessor,
   createSimulatedApprovalProcessor,
   createProjectBriefService,
   createSyntheticEventImportProcessor,
@@ -11,6 +12,7 @@ import {
 import { loadRuntimeConfig } from "@commandry/config";
 import {
   captureTriageJobV1Schema,
+  automationJobV1Schema,
   localAgentRunJobV1Schema,
   simulatedApprovalJobV1Schema,
   syntheticEventImportJobV1Schema,
@@ -21,6 +23,7 @@ import {
   createCaptureTriageRepository,
   createDatabase,
   createLocalAgentRunRepository,
+  createLocalAutomationRepository,
   createSimulatedApprovalRepository,
   createSyntheticEventImportRepository,
   createSyntheticRunRepository,
@@ -30,6 +33,7 @@ import {
   CAPTURE_TRIAGE_QUEUE,
   createPgBossProducer,
   LOCAL_AGENT_RUN_QUEUE,
+  LOCAL_AUTOMATION_QUEUE,
   SIMULATED_APPROVAL_QUEUE,
   SYNTHETIC_EVENT_IMPORT_QUEUE,
   SYNTHETIC_QUEUE,
@@ -73,6 +77,10 @@ const processSimulatedApproval = createSimulatedApprovalProcessor(
 );
 const processCaptureTriage = createCaptureTriageProcessor(
   createCaptureTriageRepository(database.db),
+);
+const processLocalAutomation = createLocalAutomationProcessor(
+  createLocalAutomationRepository(database.db),
+  projectBriefService,
 );
 const workerId = randomUUID();
 
@@ -200,19 +208,43 @@ await transport.boss.work(SIMULATED_APPROVAL_QUEUE, async ([job]) => {
     throw error;
   }
 });
-await transport.boss.work(CAPTURE_TRIAGE_QUEUE, async ([job]) => {
+await transport.boss.work(
+  CAPTURE_TRIAGE_QUEUE,
+  { pollingIntervalSeconds: 0.5 },
+  async ([job]) => {
+    if (!job)
+      throw new Error("pg-boss delivered an empty capture triage job batch");
+    const input = captureTriageJobV1Schema.parse(job.data);
+    try {
+      await processCaptureTriage(input.captureId);
+      log("info", "capture_triage.suggestion_processed", {
+        captureId: input.captureId,
+        jobId: job.id,
+      });
+    } catch (error) {
+      log("error", "capture_triage.failed_attempt", {
+        captureId: input.captureId,
+        jobId: job.id,
+        error: error instanceof Error ? error.name : "unknown",
+      });
+      throw error;
+    }
+  },
+);
+await transport.boss.work(LOCAL_AUTOMATION_QUEUE, async ([job]) => {
   if (!job)
-    throw new Error("pg-boss delivered an empty capture triage job batch");
-  const input = captureTriageJobV1Schema.parse(job.data);
+    throw new Error("pg-boss delivered an empty local automation job batch");
+  const input = automationJobV1Schema.parse(job.data);
   try {
-    await processCaptureTriage(input.captureId);
-    log("info", "capture_triage.suggestion_processed", {
-      captureId: input.captureId,
+    const run = await processLocalAutomation(input);
+    log("info", "local_automation.processed", {
+      runId: run.id,
+      state: run.state,
       jobId: job.id,
     });
   } catch (error) {
-    log("error", "capture_triage.failed_attempt", {
-      captureId: input.captureId,
+    log("error", "local_automation.failed_attempt", {
+      runId: input.runId,
       jobId: job.id,
       error: error instanceof Error ? error.name : "unknown",
     });

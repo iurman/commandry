@@ -2459,3 +2459,122 @@ textarea {
   max-width: 42rem;
   margin-top: var(--cmd-space-6);
 }
+
+.cmd-automation-layout {
+  display: grid;
+  grid-template-columns: minmax(0, 1.65fr) minmax(17rem, 1fr);
+  align-items: start;
+  gap: var(--cmd-space-6);
+}
+
+.cmd-automation-list {
+  display: grid;
+  gap: var(--cmd-space-4);
+  margin: var(--cmd-space-4) 0;
+  padding: 0;
+  list-style: none;
+}
+
+.cmd-automation-card {
+  min-width: 0;
+  padding: var(--cmd-space-4);
+  border: 1px solid var(--cmd-border);
+  border-radius: var(--cmd-radius);
+  background: var(--cmd-surface);
+  overflow-wrap: anywhere;
+}
+
+.cmd-automation-card h3 {
+  margin: 0;
+}
+
+.cmd-automation-card a,
+.cmd-automation-result a {
+  color: var(--cmd-accent);
+  font-weight: 700;
+}
+
+.cmd-automation-facts {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: var(--cmd-space-3);
+}
+
+.cmd-automation-facts div {
+  min-width: 0;
+}
+
+.cmd-automation-facts dt {
+  color: var(--cmd-text-muted);
+  font-size: 0.75rem;
+  text-transform: uppercase;
+}
+
+.cmd-automation-facts dd {
+  margin: var(--cmd-space-1) 0 0;
+  overflow-wrap: anywhere;
+}
+
+.cmd-automation-checkbox {
+  display: flex;
+  align-items: center;
+  gap: var(--cmd-space-2);
+}
+
+.cmd-automation-checkbox input {
+  width: auto;
+}
+
+.cmd-automation-detail {
+  display: grid;
+  gap: var(--cmd-space-6);
+}
+
+.cmd-automation-detail-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: var(--cmd-space-6);
+}
+
+.cmd-automation-run-list,
+.cmd-automation-audit-list,
+.cmd-automation-attempt-list {
+  display: grid;
+  gap: var(--cmd-space-3);
+  margin: var(--cmd-space-4) 0;
+  padding: 0;
+  list-style: none;
+}
+
+.cmd-automation-run-list > li,
+.cmd-automation-audit-list > li,
+.cmd-automation-attempt-list > li {
+  min-width: 0;
+  padding: var(--cmd-space-4);
+  border: 1px solid var(--cmd-border);
+  border-radius: var(--cmd-radius);
+  overflow-wrap: anywhere;
+}
+
+.cmd-automation-result {
+  margin-top: var(--cmd-space-3);
+}
+
+.cmd-automation-result ul {
+  display: grid;
+  gap: var(--cmd-space-2);
+  padding-left: 1.25rem;
+}
+
+@media (max-width: 58rem) {
+  .cmd-automation-layout,
+  .cmd-automation-detail-grid {
+    grid-template-columns: minmax(0, 1fr);
+  }
+}
+
+@media (max-width: 35rem) {
+  .cmd-automation-facts {
+    grid-template-columns: minmax(0, 1fr);
+  }
+}

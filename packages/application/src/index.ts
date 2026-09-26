@@ -11,4 +11,5 @@ export * from "./simulated-approvals";
 export * from "./work-item-status";
 export * from "./resource-topology";
 export * from "./project-decisions";
+export * from "./local-automations";
 export * from "./capture-triage";

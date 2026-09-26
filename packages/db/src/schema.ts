@@ -541,6 +541,140 @@ export const projectDecisionRevision = pgTable(
   ],
 );
 
+export const automationDefinition = pgTable(
+  "automation_definition",
+  {
+    id: uuid("id").primaryKey(),
+    projectId: uuid("project_id")
+      .notNull()
+      .references(() => project.id, { onDelete: "restrict" }),
+    name: text("name").notNull(),
+    routine: text("routine", { enum: ["local_project_summary_v1"] })
+      .notNull()
+      .default("local_project_summary_v1"),
+    triggerType: text("trigger_type", { enum: ["on_creation_once"] })
+      .notNull()
+      .default("on_creation_once"),
+    enabled: boolean("enabled").notNull().default(true),
+    sourceOfTruth: text("source_of_truth").notNull().default("local-only"),
+    createdAt: createdAt(),
+    updatedAt: updatedAt(),
+  },
+  (table) => [
+    index("automation_definition_page_idx").on(table.id),
+    index("automation_definition_project_page_idx").on(
+      table.projectId,
+      table.id,
+    ),
+    check(
+      "automation_definition_name_nonempty",
+      sql`length(trim(${table.name})) > 0`,
+    ),
+    check(
+      "automation_definition_routine_local",
+      sql`${table.routine} = 'local_project_summary_v1'`,
+    ),
+    check(
+      "automation_definition_trigger_once",
+      sql`${table.triggerType} = 'on_creation_once'`,
+    ),
+    check(
+      "automation_definition_source_local",
+      sql`${table.sourceOfTruth} = 'local-only'`,
+    ),
+  ],
+);
+
+export const automationRun = pgTable(
+  "automation_run",
+  {
+    id: uuid("id").primaryKey(),
+    definitionId: uuid("definition_id")
+      .notNull()
+      .references(() => automationDefinition.id, { onDelete: "restrict" }),
+    projectId: uuid("project_id")
+      .notNull()
+      .references(() => project.id, { onDelete: "restrict" }),
+    occurrenceId: uuid("occurrence_id").notNull(),
+    trigger: text("trigger", { enum: ["on_creation", "manual"] }).notNull(),
+    state: text("state", {
+      enum: ["queued", "running", "succeeded", "failed", "skipped"],
+    })
+      .notNull()
+      .default("queued"),
+    attempts: integer("attempts").notNull().default(0),
+    result: jsonb("result"),
+    error: text("error"),
+    createdAt: createdAt(),
+    startedAt: timestamp("started_at", { withTimezone: true }),
+    completedAt: timestamp("completed_at", { withTimezone: true }),
+  },
+  (table) => [
+    uniqueIndex("automation_run_occurrence_idx").on(table.occurrenceId),
+    index("automation_run_definition_page_idx").on(
+      table.definitionId,
+      table.id,
+    ),
+    check("automation_run_attempts_nonnegative", sql`${table.attempts} >= 0`),
+    check(
+      "automation_run_trigger_valid",
+      sql`${table.trigger} in ('on_creation', 'manual')`,
+    ),
+    check(
+      "automation_run_state_valid",
+      sql`${table.state} in ('queued', 'running', 'succeeded', 'failed', 'skipped')`,
+    ),
+  ],
+);
+
+export const automationRunAttempt = pgTable(
+  "automation_run_attempt",
+  {
+    id: uuid("id").primaryKey(),
+    runId: uuid("run_id")
+      .notNull()
+      .references(() => automationRun.id, { onDelete: "restrict" }),
+    ordinal: integer("ordinal").notNull(),
+    state: text("state", {
+      enum: ["running", "succeeded", "failed"],
+    }).notNull(),
+    error: text("error"),
+    createdAt: createdAt(),
+    completedAt: timestamp("completed_at", { withTimezone: true }),
+  },
+  (table) => [
+    uniqueIndex("automation_run_attempt_unique_idx").on(
+      table.runId,
+      table.ordinal,
+    ),
+    index("automation_run_attempt_page_idx").on(table.runId, table.id),
+    check("automation_run_attempt_ordinal_positive", sql`${table.ordinal} > 0`),
+  ],
+);
+
+export const automationAuditEvent = pgTable(
+  "automation_audit_event",
+  {
+    id: uuid("id").primaryKey(),
+    definitionId: uuid("definition_id")
+      .notNull()
+      .references(() => automationDefinition.id, { onDelete: "restrict" }),
+    runId: uuid("run_id").references(() => automationRun.id, {
+      onDelete: "restrict",
+    }),
+    actor: text("actor").notNull(),
+    operation: text("operation").notNull(),
+    details: jsonb("details")
+      .$type<Record<string, string | number | boolean | null>>()
+      .notNull()
+      .default({}),
+    createdAt: createdAt(),
+  },
+  (table) => [
+    index("automation_audit_page_idx").on(table.definitionId, table.id),
+  ],
+);
+
 export const executionPacket = pgTable(
   "execution_packet",
   {

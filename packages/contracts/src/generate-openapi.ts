@@ -74,6 +74,19 @@ import {
   projectDecisionRevisionSchema,
   listProjectDecisionsResponseSchema,
   listProjectDecisionRevisionsResponseSchema,
+  createAutomationDefinitionRequestSchema,
+  setAutomationEnabledRequestSchema,
+  triggerAutomationRunRequestSchema,
+  automationDefinitionSchema,
+  automationRunResultSchema,
+  automationRunSchema,
+  automationRunAttemptSchema,
+  automationAuditEventSchema,
+  automationJobV1Schema,
+  listAutomationDefinitionsResponseSchema,
+  listAutomationRunsResponseSchema,
+  listAutomationRunAttemptsResponseSchema,
+  listAutomationAuditResponseSchema,
   attentionItemSchema,
   listAttentionResponseSchema,
   listNormalizedEventsResponseSchema,
@@ -1152,6 +1165,133 @@ export function generateOpenApi(): string {
           },
         },
       },
+      "/api/v1/automations": {
+        get: {
+          operationId: "listLocalAutomations",
+          summary: "Page local-only automation definitions",
+          parameters: [projectFilterParameter, ...pageParameters],
+          responses: {
+            "200": {
+              description: "Automation definition page",
+              content: jsonContent("ListAutomationDefinitionsResponse"),
+            },
+          },
+        },
+        post: {
+          operationId: "createLocalAutomation",
+          summary:
+            "Create a local read-only summary routine and queue its on-creation run if enabled",
+          requestBody: {
+            required: true,
+            content: jsonContent("CreateAutomationDefinitionRequest"),
+          },
+          responses: {
+            "201": {
+              description: "Created local automation",
+              content: jsonContent("AutomationDefinition"),
+            },
+          },
+        },
+      },
+      "/api/v1/automations/{id}": {
+        get: {
+          operationId: "getLocalAutomation",
+          parameters: [idParameter],
+          responses: {
+            "200": {
+              description: "Automation definition",
+              content: jsonContent("AutomationDefinition"),
+            },
+          },
+        },
+      },
+      "/api/v1/automations/{id}/enabled": {
+        put: {
+          operationId: "setLocalAutomationEnabled",
+          parameters: [idParameter],
+          requestBody: {
+            required: true,
+            content: jsonContent("SetAutomationEnabledRequest"),
+          },
+          responses: {
+            "200": {
+              description: "Updated enabled state",
+              content: jsonContent("AutomationDefinition"),
+            },
+            "409": {
+              description: "Stale enabled state",
+              content: jsonContent("ErrorResponse"),
+            },
+          },
+        },
+      },
+      "/api/v1/automations/{id}/runs": {
+        get: {
+          operationId: "listLocalAutomationRuns",
+          parameters: [idParameter, ...pageParameters],
+          responses: {
+            "200": {
+              description: "Run history page",
+              content: jsonContent("ListAutomationRunsResponse"),
+            },
+          },
+        },
+        post: {
+          operationId: "triggerLocalAutomationRun",
+          summary: "Manually queue an enabled local read-only summary",
+          parameters: [idParameter],
+          requestBody: {
+            required: true,
+            content: jsonContent("TriggerAutomationRunRequest"),
+          },
+          responses: {
+            "202": {
+              description: "Queued or idempotently returned run",
+              content: jsonContent("AutomationRun"),
+            },
+            "409": {
+              description: "Disabled or conflicting occurrence",
+              content: jsonContent("ErrorResponse"),
+            },
+          },
+        },
+      },
+      "/api/v1/automations/{id}/audit": {
+        get: {
+          operationId: "listLocalAutomationAudit",
+          parameters: [idParameter, ...pageParameters],
+          responses: {
+            "200": {
+              description: "Audit event page",
+              content: jsonContent("ListAutomationAuditResponse"),
+            },
+          },
+        },
+      },
+      "/api/v1/automation-runs/{id}": {
+        get: {
+          operationId: "getLocalAutomationRun",
+          parameters: [idParameter],
+          responses: {
+            "200": {
+              description: "Run and synthetic result",
+              content: jsonContent("AutomationRun"),
+            },
+          },
+        },
+      },
+      "/api/v1/automation-runs/{id}/attempts": {
+        get: {
+          operationId: "listLocalAutomationRunAttempts",
+          parameters: [idParameter, ...pageParameters],
+          responses: {
+            "200": {
+              description: "Attempt history page",
+              content: jsonContent("ListAutomationRunAttemptsResponse"),
+            },
+          },
+        },
+      },
       "/api/v1/search": {
         get: {
           operationId: "searchRecords",
@@ -1472,6 +1612,31 @@ export function generateOpenApi(): string {
         ),
         ListProjectDecisionRevisionsResponse: component(
           listProjectDecisionRevisionsResponseSchema,
+        ),
+        CreateAutomationDefinitionRequest: component(
+          createAutomationDefinitionRequestSchema,
+        ),
+        SetAutomationEnabledRequest: component(
+          setAutomationEnabledRequestSchema,
+        ),
+        TriggerAutomationRunRequest: component(
+          triggerAutomationRunRequestSchema,
+        ),
+        AutomationDefinition: component(automationDefinitionSchema),
+        AutomationRunResult: component(automationRunResultSchema),
+        AutomationRun: component(automationRunSchema),
+        AutomationRunAttempt: component(automationRunAttemptSchema),
+        AutomationAuditEvent: component(automationAuditEventSchema),
+        AutomationJobV1: component(automationJobV1Schema),
+        ListAutomationDefinitionsResponse: component(
+          listAutomationDefinitionsResponseSchema,
+        ),
+        ListAutomationRunsResponse: component(listAutomationRunsResponseSchema),
+        ListAutomationRunAttemptsResponse: component(
+          listAutomationRunAttemptsResponseSchema,
+        ),
+        ListAutomationAuditResponse: component(
+          listAutomationAuditResponseSchema,
         ),
         ListWorkItemsResponse: component(listWorkItemsResponseSchema),
         ListKnowledgeItemsResponse: component(listKnowledgeItemsResponseSchema),
