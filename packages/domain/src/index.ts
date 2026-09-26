@@ -11,4 +11,5 @@ export * from "./resource-topology";
 export * from "./project-decision";
 export * from "./local-automation";
 export * from "./notification";
+export * from "./command-center";
 export * from "./capture-triage";

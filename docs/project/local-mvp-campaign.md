@@ -106,6 +106,11 @@ local experience lab.
   receipts with immutable audit, not alert-source mutations or external
   delivery. Priority and the local-only channel are provisional examples;
   notification budgets, routing, and live channels remain open under OQ-012.
+- The local Command Center will preview the three most recent source-timed
+  active notifications and link to the paged notification center for older
+  items. Its next action will open the newest item's source context, or the
+  Inbox when no active notification exists. This is a transparent recency
+  rule, not a settled priority or attention-ranking policy under OQ-012.
 
 ## Evidence expected before campaign completion
 

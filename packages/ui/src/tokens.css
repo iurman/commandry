@@ -2587,6 +2587,12 @@ textarea {
   list-style: none;
 }
 
+@media (min-width: 55rem) {
+  .cmd-home-attention-list {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+}
+
 .cmd-notification-card {
   min-width: 0;
   padding: var(--cmd-space-4);

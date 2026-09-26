@@ -113,8 +113,7 @@ export function AppShell({
         </nav>
         <p className="cmd-sidebar-note">
           <span className="cmd-mobile-nav-hint">Swipe to see more. </span>
-          Other destinations are visible for orientation and are not available
-          yet.
+          Navigation opens the local workspaces.
         </p>
       </aside>
       <main className="cmd-main" id="main-content">
