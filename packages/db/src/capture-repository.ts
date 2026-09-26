@@ -347,7 +347,9 @@ export function createCaptureRepository(db: CommandryDatabase) {
                 ? `/resources/${row.id}`
                 : row.kind === "project"
                   ? `/projects/${row.id}`
-                  : `/projects/${row.project_id}`,
+                  : row.kind === "task"
+                    ? `/work-items/${row.id}`
+                    : `/knowledge-items/${row.id}`,
           projectId: row.project_id,
           sourceCaptureId: row.source_capture_id,
           createdAt: new Date(row.created_at).toISOString(),

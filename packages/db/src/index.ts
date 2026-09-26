@@ -6,4 +6,7 @@ export * from "./repositories";
 export * from "./catalog-repository";
 export * from "./capture-repository";
 export * from "./synthetic-event-repository";
+export * from "./record-detail-repository";
+export * from "./brief-repository";
+export * from "./execution-packet-repository";
 export * as schema from "./schema";

@@ -94,6 +94,15 @@ export const projectResourceLinkSchema = z.object({
   resource: resourceSummarySchema,
 });
 
+export const projectResourceLinkDetailSchema = z.object({
+  id: z.uuid(),
+  projectId: z.uuid(),
+  resourceId: z.uuid(),
+  type: projectResourceRelationshipTypeSchema,
+  lifecycle: z.enum(["active", "archived"]),
+  createdAt: z.iso.datetime({ offset: true }),
+});
+
 export const listProjectResourceLinksResponseSchema = z.object({
   items: z.array(projectResourceLinkSchema),
   nextCursor: z.uuid().nullable(),
@@ -367,6 +376,157 @@ export const listAttentionResponseSchema = z.object({
   nextCursor: z.uuid().nullable(),
 });
 
+export const evidenceReferenceSchema = z.object({
+  kind: z.enum([
+    "project",
+    "work_item",
+    "knowledge_item",
+    "resource",
+    "project_resource_link",
+    "event",
+    "alert",
+    "capture",
+  ]),
+  id: z.uuid(),
+  href: z.string().startsWith("/api/v1/"),
+  recordedAt: z.iso.datetime({ offset: true }),
+  occurredAt: z.iso.datetime({ offset: true }).nullable(),
+  sourceLabel: z.string().min(1),
+  isSynthetic: z.boolean(),
+});
+
+export const briefFactSchema = z.object({
+  id: z.uuid(),
+  kind: z.enum(["work_item", "knowledge_item", "resource", "event", "alert"]),
+  title: z.string().min(1),
+  detail: z.string(),
+  evidence: z.array(evidenceReferenceSchema).min(1),
+  sourceLabel: z.string().min(1),
+  isSynthetic: z.boolean(),
+});
+
+export const briefSectionSchema = z.object({
+  items: z.array(briefFactSchema),
+  nextCursor: z.uuid().nullable(),
+  fullListHref: z.string().startsWith("/api/v1/"),
+  emptyState: z.string().nullable(),
+});
+
+export const notRecordedSchema = z.object({
+  status: z.literal("not_recorded"),
+  message: z.string().min(1),
+});
+
+export const briefInferenceSchema = z.object({
+  kind: z.literal("inference"),
+  ruleId: z.literal("open-work-review-v1"),
+  text: z.string().min(1),
+  evidence: z.array(evidenceReferenceSchema).min(1),
+});
+
+export const projectBriefSchema = z.object({
+  project: projectSummarySchema,
+  generatedAt: z.iso.datetime({ offset: true }),
+  asOf: z.iso.datetime({ offset: true }),
+  method: z.literal("deterministic-local-v1"),
+  state: z.object({
+    text: z.string().min(1),
+    evidence: z.array(evidenceReferenceSchema).min(1),
+  }),
+  sections: z.object({
+    work: briefSectionSchema,
+    knowledge: briefSectionSchema,
+    resources: briefSectionSchema,
+    activity: briefSectionSchema,
+    attention: briefSectionSchema,
+  }),
+  missing: z.object({
+    decisions: notRecordedSchema,
+    questions: notRecordedSchema,
+    blockers: notRecordedSchema,
+    acceptanceCriteria: notRecordedSchema,
+  }),
+  nextActions: z.object({
+    items: z.array(briefInferenceSchema),
+    scope: z.literal("preview_only"),
+    explanation: z.string().min(1),
+  }),
+});
+
+const distinctPacketIdsSchema = z
+  .array(z.uuid())
+  .max(10)
+  .refine(
+    (ids) => new Set(ids).size === ids.length,
+    "Selected IDs must be distinct",
+  );
+
+export const createExecutionPacketRequestSchema = z.object({
+  selectedKnowledgeIds: distinctPacketIdsSchema.optional(),
+  selectedResourceIds: distinctPacketIdsSchema.optional(),
+});
+
+export const executionPacketSnapshotSchema = z.object({
+  objective: z.object({
+    title: z.string().min(1),
+    description: z.string(),
+    status: z.enum(["open", "done"]),
+    evidence: z.array(evidenceReferenceSchema).min(2),
+  }),
+  projectContext: z.object({
+    id: z.uuid(),
+    name: z.string().min(1),
+    summary: z.string().nullable(),
+    type: z.string().min(1),
+    lifecycle: projectSummarySchema.shape.lifecycle,
+    evidence: evidenceReferenceSchema,
+  }),
+  selectedKnowledge: z.array(
+    z.object({
+      id: z.uuid(),
+      title: z.string().min(1),
+      evidence: evidenceReferenceSchema,
+    }),
+  ),
+  selectedResources: z.array(
+    z
+      .object({
+        id: z.uuid(),
+        linkId: z.uuid(),
+        linkType: projectResourceRelationshipTypeSchema,
+        evidence: evidenceReferenceSchema,
+      })
+      .strict(),
+  ),
+  missing: z.object({
+    acceptanceCriteria: notRecordedSchema,
+    verificationExpectations: notRecordedSchema,
+    taskConstraints: notRecordedSchema,
+  }),
+  authorization: z.object({
+    capabilityGrants: z.array(z.string()).length(0),
+    externalActions: z.literal("not_authorized"),
+    explanation: z.string().min(1),
+  }),
+});
+
+export const executionPacketSchema = z.object({
+  id: z.uuid(),
+  schemaVersion: z.literal("execution-packet/v1"),
+  packetVersion: z.number().int().min(1),
+  workItemId: z.uuid(),
+  projectId: z.uuid(),
+  sourceCaptureId: z.uuid(),
+  generatedAt: z.iso.datetime({ offset: true }),
+  contentDigest: z.string().regex(/^[a-f0-9]{64}$/),
+  snapshot: executionPacketSnapshotSchema,
+});
+
+export const listExecutionPacketsResponseSchema = z.object({
+  items: z.array(executionPacketSchema),
+  nextCursor: z.uuid().nullable(),
+});
+
 export const createSyntheticRunRequestSchema = z.object({
   idempotencyKey: z.string().trim().min(1).max(180),
 });
@@ -392,6 +552,9 @@ export const syntheticRunSchema = z.object({
 export type ResourceSummary = z.infer<typeof resourceSummarySchema>;
 export type ProjectSummary = z.infer<typeof projectSummarySchema>;
 export type ProjectResourceLink = z.infer<typeof projectResourceLinkSchema>;
+export type ProjectResourceLinkDetail = z.infer<
+  typeof projectResourceLinkDetailSchema
+>;
 export type CreateProjectRequest = z.infer<typeof createProjectRequestSchema>;
 export type CreateResourceRequest = z.infer<typeof createResourceRequestSchema>;
 export type CreateProjectResourceLinkRequest = z.infer<
@@ -417,5 +580,15 @@ export type SourceEnvelopeRecord = z.infer<typeof sourceEnvelopeSchema>;
 export type NormalizedSyntheticEvent = z.infer<typeof normalizedEventSchema>;
 export type SyntheticAlert = z.infer<typeof syntheticAlertSchema>;
 export type AttentionItem = z.infer<typeof attentionItemSchema>;
+export type EvidenceReference = z.infer<typeof evidenceReferenceSchema>;
+export type BriefFact = z.infer<typeof briefFactSchema>;
+export type ProjectBrief = z.infer<typeof projectBriefSchema>;
+export type CreateExecutionPacketRequest = z.infer<
+  typeof createExecutionPacketRequestSchema
+>;
+export type ExecutionPacketSnapshot = z.infer<
+  typeof executionPacketSnapshotSchema
+>;
+export type ExecutionPacket = z.infer<typeof executionPacketSchema>;
 export type SyntheticJobV1 = z.infer<typeof syntheticJobV1Schema>;
 export type SyntheticRunResponse = z.infer<typeof syntheticRunSchema>;

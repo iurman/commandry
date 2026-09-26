@@ -363,8 +363,87 @@ async function runSmoke(postgres, adminUrl, runtimePassword) {
     const realResource = await realResourceResponse.json();
     assert.equal(realResource.state, null);
     assert.equal(realResource.lastObservedAt, null);
+
+    async function fileSmokeRecord(kind, title, body, originalContent) {
+      const captureResponse = await fetch(`${origin}/api/v1/captures`, {
+        method: "POST",
+        headers: { "content-type": "application/json" },
+        body: JSON.stringify({ inputType: "text", originalContent }),
+      });
+      assert.equal(captureResponse.status, 201);
+      const capture = await captureResponse.json();
+      const fileResponse = await fetch(
+        `${origin}/api/v1/captures/${capture.id}/file`,
+        {
+          method: "POST",
+          headers: { "content-type": "application/json" },
+          body: JSON.stringify({
+            projectId: eventProject.id,
+            kind,
+            title,
+            body,
+          }),
+        },
+      );
+      assert.equal(fileResponse.status, 201);
+      return { capture, record: (await fileResponse.json()).record };
+    }
+
+    const task = await fileSmokeRecord(
+      "task",
+      `Smoke task ${key}`,
+      "Review the labeled local event evidence.",
+      `Original smoke task ${key}`,
+    );
+    const note = await fileSmokeRecord(
+      "note",
+      `Smoke note ${key}`,
+      "Selected context for packet smoke.",
+      `Original smoke note ${key}`,
+    );
+    const briefResponse = await fetch(
+      `${origin}/api/v1/projects/${eventProject.id}/brief`,
+    );
+    assert.equal(briefResponse.status, 200);
+    const brief = await briefResponse.json();
+    assert.equal(brief.project.id, eventProject.id);
+    assert.equal(brief.method, "deterministic-local-v1");
+    assert.ok(
+      brief.sections.work.items.some((item) => item.id === task.record.id),
+    );
+    assert.ok(brief.sections.activity.items.some((item) => item.isSynthetic));
+    const citedWorkResponse = await fetch(
+      `${origin}${brief.sections.work.items[0].evidence[0].href}`,
+    );
+    assert.equal(citedWorkResponse.status, 200);
+
+    const packetResponse = await fetch(
+      `${origin}/api/v1/work-items/${task.record.id}/execution-packets`,
+      {
+        method: "POST",
+        headers: { "content-type": "application/json" },
+        body: JSON.stringify({
+          selectedKnowledgeIds: [note.record.id],
+          selectedResourceIds: [eventResource.id],
+        }),
+      },
+    );
+    assert.equal(packetResponse.status, 201);
+    const packet = await packetResponse.json();
+    assert.equal(packet.packetVersion, 1);
+    assert.equal(packet.workItemId, task.record.id);
+    assert.equal(packet.snapshot.selectedKnowledge[0].id, note.record.id);
+    assert.equal(
+      packet.snapshot.authorization.externalActions,
+      "not_authorized",
+    );
+    const savedPacketResponse = await fetch(
+      `${origin}/api/v1/execution-packets/${packet.id}`,
+    );
+    assert.equal(savedPacketResponse.status, 200);
+    assert.deepEqual(await savedPacketResponse.json(), packet);
     console.log(
-      "Built web and worker smoke passed: health, resource pages, queue processing, synthetic event evidence, attention lifecycle, and real health isolation.",
+      "Built web and worker smoke passed: health, pagination, queue processing, synthetic attention lifecycle, real health isolation, cited brief, and immutable packet read.",
     );
   } finally {
     await Promise.all(services.reverse().map(stopService));

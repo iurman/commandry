@@ -17,6 +17,7 @@ import {
   type ResourceRecord,
 } from "../api";
 import ProjectContent from "./ProjectContent";
+import ProjectBriefPanel from "./ProjectBriefPanel";
 
 type RelationshipType = "supports" | "relates_to";
 
@@ -290,6 +291,8 @@ export default function ProjectWorkspace({ projectId }: { projectId: string }) {
               tone="neutral"
             />
           </header>
+
+          <ProjectBriefPanel projectId={projectId} />
 
           <div className="cmd-workspace-grid">
             <section

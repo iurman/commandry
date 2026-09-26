@@ -1292,3 +1292,366 @@ textarea {
   color: var(--cmd-accent);
   font-weight: 700;
 }
+
+.cmd-brief-panel {
+  margin: var(--cmd-space-8) 0 clamp(2rem, 5vw, 4rem);
+}
+
+.cmd-brief {
+  min-width: 0;
+  padding: clamp(1rem, 2.5vw, 2rem);
+  border: 1px solid var(--cmd-border);
+  border-top: 4px solid var(--cmd-accent);
+  border-radius: var(--cmd-radius);
+  background: var(--cmd-surface);
+}
+
+.cmd-brief-header,
+.cmd-packet-header {
+  display: flex;
+  align-items: start;
+  justify-content: space-between;
+  flex-wrap: wrap;
+  gap: var(--cmd-space-6);
+  min-width: 0;
+}
+
+.cmd-brief-header > div,
+.cmd-packet-header > div {
+  min-width: 0;
+}
+
+.cmd-brief h2,
+.cmd-packet h1 {
+  margin: 0;
+  font-family: "Iowan Old Style", "Palatino Linotype", Georgia, serif;
+  font-size: clamp(2rem, 4vw, 3.4rem);
+  font-weight: 500;
+  letter-spacing: -0.05em;
+  line-height: 1.1;
+}
+
+.cmd-brief h3,
+.cmd-packet h2 {
+  margin: 0 0 var(--cmd-space-3);
+  font-family: "Iowan Old Style", "Palatino Linotype", Georgia, serif;
+  font-size: clamp(1.3rem, 2.2vw, 1.7rem);
+  font-weight: 500;
+  letter-spacing: -0.03em;
+}
+
+.cmd-brief-header p,
+.cmd-brief-state p,
+.cmd-packet-section p {
+  overflow-wrap: anywhere;
+}
+
+.cmd-brief-times,
+.cmd-packet-meta {
+  display: grid;
+  gap: var(--cmd-space-2);
+  min-width: 0;
+  margin: 0;
+  padding: var(--cmd-space-4);
+  background: var(--cmd-surface-muted);
+  border-radius: var(--cmd-radius);
+  font-size: 0.78rem;
+  overflow-wrap: anywhere;
+}
+
+.cmd-brief-times div,
+.cmd-packet-meta div,
+.cmd-detail-facts div,
+.cmd-brief-gaps div,
+.cmd-packet-small-facts div {
+  display: grid;
+  grid-template-columns: minmax(5.5rem, 0.35fr) minmax(0, 1fr);
+  gap: var(--cmd-space-3);
+}
+
+.cmd-brief-times dt,
+.cmd-packet-meta dt,
+.cmd-detail-facts dt,
+.cmd-brief-gaps dt,
+.cmd-packet-small-facts dt {
+  color: var(--cmd-text-muted);
+  font-weight: 700;
+}
+
+.cmd-brief-times dd,
+.cmd-packet-meta dd,
+.cmd-detail-facts dd,
+.cmd-brief-gaps dd,
+.cmd-packet-small-facts dd {
+  min-width: 0;
+  margin: 0;
+  overflow-wrap: anywhere;
+}
+
+.cmd-brief-state {
+  margin: var(--cmd-space-8) 0;
+  padding: var(--cmd-space-4) 0;
+  border-block: 1px solid var(--cmd-border);
+}
+
+.cmd-brief-grid,
+.cmd-brief-lower,
+.cmd-packet-grid,
+.cmd-detail-layout,
+.cmd-packet-choice-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: clamp(1rem, 2vw, 2rem);
+  min-width: 0;
+}
+
+.cmd-brief-lower,
+.cmd-packet-grid + .cmd-packet-grid {
+  margin-top: clamp(1rem, 2vw, 2rem);
+}
+
+.cmd-brief-section,
+.cmd-packet-section,
+.cmd-detail-document,
+.cmd-detail-source {
+  min-width: 0;
+  padding: var(--cmd-space-4);
+  border: 1px solid var(--cmd-border);
+  border-radius: var(--cmd-radius);
+  background: var(--cmd-surface);
+  overflow-wrap: anywhere;
+}
+
+.cmd-brief-section .cmd-section-heading {
+  margin-bottom: var(--cmd-space-3);
+}
+
+.cmd-brief-section .cmd-section-heading h3 {
+  margin: 0;
+}
+
+.cmd-brief-facts,
+.cmd-packet-list,
+.cmd-packet-choice-list,
+.cmd-packet-history-list {
+  display: grid;
+  gap: var(--cmd-space-3);
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.cmd-brief-facts > li,
+.cmd-packet-list > li {
+  min-width: 0;
+  padding: var(--cmd-space-3);
+  border-left: 3px solid var(--cmd-border);
+  background: var(--cmd-surface-muted);
+}
+
+.cmd-brief-facts p,
+.cmd-packet-list p {
+  margin: var(--cmd-space-2) 0;
+}
+
+.cmd-brief-fact-heading {
+  display: flex;
+  justify-content: space-between;
+  flex-wrap: wrap;
+  gap: var(--cmd-space-2);
+}
+
+.cmd-brief-fact-heading span,
+.cmd-brief-evidence,
+.cmd-packet-evidence {
+  color: var(--cmd-text-muted);
+  font-size: 0.76rem;
+}
+
+.cmd-brief-evidence {
+  display: grid;
+  gap: var(--cmd-space-1);
+  margin: var(--cmd-space-3) 0 0;
+  padding: 0;
+  list-style: none;
+}
+
+.cmd-brief-evidence li,
+.cmd-packet-evidence {
+  display: flex;
+  align-items: baseline;
+  flex-wrap: wrap;
+  gap: var(--cmd-space-1) var(--cmd-space-3);
+  min-width: 0;
+  overflow-wrap: anywhere;
+}
+
+.cmd-brief a,
+.cmd-packet a,
+.cmd-detail-source a,
+.cmd-form-success a,
+.cmd-packet-history-list a {
+  color: var(--cmd-accent);
+  font-weight: 700;
+  text-underline-offset: 0.16em;
+}
+
+.cmd-brief-section-links {
+  display: flex;
+  align-items: baseline;
+  flex-wrap: wrap;
+  gap: var(--cmd-space-2) var(--cmd-space-4);
+  margin-top: var(--cmd-space-4);
+  font-size: 0.8rem;
+}
+
+.cmd-brief-section-links span,
+.cmd-brief-empty {
+  color: var(--cmd-text-muted);
+}
+
+.cmd-brief-gaps,
+.cmd-packet-small-facts,
+.cmd-detail-facts {
+  display: grid;
+  gap: var(--cmd-space-3);
+  margin: var(--cmd-space-4) 0 0;
+  font-size: 0.82rem;
+}
+
+.cmd-brief-refresh {
+  margin-top: var(--cmd-space-3);
+}
+
+.cmd-detail-layout {
+  grid-template-columns: minmax(0, 1.5fr) minmax(17rem, 0.9fr);
+  margin-bottom: clamp(1.5rem, 3vw, 2.5rem);
+}
+
+.cmd-detail-document h2,
+.cmd-detail-source h2,
+.cmd-packet-builder h2,
+.cmd-packet-history h2 {
+  margin: 0;
+  font-family: "Iowan Old Style", "Palatino Linotype", Georgia, serif;
+  font-size: clamp(1.5rem, 2.5vw, 2rem);
+  font-weight: 500;
+  letter-spacing: -0.04em;
+}
+
+.cmd-detail-body,
+.cmd-packet-text {
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+}
+
+.cmd-detail-body {
+  margin-top: var(--cmd-space-4);
+}
+
+.cmd-packet-builder,
+.cmd-packet-history {
+  margin: clamp(1.5rem, 3vw, 2.5rem) 0;
+}
+
+.cmd-packet-choice-group {
+  display: grid;
+  align-content: start;
+  gap: var(--cmd-space-3);
+  min-width: 0;
+  margin: 0;
+  padding: var(--cmd-space-4);
+  border: 1px solid var(--cmd-border);
+  border-radius: var(--cmd-radius);
+}
+
+.cmd-packet-choice-group legend {
+  padding-inline: var(--cmd-space-2);
+  font-weight: 700;
+}
+
+.cmd-packet-choice-list label {
+  display: flex;
+  align-items: start;
+  gap: var(--cmd-space-3);
+  padding: var(--cmd-space-3);
+  background: var(--cmd-surface-muted);
+  cursor: pointer;
+}
+
+.cmd-packet-choice-list input {
+  width: 1.2rem;
+  height: 1.2rem;
+  flex: none;
+  margin: 0.15rem 0 0;
+}
+
+.cmd-packet-choice-list span {
+  display: grid;
+  min-width: 0;
+  overflow-wrap: anywhere;
+}
+
+.cmd-packet-choice-list small,
+.cmd-packet-history-list time {
+  color: var(--cmd-text-muted);
+  overflow-wrap: anywhere;
+}
+
+.cmd-packet-history-list li {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  flex-wrap: wrap;
+  gap: var(--cmd-space-2);
+  padding: var(--cmd-space-3);
+  border: 1px solid var(--cmd-border);
+  border-radius: var(--cmd-radius);
+  background: var(--cmd-surface);
+}
+
+.cmd-packet {
+  min-width: 0;
+}
+
+.cmd-packet-notice {
+  margin: var(--cmd-space-6) 0;
+  padding: var(--cmd-space-4);
+  border-left: 3px solid var(--cmd-accent);
+  background: var(--cmd-surface-muted);
+}
+
+.cmd-packet-section > a {
+  display: inline-block;
+  margin: var(--cmd-space-2) var(--cmd-space-3) var(--cmd-space-2) 0;
+}
+
+.cmd-packet-section h3 {
+  margin: var(--cmd-space-2) 0;
+  font-size: 1rem;
+}
+
+.cmd-packet-evidence {
+  margin-top: var(--cmd-space-3);
+}
+
+@media (max-width: 48rem) {
+  .cmd-brief-grid,
+  .cmd-brief-lower,
+  .cmd-packet-grid,
+  .cmd-detail-layout,
+  .cmd-packet-choice-grid {
+    grid-template-columns: minmax(0, 1fr);
+  }
+}
+
+@media (max-width: 23rem) {
+  .cmd-brief-times div,
+  .cmd-packet-meta div,
+  .cmd-detail-facts div,
+  .cmd-brief-gaps div,
+  .cmd-packet-small-facts div {
+    grid-template-columns: minmax(0, 1fr);
+    gap: 0;
+  }
+}

@@ -13,6 +13,16 @@ export { SyntheticAttentionCard } from "./components/SyntheticAttentionCard";
 export type { SyntheticAttentionCardProps } from "./components/SyntheticAttentionCard";
 export { CaptureOriginal } from "./components/CaptureOriginal";
 export type { CaptureOriginalRecord } from "./components/CaptureOriginal";
+export { ProjectBrief } from "./components/ProjectBrief";
+export type {
+  ProjectBriefView,
+  ProjectBriefProps,
+} from "./components/ProjectBrief";
+export { ExecutionPacket } from "./components/ExecutionPacket";
+export type {
+  ExecutionPacketView,
+  ExecutionPacketProps,
+} from "./components/ExecutionPacket";
 export type { RelationshipResource } from "./components/RelationshipCard";
 export type { StatePanelState } from "./components/StatePanel";
 export type { StatusDimension, StatusTone } from "./components/StatusBadge";

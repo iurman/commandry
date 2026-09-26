@@ -4,6 +4,7 @@ import { fileURLToPath } from "node:url";
 import { z } from "zod";
 import {
   captureSchema,
+  createExecutionPacketRequestSchema,
   createSyntheticEventImportRequestSchema,
   createCaptureRequestSchema,
   createProjectRequestSchema,
@@ -12,6 +13,15 @@ import {
   createSyntheticRunRequestSchema,
   correlationMetadataSchema,
   errorResponseSchema,
+  evidenceReferenceSchema,
+  briefFactSchema,
+  briefSectionSchema,
+  briefInferenceSchema,
+  notRecordedSchema,
+  projectBriefSchema,
+  executionPacketSnapshotSchema,
+  executionPacketSchema,
+  listExecutionPacketsResponseSchema,
   fileCaptureRequestSchema,
   fileCaptureResponseSchema,
   healthResponseSchema,
@@ -29,6 +39,7 @@ import {
   listWorkItemsResponseSchema,
   normalizedEventSchema,
   projectResourceLinkSchema,
+  projectResourceLinkDetailSchema,
   projectSummarySchema,
   resourceSummarySchema,
   searchResponseSchema,
@@ -248,6 +259,25 @@ export function generateOpenApi(): string {
           },
         },
       },
+      "/api/v1/projects/{id}/brief": {
+        get: {
+          operationId: "getProjectBrief",
+          summary:
+            "Generate a deterministic evidence-linked project brief from one snapshot",
+          parameters: [idParameter],
+          responses: {
+            "200": {
+              description:
+                "Bounded project brief with evidence and continuation links",
+              content: jsonContent("ProjectBrief"),
+            },
+            "404": {
+              description: "Project not found",
+              content: jsonContent("ErrorResponse"),
+            },
+          },
+        },
+      },
       "/api/v1/projects/{id}/resources": {
         get: {
           operationId: "listProjectResources",
@@ -281,6 +311,23 @@ export function generateOpenApi(): string {
             },
             "409": {
               description: "Relationship already exists",
+              content: jsonContent("ErrorResponse"),
+            },
+          },
+        },
+      },
+      "/api/v1/project-resource-links/{id}": {
+        get: {
+          operationId: "getProjectResourceLink",
+          summary: "Read one exact typed project-resource relationship",
+          parameters: [idParameter],
+          responses: {
+            "200": {
+              description: "Typed link identity and persisted timestamp",
+              content: jsonContent("ProjectResourceLinkDetail"),
+            },
+            "404": {
+              description: "Project-resource link not found",
               content: jsonContent("ErrorResponse"),
             },
           },
@@ -353,6 +400,94 @@ export function generateOpenApi(): string {
             },
             "409": {
               description: "Capture already filed",
+              content: jsonContent("ErrorResponse"),
+            },
+          },
+        },
+      },
+      "/api/v1/work-items/{id}": {
+        get: {
+          operationId: "getWorkItem",
+          parameters: [idParameter],
+          responses: {
+            "200": {
+              description: "Exact work item and source capture reference",
+              content: jsonContent("WorkItem"),
+            },
+            "404": {
+              description: "Work item not found",
+              content: jsonContent("ErrorResponse"),
+            },
+          },
+        },
+      },
+      "/api/v1/knowledge-items/{id}": {
+        get: {
+          operationId: "getKnowledgeItem",
+          parameters: [idParameter],
+          responses: {
+            "200": {
+              description: "Exact knowledge note and source capture reference",
+              content: jsonContent("KnowledgeItem"),
+            },
+            "404": {
+              description: "Knowledge item not found",
+              content: jsonContent("ErrorResponse"),
+            },
+          },
+        },
+      },
+      "/api/v1/work-items/{id}/execution-packets": {
+        get: {
+          operationId: "listExecutionPacketsForWorkItem",
+          parameters: [idParameter, ...pageParameters],
+          responses: {
+            "200": {
+              description: "Packet versions with cursor continuation",
+              content: jsonContent("ListExecutionPacketsResponse"),
+            },
+            "404": {
+              description: "Work item not found",
+              content: jsonContent("ErrorResponse"),
+            },
+          },
+        },
+        post: {
+          operationId: "createExecutionPacket",
+          summary:
+            "Create an immutable packet with explicitly selected project context",
+          parameters: [idParameter],
+          requestBody: {
+            required: true,
+            content: jsonContent("CreateExecutionPacketRequest"),
+          },
+          responses: {
+            "201": {
+              description: "Created point-in-time packet",
+              content: jsonContent("ExecutionPacket"),
+            },
+            "400": {
+              description: "Invalid or cross-project selection",
+              content: jsonContent("ErrorResponse"),
+            },
+            "404": {
+              description: "Work item not found",
+              content: jsonContent("ErrorResponse"),
+            },
+          },
+        },
+      },
+      "/api/v1/execution-packets/{id}": {
+        get: {
+          operationId: "getExecutionPacket",
+          parameters: [idParameter],
+          responses: {
+            "200": {
+              description: "Immutable execution packet snapshot",
+              content: jsonContent("ExecutionPacket"),
+            },
+            "404": {
+              description: "Execution packet not found",
               content: jsonContent("ErrorResponse"),
             },
           },
@@ -660,6 +795,7 @@ export function generateOpenApi(): string {
         CreateProjectRequest: component(createProjectRequestSchema),
         ListProjectsResponse: component(listProjectsResponseSchema),
         ProjectResourceLink: component(projectResourceLinkSchema),
+        ProjectResourceLinkDetail: component(projectResourceLinkDetailSchema),
         CreateProjectResourceLinkRequest: component(
           createProjectResourceLinkRequestSchema,
         ),
@@ -677,6 +813,20 @@ export function generateOpenApi(): string {
         ListKnowledgeItemsResponse: component(listKnowledgeItemsResponseSchema),
         SearchResult: component(searchResultSchema),
         SearchResponse: component(searchResponseSchema),
+        EvidenceReference: component(evidenceReferenceSchema),
+        BriefFact: component(briefFactSchema),
+        BriefSection: component(briefSectionSchema),
+        NotRecorded: component(notRecordedSchema),
+        BriefInference: component(briefInferenceSchema),
+        ProjectBrief: component(projectBriefSchema),
+        CreateExecutionPacketRequest: component(
+          createExecutionPacketRequestSchema,
+        ),
+        ExecutionPacketSnapshot: component(executionPacketSnapshotSchema),
+        ExecutionPacket: component(executionPacketSchema),
+        ListExecutionPacketsResponse: component(
+          listExecutionPacketsResponseSchema,
+        ),
         CreateSyntheticEventImportRequest: component(
           createSyntheticEventImportRequestSchema,
         ),

@@ -289,6 +289,47 @@ export const knowledgeItem = pgTable(
   ],
 );
 
+export const executionPacket = pgTable(
+  "execution_packet",
+  {
+    id: uuid("id").primaryKey(),
+    workItemId: uuid("work_item_id")
+      .notNull()
+      .references(() => workItem.id, { onDelete: "restrict" }),
+    projectId: uuid("project_id")
+      .notNull()
+      .references(() => project.id, { onDelete: "restrict" }),
+    sourceCaptureId: uuid("source_capture_id")
+      .notNull()
+      .references(() => capture.id, { onDelete: "restrict" }),
+    packetVersion: integer("packet_version").notNull(),
+    schemaVersion: text("schema_version").notNull(),
+    snapshot: jsonb("snapshot").$type<Record<string, unknown>>().notNull(),
+    contentDigest: text("content_digest").notNull(),
+    generatedAt: timestamp("generated_at", { withTimezone: true }).notNull(),
+  },
+  (table) => [
+    uniqueIndex("execution_packet_work_version_idx").on(
+      table.workItemId,
+      table.packetVersion,
+    ),
+    index("execution_packet_project_generated_idx").on(
+      table.projectId,
+      table.generatedAt,
+      table.id,
+    ),
+    check("execution_packet_version_positive", sql`${table.packetVersion} > 0`),
+    check(
+      "execution_packet_schema_version_valid",
+      sql`${table.schemaVersion} = 'execution-packet/v1'`,
+    ),
+    check(
+      "execution_packet_digest_valid",
+      sql`${table.contentDigest} ~ '^[0-9a-f]{64}$'`,
+    ),
+  ],
+);
+
 export const syntheticEventImport = pgTable(
   "synthetic_event_import",
   {

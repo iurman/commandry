@@ -39,7 +39,15 @@ local experience lab.
   resource's real observed state or last observed time.
 - Briefs and execution packets will initially use deterministic assembly from
   stored records, with evidence links and generation time. This will not claim
-  semantic answer quality or resolve OQ-009.
+  semantic answer quality or resolve OQ-009. Brief sections may be bounded for
+  readability only when their full product population remains reachable through
+  continuation. Packet context will be explicitly selected, project-scoped,
+  immutable after generation, and linked to exact source records; it will not
+  include secret values or claim unrecorded acceptance criteria. Selected
+  resources will contribute only identity and exact project-link provenance,
+  never an external URL. When a resource has multiple active relationship
+  types, the local packet records the oldest active link (then ID) and names
+  that choice; relationship selection remains a future product question.
 - Scoped reads, agent runs, and higher-risk action review will use a local fake
   actor and simulated action. Approval will never invoke an external system.
   The local capability representation will remain replaceable while OQ-006,
@@ -48,7 +56,9 @@ local experience lab.
 ## Evidence expected before campaign completion
 
 - UI and API journeys persist and relate projects, resources, captures, work,
-  knowledge, synthetic signals, briefs, runs, and approvals in PostgreSQL.
+  knowledge, synthetic signals, packet snapshots, runs, and approvals in
+  PostgreSQL. Briefs are generated from a consistent database snapshot and
+  preserve links to their source records.
 - The separate worker processes the asynchronous local paths, retaining
   product-visible attempts, source evidence, and audit history.
 - Repository checks, meaningful unit and PostgreSQL integration tests, a

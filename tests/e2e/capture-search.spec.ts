@@ -149,4 +149,16 @@ test("filing keeps original captures and scoped search finds their records", asy
   );
   expect(resourceHit.href).toBe(`/resources/${resource.id}`);
   expect((await request.get(resourceHit.href)).status()).toBe(200);
+  const taskHit = scoped.items.find(
+    (item: { kind: string; id: string }) =>
+      item.kind === "task" && item.id === filedTask.record.id,
+  );
+  expect(taskHit.href).toBe(`/work-items/${filedTask.record.id}`);
+  expect((await request.get(taskHit.href)).status()).toBe(200);
+  const noteHit = scoped.items.find(
+    (item: { kind: string; id: string }) =>
+      item.kind === "note" && item.id === filedNote.record.id,
+  );
+  expect(noteHit.href).toBe(`/knowledge-items/${filedNote.record.id}`);
+  expect((await request.get(noteHit.href)).status()).toBe(200);
 });

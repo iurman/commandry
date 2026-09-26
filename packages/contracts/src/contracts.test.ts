@@ -1,6 +1,9 @@
 import { expect, test } from "vitest";
 import {
   createCaptureRequestSchema,
+  createExecutionPacketRequestSchema,
+  executionPacketSnapshotSchema,
+  projectResourceLinkDetailSchema,
   listResourcesQuerySchema,
   searchQuerySchema,
   syntheticJobV1Schema,
@@ -43,4 +46,45 @@ test("search requires a bounded term and scoped cursor", () => {
     false,
   );
   expect(searchQuerySchema.parse({ q: " timer " }).q).toBe("timer");
+});
+
+test("packet selection is bounded and distinct", () => {
+  const id = crypto.randomUUID();
+  expect(createExecutionPacketRequestSchema.parse({})).toEqual({});
+  expect(
+    createExecutionPacketRequestSchema.safeParse({
+      selectedKnowledgeIds: [id, id],
+    }).success,
+  ).toBe(false);
+  expect(
+    createExecutionPacketRequestSchema.safeParse({
+      selectedResourceIds: Array.from({ length: 11 }, () =>
+        crypto.randomUUID(),
+      ),
+    }).success,
+  ).toBe(false);
+});
+
+test("packet snapshot must be explicit about missing policy and no action grants", () => {
+  expect(
+    executionPacketSnapshotSchema.safeParse({
+      authorization: {
+        capabilityGrants: ["deploy"],
+        externalActions: "allowed",
+      },
+    }).success,
+  ).toBe(false);
+});
+
+test("exact project-resource link detail carries only identity, type, lifecycle, and time", () => {
+  const link = projectResourceLinkDetailSchema.parse({
+    id: crypto.randomUUID(),
+    projectId: crypto.randomUUID(),
+    resourceId: crypto.randomUUID(),
+    type: "supports",
+    lifecycle: "active",
+    createdAt: "2026-09-26T11:00:00.000Z",
+  });
+  expect(link.type).toBe("supports");
+  expect("externalUrl" in link).toBe(false);
 });

@@ -1,0 +1,220 @@
+import { createHash } from "node:crypto";
+import {
+  executionPacketSchema,
+  executionPacketSnapshotSchema,
+  type CreateExecutionPacketRequest,
+  type EvidenceReference,
+  type ExecutionPacket,
+  type ExecutionPacketSnapshot,
+  type KnowledgeItem,
+  type ProjectSummary,
+  type WorkItem,
+} from "@commandry/contracts";
+import {
+  canonicalPacketJson,
+  ExecutionPacketError,
+  validatePacketSelection,
+} from "@commandry/domain";
+
+export type ExecutionPacketSourceBundle = {
+  id: string;
+  packetVersion: number;
+  generatedAt: string;
+  project: ProjectSummary;
+  workItem: WorkItem;
+  sourceCapture: {
+    id: string;
+    inputType: "text" | "url";
+    source: "manual-local";
+    createdAt: string;
+  };
+  knowledge: KnowledgeItem[];
+  resources: Array<{
+    resourceId: string;
+    linkId: string;
+    linkType: "supports" | "relates_to";
+    linkedAt: string;
+  }>;
+};
+
+export type ExecutionPacketContents = {
+  snapshot: ExecutionPacketSnapshot;
+  contentDigest: string;
+};
+
+export type ExecutionPacketPage<T> = { items: T[]; nextCursor: string | null };
+export type StoredExecutionPacket = Omit<ExecutionPacket, "snapshot"> & {
+  snapshot: unknown;
+};
+
+export interface ExecutionPacketRepository {
+  create(
+    input: {
+      workItemId: string;
+      selectedKnowledgeIds: string[];
+      selectedResourceIds: string[];
+    },
+    build: (bundle: ExecutionPacketSourceBundle) => ExecutionPacketContents,
+  ): Promise<StoredExecutionPacket>;
+  getById(id: string): Promise<StoredExecutionPacket | null>;
+  listForWorkItem(
+    workItemId: string,
+    query: { limit: number; cursor?: string | undefined },
+  ): Promise<ExecutionPacketPage<StoredExecutionPacket>>;
+}
+
+function evidence(
+  kind: EvidenceReference["kind"],
+  id: string,
+  href: string,
+  recordedAt: string,
+  sourceLabel: string,
+): EvidenceReference {
+  return {
+    kind,
+    id,
+    href,
+    recordedAt,
+    occurredAt: null,
+    sourceLabel,
+    isSynthetic: false,
+  };
+}
+
+export function buildExecutionPacketContents(
+  bundle: ExecutionPacketSourceBundle,
+): ExecutionPacketContents {
+  const task = bundle.workItem;
+  if (
+    task.projectId !== bundle.project.id ||
+    task.sourceCaptureId !== bundle.sourceCapture.id ||
+    bundle.knowledge.some((note) => note.projectId !== bundle.project.id)
+  ) {
+    throw new ExecutionPacketError(
+      "INVALID_SELECTION",
+      "Packet sources must belong to the task's project and original capture",
+    );
+  }
+  const snapshot = executionPacketSnapshotSchema.parse({
+    objective: {
+      title: task.title,
+      description: task.description,
+      status: task.status,
+      evidence: [
+        evidence(
+          "work_item",
+          task.id,
+          `/api/v1/work-items/${task.id}`,
+          task.updatedAt,
+          "Manual local capture",
+        ),
+        evidence(
+          "capture",
+          bundle.sourceCapture.id,
+          `/api/v1/captures/${bundle.sourceCapture.id}`,
+          bundle.sourceCapture.createdAt,
+          "Manual local capture",
+        ),
+      ],
+    },
+    projectContext: {
+      id: bundle.project.id,
+      name: bundle.project.name,
+      summary: bundle.project.summary,
+      type: bundle.project.type,
+      lifecycle: bundle.project.lifecycle,
+      evidence: evidence(
+        "project",
+        bundle.project.id,
+        `/api/v1/projects/${bundle.project.id}`,
+        bundle.project.updatedAt,
+        "Project record",
+      ),
+    },
+    selectedKnowledge: [...bundle.knowledge]
+      .sort((left, right) => left.id.localeCompare(right.id))
+      .map((note) => ({
+        id: note.id,
+        title: note.title,
+        evidence: evidence(
+          "knowledge_item",
+          note.id,
+          `/api/v1/knowledge-items/${note.id}`,
+          note.updatedAt,
+          "Manual local capture",
+        ),
+      })),
+    selectedResources: [...bundle.resources]
+      .sort((left, right) => left.resourceId.localeCompare(right.resourceId))
+      .map(({ resourceId, linkId, linkType, linkedAt }) => ({
+        id: resourceId,
+        linkId,
+        linkType,
+        evidence: evidence(
+          "project_resource_link",
+          linkId,
+          `/api/v1/project-resource-links/${linkId}`,
+          linkedAt,
+          "Manual project resource link",
+        ),
+      })),
+    missing: {
+      acceptanceCriteria: {
+        status: "not_recorded",
+        message:
+          "Task acceptance criteria are not recorded in the local model.",
+      },
+      verificationExpectations: {
+        status: "not_recorded",
+        message:
+          "Task verification expectations are not recorded in the local model.",
+      },
+      taskConstraints: {
+        status: "not_recorded",
+        message:
+          "Task-specific constraints are not recorded in the local model.",
+      },
+    },
+    authorization: {
+      capabilityGrants: [],
+      externalActions: "not_authorized",
+      explanation:
+        "This context packet grants no capabilities. Action policy and approval must be evaluated separately.",
+    },
+  });
+  const contentDigest = createHash("sha256")
+    .update(canonicalPacketJson(snapshot))
+    .digest("hex");
+  return { snapshot, contentDigest };
+}
+
+export function createExecutionPacketService(
+  repository: ExecutionPacketRepository,
+) {
+  return {
+    async create(workItemId: string, input: CreateExecutionPacketRequest) {
+      const selectedKnowledgeIds = input.selectedKnowledgeIds ?? [];
+      const selectedResourceIds = input.selectedResourceIds ?? [];
+      validatePacketSelection(selectedKnowledgeIds, selectedResourceIds);
+      const stored = await repository.create(
+        { workItemId, selectedKnowledgeIds, selectedResourceIds },
+        buildExecutionPacketContents,
+      );
+      return executionPacketSchema.parse(stored);
+    },
+    async getById(id: string) {
+      const stored = await repository.getById(id);
+      return stored ? executionPacketSchema.parse(stored) : null;
+    },
+    async listForWorkItem(
+      workItemId: string,
+      query: { limit: number; cursor?: string | undefined },
+    ) {
+      const page = await repository.listForWorkItem(workItemId, query);
+      return {
+        items: page.items.map((item) => executionPacketSchema.parse(item)),
+        nextCursor: page.nextCursor,
+      };
+    },
+  };
+}
