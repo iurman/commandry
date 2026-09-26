@@ -1,10 +1,10 @@
 import assert from "node:assert/strict";
 import { createServer, request as httpRequest } from "node:http";
 import { test } from "node:test";
+import { localPreviewCredential } from "./lan-preview.mjs";
 import { createPhonePreviewServer } from "./phone-preview.mjs";
 
-const origin = "https://kronos.example.ts.net:8443";
-const credential = "temporary-review-gate-credential-12345";
+const loopback = { address: "127.0.0.1", prefix: 8 };
 
 function listen(server) {
   return new Promise((resolve, reject) => {
@@ -19,16 +19,26 @@ function close(server) {
 
 function request(port, pathname, options = {}) {
   const body = options.body ?? "";
+  const method = options.method ?? "GET";
+  const origin = `http://127.0.0.1:${port}`;
+  const credential = options.credential ?? localPreviewCredential;
   const headers = {
-    host: new URL(origin).host,
-    ...(options.auth
+    host: `127.0.0.1:${port}`,
+    ...(credential
       ? {
           authorization:
-            "Basic " + Buffer.from(`review:${options.auth}`).toString("base64"),
+            "Basic " +
+            Buffer.from(`${credential.user}:${credential.password}`).toString(
+              "base64",
+            ),
         }
       : {}),
-    ...(options.method && options.method !== "GET"
-      ? { "content-length": Buffer.byteLength(body) }
+    ...(method !== "GET"
+      ? {
+          "content-length": Buffer.byteLength(body),
+          origin,
+          "sec-fetch-site": "same-origin",
+        }
       : {}),
     ...options.headers,
   };
@@ -38,7 +48,7 @@ function request(port, pathname, options = {}) {
         hostname: "127.0.0.1",
         port,
         path: pathname,
-        method: options.method ?? "GET",
+        method,
         headers,
       },
       (response) => {
@@ -58,7 +68,7 @@ function request(port, pathname, options = {}) {
   });
 }
 
-test("phone gateway requires its own credential and confines full reads to the local MVP", async () => {
+test("full LAN gateway uses test/pass, strips the gate credential, and limits paths", async () => {
   const received = [];
   const upstream = createServer((incoming, response) => {
     received.push({
@@ -73,39 +83,38 @@ test("phone gateway requires its own credential and confines full reads to the l
   });
   const upstreamPort = await listen(upstream);
   const gateway = createPhonePreviewServer({
-    credential,
-    expectedOrigin: origin,
+    selected: loopback,
+    port: 0,
     upstreamPort,
   });
   const port = await listen(gateway);
   try {
-    assert.equal((await request(port, "/projects")).status, 401);
     assert.equal(
-      (await request(port, "/projects", { auth: "wrong" })).status,
+      (await request(port, "/projects", { credential: false })).status,
       401,
     );
     assert.equal(
       (
         await request(port, "/projects", {
-          auth: credential,
+          credential: { user: "test", password: "wrong" },
+        })
+      ).status,
+      401,
+    );
+    assert.equal(
+      (
+        await request(port, "/projects", {
           headers: { host: "unexpected.example" },
         })
       ).status,
       400,
     );
-    const page = await request(port, "/projects", { auth: credential });
+    const page = await request(port, "/projects");
     assert.equal(page.status, 200);
     assert.equal(page.body, "MVP /projects");
     assert.equal(page.headers["cache-control"], "no-store");
-    assert.equal(
-      (await request(port, "/api/v1/projects", { auth: credential })).status,
-      200,
-    );
-    assert.equal(
-      (await request(port, "/_next/static/chunk.js", { auth: credential }))
-        .status,
-      200,
-    );
+    assert.equal((await request(port, "/api/v1/projects")).status, 200);
+    assert.equal((await request(port, "/_next/static/chunk.js")).status, 200);
     for (const forbidden of [
       "/api/internal",
       "/auth/sign-in",
@@ -113,23 +122,20 @@ test("phone gateway requires its own credential and confines full reads to the l
       "/version",
       "/api/v1/../health/ready",
     ]) {
-      assert.equal(
-        (await request(port, forbidden, { auth: credential })).status,
-        403,
-      );
+      assert.equal((await request(port, forbidden)).status, 403);
     }
     assert.equal(received.length, 3);
     assert.equal(received[0].authorization, undefined);
     assert.equal(received[0].host, `127.0.0.1:${upstreamPort}`);
-    assert.equal(received[0].forwardedHost, new URL(origin).host);
-    assert.equal(received[0].forwardedProto, "https");
+    assert.equal(received[0].forwardedHost, `127.0.0.1:${port}`);
+    assert.equal(received[0].forwardedProto, "http");
   } finally {
     await close(gateway);
     await close(upstream);
   }
 });
 
-test("phone gateway accepts same-origin API writes and rejects cross-origin and oversized requests", async () => {
+test("full LAN gateway accepts same-origin API writes and rejects cross-origin requests", async () => {
   const received = [];
   const upstream = createServer((incoming, response) => {
     const chunks = [];
@@ -147,21 +153,16 @@ test("phone gateway accepts same-origin API writes and rejects cross-origin and 
   });
   const upstreamPort = await listen(upstream);
   const gateway = createPhonePreviewServer({
-    credential,
-    expectedOrigin: origin,
+    selected: loopback,
+    port: 0,
     upstreamPort,
   });
   const port = await listen(gateway);
   try {
     const valid = await request(port, "/api/v1/projects", {
-      auth: credential,
       method: "POST",
       body: '{"name":"Phone review"}',
-      headers: {
-        "content-type": "application/json",
-        origin,
-        "sec-fetch-site": "same-origin",
-      },
+      headers: { "content-type": "application/json" },
     });
     assert.equal(valid.status, 201);
     assert.equal(valid.body, '{"id":"local"}');
@@ -176,10 +177,9 @@ test("phone gateway accepts same-origin API writes and rejects cross-origin and 
     assert.equal(
       (
         await request(port, "/api/v1/projects", {
-          auth: credential,
           method: "POST",
           body: "{}",
-          headers: { origin: "https://other.example" },
+          headers: { origin: "http://other.example" },
         })
       ).status,
       403,
@@ -187,10 +187,9 @@ test("phone gateway accepts same-origin API writes and rejects cross-origin and 
     assert.equal(
       (
         await request(port, "/api/v1/projects", {
-          auth: credential,
           method: "POST",
           body: "{}",
-          headers: { origin, "sec-fetch-site": "cross-site" },
+          headers: { "sec-fetch-site": "cross-site" },
         })
       ).status,
       403,
@@ -198,10 +197,8 @@ test("phone gateway accepts same-origin API writes and rejects cross-origin and 
     assert.equal(
       (
         await request(port, "/projects", {
-          auth: credential,
           method: "POST",
           body: "{}",
-          headers: { origin },
         })
       ).status,
       405,
@@ -209,10 +206,9 @@ test("phone gateway accepts same-origin API writes and rejects cross-origin and 
     assert.equal(
       (
         await request(port, "/api/v1/projects", {
-          auth: credential,
           method: "POST",
           body: "{}",
-          headers: { origin, "content-length": "1048577" },
+          headers: { "content-length": "1048577" },
         })
       ).status,
       413,
@@ -224,49 +220,22 @@ test("phone gateway accepts same-origin API writes and rejects cross-origin and 
   }
 });
 
-test("phone gateway permits only restricted Tailnet HTTP or HTTPS and strong credentials", async () => {
-  assert.throws(() =>
-    createPhonePreviewServer({
-      credential,
-      expectedOrigin: "http://kronos.example.ts.net:8443",
-    }),
-  );
-  assert.throws(() =>
-    createPhonePreviewServer({
-      credential,
-      expectedOrigin: "http://10.0.0.73:3011",
-      allowedClientIp: "100.106.127.23",
-    }),
-  );
-  assert.throws(() =>
-    createPhonePreviewServer({
-      credential,
-      expectedOrigin: "http://100.67.164.61:3011",
-    }),
-  );
-  assert.throws(() =>
-    createPhonePreviewServer({
-      credential: "pass",
-      expectedOrigin: origin,
-    }),
-  );
-  const restricted = createPhonePreviewServer({
-    credential,
-    expectedOrigin: "http://100.67.164.61:3011",
-    allowedClientIp: "100.106.127.23",
+test("full LAN gateway rejects clients outside its selected subnet", async () => {
+  const gateway = createPhonePreviewServer({
+    selected: { address: "10.0.0.73", prefix: 24 },
+    port: 0,
   });
-  const port = await listen(restricted);
+  const port = await listen(gateway);
   try {
     assert.equal(
       (
         await request(port, "/", {
-          auth: credential,
-          headers: { host: "100.67.164.61:3011" },
+          headers: { host: `10.0.0.73:${port}` },
         })
       ).status,
       403,
     );
   } finally {
-    await close(restricted);
+    await close(gateway);
   }
 });

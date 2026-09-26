@@ -1,19 +1,13 @@
-import { createHash, randomBytes, timingSafeEqual } from "node:crypto";
-import { mkdirSync, readFileSync, writeFileSync } from "node:fs";
+import { createHash, timingSafeEqual } from "node:crypto";
 import { createServer, request as httpRequest } from "node:http";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
+import {
+  isClientInSubnet,
+  localPreviewCredential,
+  selectLanAddress,
+} from "./lan-preview.mjs";
 
-const repositoryRoot = path.resolve(
-  path.dirname(fileURLToPath(import.meta.url)),
-  "..",
-);
-const credentialPath = path.join(
-  repositoryRoot,
-  ".agent",
-  "phone-preview-credential",
-);
-const username = "review";
 const maximumBodyBytes = 1024 * 1024;
 const removedRequestHeaders = new Set([
   "authorization",
@@ -63,7 +57,7 @@ function hasCredential(header, credential) {
     .update(Buffer.from(match[1], "base64"))
     .digest();
   const expected = createHash("sha256")
-    .update(`${username}:${credential}`)
+    .update(`${credential.user}:${credential.password}`)
     .digest();
   return timingSafeEqual(received, expected);
 }
@@ -93,54 +87,32 @@ function isWrite(method) {
   return method !== "GET" && method !== "HEAD";
 }
 
-function tailnetIPv4(address) {
-  const parts = address.split(".");
-  if (parts.length !== 4 || parts.some((part) => !/^\d{1,3}$/.test(part)))
-    return false;
-  const bytes = parts.map(Number);
-  return (
-    bytes.every((byte) => byte >= 0 && byte <= 255) &&
-    bytes[0] === 100 &&
-    bytes[1] >= 64 &&
-    bytes[1] <= 127
-  );
-}
-
 export function createPhonePreviewServer({
-  credential,
-  expectedOrigin,
-  allowedClientIp,
+  selected,
+  port = 3011,
+  credential = localPreviewCredential,
   upstreamPort = 3010,
 }) {
-  const origin = new URL(expectedOrigin);
-  const tailnetDirect =
-    origin.protocol === "http:" &&
-    tailnetIPv4(origin.hostname) &&
-    tailnetIPv4(allowedClientIp ?? "");
-  if (
-    (origin.protocol !== "https:" && !tailnetDirect) ||
-    origin.pathname !== "/" ||
-    origin.search ||
-    origin.hash ||
-    !/^[A-Za-z0-9_-]{24,}$/.test(credential)
-  ) {
-    throw new Error(
-      "Phone preview needs HTTPS or a restricted Tailnet origin, plus a strong credential",
-    );
-  }
+  if (!selected?.address || !Number.isInteger(selected.prefix))
+    throw new Error("Select an active private LAN interface for phone review");
 
-  return createServer({ maxHeaderSize: 16384 }, (request, response) => {
+  const server = createServer({ maxHeaderSize: 16384 }, (request, response) => {
+    const exposedHost = `${selected.address}:${port || server.address()?.port}`;
+    const exposedOrigin = `http://${exposedHost}`;
     if (
-      allowedClientIp &&
-      request.socket.remoteAddress?.replace(/^::ffff:/, "") !== allowedClientIp
+      !isClientInSubnet(
+        request.socket.remoteAddress ?? "",
+        selected.address,
+        selected.prefix,
+      )
     )
-      return sendPlain(response, 403, "Client denied.\n");
-    if (request.headers.host !== origin.host)
+      return sendPlain(response, 403, "Client subnet denied.\n");
+    if (request.headers.host !== exposedHost)
       return sendPlain(response, 400, "Host denied.\n");
     if (!hasCredential(request.headers.authorization, credential))
       return sendPlain(response, 401, "Review credential required.\n", {
         "www-authenticate":
-          'Basic realm="Commandry temporary phone review", charset="UTF-8"',
+          'Basic realm="Commandry local phone review", charset="UTF-8"',
       });
     if (!permittedPath(request.url))
       return sendPlain(response, 403, "Path denied.\n");
@@ -159,7 +131,7 @@ export function createPhonePreviewServer({
           "Only versioned API writes are allowed.\n",
         );
       if (
-        request.headers.origin !== origin.origin ||
+        request.headers.origin !== exposedOrigin ||
         (request.headers["sec-fetch-site"] &&
           request.headers["sec-fetch-site"] !== "same-origin")
       )
@@ -177,8 +149,8 @@ export function createPhonePreviewServer({
       ),
     );
     headers.host = `127.0.0.1:${upstreamPort}`;
-    headers["x-forwarded-host"] = origin.host;
-    headers["x-forwarded-proto"] = origin.protocol.slice(0, -1);
+    headers["x-forwarded-host"] = exposedHost;
+    headers["x-forwarded-proto"] = "http";
 
     const upstream = httpRequest(
       {
@@ -200,7 +172,7 @@ export function createPhonePreviewServer({
           const localOrigin = `http://127.0.0.1:${upstreamPort}`;
           if (location.startsWith(localOrigin)) {
             responseHeaders.location =
-              origin.origin + location.slice(localOrigin.length);
+              exposedOrigin + location.slice(localOrigin.length);
           } else if (!location.startsWith("/")) {
             received.resume();
             return sendPlain(response, 502, "Upstream redirect denied.\n");
@@ -230,45 +202,25 @@ export function createPhonePreviewServer({
     request.on("aborted", () => upstream.destroy());
     request.pipe(upstream);
   });
-}
-
-function credentialFromFile() {
-  mkdirSync(path.dirname(credentialPath), { recursive: true, mode: 0o700 });
-  try {
-    return readFileSync(credentialPath, "utf8").trim();
-  } catch (error) {
-    if (error.code !== "ENOENT") throw error;
-    const credential = randomBytes(24).toString("base64url");
-    writeFileSync(credentialPath, credential + "\n", {
-      flag: "wx",
-      mode: 0o600,
-    });
-    return credential;
-  }
+  return server;
 }
 
 function main() {
-  if (
-    process.argv.length !== 6 ||
-    process.argv[2] !== "--origin" ||
-    process.argv[4] !== "--client"
-  ) {
-    throw new Error(
-      "Usage: pnpm preview:phone --origin http://TAILNET_IP:3011 --client PHONE_TAILNET_IP",
-    );
-  }
-  const expectedOrigin = process.argv[3];
-  const allowedClientIp = process.argv[5];
-  const server = createPhonePreviewServer({
-    credential: credentialFromFile(),
-    expectedOrigin,
-    allowedClientIp,
+  const args = process.argv.slice(2);
+  if (args.length !== 0 && (args.length !== 2 || args[0] !== "--host"))
+    throw new Error("Usage: pnpm preview:phone [--host PRIVATE_LAN_IPV4]");
+  const selected = selectLanAddress(args[1]);
+  const server = createPhonePreviewServer({ selected });
+  server.once("error", (error) => {
+    console.error(error.message);
+    process.exitCode = 1;
   });
-  server.listen(3011, new URL(expectedOrigin).hostname, () => {
-    console.log("Temporary phone preview: " + expectedOrigin);
-    console.log("Review user: " + username);
-    console.log("Review credential file: " + credentialPath);
-    console.log("Allowed Tailnet client: " + allowedClientIp);
+  server.listen(3011, selected.address, () => {
+    console.log(
+      `Full local MVP phone preview: http://${selected.address}:3011/`,
+    );
+    console.log("Local review gate: test / pass");
+    console.log("The gate is not product authentication.");
   });
   const stop = () => server.close();
   process.once("SIGINT", stop);
