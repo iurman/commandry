@@ -18,6 +18,8 @@ export function createRecordDetailRepository(db: CommandryDatabase) {
             title: row.title,
             description: row.description,
             status: row.status,
+            priority: row.priority,
+            dueOn: row.dueOn,
             createdAt: row.createdAt.toISOString(),
             updatedAt: row.updatedAt.toISOString(),
           }

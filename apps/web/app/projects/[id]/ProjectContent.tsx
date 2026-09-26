@@ -12,6 +12,8 @@ interface WorkItem {
   title: string;
   description: string;
   status: "open" | "done";
+  priority?: "low" | "normal" | "high" | null;
+  dueOn?: string | null;
   createdAt: string;
   updatedAt: string;
 }
@@ -136,6 +138,12 @@ export default function ProjectContent({ projectId }: { projectId: string }) {
           <span className={styles.meta}>{item.status}</span>
         </div>
         {item.description && <p>{item.description}</p>}
+        {(item.priority || item.dueOn) && (
+          <p>
+            {item.priority ? `${item.priority} priority` : "Priority unset"}
+            {item.dueOn ? ` / due ${item.dueOn} UTC` : ""}
+          </p>
+        )}
         <div className={styles.recordActions}>
           <a href={`/work-items/${encodeURIComponent(item.id)}`}>Open task</a>
           <a
@@ -168,6 +176,9 @@ export default function ProjectContent({ projectId }: { projectId: string }) {
         <div className={styles.actions}>
           <a className={styles.captureLink} href="/inbox">
             Open Inbox
+          </a>
+          <a className={styles.captureLink} href="/work">
+            Upcoming work
           </a>
           <a
             className={styles.captureLink}

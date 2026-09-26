@@ -1,8 +1,8 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import type { Notification } from "@commandry/contracts";
-import { chooseCommandCenterNextAction } from "@commandry/domain";
+import type { Notification, WorkItem } from "@commandry/contracts";
+import { chooseCommandCenterNextAction, workDueLabel } from "@commandry/domain";
 import {
   AppShell,
   Button,
@@ -10,6 +10,7 @@ import {
   StatePanel,
   StatusBadge,
   SyntheticEventCard,
+  UpcomingWorkCard,
 } from "@commandry/ui";
 import { apiJson, type PageResponse } from "./projects/api";
 import {
@@ -41,6 +42,9 @@ export default function HomePage() {
   const [events, setEvents] = useState<SyntheticEventRecord[]>([]);
   const [eventsLoading, setEventsLoading] = useState(true);
   const [eventsError, setEventsError] = useState<string | null>(null);
+  const [upcoming, setUpcoming] = useState<WorkItem[]>([]);
+  const [upcomingLoading, setUpcomingLoading] = useState(true);
+  const [upcomingError, setUpcomingError] = useState<string | null>(null);
 
   useEffect(() => {
     let active = true;
@@ -56,6 +60,24 @@ export default function HomePage() {
       })
       .finally(() => {
         if (active) setNotificationsLoading(false);
+      });
+    return () => {
+      active = false;
+    };
+  }, []);
+
+  useEffect(() => {
+    let active = true;
+    apiJson<PageResponse<WorkItem>>("/api/v1/work-items/upcoming?limit=3")
+      .then((page) => {
+        if (active) setUpcoming(page.items);
+      })
+      .catch((cause: unknown) => {
+        if (active)
+          setUpcomingError(message(cause, "Upcoming work is unavailable."));
+      })
+      .finally(() => {
+        if (active) setUpcomingLoading(false);
       });
     return () => {
       active = false;
@@ -146,6 +168,50 @@ export default function HomePage() {
       </div>
 
       <div className="cmd-panel-grid">
+        <StatePanel
+          description={
+            upcomingError ??
+            (upcoming.length === 0 && !upcomingLoading
+              ? "No open task has a local due date. Set one on a filed task to see it here."
+              : "Three earliest dated open tasks across projects. Dates use UTC calendar days.")
+          }
+          id="upcoming-title"
+          state={
+            upcomingLoading ? "loading" : upcomingError ? "error" : "normal"
+          }
+          title="Upcoming work"
+        >
+          {upcoming.length > 0 && !upcomingError && (
+            <ul className="cmd-record-list" aria-label="Upcoming tasks">
+              {upcoming.map((item) => {
+                if (!item.dueOn) return null;
+                const dueState = workDueLabel(
+                  item.dueOn,
+                  item.status,
+                  new Date().toISOString().slice(0, 10),
+                );
+                if (dueState === "none") return null;
+                return (
+                  <li key={item.id}>
+                    <UpcomingWorkCard
+                      task={{
+                        id: item.id,
+                        projectId: item.projectId,
+                        title: item.title,
+                        dueOn: item.dueOn,
+                        priority: item.priority ?? null,
+                        dueState,
+                      }}
+                    />
+                  </li>
+                );
+              })}
+            </ul>
+          )}
+          <p className="cmd-home-panel-link">
+            <a href="/work">Review all upcoming work</a>
+          </p>
+        </StatePanel>
         <StatePanel
           description={
             notificationsError ??

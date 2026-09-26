@@ -101,6 +101,16 @@ describe("Command Center", () => {
     ).toBeTruthy();
     expect(screen.getByText("No live sources")).toBeTruthy();
     expect(
+      await screen.findByText(
+        "No open task has a local due date. Set one on a filed task to see it here.",
+      ),
+    ).toBeTruthy();
+    expect(
+      screen
+        .getByRole("link", { name: "Review all upcoming work" })
+        .getAttribute("href"),
+    ).toBe("/work");
+    expect(
       screen.getByText(/Navigation opens the local workspaces/),
     ).toBeTruthy();
     expect(
@@ -124,6 +134,8 @@ describe("Command Center", () => {
       }
       if (path.startsWith("/api/v1/events"))
         return json({ items: [event], nextCursor: null });
+      if (path.startsWith("/api/v1/work-items/upcoming"))
+        return json({ items: [], nextCursor: null });
       return json({}, 404);
     });
     vi.stubGlobal("fetch", fetcher);
@@ -184,7 +196,7 @@ describe("Command Center", () => {
       ),
     );
     render(<HomePage />);
-    expect(await screen.findAllByText("Data unavailable")).toHaveLength(3);
+    expect(await screen.findAllByText("Data unavailable")).toHaveLength(4);
     expect(screen.getByText("No live sources")).toBeTruthy();
     expect(
       screen.queryByRole("link", { name: "Review captures in Inbox" }),

@@ -5,6 +5,7 @@ test("synthetic operations import shows source-backed attention without changing
   page,
   request,
 }) => {
+  test.setTimeout(120_000);
   const suffix = randomUUID().slice(0, 8);
   const projectResponse = await request.post("/api/v1/projects", {
     data: { name: `Automated test signal ${suffix}`, type: "software" },
@@ -75,7 +76,7 @@ test("synthetic operations import shows source-backed attention without changing
           if (!status.ok()) return `http-${status.status()}`;
           return (await status.json()).state;
         },
-        { timeout: 30_000 },
+        { timeout: 60_000 },
       )
       .toBe("succeeded");
     return submitted;

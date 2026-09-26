@@ -11,6 +11,10 @@ import {
   reviewCaptureTriageResponseSchema,
   captureTriageJobV1Schema,
   changeWorkItemStatusRequestSchema,
+  changeWorkItemPlanningRequestSchema,
+  workItemPlanningEventSchema,
+  listWorkItemPlanningEventsResponseSchema,
+  listUpcomingWorkResponseSchema,
   workItemStatusEventSchema,
   listWorkItemStatusEventsResponseSchema,
   createLocalAgentRequestSchema,
@@ -630,6 +634,54 @@ export function generateOpenApi(): string {
             "404": {
               description: "Work item not found",
               content: jsonContent("ErrorResponse"),
+            },
+          },
+        },
+      },
+      "/api/v1/work-items/{id}/planning": {
+        put: {
+          operationId: "changeWorkItemPlanning",
+          summary:
+            "Change optional task priority and date against a known revision",
+          parameters: [idParameter],
+          requestBody: {
+            required: true,
+            content: jsonContent("ChangeWorkItemPlanningRequest"),
+          },
+          responses: {
+            "200": {
+              description: "Updated task with preserved source reference",
+              content: jsonContent("WorkItem"),
+            },
+            "409": {
+              description: "Task planning changed concurrently or is unchanged",
+              content: jsonContent("ErrorResponse"),
+            },
+          },
+        },
+      },
+      "/api/v1/work-items/{id}/planning-events": {
+        get: {
+          operationId: "listWorkItemPlanningEvents",
+          summary: "List immutable local task planning changes",
+          parameters: [idParameter, ...pageParameters],
+          responses: {
+            "200": {
+              description: "Planning history page",
+              content: jsonContent("ListWorkItemPlanningEventsResponse"),
+            },
+          },
+        },
+      },
+      "/api/v1/work-items/upcoming": {
+        get: {
+          operationId: "listUpcomingWork",
+          summary: "List open dated tasks across projects in date order",
+          parameters: pageParameters,
+          responses: {
+            "200": {
+              description: "Upcoming work page with cursor continuation",
+              content: jsonContent("ListUpcomingWorkResponse"),
             },
           },
         },
@@ -1715,6 +1767,14 @@ export function generateOpenApi(): string {
         ),
         CaptureTriageJobV1: component(captureTriageJobV1Schema),
         WorkItem: component(workItemSchema),
+        ChangeWorkItemPlanningRequest: component(
+          changeWorkItemPlanningRequestSchema,
+        ),
+        WorkItemPlanningEvent: component(workItemPlanningEventSchema),
+        ListWorkItemPlanningEventsResponse: component(
+          listWorkItemPlanningEventsResponseSchema,
+        ),
+        ListUpcomingWorkResponse: component(listUpcomingWorkResponseSchema),
         ChangeWorkItemStatusRequest: component(
           changeWorkItemStatusRequestSchema,
         ),

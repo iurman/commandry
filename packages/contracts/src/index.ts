@@ -201,8 +201,37 @@ export const workItemSchema = z.object({
   title: z.string(),
   description: z.string(),
   status: z.enum(["open", "done"]),
+  priority: z.enum(["low", "normal", "high"]).nullable().optional(),
+  dueOn: z.iso.date().nullable().optional(),
   createdAt: z.iso.datetime({ offset: true }),
   updatedAt: z.iso.datetime({ offset: true }),
+});
+
+export const changeWorkItemPlanningRequestSchema = z.strictObject({
+  expectedUpdatedAt: z.iso.datetime({ offset: true }),
+  priority: z.enum(["low", "normal", "high"]).nullable(),
+  dueOn: z.iso.date().nullable(),
+});
+
+export const workItemPlanningEventSchema = z.object({
+  id: z.uuid(),
+  workItemId: z.uuid(),
+  previousPriority: z.enum(["low", "normal", "high"]).nullable(),
+  nextPriority: z.enum(["low", "normal", "high"]).nullable(),
+  previousDueOn: z.iso.date().nullable(),
+  nextDueOn: z.iso.date().nullable(),
+  actor: z.literal("local-user:unattributed"),
+  createdAt: z.iso.datetime({ offset: true }),
+});
+
+export const listWorkItemPlanningEventsResponseSchema = z.object({
+  items: z.array(workItemPlanningEventSchema),
+  nextCursor: z.uuid().nullable(),
+});
+
+export const listUpcomingWorkResponseSchema = z.object({
+  items: z.array(workItemSchema),
+  nextCursor: z.uuid().nullable(),
 });
 
 export const changeWorkItemStatusRequestSchema = z.strictObject({
@@ -1189,6 +1218,10 @@ export type CreateCaptureRequest = z.infer<typeof createCaptureRequestSchema>;
 export type Capture = z.infer<typeof captureSchema>;
 export type FileCaptureRequest = z.infer<typeof fileCaptureRequestSchema>;
 export type WorkItem = z.infer<typeof workItemSchema>;
+export type ChangeWorkItemPlanningRequest = z.infer<
+  typeof changeWorkItemPlanningRequestSchema
+>;
+export type WorkItemPlanningEvent = z.infer<typeof workItemPlanningEventSchema>;
 export type ChangeWorkItemStatusRequest = z.infer<
   typeof changeWorkItemStatusRequestSchema
 >;

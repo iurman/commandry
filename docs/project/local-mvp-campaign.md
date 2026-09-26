@@ -47,6 +47,13 @@ local experience lab.
   status as an expected value and append an immutable event. Live briefs will
   select currently open tasks, while already generated execution packets will
   keep their original task-status snapshot.
+- Local task priority (`low`, `normal`, `high`) and UTC calendar due date are
+  optional, editable planning metadata. An edit requires the displayed task
+  revision and appends an immutable local event. The cross-project upcoming
+  view orders dated open tasks by date and pages all matches. `Overdue` means
+  before the current UTC date, not a live external scheduling signal. These
+  priority labels and date semantics are provisional, not a canonical planning
+  policy or an automatic assignment of captured work.
 - The first task board will be a view over the same cursor-paged open/done task
   records as the list, using the same audited status operation. It will not
   introduce separate board copies or silently assign task priority. Manual

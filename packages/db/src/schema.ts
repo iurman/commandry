@@ -3,6 +3,7 @@ import {
   type AnyPgColumn,
   boolean,
   check,
+  date,
   index,
   integer,
   jsonb,
@@ -374,6 +375,8 @@ export const workItem = pgTable(
     status: text("status", { enum: ["open", "done"] })
       .notNull()
       .default("open"),
+    priority: text("priority", { enum: ["low", "normal", "high"] }),
+    dueOn: date("due_on", { mode: "string" }),
     createdAt: createdAt(),
     updatedAt: updatedAt(),
   },
@@ -382,12 +385,56 @@ export const workItem = pgTable(
       table.sourceCaptureId,
     ),
     index("work_item_project_id_idx").on(table.projectId, table.id),
+    index("work_item_upcoming_idx").on(table.status, table.dueOn, table.id),
     index("work_item_search_idx").using(
       "gin",
       sql`to_tsvector('simple', ${table.title} || ' ' || ${table.description})`,
     ),
     check("work_item_title_nonempty", sql`length(trim(${table.title})) > 0`),
     check("work_item_status_valid", sql`${table.status} in ('open', 'done')`),
+    check(
+      "work_item_priority_valid",
+      sql`${table.priority} is null or ${table.priority} in ('low', 'normal', 'high')`,
+    ),
+  ],
+);
+
+export const workItemPlanningEvent = pgTable(
+  "work_item_planning_event",
+  {
+    id: uuid("id").primaryKey(),
+    workItemId: uuid("work_item_id")
+      .notNull()
+      .references(() => workItem.id, { onDelete: "restrict" }),
+    previousPriority: text("previous_priority", {
+      enum: ["low", "normal", "high"],
+    }),
+    nextPriority: text("next_priority", {
+      enum: ["low", "normal", "high"],
+    }),
+    previousDueOn: date("previous_due_on", { mode: "string" }),
+    nextDueOn: date("next_due_on", { mode: "string" }),
+    actor: text("actor").notNull(),
+    createdAt: createdAt(),
+  },
+  (table) => [
+    index("work_item_planning_event_page_idx").on(
+      table.workItemId,
+      table.createdAt,
+      table.id,
+    ),
+    check(
+      "work_item_planning_event_changed",
+      sql`(${table.previousPriority} is distinct from ${table.nextPriority}) or (${table.previousDueOn} is distinct from ${table.nextDueOn})`,
+    ),
+    check(
+      "work_item_planning_event_actor_local",
+      sql`${table.actor} = 'local-user:unattributed'`,
+    ),
+    check(
+      "work_item_planning_event_priority_valid",
+      sql`(${table.previousPriority} is null or ${table.previousPriority} in ('low', 'normal', 'high')) and (${table.nextPriority} is null or ${table.nextPriority} in ('low', 'normal', 'high'))`,
+    ),
   ],
 );
 

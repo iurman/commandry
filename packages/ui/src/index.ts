@@ -20,6 +20,8 @@ export type { ResourceTreeRowView } from "./components/ResourceTreeRow";
 export { DecisionCard } from "./components/DecisionCard";
 export type { DecisionCardProps } from "./components/DecisionCard";
 export { AutomationCard } from "./components/AutomationCard";
+export { UpcomingWorkCard } from "./components/UpcomingWorkCard";
+export type { UpcomingWorkCardView } from "./components/UpcomingWorkCard";
 export type { AutomationCardView } from "./components/AutomationCard";
 export { NotificationCard } from "./components/NotificationCard";
 export type { NotificationCardView } from "./components/NotificationCard";

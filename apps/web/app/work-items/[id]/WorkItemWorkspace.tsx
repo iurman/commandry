@@ -3,6 +3,7 @@
 import { useEffect, useState, type FormEvent } from "react";
 import { AppShell, Button, RecordEmptyState } from "@commandry/ui";
 import type { ExecutionPacket } from "@commandry/contracts";
+import { workDueLabel } from "@commandry/domain";
 import {
   apiJson,
   pagePath,
@@ -17,6 +18,8 @@ interface WorkItemRecord {
   title: string;
   description: string;
   status: "open" | "done";
+  priority?: "low" | "normal" | "high" | null;
+  dueOn?: string | null;
   createdAt: string;
   updatedAt: string;
 }
@@ -27,6 +30,15 @@ interface WorkItemStatusEvent {
   previousStatus: "open" | "done";
   nextStatus: "open" | "done";
   actor: "local-user:unattributed";
+  createdAt: string;
+}
+
+interface WorkItemPlanningEvent {
+  id: string;
+  previousPriority: "low" | "normal" | "high" | null;
+  nextPriority: "low" | "normal" | "high" | null;
+  previousDueOn: string | null;
+  nextDueOn: string | null;
   createdAt: string;
 }
 
@@ -56,6 +68,16 @@ export default function WorkItemWorkspace({
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [statusUpdating, setStatusUpdating] = useState(false);
+  const [priorityDraft, setPriorityDraft] = useState("");
+  const [dueOnDraft, setDueOnDraft] = useState("");
+  const [planningSaving, setPlanningSaving] = useState(false);
+  const [planningError, setPlanningError] = useState<string | null>(null);
+  const [planningFeedback, setPlanningFeedback] = useState<string | null>(null);
+  const [planningHistory, setPlanningHistory] = useState<
+    WorkItemPlanningEvent[]
+  >([]);
+  const [planningCursor, setPlanningCursor] = useState<string | null>(null);
+  const [planningHistoryLoading, setPlanningHistoryLoading] = useState(false);
   const [statusError, setStatusError] = useState<string | null>(null);
   const [statusHistory, setStatusHistory] = useState<WorkItemStatusEvent[]>([]);
   const [statusHistoryCursor, setStatusHistoryCursor] = useState<string | null>(
@@ -89,6 +111,8 @@ export default function WorkItemWorkspace({
   const packetPath = `/api/v1/work-items/${encodeURIComponent(workItemId)}/execution-packets`;
   const statusPath = `/api/v1/work-items/${encodeURIComponent(workItemId)}/status`;
   const statusHistoryPath = `/api/v1/work-items/${encodeURIComponent(workItemId)}/status-events`;
+  const planningPath = `/api/v1/work-items/${encodeURIComponent(workItemId)}/planning`;
+  const planningHistoryPath = `/api/v1/work-items/${encodeURIComponent(workItemId)}/planning-events`;
   const currentItemId = item?.id;
 
   useEffect(() => {
@@ -97,7 +121,11 @@ export default function WorkItemWorkspace({
       `/api/v1/work-items/${encodeURIComponent(workItemId)}`,
     )
       .then((record) => {
-        if (active) setItem(record);
+        if (active) {
+          setItem(record);
+          setPriorityDraft(record.priority ?? "");
+          setDueOnDraft(record.dueOn ?? "");
+        }
       })
       .catch((cause: unknown) => {
         if (active) setError(errorMessage(cause, "Work item is unavailable."));
@@ -130,6 +158,76 @@ export default function WorkItemWorkspace({
       active = false;
     };
   }, [currentItemId, statusHistoryPath]);
+
+  useEffect(() => {
+    if (!currentItemId) return;
+    let active = true;
+    apiJson<PageResponse<WorkItemPlanningEvent>>(pagePath(planningHistoryPath))
+      .then((page) => {
+        if (!active) return;
+        setPlanningHistory(page.items);
+        setPlanningCursor(page.nextCursor);
+      })
+      .catch((cause: unknown) => {
+        if (active)
+          setPlanningError(
+            errorMessage(cause, "Planning history is unavailable."),
+          );
+      });
+    return () => {
+      active = false;
+    };
+  }, [currentItemId, planningHistoryPath]);
+
+  async function savePlanning(event: FormEvent<HTMLFormElement>) {
+    event.preventDefault();
+    if (!item || planningSaving) return;
+    setPlanningSaving(true);
+    setPlanningError(null);
+    setPlanningFeedback(null);
+    try {
+      const updated = await apiJson<WorkItemRecord>(planningPath, {
+        method: "PUT",
+        body: JSON.stringify({
+          expectedUpdatedAt: item.updatedAt,
+          priority: priorityDraft || null,
+          dueOn: dueOnDraft || null,
+        }),
+      });
+      setItem(updated);
+      setPriorityDraft(updated.priority ?? "");
+      setDueOnDraft(updated.dueOn ?? "");
+      setPlanningFeedback(
+        "Local task planning saved. Original capture preserved.",
+      );
+      const page = await apiJson<PageResponse<WorkItemPlanningEvent>>(
+        pagePath(planningHistoryPath),
+      );
+      setPlanningHistory(page.items);
+      setPlanningCursor(page.nextCursor);
+    } catch (cause) {
+      setPlanningError(errorMessage(cause, "Could not save task planning."));
+    } finally {
+      setPlanningSaving(false);
+    }
+  }
+
+  async function loadMorePlanningHistory() {
+    if (!planningCursor || planningHistoryLoading) return;
+    setPlanningHistoryLoading(true);
+    setPlanningError(null);
+    try {
+      const page = await apiJson<PageResponse<WorkItemPlanningEvent>>(
+        pagePath(planningHistoryPath, planningCursor),
+      );
+      setPlanningHistory((current) => [...current, ...page.items]);
+      setPlanningCursor(page.nextCursor);
+    } catch (cause) {
+      setPlanningError(errorMessage(cause, "Could not load planning history."));
+    } finally {
+      setPlanningHistoryLoading(false);
+    }
+  }
 
   async function changeStatus() {
     if (!item || statusUpdating) return;
@@ -398,6 +496,14 @@ export default function WorkItemWorkspace({
                   <dd>{item.status}</dd>
                 </div>
                 <div>
+                  <dt>Priority</dt>
+                  <dd>{item.priority ?? "Not set"}</dd>
+                </div>
+                <div>
+                  <dt>Due date</dt>
+                  <dd>{item.dueOn ?? "Not set"}</dd>
+                </div>
+                <div>
                   <dt>Work item ID</dt>
                   <dd>
                     <code>{item.id}</code>
@@ -424,6 +530,103 @@ export default function WorkItemWorkspace({
               </dl>
             </aside>
           </div>
+
+          <section
+            className="cmd-detail-document"
+            aria-labelledby="work-planning-heading"
+          >
+            <p className="cmd-eyebrow">Local work planning / Audited</p>
+            <h2 id="work-planning-heading">Priority and due date</h2>
+            <p>
+              Optional planning fields for this task. Dates are calendar days in
+              UTC. Completed tasks are excluded from upcoming work.
+            </p>
+            {item.dueOn && item.status === "open" && (
+              <p role="status">
+                {workDueLabel(
+                  item.dueOn,
+                  item.status,
+                  new Date().toISOString().slice(0, 10),
+                ) === "overdue"
+                  ? "Overdue"
+                  : workDueLabel(
+                        item.dueOn,
+                        item.status,
+                        new Date().toISOString().slice(0, 10),
+                      ) === "today"
+                    ? "Due today"
+                    : "Upcoming"}
+                : {item.dueOn} UTC
+              </p>
+            )}
+            <form className="cmd-form" onSubmit={savePlanning}>
+              <label htmlFor="work-priority">Priority</label>
+              <select
+                id="work-priority"
+                value={priorityDraft}
+                onChange={(event) => setPriorityDraft(event.target.value)}
+              >
+                <option value="">Not set</option>
+                <option value="low">Low</option>
+                <option value="normal">Normal</option>
+                <option value="high">High</option>
+              </select>
+              <label htmlFor="work-due-on">Due date (UTC)</label>
+              <input
+                id="work-due-on"
+                type="date"
+                value={dueOnDraft}
+                onChange={(event) => setDueOnDraft(event.target.value)}
+              />
+              <Button
+                type="submit"
+                disabled={
+                  planningSaving ||
+                  (priorityDraft === (item.priority ?? "") &&
+                    dueOnDraft === (item.dueOn ?? ""))
+                }
+              >
+                {planningSaving ? "Saving planning..." : "Save planning"}
+              </Button>
+            </form>
+            {planningFeedback && (
+              <p className="cmd-form-success" role="status">
+                {planningFeedback}
+              </p>
+            )}
+            {planningError && (
+              <p className="cmd-inline-state cmd-error" role="alert">
+                {planningError}
+              </p>
+            )}
+            <h3>Planning history</h3>
+            {planningHistory.length === 0 && !planningError && (
+              <p>No planning changes recorded.</p>
+            )}
+            {planningHistory.length > 0 && (
+              <ol className="cmd-detail-facts">
+                {planningHistory.map((entry) => (
+                  <li key={entry.id}>
+                    <time dateTime={entry.createdAt}>{entry.createdAt}</time>:
+                    priority {entry.previousPriority ?? "unset"} to{" "}
+                    {entry.nextPriority ?? "unset"}; due{" "}
+                    {entry.previousDueOn ?? "unset"} to{" "}
+                    {entry.nextDueOn ?? "unset"}.
+                  </li>
+                ))}
+              </ol>
+            )}
+            {planningCursor && (
+              <Button
+                disabled={planningHistoryLoading}
+                onClick={loadMorePlanningHistory}
+              >
+                {planningHistoryLoading
+                  ? "Loading..."
+                  : "Load older planning changes"}
+              </Button>
+            )}
+          </section>
 
           <section
             className="cmd-detail-document"
