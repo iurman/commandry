@@ -25,15 +25,10 @@ async function freeLoopbackPort() {
   return address.port;
 }
 
-async function runTests(connectionString, runtimePassword) {
+async function runTests(connectionString, runtimePassword, testPath) {
   const child = spawn(
     process.execPath,
-    [
-      "--import",
-      "tsx",
-      "--test",
-      "packages/platform/src/foundation.integration.test.ts",
-    ],
+    ["--import", "tsx", "--test", testPath],
     {
       cwd: root,
       env: {
@@ -251,19 +246,30 @@ const postgres = new EmbeddedPostgres({
 });
 
 let started = false;
+let failed = false;
 try {
   await postgres.initialise();
   await postgres.start();
   started = true;
   await postgres.createDatabase("commandry_integration");
   const connectionString = `postgresql://postgres:${password}@127.0.0.1:${port}/commandry_integration`;
-  await runTests(connectionString, runtimePassword);
+  await runTests(
+    connectionString,
+    runtimePassword,
+    "packages/platform/src/foundation.integration.test.ts",
+  );
   if (process.argv.includes("--smoke"))
     await runSmoke(postgres, connectionString, runtimePassword);
+  await runTests(
+    connectionString,
+    runtimePassword,
+    "packages/db/src/catalog-repository.integration.test.ts",
+  );
 } catch (error) {
-  process.exitCode = 1;
+  failed = true;
   console.error(error instanceof Error ? error.message : error);
 } finally {
   if (started) await postgres.stop();
   await rm(directory, { recursive: true, force: true });
 }
+if (failed) process.exitCode = 1;

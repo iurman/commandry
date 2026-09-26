@@ -1,4 +1,5 @@
 import assert from "node:assert/strict";
+import { readFileSync } from "node:fs";
 import { resolve } from "node:path";
 import { test } from "node:test";
 import { setTimeout as delay } from "node:timers/promises";
@@ -72,7 +73,13 @@ test(
           const migrationCount = await admin.query<{ count: string }>(
             "SELECT count(*) AS count FROM drizzle.__drizzle_migrations",
           );
-          assert.equal(Number(migrationCount.rows[0]?.count), 1);
+          const journal = JSON.parse(
+            readFileSync(resolve(migrationsDir, "meta/_journal.json"), "utf8"),
+          ) as { entries: unknown[] };
+          assert.equal(
+            Number(migrationCount.rows[0]?.count),
+            journal.entries.length,
+          );
         },
       );
 

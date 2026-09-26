@@ -2,7 +2,6 @@ import type { ReactNode } from "react";
 
 const plannedDestinations = [
   "Inbox",
-  "Projects",
   "Work",
   "Infrastructure",
   "Automations",
@@ -12,7 +11,13 @@ const plannedDestinations = [
   "Search",
 ] as const;
 
-export function AppShell({ children }: { children: ReactNode }) {
+export function AppShell({
+  children,
+  current = "Home",
+}: {
+  children: ReactNode;
+  current?: "Home" | "Projects";
+}) {
   return (
     <div className="cmd-shell">
       <a className="cmd-skip-link" href="#main-content">
@@ -25,11 +30,18 @@ export function AppShell({ children }: { children: ReactNode }) {
         </div>
         <nav aria-label="Main navigation" className="cmd-navigation">
           <a
-            aria-current="page"
-            className="cmd-nav-link cmd-nav-current"
+            aria-current={current === "Home" ? "page" : undefined}
+            className={`cmd-nav-link ${current === "Home" ? "cmd-nav-current" : ""}`}
             href="/"
           >
             Home
+          </a>
+          <a
+            aria-current={current === "Projects" ? "page" : undefined}
+            className={`cmd-nav-link ${current === "Projects" ? "cmd-nav-current" : ""}`}
+            href="/projects"
+          >
+            Projects
           </a>
           {plannedDestinations.map((destination) => (
             <span
@@ -44,7 +56,7 @@ export function AppShell({ children }: { children: ReactNode }) {
         </nav>
         <p className="cmd-sidebar-note">
           <span className="cmd-mobile-nav-hint">Swipe to see more. </span>
-          Planned destinations are visible for orientation and are not available
+          Other destinations are visible for orientation and are not available
           yet.
         </p>
       </aside>

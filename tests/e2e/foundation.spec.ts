@@ -8,14 +8,19 @@ test("local shell identifies unavailable data without claiming system health", a
   await expect(
     page.getByRole("heading", { name: "Command Center" }),
   ).toBeVisible();
-  await expect(
-    page.getByRole("navigation", { name: "Main navigation" }).getByRole("link"),
-  ).toHaveCount(1);
+  const navigation = page.getByRole("navigation", { name: "Main navigation" });
+  await expect(navigation.getByRole("link")).toHaveCount(2);
+  await expect(navigation.getByRole("link", { name: "Projects" })).toBeVisible();
   await expect(page.getByText("Not connected")).toBeVisible();
   await expect(page.getByText("No data")).toHaveCount(3);
   await expect(
     page.getByText(/does not report project or system health/),
   ).toBeVisible();
+  expect(
+    await page.evaluate(
+      () => document.documentElement.scrollWidth <= window.innerWidth,
+    ),
+  ).toBe(true);
 });
 
 test("liveness and version endpoints expose local operational metadata", async ({

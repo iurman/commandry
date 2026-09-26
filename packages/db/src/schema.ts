@@ -85,6 +85,32 @@ export const verification = pgTable(
 
 export const authSchema = { user, session, account, verification };
 
+export const project = pgTable(
+  "project",
+  {
+    id: uuid("id").primaryKey(),
+    name: text("name").notNull(),
+    summary: text("summary"),
+    type: text("type").notNull().default("general"),
+    lifecycle: text("lifecycle", {
+      enum: ["proposed", "active", "paused", "completed", "archived"],
+    })
+      .notNull()
+      .default("active"),
+    createdAt: createdAt(),
+    updatedAt: updatedAt(),
+  },
+  (table) => [
+    index("project_name_id_idx").on(table.name, table.id),
+    check("project_name_nonempty", sql`length(trim(${table.name})) > 0`),
+    check("project_type_nonempty", sql`length(trim(${table.type})) > 0`),
+    check(
+      "project_lifecycle_valid",
+      sql`${table.lifecycle} in ('proposed', 'active', 'paused', 'completed', 'archived')`,
+    ),
+  ],
+);
+
 export const resource = pgTable(
   "resource",
   {
@@ -102,6 +128,52 @@ export const resource = pgTable(
     index("resource_name_id_idx").on(table.name, table.id),
     check("resource_kind_nonempty", sql`length(trim(${table.kind})) > 0`),
     check("resource_name_nonempty", sql`length(trim(${table.name})) > 0`),
+  ],
+);
+
+export const projectResourceLink = pgTable(
+  "project_resource_link",
+  {
+    id: uuid("id").primaryKey(),
+    projectId: uuid("project_id")
+      .notNull()
+      .references(() => project.id, { onDelete: "cascade" }),
+    resourceId: uuid("resource_id")
+      .notNull()
+      .references(() => resource.id, { onDelete: "cascade" }),
+    type: text("type", { enum: ["supports", "relates_to"] }).notNull(),
+    sourceKind: text("source_kind", {
+      enum: ["project", "resource"],
+    }).notNull(),
+    targetKind: text("target_kind", {
+      enum: ["project", "resource"],
+    }).notNull(),
+    lifecycle: text("lifecycle", { enum: ["active", "archived"] })
+      .notNull()
+      .default("active"),
+    provenance: text("provenance").notNull().default("manual"),
+    createdAt: createdAt(),
+  },
+  (table) => [
+    uniqueIndex("project_resource_link_unique_idx").on(
+      table.projectId,
+      table.resourceId,
+      table.type,
+    ),
+    index("project_resource_link_project_id_idx").on(table.projectId, table.id),
+    index("project_resource_link_resource_id_idx").on(table.resourceId),
+    check(
+      "project_resource_link_direction_valid",
+      sql`(${table.type} = 'supports' and ${table.sourceKind} = 'resource' and ${table.targetKind} = 'project') or (${table.type} = 'relates_to' and ${table.sourceKind} = 'project' and ${table.targetKind} = 'resource')`,
+    ),
+    check(
+      "project_resource_link_lifecycle_valid",
+      sql`${table.lifecycle} in ('active', 'archived')`,
+    ),
+    check(
+      "project_resource_link_provenance_nonempty",
+      sql`length(trim(${table.provenance})) > 0`,
+    ),
   ],
 );
 

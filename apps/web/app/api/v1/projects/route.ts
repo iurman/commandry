@@ -1,9 +1,9 @@
 import { loadRuntimeConfig } from "@commandry/config";
 import {
-  createResourceRequestSchema,
-  listResourcesQuerySchema,
-  listResourcesResponseSchema,
-  resourceSummarySchema,
+  createProjectRequestSchema,
+  listProjectsQuerySchema,
+  listProjectsResponseSchema,
+  projectSummarySchema,
 } from "@commandry/contracts";
 import { catalogFailure, getCatalogService } from "../../../../lib/catalog";
 import { jsonResponse } from "../../../../lib/http";
@@ -13,52 +13,52 @@ export const dynamic = "force-dynamic";
 
 export async function GET(request: Request): Promise<Response> {
   loadRuntimeConfig();
-  const parsed = listResourcesQuerySchema.safeParse(
+  const parsed = listProjectsQuerySchema.safeParse(
     Object.fromEntries(new URL(request.url).searchParams),
   );
   if (!parsed.success) {
     return jsonResponse(
       request,
-      { code: "INVALID_QUERY", message: "Invalid resource page query" },
+      { code: "INVALID_QUERY", message: "Invalid project page query" },
       400,
-      "resources.invalid_query",
+      "projects.invalid_query",
     );
   }
   try {
-    const page = await getCatalogService().listResources(parsed.data);
+    const page = await getCatalogService().listProjects(parsed.data);
     return jsonResponse(
       request,
-      listResourcesResponseSchema.parse(page),
+      listProjectsResponseSchema.parse(page),
       200,
-      "resources.list",
+      "projects.list",
     );
   } catch (error) {
-    return catalogFailure(request, error, "resources.list");
+    return catalogFailure(request, error, "projects.list");
   }
 }
 
 export async function POST(request: Request): Promise<Response> {
   loadRuntimeConfig();
-  const parsed = createResourceRequestSchema.safeParse(
+  const parsed = createProjectRequestSchema.safeParse(
     await request.json().catch(() => undefined),
   );
   if (!parsed.success) {
     return jsonResponse(
       request,
-      { code: "INVALID_BODY", message: "Invalid resource" },
+      { code: "INVALID_BODY", message: "Invalid project" },
       400,
-      "resources.invalid_body",
+      "projects.invalid_body",
     );
   }
   try {
-    const created = await getCatalogService().createResource(parsed.data);
+    const created = await getCatalogService().createProject(parsed.data);
     return jsonResponse(
       request,
-      resourceSummarySchema.parse(created),
+      projectSummarySchema.parse(created),
       201,
-      "resources.create",
+      "projects.create",
     );
   } catch (error) {
-    return catalogFailure(request, error, "resources.create");
+    return catalogFailure(request, error, "projects.create");
   }
 }

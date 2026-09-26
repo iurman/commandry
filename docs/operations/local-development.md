@@ -157,6 +157,27 @@ when a feature needs it. The selected image tag and PostgreSQL 18 volume
 behavior are documented by [pgvector](https://github.com/pgvector/pgvector#docker)
 and the [PostgreSQL official image](https://hub.docker.com/_/postgres#pgdata).
 
+## Parallel local worktrees
+
+A second checkout can run beside the default stack without sharing its database
+or ports. Run `pnpm setup` inside that worktree so it has independent ignored
+secrets, then set these local-only values in its `.env.local`:
+
+```dotenv
+COMPOSE_PROJECT_NAME=commandry-mvp
+DB_VOLUME_NAME=commandry-mvp-postgres
+WEB_HOST_PORT=3010
+DB_HOST_PORT=5433
+APP_ORIGIN=http://127.0.0.1:3010
+```
+
+Change the port in that worktree's `DATABASE_URL` and
+`DATABASE_MIGRATION_URL` to `5433` as well. `pnpm compose:up` will then run a
+separate Compose project, named volume, and web endpoint. The production-shaped
+web container still listens on port 3000 internally. `pnpm lab` stays on
+loopback port 6006 and is not part of the Compose image. Use different host
+ports and names if those values are already occupied.
+
 ## Current limits
 
 The local Compose file is a development and verification artifact. VPS
