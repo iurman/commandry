@@ -15,6 +15,24 @@ describe("runtime configuration", () => {
     const config = loadRuntimeConfig({ ...valid, DB_POOL_MAX: "3" });
     expect(config.dbPoolMax).toBe(3);
     expect(config.bossPoolMax).toBe(5);
+    expect(config.localApprovalAutoCeiling).toBe("reversible");
+    expect(config.localApprovalTtlSeconds).toBe(3_600);
+  });
+
+  it("keeps the local simulated approval threshold below sensitive actions", () => {
+    const config = loadRuntimeConfig({
+      ...valid,
+      LOCAL_APPROVAL_AUTO_CEILING: "read_only",
+      LOCAL_APPROVAL_TTL_SECONDS: "300",
+    });
+    expect(config.localApprovalAutoCeiling).toBe("read_only");
+    expect(config.localApprovalTtlSeconds).toBe(300);
+    expect(() =>
+      loadRuntimeConfig({ ...valid, LOCAL_APPROVAL_AUTO_CEILING: "sensitive" }),
+    ).toThrow(ConfigurationError);
+    expect(() =>
+      loadRuntimeConfig({ ...valid, LOCAL_APPROVAL_TTL_SECONDS: "59" }),
+    ).toThrow(ConfigurationError);
   });
 
   it("does not leak a secret value in validation errors", () => {

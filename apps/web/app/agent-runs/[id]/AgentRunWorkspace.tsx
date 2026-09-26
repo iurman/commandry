@@ -7,10 +7,12 @@ import {
   LocalAgentAuditList,
   LocalAgentReadReceipt,
   LocalAgentRunPanel,
+  type ExecutionPacketView,
   type LocalAgentAuditView,
   type LocalAgentProfileView,
   type LocalAgentReadView,
   type LocalAgentRunView,
+  type SimulatedApprovalView,
 } from "@commandry/ui";
 import { apiJson, pagePath, type PageResponse } from "../../projects/api";
 
@@ -35,6 +37,17 @@ export default function AgentRunWorkspace({ runId }: { runId: string }) {
   const [readReceipt, setReadReceipt] = useState<LocalAgentReadView | null>(
     null,
   );
+  const [packetResources, setPacketResources] = useState<
+    ExecutionPacketView["snapshot"]["selectedResources"]
+  >([]);
+  const [packetResourcesLoading, setPacketResourcesLoading] = useState(true);
+  const [packetResourcesError, setPacketResourcesError] = useState<
+    string | null
+  >(null);
+  const [selectedResourceLinkId, setSelectedResourceLinkId] = useState("");
+  const [proposing, setProposing] = useState(false);
+  const [proposalError, setProposalError] = useState<string | null>(null);
+  const [proposal, setProposal] = useState<SimulatedApprovalView | null>(null);
 
   const loadAudit = useCallback(
     async (cursor?: string | null) => {
@@ -113,6 +126,69 @@ export default function AgentRunWorkspace({ runId }: { runId: string }) {
     };
   }, [run?.agentId]);
 
+  useEffect(() => {
+    if (run?.state !== "succeeded") return;
+    let active = true;
+    apiJson<ExecutionPacketView>(
+      `/api/v1/execution-packets/${encodeURIComponent(run.packetId)}`,
+    )
+      .then((packet) => {
+        if (!active) return;
+        setPacketResources(packet.snapshot.selectedResources);
+        setSelectedResourceLinkId((current) =>
+          packet.snapshot.selectedResources.some(
+            (resource) => resource.linkId === current,
+          )
+            ? current
+            : "",
+        );
+      })
+      .catch((cause: unknown) => {
+        if (active)
+          setPacketResourcesError(
+            message(cause, "Could not read packet-selected resources."),
+          );
+      })
+      .finally(() => {
+        if (active) setPacketResourcesLoading(false);
+      });
+    return () => {
+      active = false;
+    };
+  }, [run?.packetId, run?.state]);
+
+  async function proposeAction(event: FormEvent<HTMLFormElement>) {
+    event.preventDefault();
+    if (
+      !run ||
+      run.state !== "succeeded" ||
+      !selectedResourceLinkId ||
+      proposing
+    )
+      return;
+    setProposing(true);
+    setProposalError(null);
+    setProposal(null);
+    try {
+      const created = await apiJson<SimulatedApprovalView>(
+        `/api/v1/agent-runs/${encodeURIComponent(run.id)}/simulated-actions`,
+        {
+          method: "POST",
+          body: JSON.stringify({
+            projectResourceLinkId: selectedResourceLinkId,
+            mode: "graceful",
+            occurrenceId: crypto.randomUUID(),
+          }),
+        },
+      );
+      setProposal(created);
+    } catch (cause) {
+      setProposalError(message(cause, "Could not create the local proposal."));
+    } finally {
+      setProposing(false);
+    }
+  }
+
   async function readContext(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
     if (!run || !projectId.trim() || !reason.trim() || reading) return;
@@ -164,6 +240,96 @@ export default function AgentRunWorkspace({ runId }: { runId: string }) {
             run={run}
             {...(agent ? { agentName: agent.name } : {})}
           />
+          <section
+            className="cmd-approval-proposal"
+            aria-labelledby="proposal-heading"
+          >
+            <p className="cmd-eyebrow">Governed action / Local simulation</p>
+            <h2 id="proposal-heading">Create simulated action proposal</h2>
+            <p>
+              A completed fake run can propose only a graceful simulated restart
+              for a resource selected in its immutable packet. The review
+              request is sensitive, requires a local decision, and has no
+              external effect. The run&apos;s read grant does not become a write
+              capability.
+            </p>
+            {run.state !== "succeeded" && (
+              <p className="cmd-inline-state">
+                Proposal creation opens after this fake run succeeds.
+              </p>
+            )}
+            {packetResourcesLoading && (
+              <p className="cmd-inline-state" role="status">
+                Loading packet-selected resources...
+              </p>
+            )}
+            {packetResourcesError && (
+              <p className="cmd-inline-state cmd-error" role="alert">
+                {packetResourcesError}
+              </p>
+            )}
+            {run.state === "succeeded" &&
+              !packetResourcesLoading &&
+              !packetResourcesError &&
+              packetResources.length === 0 && (
+                <p className="cmd-inline-state">
+                  This packet selected no resource. Review the packet and
+                  generate a new version with an explicit resource selection.
+                </p>
+              )}
+            {run.state === "succeeded" && packetResources.length > 0 && (
+              <form
+                className="cmd-form"
+                onSubmit={(event) => void proposeAction(event)}
+              >
+                <label htmlFor="proposal-resource-link">
+                  Packet-selected resource link
+                </label>
+                <select
+                  id="proposal-resource-link"
+                  required
+                  value={selectedResourceLinkId}
+                  onChange={(event) =>
+                    setSelectedResourceLinkId(event.target.value)
+                  }
+                >
+                  <option value="">Select exact resource link</option>
+                  {packetResources.map((resource) => (
+                    <option key={resource.linkId} value={resource.linkId}>
+                      {resource.id} / {resource.linkType} / link{" "}
+                      {resource.linkId}
+                    </option>
+                  ))}
+                </select>
+                <p className="cmd-form-hint">
+                  Exact parameter: <code>mode=graceful</code>. Reason and
+                  expected result are fixed in the descriptor for this local
+                  simulation.
+                </p>
+                <Button
+                  type="submit"
+                  disabled={proposing || !selectedResourceLinkId}
+                >
+                  {proposing
+                    ? "Creating proposal..."
+                    : "Create proposal for review"}
+                </Button>
+              </form>
+            )}
+            {proposalError && (
+              <p className="cmd-form-error" role="alert">
+                {proposalError}
+              </p>
+            )}
+            {proposal && (
+              <p className="cmd-form-success" role="status">
+                Synthetic proposal recorded.{" "}
+                <a href={`/approvals/${encodeURIComponent(proposal.id)}`}>
+                  Review approval request
+                </a>
+              </p>
+            )}
+          </section>
           <section
             className="cmd-local-run-assignment"
             aria-labelledby="run-read-heading"

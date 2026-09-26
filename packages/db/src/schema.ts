@@ -492,6 +492,203 @@ export const localAgentRunGrant = pgTable(
   ],
 );
 
+/** The action descriptor is a historical snapshot, never a capability grant. */
+export const simulatedActionProposal = pgTable(
+  "simulated_action_proposal",
+  {
+    id: uuid("id").primaryKey(),
+    runId: uuid("run_id")
+      .notNull()
+      .references(() => localAgentRun.id, { onDelete: "restrict" }),
+    agentId: uuid("agent_id")
+      .notNull()
+      .references(() => localAgentProfile.id, { onDelete: "restrict" }),
+    packetId: uuid("packet_id")
+      .notNull()
+      .references(() => executionPacket.id, { onDelete: "restrict" }),
+    projectId: uuid("project_id")
+      .notNull()
+      .references(() => project.id, { onDelete: "restrict" }),
+    resourceId: uuid("resource_id")
+      .notNull()
+      .references(() => resource.id, { onDelete: "restrict" }),
+    linkId: uuid("link_id")
+      .notNull()
+      .references(() => projectResourceLink.id, { onDelete: "restrict" }),
+    schemaVersion: text("schema_version").notNull(),
+    descriptor: jsonb("descriptor").$type<Record<string, unknown>>().notNull(),
+    descriptorDigest: text("descriptor_digest").notNull(),
+    occurrenceId: text("occurrence_id").notNull(),
+    requestFingerprint: text("request_fingerprint").notNull(),
+    expiresAt: timestamp("expires_at", { withTimezone: true }).notNull(),
+    createdAt: createdAt(),
+  },
+  (table) => [
+    uniqueIndex("simulated_action_proposal_occurrence_idx").on(
+      table.occurrenceId,
+    ),
+    index("simulated_action_proposal_created_idx").on(
+      table.createdAt,
+      table.id,
+    ),
+    index("simulated_action_proposal_run_idx").on(table.runId),
+    index("simulated_action_proposal_project_idx").on(table.projectId),
+    check(
+      "simulated_action_proposal_schema_version_valid",
+      sql`${table.schemaVersion} = 'simulated-resource-restart/v1'`,
+    ),
+    check(
+      "simulated_action_proposal_digest_valid",
+      sql`${table.descriptorDigest} ~ '^[0-9a-f]{64}$'`,
+    ),
+    check(
+      "simulated_action_proposal_fingerprint_valid",
+      sql`${table.requestFingerprint} ~ '^[0-9a-f]{64}$'`,
+    ),
+    check(
+      "simulated_action_proposal_occurrence_nonempty",
+      sql`length(trim(${table.occurrenceId})) > 0`,
+    ),
+    check(
+      "simulated_action_proposal_expiry_valid",
+      sql`${table.expiresAt} > ${table.createdAt}`,
+    ),
+  ],
+);
+
+export const simulatedApprovalState = pgTable(
+  "simulated_approval_state",
+  {
+    proposalId: uuid("proposal_id")
+      .primaryKey()
+      .references(() => simulatedActionProposal.id, { onDelete: "restrict" }),
+    state: text("state", {
+      enum: ["pending", "approved", "rejected", "cancelled", "expired"],
+    })
+      .notNull()
+      .default("pending"),
+    decidedAt: timestamp("decided_at", { withTimezone: true }),
+    updatedAt: updatedAt(),
+  },
+  (table) => [
+    index("simulated_approval_state_state_idx").on(table.state),
+    check(
+      "simulated_approval_state_valid",
+      sql`${table.state} in ('pending', 'approved', 'rejected', 'cancelled', 'expired')`,
+    ),
+  ],
+);
+
+export const simulatedApprovalDecision = pgTable(
+  "simulated_approval_decision",
+  {
+    id: uuid("id").primaryKey(),
+    proposalId: uuid("proposal_id")
+      .notNull()
+      .references(() => simulatedActionProposal.id, { onDelete: "restrict" }),
+    occurrenceId: text("occurrence_id").notNull(),
+    decision: text("decision", {
+      enum: ["approved", "rejected", "cancelled", "expired"],
+    }).notNull(),
+    expectedDigest: text("expected_digest").notNull(),
+    actor: text("actor").notNull(),
+    createdAt: createdAt(),
+  },
+  (table) => [
+    uniqueIndex("simulated_approval_decision_once_idx").on(table.proposalId),
+    uniqueIndex("simulated_approval_decision_occurrence_idx").on(
+      table.occurrenceId,
+    ),
+    index("simulated_approval_decision_created_idx").on(
+      table.proposalId,
+      table.createdAt,
+      table.id,
+    ),
+    check(
+      "simulated_approval_decision_valid",
+      sql`${table.decision} in ('approved', 'rejected', 'cancelled', 'expired')`,
+    ),
+    check(
+      "simulated_approval_decision_digest_valid",
+      sql`${table.expectedDigest} ~ '^[0-9a-f]{64}$'`,
+    ),
+    check(
+      "simulated_approval_decision_occurrence_nonempty",
+      sql`length(trim(${table.occurrenceId})) > 0`,
+    ),
+  ],
+);
+
+export const simulatedApprovalAttempt = pgTable(
+  "simulated_approval_attempt",
+  {
+    id: uuid("id").primaryKey(),
+    proposalId: uuid("proposal_id")
+      .notNull()
+      .references(() => simulatedActionProposal.id, { onDelete: "restrict" }),
+    number: integer("number").notNull(),
+    state: text("state", { enum: ["running", "succeeded", "failed"] })
+      .notNull()
+      .default("running"),
+    error: text("error"),
+    startedAt: timestamp("started_at", { withTimezone: true })
+      .notNull()
+      .defaultNow(),
+    completedAt: timestamp("completed_at", { withTimezone: true }),
+  },
+  (table) => [
+    uniqueIndex("simulated_approval_attempt_number_idx").on(
+      table.proposalId,
+      table.number,
+    ),
+    check(
+      "simulated_approval_attempt_number_positive",
+      sql`${table.number} > 0`,
+    ),
+    check(
+      "simulated_approval_attempt_state_valid",
+      sql`${table.state} in ('running', 'succeeded', 'failed')`,
+    ),
+  ],
+);
+
+export const simulatedApprovalOutcome = pgTable(
+  "simulated_approval_outcome",
+  {
+    proposalId: uuid("proposal_id")
+      .primaryKey()
+      .references(() => simulatedActionProposal.id, { onDelete: "restrict" }),
+    kind: text("kind").notNull().default("simulated_only"),
+    verificationStatus: text("verification_status")
+      .notNull()
+      .default("unverified"),
+    externalActions: jsonb("external_actions").$type<unknown[]>().notNull(),
+    resourceStateChanged: boolean("resource_state_changed")
+      .notNull()
+      .default(false),
+    summary: text("summary").notNull(),
+    recordedAt: timestamp("recorded_at", { withTimezone: true }).notNull(),
+  },
+  (table) => [
+    check(
+      "simulated_approval_outcome_kind_valid",
+      sql`${table.kind} = 'simulated_only'`,
+    ),
+    check(
+      "simulated_approval_outcome_unverified",
+      sql`${table.verificationStatus} = 'unverified'`,
+    ),
+    check(
+      "simulated_approval_outcome_no_external_actions",
+      sql`${table.externalActions} = '[]'::jsonb`,
+    ),
+    check(
+      "simulated_approval_outcome_no_resource_change",
+      sql`${table.resourceStateChanged} = false`,
+    ),
+  ],
+);
+
 export const localAgentRunAttempt = pgTable(
   "local_agent_run_attempt",
   {
@@ -835,6 +1032,10 @@ export const auditEvent = pgTable(
       () => localAgentRun.id,
       { onDelete: "set null" },
     ),
+    targetApprovalId: uuid("target_approval_id").references(
+      () => simulatedActionProposal.id,
+      { onDelete: "restrict" },
+    ),
     details: jsonb("details")
       .$type<Record<string, string | number | boolean | null>>()
       .notNull()
@@ -846,6 +1047,11 @@ export const auditEvent = pgTable(
     index("audit_event_target_import_idx").on(table.targetImportId),
     index("audit_event_target_agent_run_idx").on(
       table.targetAgentRunId,
+      table.createdAt,
+      table.id,
+    ),
+    index("audit_event_target_approval_idx").on(
+      table.targetApprovalId,
       table.createdAt,
       table.id,
     ),

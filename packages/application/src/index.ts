@@ -7,3 +7,4 @@ export * from "./execution-packets";
 export * from "./local-agents";
 export * from "./local-agent-runs";
 export * from "./agent-context";
+export * from "./simulated-approvals";

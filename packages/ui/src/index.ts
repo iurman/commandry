@@ -39,6 +39,15 @@ export type {
   LocalAgentAuditView,
   LocalRunEvidenceView,
 } from "./components/LocalAgentRun";
+export {
+  SimulatedApprovalCard,
+  SimulatedApprovalPanel,
+  SimulatedApprovalAuditList,
+} from "./components/SimulatedApproval";
+export type {
+  SimulatedApprovalView,
+  SimulatedApprovalAuditView,
+} from "./components/SimulatedApproval";
 export type { RelationshipResource } from "./components/RelationshipCard";
 export type { StatePanelState } from "./components/StatePanel";
 export type { StatusDimension, StatusTone } from "./components/StatusBadge";

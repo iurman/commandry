@@ -21,6 +21,18 @@ import {
   agentContextReadResponseSchema,
   agentRunAuditEventSchema,
   listAgentRunAuditResponseSchema,
+  createSimulatedActionRequestSchema,
+  simulatedApprovalAutomaticCeilingSchema,
+  simulatedApprovalDescriptorSchema,
+  simulatedApprovalStateSchema,
+  simulatedApprovalDecisionRequestSchema,
+  simulatedApprovalDecisionSchema,
+  simulatedApprovalOutcomeSchema,
+  simulatedApprovalSchema,
+  listSimulatedApprovalsResponseSchema,
+  simulatedApprovalAuditEventSchema,
+  listSimulatedApprovalAuditResponseSchema,
+  simulatedApprovalJobV1Schema,
   createExecutionPacketRequestSchema,
   createSyntheticEventImportRequestSchema,
   createCaptureRequestSchema,
@@ -685,6 +697,154 @@ export function generateOpenApi(): string {
           },
         },
       },
+      "/api/v1/agent-runs/{id}/simulated-actions": {
+        post: {
+          operationId: "proposeSimulatedResourceRestart",
+          summary:
+            "Propose one exact packet-selected resource for a no-effect local restart simulation",
+          parameters: [idParameter],
+          requestBody: {
+            required: true,
+            content: jsonContent("CreateSimulatedActionRequest"),
+          },
+          responses: {
+            "201": {
+              description: "Pending or existing synthetic action proposal",
+              content: jsonContent("SimulatedApproval"),
+            },
+            "400": {
+              description: "Invalid action proposal input",
+              content: jsonContent("ErrorResponse"),
+            },
+            "403": {
+              description: "Local mode or target project scope denied",
+              content: jsonContent("ErrorResponse"),
+            },
+            "404": {
+              description: "Run, packet, or target link not found",
+              content: jsonContent("ErrorResponse"),
+            },
+            "409": {
+              description: "Packet, target, or occurrence conflict",
+              content: jsonContent("ErrorResponse"),
+            },
+          },
+        },
+      },
+      "/api/v1/approvals": {
+        get: {
+          operationId: "listSimulatedApprovals",
+          summary: "Page through provisional local simulated approvals",
+          parameters: [
+            ...pageParameters,
+            {
+              in: "query",
+              name: "state",
+              required: false,
+              schema: {
+                type: "string",
+                enum: [
+                  "pending",
+                  "approved",
+                  "rejected",
+                  "cancelled",
+                  "expired",
+                ],
+              },
+            },
+          ],
+          responses: {
+            "200": {
+              description: "Approval page with continuation cursor",
+              content: jsonContent("ListSimulatedApprovalsResponse"),
+            },
+            "400": {
+              description: "Invalid page query",
+              content: jsonContent("ErrorResponse"),
+            },
+            "403": {
+              description: "Only local and test approval review is available",
+              content: jsonContent("ErrorResponse"),
+            },
+          },
+        },
+      },
+      "/api/v1/approvals/{id}": {
+        get: {
+          operationId: "getSimulatedApproval",
+          parameters: [idParameter],
+          responses: {
+            "200": {
+              description:
+                "Exact immutable descriptor, decision, and no-effect outcome",
+              content: jsonContent("SimulatedApproval"),
+            },
+            "403": {
+              description: "Only local and test approval review is available",
+              content: jsonContent("ErrorResponse"),
+            },
+            "404": {
+              description: "Approval not found",
+              content: jsonContent("ErrorResponse"),
+            },
+          },
+        },
+      },
+      "/api/v1/approvals/{id}/decisions": {
+        post: {
+          operationId: "decideSimulatedApproval",
+          summary:
+            "Approve, reject, or cancel only the exact no-effect local descriptor",
+          parameters: [idParameter],
+          requestBody: {
+            required: true,
+            content: jsonContent("SimulatedApprovalDecisionRequest"),
+          },
+          responses: {
+            "200": {
+              description: "Decision and current approval state",
+              content: jsonContent("SimulatedApproval"),
+            },
+            "400": {
+              description: "Invalid decision input",
+              content: jsonContent("ErrorResponse"),
+            },
+            "403": {
+              description: "Only local and test approval review is available",
+              content: jsonContent("ErrorResponse"),
+            },
+            "404": {
+              description: "Approval not found",
+              content: jsonContent("ErrorResponse"),
+            },
+            "409": {
+              description: "Digest, occurrence, state, or expiry conflict",
+              content: jsonContent("ErrorResponse"),
+            },
+          },
+        },
+      },
+      "/api/v1/approvals/{id}/audit": {
+        get: {
+          operationId: "listSimulatedApprovalAudit",
+          parameters: [idParameter, ...pageParameters],
+          responses: {
+            "200": {
+              description:
+                "Cursor page of proposal, decisions, expiry and no-effect result",
+              content: jsonContent("ListSimulatedApprovalAuditResponse"),
+            },
+            "403": {
+              description: "Only local and test approval review is available",
+              content: jsonContent("ErrorResponse"),
+            },
+            "404": {
+              description: "Approval not found",
+              content: jsonContent("ErrorResponse"),
+            },
+          },
+        },
+      },
       "/api/v1/projects/{id}/work": {
         get: {
           operationId: "listProjectWork",
@@ -1042,6 +1202,32 @@ export function generateOpenApi(): string {
         AgentContextReadResponse: component(agentContextReadResponseSchema),
         AgentRunAuditEvent: component(agentRunAuditEventSchema),
         ListAgentRunAuditResponse: component(listAgentRunAuditResponseSchema),
+        CreateSimulatedActionRequest: component(
+          createSimulatedActionRequestSchema,
+        ),
+        SimulatedApprovalAutomaticCeiling: component(
+          simulatedApprovalAutomaticCeilingSchema,
+        ),
+        SimulatedApprovalDescriptor: component(
+          simulatedApprovalDescriptorSchema,
+        ),
+        SimulatedApprovalState: component(simulatedApprovalStateSchema),
+        SimulatedApprovalDecisionRequest: component(
+          simulatedApprovalDecisionRequestSchema,
+        ),
+        SimulatedApprovalDecision: component(simulatedApprovalDecisionSchema),
+        SimulatedApprovalOutcome: component(simulatedApprovalOutcomeSchema),
+        SimulatedApproval: component(simulatedApprovalSchema),
+        ListSimulatedApprovalsResponse: component(
+          listSimulatedApprovalsResponseSchema,
+        ),
+        SimulatedApprovalAuditEvent: component(
+          simulatedApprovalAuditEventSchema,
+        ),
+        ListSimulatedApprovalAuditResponse: component(
+          listSimulatedApprovalAuditResponseSchema,
+        ),
+        SimulatedApprovalJobV1: component(simulatedApprovalJobV1Schema),
         CreateSyntheticEventImportRequest: component(
           createSyntheticEventImportRequestSchema,
         ),

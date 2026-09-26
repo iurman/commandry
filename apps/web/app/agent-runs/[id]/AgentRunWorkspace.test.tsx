@@ -222,4 +222,63 @@ describe("fake local run workspace", () => {
       screen.queryByRole("button", { name: "Load more audit events" }),
     ).toBeNull();
   });
+
+  it("proposes only an exact packet-selected resource link for local review", async () => {
+    const linkId = "8939850f-5511-4d9c-901b-091ce2e61f49";
+    const approvalId = "688630d7-69fc-46b7-8e0e-dc656c042fee";
+    vi.stubGlobal("crypto", {
+      randomUUID: () => "33d534df-3398-4cfd-b835-74bdb4324d60",
+    });
+    const fetchMock = vi.fn(async (path: string, init?: RequestInit) => {
+      if (path === `/api/v1/agent-runs/${runId}`) return json(run);
+      if (path === `/api/v1/agents/${agentId}`)
+        return json({ id: agentId, name: "Harbor reader" });
+      if (path === `/api/v1/execution-packets/${packetId}`)
+        return json({
+          snapshot: {
+            selectedResources: [
+              {
+                id: "5201e394-c3a1-4968-babc-c96811df29a9",
+                linkId,
+                linkType: "uses",
+              },
+            ],
+          },
+        });
+      if (path.startsWith(`/api/v1/agent-runs/${runId}/audit`))
+        return json({ items: [allowed], nextCursor: null });
+      if (
+        path === `/api/v1/agent-runs/${runId}/simulated-actions` &&
+        init?.method === "POST"
+      )
+        return json({ id: approvalId });
+      return json({ message: "Unexpected request" }, 404);
+    });
+    vi.stubGlobal("fetch", fetchMock);
+    render(<AgentRunWorkspace runId={runId} />);
+    const target = await screen.findByRole("combobox", {
+      name: "Packet-selected resource link",
+    });
+    fireEvent.change(target, { target: { value: linkId } });
+    fireEvent.click(
+      screen.getByRole("button", { name: "Create proposal for review" }),
+    );
+    const link = await screen.findByRole("link", {
+      name: "Review approval request",
+    });
+    expect(link.getAttribute("href")).toBe(`/approvals/${approvalId}`);
+    const request = fetchMock.mock.calls.find(
+      (call) =>
+        call[0] === `/api/v1/agent-runs/${runId}/simulated-actions` &&
+        call[1]?.method === "POST",
+    );
+    expect(JSON.parse(String(request?.[1]?.body))).toEqual({
+      projectResourceLinkId: linkId,
+      mode: "graceful",
+      occurrenceId: "33d534df-3398-4cfd-b835-74bdb4324d60",
+    });
+    expect(
+      screen.getByText(/run.s read grant does not become a write/),
+    ).toBeTruthy();
+  });
 });

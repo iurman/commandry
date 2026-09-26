@@ -256,6 +256,7 @@ async function runSmoke(postgres, adminUrl, runtimePassword) {
       },
     );
     assert.equal(eventLinkResponse.status, 201);
+    const eventLink = await eventLinkResponse.json();
 
     async function importEvent(scenarioId, occurrenceId) {
       const response = await fetch(`${origin}/api/v1/synthetic-event-imports`, {
@@ -542,8 +543,64 @@ async function runSmoke(postgres, adminUrl, runtimePassword) {
     assert.equal(auditResponse.status, 200);
     const audit = await auditResponse.json();
     assert.ok(audit.items.length >= 3);
+
+    const proposalResponse = await fetch(
+      `${origin}/api/v1/agent-runs/${startedAgentRun.id}/simulated-actions`,
+      {
+        method: "POST",
+        headers: { "content-type": "application/json" },
+        body: JSON.stringify({
+          projectResourceLinkId: eventLink.id,
+          mode: "graceful",
+          occurrenceId: randomUUID(),
+        }),
+      },
+    );
+    assert.equal(proposalResponse.status, 201);
+    const proposal = await proposalResponse.json();
+    assert.equal(proposal.state, "pending");
+    assert.equal(proposal.descriptor.risk, "sensitive");
+    assert.equal(
+      proposal.descriptor.requiredCapability,
+      "infrastructure.restart",
+    );
+    assert.deepEqual(proposal.descriptor.externalActions, []);
+    const decisionResponse = await fetch(
+      `${origin}/api/v1/approvals/${proposal.id}/decisions`,
+      {
+        method: "POST",
+        headers: { "content-type": "application/json" },
+        body: JSON.stringify({
+          decision: "approve",
+          expectedDigest: proposal.descriptorDigest,
+          occurrenceId: randomUUID(),
+        }),
+      },
+    );
+    assert.equal(decisionResponse.status, 200);
+    assert.equal((await decisionResponse.json()).state, "approved");
+    let reviewedApproval;
+    const approvalDeadline = Date.now() + 20_000;
+    while (Date.now() < approvalDeadline) {
+      const response = await fetch(`${origin}/api/v1/approvals/${proposal.id}`);
+      assert.equal(response.status, 200);
+      reviewedApproval = await response.json();
+      if (reviewedApproval.outcome?.kind === "simulated_only") break;
+      await delay(150);
+    }
+    assert.equal(reviewedApproval?.outcome?.kind, "simulated_only");
+    assert.equal(reviewedApproval?.outcome?.verificationStatus, "unverified");
+    assert.equal(reviewedApproval?.outcome?.resourceStateChanged, false);
+    assert.deepEqual(reviewedApproval?.outcome?.externalActions, []);
+    const resourceAfterApproval = await fetch(
+      `${origin}/api/v1/resources/${eventResource.id}`,
+    );
+    assert.equal(resourceAfterApproval.status, 200);
+    const unchangedResource = await resourceAfterApproval.json();
+    assert.equal(unchangedResource.state, null);
+    assert.equal(unchangedResource.lastObservedAt, null);
     console.log(
-      "Built web and worker smoke passed: health, pagination, queue processing, synthetic attention lifecycle, real health isolation, cited brief, immutable packet, scoped fake agent run, and policy audit.",
+      "Built web and worker smoke passed: health, pagination, queue processing, synthetic attention lifecycle, real health isolation, cited brief, immutable packet, scoped fake agent run, policy audit, and no-effect simulated approval.",
     );
   } finally {
     await Promise.all(services.reverse().map(stopService));

@@ -677,6 +677,157 @@ export const listAgentRunAuditResponseSchema = z.object({
   nextCursor: z.uuid().nullable(),
 });
 
+// This provisional local action contract cannot carry commands, URLs, credentials,
+// arbitrary parameters, or claims about a real external effect.
+export const createSimulatedActionRequestSchema = z
+  .object({
+    projectResourceLinkId: z.uuid(),
+    mode: z.literal("graceful"),
+    occurrenceId: z.string().trim().min(1).max(180),
+  })
+  .strict();
+
+export const simulatedApprovalAutomaticCeilingSchema = z.enum([
+  "read_only",
+  "reversible",
+]);
+
+export const simulatedApprovalDescriptorSchema = z
+  .object({
+    schemaVersion: z.literal("simulated-resource-restart/v1"),
+    actionType: z.literal("simulated.resource.restart"),
+    intendedActor: z.object({ agentId: z.uuid(), runId: z.uuid() }).strict(),
+    proposedBy: z.literal("local-reviewer:unattributed"),
+    packet: z
+      .object({
+        id: z.uuid(),
+        version: z.number().int().min(1),
+        digest: z.string().regex(/^[a-f0-9]{64}$/),
+      })
+      .strict(),
+    target: z
+      .object({
+        projectId: z.uuid(),
+        resourceId: z.uuid(),
+        projectResourceLinkId: z.uuid(),
+      })
+      .strict(),
+    parameters: z.object({ mode: z.literal("graceful") }).strict(),
+    reason: z.literal(
+      "Demonstrate approval review for a synthetic local resource restart.",
+    ),
+    expectedResult: z.literal(
+      "Record a no-effect local simulation; resource state does not change.",
+    ),
+    risk: z.literal("sensitive"),
+    requiredCapability: z.literal("infrastructure.restart"),
+    policy: z
+      .object({
+        automaticCeiling: simulatedApprovalAutomaticCeilingSchema,
+        approvalRequired: z.literal(true),
+        grantScope: z.literal("simulation_only"),
+      })
+      .strict(),
+    reversibility: z
+      .object({
+        isApplicable: z.literal(false),
+        explanation: z.literal(
+          "No real change is made; rollback is not applicable.",
+        ),
+      })
+      .strict(),
+    expiresAt: z.iso.datetime({ offset: true }),
+    sourceLabel: z.literal("Synthetic local action proposal"),
+    isSynthetic: z.literal(true),
+    externalActions: z.array(z.string()).max(0),
+  })
+  .strict();
+
+export const simulatedApprovalStateSchema = z.enum([
+  "pending",
+  "approved",
+  "rejected",
+  "cancelled",
+  "expired",
+]);
+
+export const simulatedApprovalDecisionRequestSchema = z
+  .object({
+    decision: z.enum(["approve", "reject", "cancel"]),
+    expectedDigest: z.string().regex(/^[a-f0-9]{64}$/),
+    occurrenceId: z.string().trim().min(1).max(180),
+  })
+  .strict();
+
+export const simulatedApprovalDecisionSchema = z.object({
+  kind: simulatedApprovalDecisionRequestSchema.shape.decision,
+  actor: z.literal("local-reviewer:unattributed"),
+  occurrenceId: z.string().min(1),
+  decidedAt: z.iso.datetime({ offset: true }),
+});
+
+export const simulatedApprovalOutcomeSchema = z.object({
+  kind: z.literal("simulated_only"),
+  verificationStatus: z.literal("unverified"),
+  externalActions: z.array(z.string()).max(0),
+  resourceStateChanged: z.literal(false),
+  recordedAt: z.iso.datetime({ offset: true }),
+  summary: z.literal(
+    "Synthetic local restart simulation recorded. No external action occurred and resource state did not change.",
+  ),
+});
+
+export const simulatedApprovalSchema = z.object({
+  id: z.uuid(),
+  occurrenceId: z.string().min(1),
+  requestFingerprint: z.string().regex(/^[a-f0-9]{64}$/),
+  descriptorDigest: z.string().regex(/^[a-f0-9]{64}$/),
+  descriptor: simulatedApprovalDescriptorSchema,
+  state: simulatedApprovalStateSchema,
+  decision: simulatedApprovalDecisionSchema.nullable(),
+  outcome: simulatedApprovalOutcomeSchema.nullable(),
+  createdAt: z.iso.datetime({ offset: true }),
+  updatedAt: z.iso.datetime({ offset: true }),
+});
+
+export const listSimulatedApprovalsQuerySchema =
+  listResourcesQuerySchema.extend({
+    state: simulatedApprovalStateSchema.optional(),
+  });
+
+export const listSimulatedApprovalsResponseSchema = z.object({
+  items: z.array(simulatedApprovalSchema),
+  nextCursor: z.uuid().nullable(),
+});
+
+export const simulatedApprovalAuditEventSchema = z.object({
+  id: z.uuid(),
+  approvalId: z.uuid(),
+  eventType: z.enum([
+    "proposed",
+    "approved",
+    "rejected",
+    "cancelled",
+    "expired",
+    "simulation_recorded",
+  ]),
+  actor: z.enum(["local-reviewer:unattributed", "local-worker"]),
+  occurrenceId: z.string().nullable(),
+  detail: z.string().min(1),
+  createdAt: z.iso.datetime({ offset: true }),
+});
+
+export const listSimulatedApprovalAuditResponseSchema = z.object({
+  items: z.array(simulatedApprovalAuditEventSchema),
+  nextCursor: z.uuid().nullable(),
+});
+
+export const simulatedApprovalJobV1Schema = z.object({
+  version: z.literal(1),
+  approvalId: z.uuid(),
+  descriptorDigest: z.string().regex(/^[a-f0-9]{64}$/),
+});
+
 export const createSyntheticRunRequestSchema = z.object({
   idempotencyKey: z.string().trim().min(1).max(180),
 });
@@ -762,5 +913,27 @@ export type AgentContextReadResponse = z.infer<
   typeof agentContextReadResponseSchema
 >;
 export type AgentRunAuditEvent = z.infer<typeof agentRunAuditEventSchema>;
+export type CreateSimulatedActionRequest = z.infer<
+  typeof createSimulatedActionRequestSchema
+>;
+export type SimulatedApprovalAutomaticCeiling = z.infer<
+  typeof simulatedApprovalAutomaticCeilingSchema
+>;
+export type SimulatedApprovalDescriptor = z.infer<
+  typeof simulatedApprovalDescriptorSchema
+>;
+export type SimulatedApprovalState = z.infer<
+  typeof simulatedApprovalStateSchema
+>;
+export type SimulatedApprovalDecisionRequest = z.infer<
+  typeof simulatedApprovalDecisionRequestSchema
+>;
+export type SimulatedApproval = z.infer<typeof simulatedApprovalSchema>;
+export type SimulatedApprovalAuditEvent = z.infer<
+  typeof simulatedApprovalAuditEventSchema
+>;
+export type SimulatedApprovalJobV1 = z.infer<
+  typeof simulatedApprovalJobV1Schema
+>;
 export type SyntheticJobV1 = z.infer<typeof syntheticJobV1Schema>;
 export type SyntheticRunResponse = z.infer<typeof syntheticRunSchema>;

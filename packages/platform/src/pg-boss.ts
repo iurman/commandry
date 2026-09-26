@@ -2,17 +2,20 @@ import { and, eq, sql } from "drizzle-orm";
 import { PgBoss, fromDrizzle } from "pg-boss";
 import { Pool } from "pg";
 import type {
+  PreparedSimulatedApprovalDecision,
   PreparedLocalAgentRun,
   PreparedSyntheticEventImport,
 } from "@commandry/application";
 import type { CommandryDatabase } from "@commandry/db";
 import {
   createLocalAgentRunRepository,
+  createSimulatedApprovalRepository,
   createSyntheticEventImportRepository,
   schema,
 } from "@commandry/db";
 import {
   LocalAgentError,
+  SimulatedApprovalError,
   SyntheticEventImportConflictError,
   type SyntheticRun,
 } from "@commandry/domain";
@@ -26,6 +29,9 @@ export const SYNTHETIC_EVENT_IMPORT_DEAD_LETTER_QUEUE =
 export const LOCAL_AGENT_RUN_QUEUE = "commandry-local-agent-run-v1";
 export const LOCAL_AGENT_RUN_DEAD_LETTER_QUEUE =
   "commandry-local-agent-run-dlq";
+export const SIMULATED_APPROVAL_QUEUE = "commandry-simulated-approval-v1";
+export const SIMULATED_APPROVAL_DEAD_LETTER_QUEUE =
+  "commandry-simulated-approval-dlq";
 
 function bossOptions(connectionString: string, max: number, migrate: boolean) {
   return {
@@ -68,6 +74,13 @@ export async function installPgBossSchema(options: {
       retryDelay: 1,
       retryBackoff: true,
       deadLetter: LOCAL_AGENT_RUN_DEAD_LETTER_QUEUE,
+    });
+    await boss.createQueue(SIMULATED_APPROVAL_DEAD_LETTER_QUEUE);
+    await boss.createQueue(SIMULATED_APPROVAL_QUEUE, {
+      retryLimit: 3,
+      retryDelay: 1,
+      retryBackoff: true,
+      deadLetter: SIMULATED_APPROVAL_DEAD_LETTER_QUEUE,
     });
   } finally {
     await boss.stop();
@@ -393,6 +406,204 @@ export function createLocalAgentRunSubmission(
       const record = await repository.getById(runId);
       if (!record) throw new Error("Queued local agent run disappeared");
       return record;
+    },
+  };
+}
+
+/** A reviewer decision, immutable history, audit, and optional local job commit together. */
+export function createSimulatedApprovalDecisionSubmission(
+  db: CommandryDatabase,
+  boss: PgBoss,
+) {
+  const repository = createSimulatedApprovalRepository(db);
+  return {
+    async decideOnce(input: PreparedSimulatedApprovalDecision) {
+      const now = new Date();
+      const result = await db.transaction(async (tx) => {
+        const [state] = await tx
+          .select()
+          .from(schema.simulatedApprovalState)
+          .where(eq(schema.simulatedApprovalState.proposalId, input.id))
+          .for("update")
+          .limit(1);
+        if (!state) {
+          throw new SimulatedApprovalError(
+            "APPROVAL_NOT_FOUND",
+            "Approval was not found",
+          );
+        }
+        const [proposal] = await tx
+          .select()
+          .from(schema.simulatedActionProposal)
+          .where(eq(schema.simulatedActionProposal.id, input.id))
+          .limit(1);
+        if (!proposal) throw new Error("Approval state has no proposal");
+        if (proposal.descriptorDigest !== input.expectedDigest) {
+          throw new SimulatedApprovalError(
+            "DIGEST_MISMATCH",
+            "Decision digest does not match the exact action descriptor",
+          );
+        }
+        const [existing] = await tx
+          .select()
+          .from(schema.simulatedApprovalDecision)
+          .where(eq(schema.simulatedApprovalDecision.proposalId, input.id))
+          .limit(1);
+        const targetState = {
+          approve: "approved" as const,
+          reject: "rejected" as const,
+          cancel: "cancelled" as const,
+        }[input.decision];
+        if (existing) {
+          if (
+            existing.occurrenceId === input.occurrenceId &&
+            existing.decision === targetState
+          ) {
+            return { id: input.id, error: null };
+          }
+          if (existing.occurrenceId === input.occurrenceId) {
+            throw new SimulatedApprovalError(
+              "OCCURRENCE_CONFLICT",
+              "Decision occurrence ID was already used for another outcome",
+            );
+          }
+          throw new SimulatedApprovalError(
+            state.state === "expired"
+              ? "APPROVAL_EXPIRED"
+              : "APPROVAL_NOT_PENDING",
+            "Approval already has a final decision",
+          );
+        }
+        if (state.state !== "pending") {
+          throw new SimulatedApprovalError(
+            state.state === "expired"
+              ? "APPROVAL_EXPIRED"
+              : "APPROVAL_NOT_PENDING",
+            "Approval is no longer pending",
+          );
+        }
+        if (proposal.expiresAt <= now) {
+          await tx
+            .update(schema.simulatedApprovalState)
+            .set({ state: "expired", decidedAt: now, updatedAt: now })
+            .where(eq(schema.simulatedApprovalState.proposalId, input.id));
+          await tx.insert(schema.simulatedApprovalDecision).values({
+            id: crypto.randomUUID(),
+            proposalId: input.id,
+            occurrenceId: `expiry:${input.id}`,
+            decision: "expired",
+            expectedDigest: proposal.descriptorDigest,
+            actor: "local-worker",
+            createdAt: now,
+          });
+          await tx.insert(schema.auditEvent).values({
+            id: crypto.randomUUID(),
+            targetApprovalId: input.id,
+            actor: "local-worker",
+            operation: "simulated_approval.expired",
+            details: {
+              eventType: "expired",
+              occurrenceId: null,
+              detail:
+                "Pending local simulation proposal expired without an external action.",
+            },
+            createdAt: now,
+          });
+          return {
+            id: input.id,
+            error: new SimulatedApprovalError(
+              "APPROVAL_EXPIRED",
+              "Approval request expired",
+            ),
+          };
+        }
+        if (input.decision === "approve") {
+          const [link] = await tx
+            .select()
+            .from(schema.projectResourceLink)
+            .where(eq(schema.projectResourceLink.id, proposal.linkId))
+            .for("share")
+            .limit(1);
+          const [target] = await tx
+            .select({ id: schema.resource.id })
+            .from(schema.resource)
+            .where(eq(schema.resource.id, proposal.resourceId))
+            .limit(1);
+          if (
+            !link ||
+            link.lifecycle !== "active" ||
+            link.resourceId !== proposal.resourceId ||
+            link.projectId !== proposal.projectId ||
+            !target
+          ) {
+            throw new SimulatedApprovalError(
+              "LINK_NOT_ACTIVE",
+              "Target link or resource is no longer active",
+            );
+          }
+        }
+        const [decision] = await tx
+          .insert(schema.simulatedApprovalDecision)
+          .values({
+            id: crypto.randomUUID(),
+            proposalId: input.id,
+            occurrenceId: input.occurrenceId,
+            decision: targetState,
+            expectedDigest: input.expectedDigest,
+            actor: "local-reviewer:unattributed",
+            createdAt: now,
+          })
+          .onConflictDoNothing({
+            target: schema.simulatedApprovalDecision.occurrenceId,
+          })
+          .returning({ id: schema.simulatedApprovalDecision.id });
+        if (!decision) {
+          throw new SimulatedApprovalError(
+            "OCCURRENCE_CONFLICT",
+            "Decision occurrence ID was already used",
+          );
+        }
+        await tx
+          .update(schema.simulatedApprovalState)
+          .set({ state: targetState, decidedAt: now, updatedAt: now })
+          .where(eq(schema.simulatedApprovalState.proposalId, input.id));
+        let jobId: string | null = null;
+        if (input.decision === "approve") {
+          jobId = await boss.send(
+            SIMULATED_APPROVAL_QUEUE,
+            {
+              version: 1,
+              approvalId: input.id,
+              descriptorDigest: proposal.descriptorDigest,
+            },
+            { db: fromDrizzle(tx, sql) },
+          );
+          if (!jobId) throw new Error("Local simulation job was not enqueued");
+        }
+        await tx.insert(schema.auditEvent).values({
+          id: crypto.randomUUID(),
+          targetApprovalId: input.id,
+          actor: "local-reviewer:unattributed",
+          operation: `simulated_approval.${targetState}`,
+          details: {
+            eventType: targetState,
+            occurrenceId: input.occurrenceId,
+            detail:
+              input.decision === "approve"
+                ? "Exact synthetic action approved for a local no-effect simulation only."
+                : input.decision === "reject"
+                  ? "Exact synthetic action rejected; no simulation was queued."
+                  : "Exact synthetic action cancelled; no simulation was queued.",
+            jobId,
+          },
+          createdAt: now,
+        });
+        return { id: input.id, error: null };
+      });
+      if (result.error) throw result.error;
+      const approval = await repository.getById(result.id);
+      if (!approval) throw new Error("Decided approval disappeared");
+      return approval;
     },
   };
 }

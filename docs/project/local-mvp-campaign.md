@@ -57,6 +57,16 @@ local experience lab.
   as the local API, then report a cited, unverified result with no external
   actions. A person selecting an agent in the local UI does not establish a
   production agent or human identity while OQ-003 and OQ-006 remain open.
+- The first higher-risk review will be one fixed `simulated.resource.restart`
+  descriptor linked to a successful fake run and an exact resource selected in
+  its immutable packet. Its conceptual `infrastructure.restart` capability is
+  never granted to the local worker. The provisional automatic risk ceiling
+  defaults to `reversible` and can be lowered to `read_only`; the sensitive
+  simulation always requires explicit review. Its expiration is locally
+  configurable. Approve, reject, cancel, and expire decisions will retain an
+  audit trail, with an unauthenticated local reviewer label. Approval permits
+  only a worker-recorded `simulated_only` outcome and never changes a resource
+  or invokes a real integration. OQ-003 and OQ-007 remain open.
 
 ## Evidence expected before campaign completion
 

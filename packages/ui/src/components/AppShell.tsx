@@ -12,7 +12,14 @@ export function AppShell({
   current = "Home",
 }: {
   children: ReactNode;
-  current?: "Home" | "Inbox" | "Projects" | "Activity" | "Search" | "Agents";
+  current?:
+    | "Home"
+    | "Inbox"
+    | "Projects"
+    | "Activity"
+    | "Search"
+    | "Agents"
+    | "Approvals";
 }) {
   return (
     <div className="cmd-shell">
@@ -66,6 +73,13 @@ export function AppShell({
             href="/agents"
           >
             Agents
+          </a>
+          <a
+            aria-current={current === "Approvals" ? "page" : undefined}
+            className={`cmd-nav-link ${current === "Approvals" ? "cmd-nav-current" : ""}`}
+            href="/approvals"
+          >
+            Approvals
           </a>
           {plannedDestinations.map((destination) => (
             <span

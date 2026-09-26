@@ -6,6 +6,10 @@ import {
   localAgentRunJobV1Schema,
   agentContextReadRequestSchema,
   fakeLocalAgentRunResultSchema,
+  createSimulatedActionRequestSchema,
+  simulatedApprovalDecisionRequestSchema,
+  simulatedApprovalDescriptorSchema,
+  simulatedApprovalJobV1Schema,
   executionPacketSnapshotSchema,
   projectResourceLinkDetailSchema,
   listResourcesQuerySchema,
@@ -125,6 +129,60 @@ test("arbitrary context operations reach policy while result cannot claim extern
       isSynthetic: true,
       verificationStatus: "unverified",
       externalActions: ["deployed"],
+    }).success,
+  ).toBe(false);
+});
+
+test("simulated action input admits only the exact target and graceful parameter", () => {
+  const input = {
+    projectResourceLinkId: crypto.randomUUID(),
+    mode: "graceful",
+    occurrenceId: "local-proposal-1",
+  };
+  expect(createSimulatedActionRequestSchema.parse(input)).toEqual(input);
+  for (const extra of [
+    { command: "restart everything" },
+    { url: "https://example.test/action?token=secret" },
+    { secret: "value" },
+  ]) {
+    expect(
+      createSimulatedActionRequestSchema.safeParse({ ...input, ...extra })
+        .success,
+    ).toBe(false);
+  }
+  expect(
+    createSimulatedActionRequestSchema.safeParse({ ...input, mode: "force" })
+      .success,
+  ).toBe(false);
+});
+
+test("simulated decision binds an expected digest and a versioned worker job", () => {
+  expect(
+    simulatedApprovalDecisionRequestSchema.safeParse({
+      decision: "approve",
+      expectedDigest: "a".repeat(64),
+      occurrenceId: "decision-1",
+      overrideTarget: crypto.randomUUID(),
+    }).success,
+  ).toBe(false);
+  expect(
+    simulatedApprovalDecisionRequestSchema.safeParse({
+      decision: "approve",
+      expectedDigest: "bad",
+      occurrenceId: "decision-1",
+    }).success,
+  ).toBe(false);
+  expect(
+    simulatedApprovalJobV1Schema.safeParse({
+      version: 2,
+      approvalId: crypto.randomUUID(),
+      descriptorDigest: "a".repeat(64),
+    }).success,
+  ).toBe(false);
+  expect(
+    simulatedApprovalDescriptorSchema.safeParse({
+      actionType: "simulated.resource.restart",
+      parameters: { mode: "force", command: "rm -rf /" },
     }).success,
   ).toBe(false);
 });

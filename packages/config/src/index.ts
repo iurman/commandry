@@ -37,6 +37,15 @@ const environmentSchema = z.object({
   ),
   DB_POOL_MAX: z.coerce.number().int().min(1).max(20).default(5),
   BOSS_POOL_MAX: z.coerce.number().int().min(1).max(20).default(5),
+  LOCAL_APPROVAL_AUTO_CEILING: z
+    .enum(["read_only", "reversible"])
+    .default("reversible"),
+  LOCAL_APPROVAL_TTL_SECONDS: z.coerce
+    .number()
+    .int()
+    .min(60)
+    .max(86_400)
+    .default(3_600),
 });
 
 export type RuntimeConfig = {
@@ -52,6 +61,8 @@ export type RuntimeConfig = {
   releaseBuildTime?: string;
   dbPoolMax: number;
   bossPoolMax: number;
+  localApprovalAutoCeiling: "read_only" | "reversible";
+  localApprovalTtlSeconds: number;
 };
 
 export class ConfigurationError extends Error {
@@ -124,6 +135,8 @@ export function loadRuntimeConfig(
     }),
     dbPoolMax: value.DB_POOL_MAX,
     bossPoolMax: value.BOSS_POOL_MAX,
+    localApprovalAutoCeiling: value.LOCAL_APPROVAL_AUTO_CEILING,
+    localApprovalTtlSeconds: value.LOCAL_APPROVAL_TTL_SECONDS,
   };
 }
 

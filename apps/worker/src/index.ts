@@ -2,6 +2,7 @@ import { randomUUID } from "node:crypto";
 import {
   createAgentContextService,
   createLocalAgentRunProcessor,
+  createSimulatedApprovalProcessor,
   createProjectBriefService,
   createSyntheticEventImportProcessor,
   createSyntheticRunProcessor,
@@ -9,6 +10,7 @@ import {
 import { loadRuntimeConfig } from "@commandry/config";
 import {
   localAgentRunJobV1Schema,
+  simulatedApprovalJobV1Schema,
   syntheticEventImportJobV1Schema,
   syntheticJobV1Schema,
 } from "@commandry/contracts";
@@ -16,6 +18,7 @@ import {
   createBriefRepository,
   createDatabase,
   createLocalAgentRunRepository,
+  createSimulatedApprovalRepository,
   createSyntheticEventImportRepository,
   createSyntheticRunRepository,
   createWorkerHeartbeatRepository,
@@ -23,6 +26,7 @@ import {
 import {
   createPgBossProducer,
   LOCAL_AGENT_RUN_QUEUE,
+  SIMULATED_APPROVAL_QUEUE,
   SYNTHETIC_EVENT_IMPORT_QUEUE,
   SYNTHETIC_QUEUE,
 } from "@commandry/platform";
@@ -57,6 +61,12 @@ const processLocalAgentRun = createLocalAgentRunProcessor(
   localAgentRunRepository,
   localAgentContext,
 );
+const simulatedApprovalRepository = createSimulatedApprovalRepository(
+  database.db,
+);
+const processSimulatedApproval = createSimulatedApprovalProcessor(
+  simulatedApprovalRepository,
+);
 const workerId = randomUUID();
 
 function log(
@@ -90,6 +100,22 @@ async function heartbeat() {
 await heartbeat();
 const timer = setInterval(() => void heartbeat(), 10_000);
 timer.unref();
+async function reconcileExpiredApprovals() {
+  try {
+    const count = await simulatedApprovalRepository.reconcileExpired();
+    if (count > 0) log("info", "simulated_approval.expired", { count });
+  } catch (error) {
+    log("error", "simulated_approval.expiry_reconciliation_failed", {
+      error: error instanceof Error ? error.name : "unknown",
+    });
+  }
+}
+await reconcileExpiredApprovals();
+const approvalExpiryTimer = setInterval(
+  () => void reconcileExpiredApprovals(),
+  10_000,
+);
+approvalExpiryTimer.unref();
 
 await transport.boss.work(SYNTHETIC_QUEUE, async ([job]) => {
   if (!job) throw new Error("pg-boss delivered an empty job batch");
@@ -149,6 +175,24 @@ await transport.boss.work(LOCAL_AGENT_RUN_QUEUE, async ([job]) => {
     throw error;
   }
 });
+await transport.boss.work(SIMULATED_APPROVAL_QUEUE, async ([job]) => {
+  if (!job) throw new Error("pg-boss delivered an empty approval job batch");
+  const input = simulatedApprovalJobV1Schema.parse(job.data);
+  try {
+    await processSimulatedApproval(input);
+    log("info", "simulated_approval.simulation_recorded", {
+      approvalId: input.approvalId,
+      jobId: job.id,
+    });
+  } catch (error) {
+    log("error", "simulated_approval.failed_attempt", {
+      approvalId: input.approvalId,
+      jobId: job.id,
+      error: error instanceof Error ? error.name : "unknown",
+    });
+    throw error;
+  }
+});
 log("info", "worker.started", { workerId });
 
 let stopping = false;
@@ -156,6 +200,7 @@ async function shutdown(signal: string) {
   if (stopping) return;
   stopping = true;
   clearInterval(timer);
+  clearInterval(approvalExpiryTimer);
   log("info", "worker.stopping", { signal });
   try {
     await transport.close();

@@ -55,6 +55,8 @@ services:
       BETTER_AUTH_SECRET: ${BETTER_AUTH_SECRET:?Set BETTER_AUTH_SECRET in .env.local}
       APP_ENCRYPTION_KEY: ${APP_ENCRYPTION_KEY:?Set APP_ENCRYPTION_KEY in .env.local}
       RELEASE_SHA: ${RELEASE_SHA:-local}
+      LOCAL_APPROVAL_AUTO_CEILING: ${LOCAL_APPROVAL_AUTO_CEILING:-reversible}
+      LOCAL_APPROVAL_TTL_SECONDS: ${LOCAL_APPROVAL_TTL_SECONDS:-3600}
     ports:
       - 127.0.0.1:${WEB_HOST_PORT:-3000}:3000
     depends_on:
@@ -84,6 +86,8 @@ services:
       BETTER_AUTH_SECRET: ${BETTER_AUTH_SECRET:?Set BETTER_AUTH_SECRET in .env.local}
       APP_ENCRYPTION_KEY: ${APP_ENCRYPTION_KEY:?Set APP_ENCRYPTION_KEY in .env.local}
       RELEASE_SHA: ${RELEASE_SHA:-local}
+      LOCAL_APPROVAL_AUTO_CEILING: ${LOCAL_APPROVAL_AUTO_CEILING:-reversible}
+      LOCAL_APPROVAL_TTL_SECONDS: ${LOCAL_APPROVAL_TTL_SECONDS:-3600}
     depends_on:
       migrate:
         condition: service_completed_successfully
