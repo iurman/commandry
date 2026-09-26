@@ -15,6 +15,12 @@ import {
   workItemPlanningEventSchema,
   listWorkItemPlanningEventsResponseSchema,
   listUpcomingWorkResponseSchema,
+  listWorkspaceWorkResponseSchema,
+  workspaceWorkItemSchema,
+  listWorkspaceKnowledgeResponseSchema,
+  workspaceKnowledgeItemSchema,
+  listWorkspaceDecisionsResponseSchema,
+  workspaceDecisionSchema,
   workItemStatusEventSchema,
   listWorkItemStatusEventsResponseSchema,
   createLocalAgentRequestSchema,
@@ -693,6 +699,28 @@ export function generateOpenApi(): string {
           },
         },
       },
+      "/api/v1/work-items": {
+        get: {
+          operationId: "listWorkspaceWork",
+          summary: "Page through local tasks across projects",
+          parameters: [
+            ...pageParameters,
+            projectFilterParameter,
+            {
+              in: "query",
+              name: "status",
+              required: false,
+              schema: { type: "string", enum: ["open", "done"] },
+            },
+          ],
+          responses: {
+            "200": {
+              description: "Source-linked task page with project names",
+              content: jsonContent("ListWorkspaceWorkResponse"),
+            },
+          },
+        },
+      },
       "/api/v1/work-items/{id}/status": {
         post: {
           operationId: "changeWorkItemStatus",
@@ -1156,6 +1184,32 @@ export function generateOpenApi(): string {
             "404": {
               description: "Approval not found",
               content: jsonContent("ErrorResponse"),
+            },
+          },
+        },
+      },
+      "/api/v1/knowledge-items": {
+        get: {
+          operationId: "listWorkspaceKnowledge",
+          summary: "Page through source-linked notes across projects",
+          parameters: [...pageParameters, projectFilterParameter],
+          responses: {
+            "200": {
+              description: "Knowledge note page with project names",
+              content: jsonContent("ListWorkspaceKnowledgeResponse"),
+            },
+          },
+        },
+      },
+      "/api/v1/decisions": {
+        get: {
+          operationId: "listWorkspaceDecisions",
+          summary: "Page through local decisions across projects",
+          parameters: [...pageParameters, projectFilterParameter],
+          responses: {
+            "200": {
+              description: "Decision page with project names",
+              content: jsonContent("ListWorkspaceDecisionsResponse"),
             },
           },
         },
@@ -1872,6 +1926,8 @@ export function generateOpenApi(): string {
         ),
         CaptureTriageJobV1: component(captureTriageJobV1Schema),
         WorkItem: component(workItemSchema),
+        WorkspaceWorkItem: component(workspaceWorkItemSchema),
+        ListWorkspaceWorkResponse: component(listWorkspaceWorkResponseSchema),
         ChangeWorkItemPlanningRequest: component(
           changeWorkItemPlanningRequestSchema,
         ),
@@ -1888,6 +1944,10 @@ export function generateOpenApi(): string {
           listWorkItemStatusEventsResponseSchema,
         ),
         KnowledgeItem: component(knowledgeItemSchema),
+        WorkspaceKnowledgeItem: component(workspaceKnowledgeItemSchema),
+        ListWorkspaceKnowledgeResponse: component(
+          listWorkspaceKnowledgeResponseSchema,
+        ),
         ReviseKnowledgeItemRequest: component(reviseKnowledgeItemRequestSchema),
         KnowledgeItemRevision: component(knowledgeItemRevisionSchema),
         ListKnowledgeItemRevisionsResponse: component(
@@ -1900,6 +1960,10 @@ export function generateOpenApi(): string {
           reviseProjectDecisionRequestSchema,
         ),
         ProjectDecision: component(projectDecisionSchema),
+        WorkspaceDecision: component(workspaceDecisionSchema),
+        ListWorkspaceDecisionsResponse: component(
+          listWorkspaceDecisionsResponseSchema,
+        ),
         ProjectDecisionRevision: component(projectDecisionRevisionSchema),
         ListProjectDecisionsResponse: component(
           listProjectDecisionsResponseSchema,

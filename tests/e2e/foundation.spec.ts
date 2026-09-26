@@ -9,11 +9,18 @@ test("local shell labels simulated data without claiming live health", async ({
     page.getByRole("heading", { name: "Command Center" }),
   ).toBeVisible();
   const navigation = page.getByRole("navigation", { name: "Main navigation" });
-  await expect(navigation.getByRole("link")).toHaveCount(10);
+  await expect(navigation.getByRole("link")).toHaveCount(12);
   await expect(navigation.getByRole("link", { name: "Inbox" })).toBeVisible();
   await expect(
     navigation.getByRole("link", { name: "Projects" }),
   ).toBeVisible();
+  await expect(navigation.getByRole("link", { name: "Work" })).toHaveAttribute(
+    "href",
+    "/work",
+  );
+  await expect(
+    navigation.getByRole("link", { name: "Knowledge" }),
+  ).toHaveAttribute("href", "/knowledge");
   await expect(
     navigation.getByRole("link", { name: "Infrastructure" }),
   ).toHaveAttribute("href", "/infrastructure");

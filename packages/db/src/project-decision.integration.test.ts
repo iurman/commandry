@@ -107,6 +107,23 @@ test(
         cursor = page.nextCursor;
       } while (cursor);
       assert.deepEqual(new Set(seen), new Set([first.id, second.id]));
+      const allFirst = await decisions.listAll({
+        limit: 1,
+        projectId: project.id,
+      });
+      assert.equal(allFirst.items[0]?.projectName, project.name);
+      assert.ok(allFirst.nextCursor);
+      const allNext = await decisions.listAll({
+        limit: 1,
+        projectId: project.id,
+        cursor: allFirst.nextCursor,
+      });
+      assert.equal(allNext.items.length, 1);
+      assert.notEqual(allNext.items[0]?.id, allFirst.items[0]?.id);
+      assert.deepEqual(
+        new Set([allFirst.items[0]?.id, allNext.items[0]?.id]),
+        new Set([first.id, second.id]),
+      );
       const snapshot = await createBriefRepository(
         database.db,
       ).readProjectSnapshot(project.id, { limit: 5 });

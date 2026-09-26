@@ -491,6 +491,22 @@ textarea {
   min-width: 0;
 }
 
+.cmd-global-work-section {
+  margin-bottom: var(--cmd-space-7);
+}
+
+.cmd-workspace-filters {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--cmd-space-2);
+  margin-bottom: var(--cmd-space-4);
+}
+
+.cmd-knowledge-grid {
+  display: grid;
+  gap: var(--cmd-space-7);
+}
+
 .cmd-section-heading {
   display: flex;
   align-items: end;

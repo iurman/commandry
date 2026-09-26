@@ -177,8 +177,17 @@ export default function ProjectContent({ projectId }: { projectId: string }) {
           <a className={styles.captureLink} href="/inbox">
             Open Inbox
           </a>
-          <a className={styles.captureLink} href="/work">
-            Upcoming work
+          <a
+            className={styles.captureLink}
+            href={`/work?projectId=${encodeURIComponent(projectId)}`}
+          >
+            Open project work
+          </a>
+          <a
+            className={styles.captureLink}
+            href={`/knowledge?projectId=${encodeURIComponent(projectId)}`}
+          >
+            Open project knowledge
           </a>
           <a
             className={styles.captureLink}

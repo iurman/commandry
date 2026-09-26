@@ -102,7 +102,7 @@ export default function MorningPage() {
 
   useEffect(() => {
     const initialLoad = window.setTimeout(() => {
-      const to = new Date(Math.floor(Date.now() / 1000) * 1000);
+      const to = new Date(Math.floor(Date.now() / 1000) * 1000 + 1000);
       const from = new Date(to.getTime() - 24 * 60 * 60_000);
       setFromInput(deviceDateTime(from));
       setToInput(deviceDateTime(to));
@@ -142,7 +142,7 @@ export default function MorningPage() {
   }
 
   function lastDay() {
-    const to = new Date(Math.floor(Date.now() / 1000) * 1000);
+    const to = new Date(Math.floor(Date.now() / 1000) * 1000 + 1000);
     const from = new Date(to.getTime() - 24 * 60 * 60_000);
     setFromInput(deviceDateTime(from));
     setToInput(deviceDateTime(to));

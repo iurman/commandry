@@ -68,9 +68,10 @@ test("a source-linked task can be planned and appears in upcoming work", async (
   ).toBeVisible();
   await page.getByRole("link", { name: "Review all upcoming work" }).click();
   await expect(page).toHaveURL(/\/work$/);
-  const targetTask = page.getByRole("link", {
-    name: `Scheduled work ${suffix}`,
-  });
+  await expect(page.getByText("Loading upcoming work...")).toBeHidden();
+  const targetTask = page
+    .getByRole("list", { name: "Upcoming work" })
+    .getByRole("link", { name: `Scheduled work ${suffix}` });
   for (
     let pageIndex = 0;
     pageIndex < 10 && (await targetTask.count()) === 0;

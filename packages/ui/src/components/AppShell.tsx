@@ -1,7 +1,5 @@
 import type { ReactNode } from "react";
 
-const plannedDestinations = ["Work", "Knowledge"] as const;
-
 export function AppShell({
   children,
   current = "Home",
@@ -11,6 +9,8 @@ export function AppShell({
     | "Home"
     | "Inbox"
     | "Projects"
+    | "Work"
+    | "Knowledge"
     | "Infrastructure"
     | "Activity"
     | "Search"
@@ -50,6 +50,20 @@ export function AppShell({
             href="/projects"
           >
             Projects
+          </a>
+          <a
+            aria-current={current === "Work" ? "page" : undefined}
+            className={`cmd-nav-link ${current === "Work" ? "cmd-nav-current" : ""}`}
+            href="/work"
+          >
+            Work
+          </a>
+          <a
+            aria-current={current === "Knowledge" ? "page" : undefined}
+            className={`cmd-nav-link ${current === "Knowledge" ? "cmd-nav-current" : ""}`}
+            href="/knowledge"
+          >
+            Knowledge
           </a>
           <a
             aria-current={current === "Infrastructure" ? "page" : undefined}
@@ -100,16 +114,6 @@ export function AppShell({
           >
             Notifications
           </a>
-          {plannedDestinations.map((destination) => (
-            <span
-              aria-disabled="true"
-              className="cmd-nav-link cmd-nav-planned"
-              key={destination}
-            >
-              <span>{destination}</span>
-              <span className="cmd-nav-note">Planned</span>
-            </span>
-          ))}
         </nav>
         <p className="cmd-sidebar-note">
           <span className="cmd-mobile-nav-hint">Swipe to see more. </span>

@@ -5,6 +5,8 @@ import type {
   KnowledgeItem,
   SearchResult,
   WorkItem,
+  WorkspaceKnowledgeItem,
+  WorkspaceWorkItem,
 } from "@commandry/contracts";
 import {
   CaptureError,
@@ -17,6 +19,12 @@ export type CapturePageQuery = { limit: number; cursor?: string | undefined };
 export type CaptureSearchQuery = CapturePageQuery & {
   q: string;
   projectId?: string | undefined;
+};
+export type WorkspaceRecordQuery = CapturePageQuery & {
+  projectId?: string | undefined;
+};
+export type WorkspaceWorkQuery = WorkspaceRecordQuery & {
+  status?: "open" | "done" | undefined;
 };
 
 export interface CaptureRepository {
@@ -46,6 +54,10 @@ export interface CaptureRepository {
     projectId: string,
     query: CapturePageQuery,
   ): Promise<CapturePage<KnowledgeItem>>;
+  listWork(query: WorkspaceWorkQuery): Promise<CapturePage<WorkspaceWorkItem>>;
+  listKnowledge(
+    query: WorkspaceRecordQuery,
+  ): Promise<CapturePage<WorkspaceKnowledgeItem>>;
   search(query: CaptureSearchQuery): Promise<CapturePage<SearchResult>>;
 }
 
@@ -114,6 +126,12 @@ export function createCaptureService(repository: CaptureRepository) {
     async listProjectKnowledge(projectId: string, query: CapturePageQuery) {
       await requireProject(projectId);
       return repository.listProjectKnowledge(projectId, query);
+    },
+    listWork(query: WorkspaceWorkQuery) {
+      return repository.listWork(query);
+    },
+    listKnowledge(query: WorkspaceRecordQuery) {
+      return repository.listKnowledge(query);
     },
     search(query: CaptureSearchQuery) {
       return repository.search(query);

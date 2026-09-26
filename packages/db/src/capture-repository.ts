@@ -279,6 +279,97 @@ export function createCaptureRepository(db: CommandryDatabase) {
           rows.length > input.limit ? (page.at(-1)?.id ?? null) : null,
       };
     },
+    async listWork(
+      input: PageQuery & {
+        projectId?: string | undefined;
+        status?: "open" | "done" | undefined;
+      },
+    ) {
+      const [anchor] = input.cursor
+        ? await db
+            .select({ createdAt: workItem.createdAt })
+            .from(workItem)
+            .where(
+              and(
+                eq(workItem.id, input.cursor),
+                input.projectId
+                  ? eq(workItem.projectId, input.projectId)
+                  : undefined,
+                input.status ? eq(workItem.status, input.status) : undefined,
+              ),
+            )
+            .limit(1)
+        : [];
+      if (input.cursor && !anchor) return { items: [], nextCursor: null };
+      const rows = await db
+        .select({ item: workItem, projectName: project.name })
+        .from(workItem)
+        .innerJoin(project, eq(workItem.projectId, project.id))
+        .where(
+          and(
+            input.projectId
+              ? eq(workItem.projectId, input.projectId)
+              : undefined,
+            input.status ? eq(workItem.status, input.status) : undefined,
+            anchor
+              ? sql`(${workItem.createdAt}, ${workItem.id}) < (${anchor.createdAt}, ${input.cursor}::uuid)`
+              : undefined,
+          ),
+        )
+        .orderBy(desc(workItem.createdAt), desc(workItem.id))
+        .limit(input.limit + 1);
+      const page = rows.slice(0, input.limit);
+      return {
+        items: page.map(({ item, projectName }) => ({
+          ...workRecord(item),
+          projectName,
+        })),
+        nextCursor:
+          rows.length > input.limit ? (page.at(-1)?.item.id ?? null) : null,
+      };
+    },
+    async listKnowledge(input: PageQuery & { projectId?: string | undefined }) {
+      const [anchor] = input.cursor
+        ? await db
+            .select({ createdAt: knowledgeItem.createdAt })
+            .from(knowledgeItem)
+            .where(
+              and(
+                eq(knowledgeItem.id, input.cursor),
+                input.projectId
+                  ? eq(knowledgeItem.projectId, input.projectId)
+                  : undefined,
+              ),
+            )
+            .limit(1)
+        : [];
+      if (input.cursor && !anchor) return { items: [], nextCursor: null };
+      const rows = await db
+        .select({ item: knowledgeItem, projectName: project.name })
+        .from(knowledgeItem)
+        .innerJoin(project, eq(knowledgeItem.projectId, project.id))
+        .where(
+          and(
+            input.projectId
+              ? eq(knowledgeItem.projectId, input.projectId)
+              : undefined,
+            anchor
+              ? sql`(${knowledgeItem.createdAt}, ${knowledgeItem.id}) < (${anchor.createdAt}, ${input.cursor}::uuid)`
+              : undefined,
+          ),
+        )
+        .orderBy(desc(knowledgeItem.createdAt), desc(knowledgeItem.id))
+        .limit(input.limit + 1);
+      const page = rows.slice(0, input.limit);
+      return {
+        items: page.map(({ item, projectName }) => ({
+          ...knowledgeRecord(item),
+          projectName,
+        })),
+        nextCursor:
+          rows.length > input.limit ? (page.at(-1)?.item.id ?? null) : null,
+      };
+    },
     async search(input: PageQuery & { q: string; projectId?: string }) {
       const scope = input.projectId
         ? sql`project_id = ${input.projectId}::uuid`

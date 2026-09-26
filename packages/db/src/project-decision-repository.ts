@@ -1,4 +1,4 @@
-import { and, desc, eq, gt, lt } from "drizzle-orm";
+import { and, desc, eq, gt, lt, sql } from "drizzle-orm";
 import type {
   CreateProjectDecisionRequest,
   ReviseProjectDecisionRequest,
@@ -112,6 +112,54 @@ export function createProjectDecisionRepository(db: CommandryDatabase) {
           rows.length > query.limit ? (visible.at(-1)?.id ?? null) : null,
       };
     },
+    async listAll(query: {
+      limit: number;
+      cursor?: string | undefined;
+      projectId?: string | undefined;
+    }) {
+      const [anchor] = query.cursor
+        ? await db
+            .select({ createdAt: projectDecision.createdAt })
+            .from(projectDecision)
+            .where(
+              and(
+                eq(projectDecision.id, query.cursor),
+                query.projectId
+                  ? eq(projectDecision.projectId, query.projectId)
+                  : undefined,
+              ),
+            )
+            .limit(1)
+        : [];
+      if (query.cursor && !anchor) return { items: [], nextCursor: null };
+      const rows = await db
+        .select({ decision: projectDecision, projectName: project.name })
+        .from(projectDecision)
+        .innerJoin(project, eq(projectDecision.projectId, project.id))
+        .where(
+          and(
+            query.projectId
+              ? eq(projectDecision.projectId, query.projectId)
+              : undefined,
+            anchor
+              ? sql`(${projectDecision.createdAt}, ${projectDecision.id}) < (${anchor.createdAt}, ${query.cursor}::uuid)`
+              : undefined,
+          ),
+        )
+        .orderBy(desc(projectDecision.createdAt), desc(projectDecision.id))
+        .limit(query.limit + 1);
+      const visible = rows.slice(0, query.limit);
+      return {
+        items: visible.map(({ decision, projectName }) => ({
+          ...decisionRecord(decision),
+          projectName,
+        })),
+        nextCursor:
+          rows.length > query.limit
+            ? (visible.at(-1)?.decision.id ?? null)
+            : null,
+      };
+    },
     async revise(id: string, input: ReviseProjectDecisionRequest) {
       return db.transaction(async (tx) => {
         const [current] = await tx
@@ -126,7 +174,13 @@ export function createProjectDecisionRepository(db: CommandryDatabase) {
             "Decision not found",
           );
         requireDecisionRevision(current, input.expectedRevision, input.status);
-        const { expectedRevision: _, ...fields } = input;
+        const fields = {
+          question: input.question,
+          outcome: input.outcome,
+          alternatives: input.alternatives,
+          rationale: input.rationale,
+          status: input.status,
+        };
         const now = new Date();
         const revision = current.revision + 1;
         const [updated] = await tx

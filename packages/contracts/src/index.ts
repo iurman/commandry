@@ -95,6 +95,15 @@ export const listResourcesQuerySchema = z.object({
   cursor: z.uuid().optional(),
 });
 
+export const listWorkspaceRecordsQuerySchema = listResourcesQuerySchema.extend({
+  projectId: z.uuid().optional(),
+});
+
+export const listWorkspaceWorkQuerySchema =
+  listWorkspaceRecordsQuerySchema.extend({
+    status: z.enum(["open", "done"]).optional(),
+  });
+
 export const listResourcesResponseSchema = z.object({
   items: z.array(resourceSummarySchema),
   nextCursor: z.uuid().nullable(),
@@ -356,8 +365,26 @@ export const listWorkItemsResponseSchema = z.object({
   nextCursor: z.uuid().nullable(),
 });
 
+export const workspaceWorkItemSchema = workItemSchema.extend({
+  projectName: z.string().min(1),
+});
+
+export const listWorkspaceWorkResponseSchema = z.object({
+  items: z.array(workspaceWorkItemSchema),
+  nextCursor: z.uuid().nullable(),
+});
+
 export const listKnowledgeItemsResponseSchema = z.object({
   items: z.array(knowledgeItemSchema),
+  nextCursor: z.uuid().nullable(),
+});
+
+export const workspaceKnowledgeItemSchema = knowledgeItemSchema.extend({
+  projectName: z.string().min(1),
+});
+
+export const listWorkspaceKnowledgeResponseSchema = z.object({
+  items: z.array(workspaceKnowledgeItemSchema),
   nextCursor: z.uuid().nullable(),
 });
 
@@ -390,6 +417,15 @@ export const projectDecisionRevisionSchema = decisionFieldsSchema.extend({
 });
 export const listProjectDecisionsResponseSchema = z.object({
   items: z.array(projectDecisionSchema),
+  nextCursor: z.uuid().nullable(),
+});
+
+export const workspaceDecisionSchema = projectDecisionSchema.extend({
+  projectName: z.string().min(1),
+});
+
+export const listWorkspaceDecisionsResponseSchema = z.object({
+  items: z.array(workspaceDecisionSchema),
   nextCursor: z.uuid().nullable(),
 });
 export const listProjectDecisionRevisionsResponseSchema = z.object({
@@ -1324,6 +1360,7 @@ export type CreateCaptureRequest = z.infer<typeof createCaptureRequestSchema>;
 export type Capture = z.infer<typeof captureSchema>;
 export type FileCaptureRequest = z.infer<typeof fileCaptureRequestSchema>;
 export type WorkItem = z.infer<typeof workItemSchema>;
+export type WorkspaceWorkItem = z.infer<typeof workspaceWorkItemSchema>;
 export type ChangeWorkItemPlanningRequest = z.infer<
   typeof changeWorkItemPlanningRequestSchema
 >;
@@ -1333,11 +1370,15 @@ export type ChangeWorkItemStatusRequest = z.infer<
 >;
 export type WorkItemStatusEvent = z.infer<typeof workItemStatusEventSchema>;
 export type KnowledgeItem = z.infer<typeof knowledgeItemSchema>;
+export type WorkspaceKnowledgeItem = z.infer<
+  typeof workspaceKnowledgeItemSchema
+>;
 export type ReviseKnowledgeItemRequest = z.infer<
   typeof reviseKnowledgeItemRequestSchema
 >;
 export type KnowledgeItemRevision = z.infer<typeof knowledgeItemRevisionSchema>;
 export type ProjectDecision = z.infer<typeof projectDecisionSchema>;
+export type WorkspaceDecision = z.infer<typeof workspaceDecisionSchema>;
 export type ProjectDecisionRevision = z.infer<
   typeof projectDecisionRevisionSchema
 >;

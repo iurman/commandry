@@ -78,6 +78,8 @@ describe("Command Center", () => {
       ["Home", "/"],
       ["Inbox", "/inbox"],
       ["Projects", "/projects"],
+      ["Work", "/work"],
+      ["Knowledge", "/knowledge"],
       ["Infrastructure", "/infrastructure"],
       ["Activity", "/activity"],
       ["Search", "/search"],

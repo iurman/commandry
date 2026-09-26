@@ -3,6 +3,7 @@ import type {
   ProjectDecision,
   ProjectDecisionRevision,
   ReviseProjectDecisionRequest,
+  WorkspaceDecision,
 } from "@commandry/contracts";
 
 export interface ProjectDecisionPort {
@@ -15,6 +16,11 @@ export interface ProjectDecisionPort {
     projectId: string,
     query: { limit: number; cursor?: string | undefined },
   ): Promise<{ items: ProjectDecision[]; nextCursor: string | null }>;
+  listAll(query: {
+    limit: number;
+    cursor?: string | undefined;
+    projectId?: string | undefined;
+  }): Promise<{ items: WorkspaceDecision[]; nextCursor: string | null }>;
   revise(
     id: string,
     input: ReviseProjectDecisionRequest,
@@ -30,6 +36,7 @@ export function createProjectDecisionService(port: ProjectDecisionPort) {
     create: port.create,
     get: port.get,
     list: port.list,
+    listAll: port.listAll,
     revise: port.revise,
     listRevisions: port.listRevisions,
   };

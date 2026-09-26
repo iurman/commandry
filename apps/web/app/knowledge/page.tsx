@@ -1,6 +1,6 @@
-import WorkWorkspace from "./WorkWorkspace";
+import KnowledgeWorkspace from "./KnowledgeWorkspace";
 
-export default async function WorkPage({
+export default async function KnowledgePage({
   searchParams,
 }: {
   searchParams: Promise<{ projectId?: string | string[] }>;
@@ -9,5 +9,5 @@ export default async function WorkPage({
   const projectId = Array.isArray(params.projectId)
     ? params.projectId[0]
     : params.projectId;
-  return <WorkWorkspace projectId={projectId ?? null} />;
+  return <KnowledgeWorkspace projectId={projectId ?? null} />;
 }

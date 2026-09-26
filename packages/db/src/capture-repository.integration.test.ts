@@ -150,6 +150,38 @@ test("manual captures preserve source while filing and search stay linked", asyn
         ?.id,
       note.record.id,
     );
+    const globalWorkFirst = await captures.listWork({
+      limit: 1,
+      projectId: project.id,
+      status: "open",
+    });
+    assert.equal(globalWorkFirst.items[0]?.projectName, project.name);
+    assert.ok(globalWorkFirst.nextCursor);
+    const globalWorkNext = await captures.listWork({
+      limit: 1,
+      projectId: project.id,
+      status: "open",
+      cursor: globalWorkFirst.nextCursor,
+    });
+    assert.equal(globalWorkNext.items.length, 1);
+    assert.notEqual(globalWorkNext.items[0]?.id, globalWorkFirst.items[0]?.id);
+    assert.deepEqual(
+      (
+        await captures.listWork({
+          limit: 10,
+          projectId: project.id,
+          status: "done",
+        })
+      ).items,
+      [],
+    );
+    const globalNotes = await captures.listKnowledge({
+      limit: 1,
+      projectId: project.id,
+    });
+    assert.equal(globalNotes.items[0]?.id, note.record.id);
+    assert.equal(globalNotes.items[0]?.projectName, project.name);
+    assert.equal(globalNotes.items[0]?.sourceCaptureId, urlCapture.id);
 
     const found = [];
     let cursor: string | null = null;

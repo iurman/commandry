@@ -41,6 +41,11 @@ function port(overrides: Partial<CaptureRepository> = {}): CaptureRepository {
     },
     listProjectWork: async () => ({ items: [work], nextCursor: null }),
     listProjectKnowledge: async () => ({ items: [], nextCursor: null }),
+    listWork: async () => ({
+      items: [{ ...work, projectName: "Garden" }],
+      nextCursor: null,
+    }),
+    listKnowledge: async () => ({ items: [], nextCursor: null }),
     search: async () => ({ items: [], nextCursor: null }),
     ...overrides,
   };
