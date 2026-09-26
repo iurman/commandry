@@ -23,6 +23,22 @@ export type {
   ExecutionPacketView,
   ExecutionPacketProps,
 } from "./components/ExecutionPacket";
+export { LocalAgentCard } from "./components/LocalAgent";
+export type {
+  LocalAgentProfileView,
+  LocalAgentAssignmentView,
+} from "./components/LocalAgent";
+export {
+  LocalAgentRunPanel,
+  LocalAgentReadReceipt,
+  LocalAgentAuditList,
+} from "./components/LocalAgentRun";
+export type {
+  LocalAgentRunView,
+  LocalAgentReadView,
+  LocalAgentAuditView,
+  LocalRunEvidenceView,
+} from "./components/LocalAgentRun";
 export type { RelationshipResource } from "./components/RelationshipCard";
 export type { StatePanelState } from "./components/StatePanel";
 export type { StatusDimension, StatusTone } from "./components/StatusBadge";

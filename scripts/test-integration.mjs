@@ -442,8 +442,108 @@ async function runSmoke(postgres, adminUrl, runtimePassword) {
     );
     assert.equal(savedPacketResponse.status, 200);
     assert.deepEqual(await savedPacketResponse.json(), packet);
+
+    const agentResponse = await fetch(`${origin}/api/v1/agents`, {
+      method: "POST",
+      headers: { "content-type": "application/json" },
+      body: JSON.stringify({ name: `Smoke synthetic agent ${key}` }),
+    });
+    assert.equal(agentResponse.status, 201);
+    const agent = await agentResponse.json();
+    assert.equal(agent.isSynthetic, true);
+    assert.equal(agent.runtime, "local-fake-v1");
+    const assignmentResponse = await fetch(
+      `${origin}/api/v1/agents/${agent.id}/projects`,
+      {
+        method: "POST",
+        headers: { "content-type": "application/json" },
+        body: JSON.stringify({ projectId: eventProject.id }),
+      },
+    );
+    assert.equal(assignmentResponse.status, 201);
+    const occurrenceId = randomUUID();
+    async function submitAgentRun() {
+      const response = await fetch(
+        `${origin}/api/v1/execution-packets/${packet.id}/agent-runs`,
+        {
+          method: "POST",
+          headers: { "content-type": "application/json" },
+          body: JSON.stringify({ agentId: agent.id, occurrenceId }),
+        },
+      );
+      assert.equal(response.status, 202);
+      return response.json();
+    }
+    const startedAgentRun = await submitAgentRun();
+    assert.equal((await submitAgentRun()).id, startedAgentRun.id);
+    let completedAgentRun;
+    const agentDeadline = Date.now() + 20_000;
+    while (Date.now() < agentDeadline) {
+      const response = await fetch(
+        `${origin}/api/v1/agent-runs/${startedAgentRun.id}`,
+      );
+      assert.equal(response.status, 200);
+      completedAgentRun = await response.json();
+      if (completedAgentRun.state === "succeeded") break;
+      if (completedAgentRun.state === "failed") {
+        throw new Error(
+          `Synthetic local agent run failed: ${completedAgentRun.error}`,
+        );
+      }
+      for (const service of services) {
+        if (service.error || service.child.exitCode !== null)
+          throw new Error(
+            `${service.name} exited during agent run: ${service.tail}`,
+          );
+      }
+      await delay(150);
+    }
+    assert.equal(completedAgentRun?.state, "succeeded");
+    assert.equal(completedAgentRun?.isSynthetic, true);
+    assert.equal(completedAgentRun?.verificationStatus, "unverified");
+    assert.deepEqual(completedAgentRun?.externalActions, []);
+    assert.ok(completedAgentRun?.result?.evidence?.length);
+    assert.ok(completedAgentRun?.result?.contextReadIds?.length);
+    for (const evidence of completedAgentRun.result.evidence) {
+      const source = await fetch(`${origin}${evidence.href}`);
+      assert.equal(source.status, 200);
+    }
+    const terminalContextResponse = await fetch(
+      `${origin}/api/v1/agent-runs/${startedAgentRun.id}/context-reads`,
+      {
+        method: "POST",
+        headers: { "content-type": "application/json" },
+        body: JSON.stringify({
+          projectId: eventProject.id,
+          operation: "project.brief.read",
+          reason: "Smoke review of cited project context",
+        }),
+      },
+    );
+    assert.equal(terminalContextResponse.status, 403);
+    assert.equal((await terminalContextResponse.json()).code, "RUN_NOT_ACTIVE");
+    const deniedContextResponse = await fetch(
+      `${origin}/api/v1/agent-runs/${startedAgentRun.id}/context-reads`,
+      {
+        method: "POST",
+        headers: { "content-type": "application/json" },
+        body: JSON.stringify({
+          projectId: eventProject.id,
+          operation: "external.action",
+          reason: "Smoke policy denial",
+        }),
+      },
+    );
+    assert.equal(deniedContextResponse.status, 403);
+    assert.equal((await deniedContextResponse.json()).code, "OPERATION_DENIED");
+    const auditResponse = await fetch(
+      `${origin}/api/v1/agent-runs/${startedAgentRun.id}/audit`,
+    );
+    assert.equal(auditResponse.status, 200);
+    const audit = await auditResponse.json();
+    assert.ok(audit.items.length >= 3);
     console.log(
-      "Built web and worker smoke passed: health, pagination, queue processing, synthetic attention lifecycle, real health isolation, cited brief, and immutable packet read.",
+      "Built web and worker smoke passed: health, pagination, queue processing, synthetic attention lifecycle, real health isolation, cited brief, immutable packet, scoped fake agent run, and policy audit.",
     );
   } finally {
     await Promise.all(services.reverse().map(stopService));
@@ -510,4 +610,4 @@ try {
   if (started) await postgres.stop();
   await rm(directory, { recursive: true, force: true });
 }
-if (failed) process.exitCode = 1;
+if (failed) throw new Error("Integration test suite failed");

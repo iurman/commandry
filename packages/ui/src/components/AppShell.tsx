@@ -4,7 +4,6 @@ const plannedDestinations = [
   "Work",
   "Infrastructure",
   "Automations",
-  "Agents",
   "Knowledge",
 ] as const;
 
@@ -13,7 +12,7 @@ export function AppShell({
   current = "Home",
 }: {
   children: ReactNode;
-  current?: "Home" | "Inbox" | "Projects" | "Activity" | "Search";
+  current?: "Home" | "Inbox" | "Projects" | "Activity" | "Search" | "Agents";
 }) {
   return (
     <div className="cmd-shell">
@@ -60,6 +59,13 @@ export function AppShell({
             href="/search"
           >
             Search
+          </a>
+          <a
+            aria-current={current === "Agents" ? "page" : undefined}
+            className={`cmd-nav-link ${current === "Agents" ? "cmd-nav-current" : ""}`}
+            href="/agents"
+          >
+            Agents
           </a>
           {plannedDestinations.map((destination) => (
             <span

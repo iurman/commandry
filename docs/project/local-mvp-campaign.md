@@ -51,7 +51,12 @@ local experience lab.
 - Scoped reads, agent runs, and higher-risk action review will use a local fake
   actor and simulated action. Approval will never invoke an external system.
   The local capability representation will remain replaceable while OQ-006,
-  OQ-007, and OQ-008 are unresolved.
+  OQ-007, and OQ-008 are unresolved. The fake agent will have persisted project
+  assignments and a run-specific, expiring grant for `project.brief.read` and
+  `work.read` only. The worker will read through the same policy and audit path
+  as the local API, then report a cited, unverified result with no external
+  actions. A person selecting an agent in the local UI does not establish a
+  production agent or human identity while OQ-003 and OQ-006 remain open.
 
 ## Evidence expected before campaign completion
 

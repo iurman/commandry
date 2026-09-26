@@ -330,6 +330,203 @@ export const executionPacket = pgTable(
   ],
 );
 
+export const localAgentProfile = pgTable(
+  "local_agent_profile",
+  {
+    id: uuid("id").primaryKey(),
+    name: text("name").notNull(),
+    role: text("role"),
+    runtime: text("runtime").notNull().default("local-fake-v1"),
+    isSynthetic: boolean("is_synthetic").notNull().default(true),
+    createdAt: createdAt(),
+  },
+  (table) => [
+    index("local_agent_profile_created_idx").on(table.createdAt, table.id),
+    check(
+      "local_agent_profile_name_nonempty",
+      sql`length(trim(${table.name})) > 0`,
+    ),
+    check(
+      "local_agent_profile_role_nonempty",
+      sql`${table.role} is null or length(trim(${table.role})) > 0`,
+    ),
+    check(
+      "local_agent_profile_runtime_local",
+      sql`${table.runtime} = 'local-fake-v1'`,
+    ),
+    check(
+      "local_agent_profile_synthetic_only",
+      sql`${table.isSynthetic} = true`,
+    ),
+  ],
+);
+
+export const localAgentProjectAssignment = pgTable(
+  "local_agent_project_assignment",
+  {
+    id: uuid("id").primaryKey(),
+    agentId: uuid("agent_id")
+      .notNull()
+      .references(() => localAgentProfile.id, { onDelete: "restrict" }),
+    projectId: uuid("project_id")
+      .notNull()
+      .references(() => project.id, { onDelete: "restrict" }),
+    createdAt: createdAt(),
+  },
+  (table) => [
+    uniqueIndex("local_agent_project_assignment_unique_idx").on(
+      table.agentId,
+      table.projectId,
+    ),
+    index("local_agent_project_assignment_agent_idx").on(
+      table.agentId,
+      table.createdAt,
+      table.id,
+    ),
+  ],
+);
+
+export const localAgentRun = pgTable(
+  "local_agent_run",
+  {
+    id: uuid("id").primaryKey(),
+    agentId: uuid("agent_id")
+      .notNull()
+      .references(() => localAgentProfile.id, { onDelete: "restrict" }),
+    packetId: uuid("packet_id")
+      .notNull()
+      .references(() => executionPacket.id, { onDelete: "restrict" }),
+    packetVersion: integer("packet_version").notNull(),
+    packetDigest: text("packet_digest").notNull(),
+    workItemId: uuid("work_item_id")
+      .notNull()
+      .references(() => workItem.id, { onDelete: "restrict" }),
+    projectId: uuid("project_id")
+      .notNull()
+      .references(() => project.id, { onDelete: "restrict" }),
+    occurrenceId: text("occurrence_id").notNull(),
+    requestFingerprint: text("request_fingerprint").notNull(),
+    state: text("state", {
+      enum: ["queued", "running", "succeeded", "failed"],
+    })
+      .notNull()
+      .default("queued"),
+    attempts: integer("attempts").notNull().default(0),
+    result: jsonb("result").$type<Record<string, unknown>>(),
+    error: text("error"),
+    isSynthetic: boolean("is_synthetic").notNull().default(true),
+    verificationStatus: text("verification_status")
+      .notNull()
+      .default("unverified"),
+    createdAt: createdAt(),
+    startedAt: timestamp("started_at", { withTimezone: true }),
+    completedAt: timestamp("completed_at", { withTimezone: true }),
+  },
+  (table) => [
+    uniqueIndex("local_agent_run_occurrence_idx").on(table.occurrenceId),
+    index("local_agent_run_agent_created_idx").on(
+      table.agentId,
+      table.createdAt,
+      table.id,
+    ),
+    index("local_agent_run_packet_idx").on(table.packetId),
+    check("local_agent_run_attempts_nonnegative", sql`${table.attempts} >= 0`),
+    check(
+      "local_agent_run_state_valid",
+      sql`${table.state} in ('queued', 'running', 'succeeded', 'failed')`,
+    ),
+    check("local_agent_run_synthetic_only", sql`${table.isSynthetic} = true`),
+    check(
+      "local_agent_run_unverified_only",
+      sql`${table.verificationStatus} = 'unverified'`,
+    ),
+    check(
+      "local_agent_run_packet_version_positive",
+      sql`${table.packetVersion} > 0`,
+    ),
+    check(
+      "local_agent_run_packet_digest_valid",
+      sql`${table.packetDigest} ~ '^[0-9a-f]{64}$'`,
+    ),
+    check(
+      "local_agent_run_occurrence_nonempty",
+      sql`length(trim(${table.occurrenceId})) > 0`,
+    ),
+    check(
+      "local_agent_run_fingerprint_valid",
+      sql`${table.requestFingerprint} ~ '^[0-9a-f]{64}$'`,
+    ),
+  ],
+);
+
+export const localAgentRunGrant = pgTable(
+  "local_agent_run_grant",
+  {
+    id: uuid("id").primaryKey(),
+    runId: uuid("run_id")
+      .notNull()
+      .references(() => localAgentRun.id, { onDelete: "restrict" }),
+    projectId: uuid("project_id")
+      .notNull()
+      .references(() => project.id, { onDelete: "restrict" }),
+    operation: text("operation", {
+      enum: ["project.brief.read", "work.read"],
+    }).notNull(),
+    expiresAt: timestamp("expires_at", { withTimezone: true }).notNull(),
+    createdAt: createdAt(),
+  },
+  (table) => [
+    uniqueIndex("local_agent_run_grant_unique_idx").on(
+      table.runId,
+      table.operation,
+    ),
+    index("local_agent_run_grant_run_idx").on(table.runId),
+    check(
+      "local_agent_run_grant_operation_valid",
+      sql`${table.operation} in ('project.brief.read', 'work.read')`,
+    ),
+    check(
+      "local_agent_run_grant_expiry_valid",
+      sql`${table.expiresAt} > ${table.createdAt}`,
+    ),
+  ],
+);
+
+export const localAgentRunAttempt = pgTable(
+  "local_agent_run_attempt",
+  {
+    id: uuid("id").primaryKey(),
+    runId: uuid("run_id")
+      .notNull()
+      .references(() => localAgentRun.id, { onDelete: "restrict" }),
+    number: integer("number").notNull(),
+    state: text("state", {
+      enum: ["running", "succeeded", "failed"],
+    }).notNull(),
+    error: text("error"),
+    startedAt: timestamp("started_at", { withTimezone: true })
+      .notNull()
+      .defaultNow(),
+    completedAt: timestamp("completed_at", { withTimezone: true }),
+  },
+  (table) => [
+    uniqueIndex("local_agent_run_attempt_number_idx").on(
+      table.runId,
+      table.number,
+    ),
+    index("local_agent_run_attempt_run_idx").on(
+      table.runId,
+      table.startedAt,
+      table.id,
+    ),
+    check("local_agent_run_attempt_number_positive", sql`${table.number} > 0`),
+    check(
+      "local_agent_run_attempt_state_valid",
+      sql`${table.state} in ('running', 'succeeded', 'failed')`,
+    ),
+  ],
+);
+
 export const syntheticEventImport = pgTable(
   "synthetic_event_import",
   {
@@ -634,6 +831,10 @@ export const auditEvent = pgTable(
       () => syntheticEventImport.id,
       { onDelete: "set null" },
     ),
+    targetAgentRunId: uuid("target_agent_run_id").references(
+      () => localAgentRun.id,
+      { onDelete: "set null" },
+    ),
     details: jsonb("details")
       .$type<Record<string, string | number | boolean | null>>()
       .notNull()
@@ -643,6 +844,11 @@ export const auditEvent = pgTable(
   (table) => [
     index("audit_event_target_run_idx").on(table.targetRunId),
     index("audit_event_target_import_idx").on(table.targetImportId),
+    index("audit_event_target_agent_run_idx").on(
+      table.targetAgentRunId,
+      table.createdAt,
+      table.id,
+    ),
   ],
 );
 

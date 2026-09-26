@@ -36,6 +36,13 @@
       "when": 1790399063029,
       "tag": "0004_dusty_sasquatch",
       "breakpoints": true
+    },
+    {
+      "idx": 5,
+      "version": "7",
+      "when": 1790401518916,
+      "tag": "0005_gigantic_katie_power",
+      "breakpoints": true
     }
   ]
 }

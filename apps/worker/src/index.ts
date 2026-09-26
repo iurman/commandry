@@ -1,21 +1,28 @@
 import { randomUUID } from "node:crypto";
 import {
+  createAgentContextService,
+  createLocalAgentRunProcessor,
+  createProjectBriefService,
   createSyntheticEventImportProcessor,
   createSyntheticRunProcessor,
 } from "@commandry/application";
 import { loadRuntimeConfig } from "@commandry/config";
 import {
+  localAgentRunJobV1Schema,
   syntheticEventImportJobV1Schema,
   syntheticJobV1Schema,
 } from "@commandry/contracts";
 import {
+  createBriefRepository,
   createDatabase,
+  createLocalAgentRunRepository,
   createSyntheticEventImportRepository,
   createSyntheticRunRepository,
   createWorkerHeartbeatRepository,
 } from "@commandry/db";
 import {
   createPgBossProducer,
+  LOCAL_AGENT_RUN_QUEUE,
   SYNTHETIC_EVENT_IMPORT_QUEUE,
   SYNTHETIC_QUEUE,
 } from "@commandry/platform";
@@ -34,6 +41,21 @@ const heartbeatRepository = createWorkerHeartbeatRepository(database.db);
 const processRun = createSyntheticRunProcessor(runRepository);
 const processEventImport = createSyntheticEventImportProcessor(
   createSyntheticEventImportRepository(database.db),
+);
+const localAgentRunRepository = createLocalAgentRunRepository(database.db);
+const projectBriefService = createProjectBriefService(
+  createBriefRepository(database.db),
+);
+const localAgentContext = createAgentContextService({
+  getAuthorization: localAgentRunRepository.getAuthorization,
+  getProjectBrief: projectBriefService.getBrief,
+  getWorkItem: localAgentRunRepository.getWorkItem,
+  recordAudit: localAgentRunRepository.recordAudit,
+  listAudit: localAgentRunRepository.listAudit,
+});
+const processLocalAgentRun = createLocalAgentRunProcessor(
+  localAgentRunRepository,
+  localAgentContext,
 );
 const workerId = randomUUID();
 
@@ -99,6 +121,26 @@ await transport.boss.work(SYNTHETIC_EVENT_IMPORT_QUEUE, async ([job]) => {
     });
   } catch (error) {
     log("error", "synthetic_event_import.failed_attempt", {
+      correlationId: input.runId,
+      occurrenceId: input.occurrenceId,
+      jobId: job.id,
+      error: error instanceof Error ? error.name : "unknown",
+    });
+    throw error;
+  }
+});
+await transport.boss.work(LOCAL_AGENT_RUN_QUEUE, async ([job]) => {
+  if (!job) throw new Error("pg-boss delivered an empty local agent job batch");
+  const input = localAgentRunJobV1Schema.parse(job.data);
+  try {
+    await processLocalAgentRun(input);
+    log("info", "local_agent_run.completed", {
+      correlationId: input.runId,
+      occurrenceId: input.occurrenceId,
+      jobId: job.id,
+    });
+  } catch (error) {
+    log("error", "local_agent_run.failed_attempt", {
       correlationId: input.runId,
       occurrenceId: input.occurrenceId,
       jobId: job.id,

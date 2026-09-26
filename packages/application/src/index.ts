@@ -4,3 +4,6 @@ export * from "./capture";
 export * from "./synthetic-events";
 export * from "./project-brief";
 export * from "./execution-packets";
+export * from "./local-agents";
+export * from "./local-agent-runs";
+export * from "./agent-context";

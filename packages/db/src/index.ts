@@ -9,4 +9,6 @@ export * from "./synthetic-event-repository";
 export * from "./record-detail-repository";
 export * from "./brief-repository";
 export * from "./execution-packet-repository";
+export * from "./local-agent-repository";
+export * from "./local-agent-run-repository";
 export * as schema from "./schema";

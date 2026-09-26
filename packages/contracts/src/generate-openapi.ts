@@ -4,6 +4,23 @@ import { fileURLToPath } from "node:url";
 import { z } from "zod";
 import {
   captureSchema,
+  createLocalAgentRequestSchema,
+  localAgentProfileSchema,
+  listLocalAgentsResponseSchema,
+  createLocalAgentProjectAssignmentRequestSchema,
+  localAgentProjectAssignmentSchema,
+  listLocalAgentProjectAssignmentsResponseSchema,
+  createLocalAgentRunRequestSchema,
+  localAgentRunJobV1Schema,
+  localAgentRunGrantSchema,
+  localAgentRunAttemptSchema,
+  fakeLocalAgentRunResultSchema,
+  localAgentRunSchema,
+  agentContextReadRequestSchema,
+  agentContextReadSourceSchema,
+  agentContextReadResponseSchema,
+  agentRunAuditEventSchema,
+  listAgentRunAuditResponseSchema,
   createExecutionPacketRequestSchema,
   createSyntheticEventImportRequestSchema,
   createCaptureRequestSchema,
@@ -493,6 +510,181 @@ export function generateOpenApi(): string {
           },
         },
       },
+      "/api/v1/agents": {
+        get: {
+          operationId: "listLocalAgents",
+          summary: "Page through synthetic local agent profiles",
+          parameters: pageParameters,
+          responses: {
+            "200": {
+              description: "Agent profile page",
+              content: jsonContent("ListLocalAgentsResponse"),
+            },
+          },
+        },
+        post: {
+          operationId: "createLocalAgent",
+          summary: "Create a provisional synthetic local agent profile",
+          requestBody: {
+            required: true,
+            content: jsonContent("CreateLocalAgentRequest"),
+          },
+          responses: {
+            "201": {
+              description: "Synthetic local agent",
+              content: jsonContent("LocalAgentProfile"),
+            },
+            "400": {
+              description: "Invalid profile",
+              content: jsonContent("ErrorResponse"),
+            },
+          },
+        },
+      },
+      "/api/v1/agents/{id}": {
+        get: {
+          operationId: "getLocalAgent",
+          parameters: [idParameter],
+          responses: {
+            "200": {
+              description: "Synthetic local agent profile",
+              content: jsonContent("LocalAgentProfile"),
+            },
+            "404": {
+              description: "Agent not found",
+              content: jsonContent("ErrorResponse"),
+            },
+          },
+        },
+      },
+      "/api/v1/agents/{id}/projects": {
+        get: {
+          operationId: "listLocalAgentProjects",
+          parameters: [idParameter, ...pageParameters],
+          responses: {
+            "200": {
+              description: "Agent project assignments",
+              content: jsonContent("ListLocalAgentProjectAssignmentsResponse"),
+            },
+            "404": {
+              description: "Agent not found",
+              content: jsonContent("ErrorResponse"),
+            },
+          },
+        },
+        post: {
+          operationId: "assignLocalAgentProject",
+          parameters: [idParameter],
+          requestBody: {
+            required: true,
+            content: jsonContent("CreateLocalAgentProjectAssignmentRequest"),
+          },
+          responses: {
+            "201": {
+              description: "Synthetic agent project assignment",
+              content: jsonContent("LocalAgentProjectAssignment"),
+            },
+            "404": {
+              description: "Agent or project not found",
+              content: jsonContent("ErrorResponse"),
+            },
+            "409": {
+              description: "Assignment exists",
+              content: jsonContent("ErrorResponse"),
+            },
+          },
+        },
+      },
+      "/api/v1/execution-packets/{id}/agent-runs": {
+        post: {
+          operationId: "submitLocalAgentRun",
+          summary: "Queue an idempotent packet-bound synthetic local fake run",
+          parameters: [idParameter],
+          requestBody: {
+            required: true,
+            content: jsonContent("CreateLocalAgentRunRequest"),
+          },
+          responses: {
+            "202": {
+              description: "Queued or existing fake run",
+              content: jsonContent("LocalAgentRun"),
+            },
+            "403": {
+              description: "Agent is not assigned to packet project",
+              content: jsonContent("ErrorResponse"),
+            },
+            "404": {
+              description: "Packet or agent not found",
+              content: jsonContent("ErrorResponse"),
+            },
+            "409": {
+              description: "Occurrence conflict",
+              content: jsonContent("ErrorResponse"),
+            },
+          },
+        },
+      },
+      "/api/v1/agent-runs/{id}": {
+        get: {
+          operationId: "getLocalAgentRun",
+          parameters: [idParameter],
+          responses: {
+            "200": {
+              description:
+                "Synthetic run with grant, attempts and unverified result",
+              content: jsonContent("LocalAgentRun"),
+            },
+            "404": {
+              description: "Run not found",
+              content: jsonContent("ErrorResponse"),
+            },
+          },
+        },
+      },
+      "/api/v1/agent-runs/{id}/context-reads": {
+        post: {
+          operationId: "readLocalAgentContext",
+          summary:
+            "Check project, operation, run state and expiry before an audited local read",
+          parameters: [idParameter],
+          requestBody: {
+            required: true,
+            content: jsonContent("AgentContextReadRequest"),
+          },
+          responses: {
+            "200": {
+              description: "Scoped context and allowed audit identity",
+              content: jsonContent("AgentContextReadResponse"),
+            },
+            "403": {
+              description:
+                "Scope, operation, state or expiry denied and audited",
+              content: jsonContent("ErrorResponse"),
+            },
+            "404": {
+              description: "Run or context not found",
+              content: jsonContent("ErrorResponse"),
+            },
+          },
+        },
+      },
+      "/api/v1/agent-runs/{id}/audit": {
+        get: {
+          operationId: "listLocalAgentRunAudit",
+          parameters: [idParameter, ...pageParameters],
+          responses: {
+            "200": {
+              description:
+                "Cursor page of queue, attempt and read audit events",
+              content: jsonContent("ListAgentRunAuditResponse"),
+            },
+            "404": {
+              description: "Run not found",
+              content: jsonContent("ErrorResponse"),
+            },
+          },
+        },
+      },
       "/api/v1/projects/{id}/work": {
         get: {
           operationId: "listProjectWork",
@@ -827,6 +1019,29 @@ export function generateOpenApi(): string {
         ListExecutionPacketsResponse: component(
           listExecutionPacketsResponseSchema,
         ),
+        CreateLocalAgentRequest: component(createLocalAgentRequestSchema),
+        LocalAgentProfile: component(localAgentProfileSchema),
+        ListLocalAgentsResponse: component(listLocalAgentsResponseSchema),
+        CreateLocalAgentProjectAssignmentRequest: component(
+          createLocalAgentProjectAssignmentRequestSchema,
+        ),
+        LocalAgentProjectAssignment: component(
+          localAgentProjectAssignmentSchema,
+        ),
+        ListLocalAgentProjectAssignmentsResponse: component(
+          listLocalAgentProjectAssignmentsResponseSchema,
+        ),
+        CreateLocalAgentRunRequest: component(createLocalAgentRunRequestSchema),
+        LocalAgentRunJobV1: component(localAgentRunJobV1Schema),
+        LocalAgentRunGrant: component(localAgentRunGrantSchema),
+        LocalAgentRunAttempt: component(localAgentRunAttemptSchema),
+        FakeLocalAgentRunResult: component(fakeLocalAgentRunResultSchema),
+        LocalAgentRun: component(localAgentRunSchema),
+        AgentContextReadRequest: component(agentContextReadRequestSchema),
+        AgentContextReadSource: component(agentContextReadSourceSchema),
+        AgentContextReadResponse: component(agentContextReadResponseSchema),
+        AgentRunAuditEvent: component(agentRunAuditEventSchema),
+        ListAgentRunAuditResponse: component(listAgentRunAuditResponseSchema),
         CreateSyntheticEventImportRequest: component(
           createSyntheticEventImportRequestSchema,
         ),

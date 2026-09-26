@@ -1,10 +1,18 @@
-import { eq, sql } from "drizzle-orm";
+import { and, eq, sql } from "drizzle-orm";
 import { PgBoss, fromDrizzle } from "pg-boss";
 import { Pool } from "pg";
-import type { PreparedSyntheticEventImport } from "@commandry/application";
+import type {
+  PreparedLocalAgentRun,
+  PreparedSyntheticEventImport,
+} from "@commandry/application";
 import type { CommandryDatabase } from "@commandry/db";
-import { createSyntheticEventImportRepository, schema } from "@commandry/db";
 import {
+  createLocalAgentRunRepository,
+  createSyntheticEventImportRepository,
+  schema,
+} from "@commandry/db";
+import {
+  LocalAgentError,
   SyntheticEventImportConflictError,
   type SyntheticRun,
 } from "@commandry/domain";
@@ -15,6 +23,9 @@ export const SYNTHETIC_EVENT_IMPORT_QUEUE =
   "commandry-synthetic-event-import-v1";
 export const SYNTHETIC_EVENT_IMPORT_DEAD_LETTER_QUEUE =
   "commandry-synthetic-event-import-dlq";
+export const LOCAL_AGENT_RUN_QUEUE = "commandry-local-agent-run-v1";
+export const LOCAL_AGENT_RUN_DEAD_LETTER_QUEUE =
+  "commandry-local-agent-run-dlq";
 
 function bossOptions(connectionString: string, max: number, migrate: boolean) {
   return {
@@ -50,6 +61,13 @@ export async function installPgBossSchema(options: {
       retryDelay: 1,
       retryBackoff: true,
       deadLetter: SYNTHETIC_EVENT_IMPORT_DEAD_LETTER_QUEUE,
+    });
+    await boss.createQueue(LOCAL_AGENT_RUN_DEAD_LETTER_QUEUE);
+    await boss.createQueue(LOCAL_AGENT_RUN_QUEUE, {
+      retryLimit: 3,
+      retryDelay: 1,
+      retryBackoff: true,
+      deadLetter: LOCAL_AGENT_RUN_DEAD_LETTER_QUEUE,
     });
   } finally {
     await boss.stop();
@@ -235,6 +253,145 @@ export function createSyntheticEventImportSubmission(
       const record = await repository.getById(importId);
       if (!record)
         throw new Error("Synthetic event import disappeared after submission");
+      return record;
+    },
+  };
+}
+
+/** A packet-bound fake run, expiring grants, queue job, and audit commit together. */
+export function createLocalAgentRunSubmission(
+  db: CommandryDatabase,
+  boss: PgBoss,
+) {
+  const repository = createLocalAgentRunRepository(db);
+  return {
+    async submitOnce(input: PreparedLocalAgentRun) {
+      const runId = await db.transaction(async (tx) => {
+        const [inserted] = await tx
+          .insert(schema.localAgentRun)
+          .values({
+            id: crypto.randomUUID(),
+            agentId: input.agentId,
+            packetId: input.packetId,
+            packetVersion: input.packetVersion,
+            packetDigest: input.packetDigest,
+            workItemId: input.workItemId,
+            projectId: input.projectId,
+            occurrenceId: input.occurrenceId,
+            requestFingerprint: input.requestFingerprint,
+            state: "queued",
+          })
+          .onConflictDoNothing({ target: schema.localAgentRun.occurrenceId })
+          .returning({ id: schema.localAgentRun.id });
+
+        if (!inserted) {
+          const [existing] = await tx
+            .select({
+              id: schema.localAgentRun.id,
+              requestFingerprint: schema.localAgentRun.requestFingerprint,
+            })
+            .from(schema.localAgentRun)
+            .where(eq(schema.localAgentRun.occurrenceId, input.occurrenceId))
+            .limit(1);
+          if (!existing)
+            throw new Error("Local agent run disappeared after conflict");
+          if (existing.requestFingerprint !== input.requestFingerprint) {
+            throw new LocalAgentError(
+              "OCCURRENCE_CONFLICT",
+              "Occurrence ID was already used for a different local agent run",
+            );
+          }
+          return existing.id;
+        }
+
+        const [packet] = await tx
+          .select({
+            id: schema.executionPacket.id,
+            packetVersion: schema.executionPacket.packetVersion,
+            contentDigest: schema.executionPacket.contentDigest,
+            workItemId: schema.executionPacket.workItemId,
+            projectId: schema.executionPacket.projectId,
+          })
+          .from(schema.executionPacket)
+          .where(eq(schema.executionPacket.id, input.packetId))
+          .limit(1);
+        if (
+          !packet ||
+          packet.packetVersion !== input.packetVersion ||
+          packet.contentDigest !== input.packetDigest ||
+          packet.workItemId !== input.workItemId ||
+          packet.projectId !== input.projectId
+        ) {
+          throw new LocalAgentError(
+            "PACKET_NOT_FOUND",
+            "Prepared run does not match its immutable execution packet",
+          );
+        }
+        const [assignment] = await tx
+          .select({ id: schema.localAgentProjectAssignment.id })
+          .from(schema.localAgentProjectAssignment)
+          .where(
+            and(
+              eq(schema.localAgentProjectAssignment.agentId, input.agentId),
+              eq(schema.localAgentProjectAssignment.projectId, input.projectId),
+            ),
+          )
+          .limit(1);
+        if (!assignment) {
+          throw new LocalAgentError(
+            "AGENT_NOT_ASSIGNED",
+            "Local agent is not assigned to the packet project",
+          );
+        }
+        if (
+          !Number.isInteger(input.grantTtlSeconds) ||
+          input.grantTtlSeconds < 1 ||
+          input.grantTtlSeconds > 86_400 ||
+          input.grantOperations.length !== 2 ||
+          new Set(input.grantOperations).size !== 2 ||
+          !input.grantOperations.includes("project.brief.read") ||
+          !input.grantOperations.includes("work.read")
+        ) {
+          throw new Error("Prepared local agent grant is invalid");
+        }
+        const now = new Date();
+        const expiresAt = new Date(
+          now.getTime() + input.grantTtlSeconds * 1000,
+        );
+        await tx.insert(schema.localAgentRunGrant).values(
+          input.grantOperations.map((operation) => ({
+            id: crypto.randomUUID(),
+            runId: inserted.id,
+            projectId: input.projectId,
+            operation,
+            expiresAt,
+            createdAt: now,
+          })),
+        );
+
+        const jobId = await boss.send(
+          LOCAL_AGENT_RUN_QUEUE,
+          { version: 1, runId: inserted.id, occurrenceId: input.occurrenceId },
+          { db: fromDrizzle(tx, sql) },
+        );
+        if (!jobId) throw new Error("Local agent run was not enqueued");
+        await tx.insert(schema.auditEvent).values({
+          id: crypto.randomUUID(),
+          actor: "system:api",
+          operation: "local_agent_run.queued",
+          targetAgentRunId: inserted.id,
+          details: {
+            projectId: input.projectId,
+            packetId: input.packetId,
+            agentId: input.agentId,
+            jobId,
+            grantExpiresAt: expiresAt.toISOString(),
+          },
+        });
+        return inserted.id;
+      });
+      const record = await repository.getById(runId);
+      if (!record) throw new Error("Queued local agent run disappeared");
       return record;
     },
   };

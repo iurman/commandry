@@ -527,6 +527,156 @@ export const listExecutionPacketsResponseSchema = z.object({
   nextCursor: z.uuid().nullable(),
 });
 
+export const createLocalAgentRequestSchema = z.object({
+  name: z.string().trim().min(1).max(200),
+  role: z.string().trim().min(1).max(200).optional(),
+});
+
+export const localAgentProfileSchema = z.object({
+  id: z.uuid(),
+  name: z.string().min(1),
+  role: z.string().nullable(),
+  runtime: z.literal("local-fake-v1"),
+  sourceLabel: z.literal("Synthetic local agent"),
+  isSynthetic: z.literal(true),
+  createdAt: z.iso.datetime({ offset: true }),
+});
+
+export const listLocalAgentsResponseSchema = z.object({
+  items: z.array(localAgentProfileSchema),
+  nextCursor: z.uuid().nullable(),
+});
+
+export const createLocalAgentProjectAssignmentRequestSchema = z.object({
+  projectId: z.uuid(),
+});
+
+export const localAgentProjectAssignmentSchema = z.object({
+  id: z.uuid(),
+  agentId: z.uuid(),
+  projectId: z.uuid(),
+  isSynthetic: z.literal(true),
+  createdAt: z.iso.datetime({ offset: true }),
+});
+
+export const listLocalAgentProjectAssignmentsResponseSchema = z.object({
+  items: z.array(localAgentProjectAssignmentSchema),
+  nextCursor: z.uuid().nullable(),
+});
+
+export const localAgentReadOperationSchema = z.enum([
+  "project.brief.read",
+  "work.read",
+]);
+
+export const createLocalAgentRunRequestSchema = z.object({
+  agentId: z.uuid(),
+  occurrenceId: z.string().trim().min(1).max(180),
+});
+
+export const localAgentRunJobV1Schema = z.object({
+  version: z.literal(1),
+  runId: z.uuid(),
+  occurrenceId: z.string().min(1).max(180),
+});
+
+export const localAgentRunGrantSchema = z.object({
+  projectId: z.uuid(),
+  operations: z.array(localAgentReadOperationSchema).length(2),
+  expiresAt: z.iso.datetime({ offset: true }),
+});
+
+export const fakeLocalAgentRunResultSchema = z.object({
+  summary: z.string().min(1),
+  contextReadIds: z.array(z.uuid()),
+  evidence: z.array(evidenceReferenceSchema).min(1),
+  runtime: z.literal("local-fake-v1"),
+  isSynthetic: z.literal(true),
+  verificationStatus: z.literal("unverified"),
+  externalActions: z.array(z.string()).max(0),
+});
+
+export const localAgentRunAttemptSchema = z.object({
+  id: z.uuid(),
+  number: z.number().int().min(1),
+  state: z.enum(["running", "succeeded", "failed"]),
+  error: z.string().nullable(),
+  startedAt: z.iso.datetime({ offset: true }),
+  completedAt: z.iso.datetime({ offset: true }).nullable(),
+});
+
+export const localAgentRunSchema = z.object({
+  id: z.uuid(),
+  occurrenceId: z.string(),
+  agentId: z.uuid(),
+  packetId: z.uuid(),
+  packetVersion: z.number().int().min(1),
+  packetDigest: z.string().regex(/^[a-f0-9]{64}$/),
+  workItemId: z.uuid(),
+  projectId: z.uuid(),
+  state: z.enum(["queued", "running", "succeeded", "failed"]),
+  attempts: z.number().int().min(0),
+  attemptHistory: z.array(localAgentRunAttemptSchema),
+  grant: localAgentRunGrantSchema,
+  result: fakeLocalAgentRunResultSchema.nullable(),
+  error: z.string().nullable(),
+  verificationStatus: z.literal("unverified"),
+  runtime: z.literal("local-fake-v1"),
+  sourceLabel: z.literal("Synthetic local agent"),
+  isSynthetic: z.literal(true),
+  externalActions: z.array(z.string()).max(0),
+  createdAt: z.iso.datetime({ offset: true }),
+  startedAt: z.iso.datetime({ offset: true }).nullable(),
+  completedAt: z.iso.datetime({ offset: true }).nullable(),
+});
+
+export const agentContextReadRequestSchema = z.object({
+  projectId: z.uuid(),
+  operation: z.string().trim().min(1).max(100),
+  reason: z.string().trim().min(1).max(500),
+});
+
+export const agentContextReadSourceSchema = z.object({
+  kind: z.enum(["project_brief", "work_item"]),
+  id: z.uuid(),
+  title: z.string().min(1),
+  summary: z.string(),
+  href: z.string().startsWith("/api/v1/"),
+  recordedAt: z.iso.datetime({ offset: true }),
+  sourceLabel: z.string().min(1),
+  isSynthetic: z.boolean(),
+  evidence: z.array(evidenceReferenceSchema).min(1),
+  brief: projectBriefSchema.nullable(),
+});
+
+export const agentContextReadResponseSchema = z.object({
+  runId: z.uuid(),
+  projectId: z.uuid(),
+  operation: localAgentReadOperationSchema,
+  readAt: z.iso.datetime({ offset: true }),
+  sensitivity: z.literal("unclassified-local-data"),
+  isSynthetic: z.literal(true),
+  source: agentContextReadSourceSchema,
+  auditId: z.uuid(),
+});
+
+export const agentRunAuditEventSchema = z.object({
+  id: z.uuid(),
+  runId: z.uuid(),
+  actor: z.string().min(1),
+  operation: z.string().min(1),
+  projectId: z.uuid().nullable(),
+  decision: z.enum(["allowed", "denied"]).nullable(),
+  code: z.string().nullable(),
+  reason: z.string().nullable(),
+  createdAt: z.iso.datetime({ offset: true }),
+});
+
+export const listAgentRunAuditResponseSchema = z.object({
+  items: z.array(agentRunAuditEventSchema),
+  nextCursor: z.uuid().nullable(),
+});
+
 export const createSyntheticRunRequestSchema = z.object({
   idempotencyKey: z.string().trim().min(1).max(180),
 });
@@ -590,5 +740,27 @@ export type ExecutionPacketSnapshot = z.infer<
   typeof executionPacketSnapshotSchema
 >;
 export type ExecutionPacket = z.infer<typeof executionPacketSchema>;
+export type CreateLocalAgentRequest = z.infer<
+  typeof createLocalAgentRequestSchema
+>;
+export type LocalAgentProfile = z.infer<typeof localAgentProfileSchema>;
+export type LocalAgentProjectAssignment = z.infer<
+  typeof localAgentProjectAssignmentSchema
+>;
+export type CreateLocalAgentRunRequest = z.infer<
+  typeof createLocalAgentRunRequestSchema
+>;
+export type LocalAgentRunJobV1 = z.infer<typeof localAgentRunJobV1Schema>;
+export type FakeLocalAgentRunResult = z.infer<
+  typeof fakeLocalAgentRunResultSchema
+>;
+export type LocalAgentRun = z.infer<typeof localAgentRunSchema>;
+export type AgentContextReadRequest = z.infer<
+  typeof agentContextReadRequestSchema
+>;
+export type AgentContextReadResponse = z.infer<
+  typeof agentContextReadResponseSchema
+>;
+export type AgentRunAuditEvent = z.infer<typeof agentRunAuditEventSchema>;
 export type SyntheticJobV1 = z.infer<typeof syntheticJobV1Schema>;
 export type SyntheticRunResponse = z.infer<typeof syntheticRunSchema>;

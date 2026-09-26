@@ -1655,3 +1655,352 @@ textarea {
     gap: 0;
   }
 }
+
+/* The local agent workbench presents grants and evidence as inspectable records. */
+.cmd-agent-workbench,
+.cmd-local-run,
+.cmd-local-run-grid,
+.cmd-local-agent-card,
+.cmd-local-run-audit,
+.cmd-local-read-receipt {
+  min-width: 0;
+}
+
+.cmd-agent-workbench {
+  display: grid;
+  grid-template-columns: minmax(0, 1.45fr) minmax(18rem, 0.85fr);
+  align-items: start;
+  gap: clamp(1rem, 2.5vw, 2rem);
+}
+
+.cmd-agent-list {
+  display: grid;
+  gap: var(--cmd-space-4);
+  margin: 0 0 var(--cmd-space-4);
+  padding: 0;
+  list-style: none;
+}
+
+.cmd-local-agent-card,
+.cmd-local-run-grid > section,
+.cmd-local-run-result,
+.cmd-local-run-audit,
+.cmd-local-read-receipt,
+.cmd-local-run-assignment {
+  padding: clamp(1rem, 2vw, 1.5rem);
+  border: 1px solid var(--cmd-border);
+  border-radius: var(--cmd-radius);
+  background: var(--cmd-surface);
+}
+
+.cmd-local-agent-card {
+  border-top: 3px solid var(--cmd-accent);
+}
+
+.cmd-local-agent-card-head,
+.cmd-local-run-head {
+  display: flex;
+  align-items: start;
+  justify-content: space-between;
+  flex-wrap: wrap;
+  gap: var(--cmd-space-3) var(--cmd-space-6);
+}
+
+.cmd-local-agent-card-head h3,
+.cmd-local-run-head h1 {
+  margin: 0;
+  font-family: "Iowan Old Style", "Palatino Linotype", Georgia, serif;
+  font-size: clamp(1.6rem, 3.4vw, 2.6rem);
+  font-weight: 500;
+  letter-spacing: -0.05em;
+  line-height: 1.1;
+  overflow-wrap: anywhere;
+}
+
+.cmd-local-agent-card-head p:last-child {
+  margin: var(--cmd-space-2) 0 0;
+  color: var(--cmd-text-muted);
+}
+
+.cmd-local-agent-runtime,
+.cmd-local-run-state,
+.cmd-local-run-verify,
+.cmd-local-audit-marker {
+  display: inline-flex;
+  width: max-content;
+  max-width: 100%;
+  align-items: center;
+  border: 1px solid var(--cmd-border);
+  border-radius: 999px;
+  padding: var(--cmd-space-1) var(--cmd-space-3);
+  background: var(--cmd-surface-muted);
+  color: var(--cmd-text-muted);
+  font-size: 0.76rem;
+  font-weight: 700;
+  line-height: 1.3;
+  overflow-wrap: anywhere;
+}
+
+.cmd-local-run-state[data-state="running"],
+.cmd-local-run-state[data-state="queued"] {
+  background: var(--cmd-caution-bg);
+  color: var(--cmd-caution-text);
+}
+
+.cmd-local-run-state[data-state="failed"],
+.cmd-local-audit-marker[data-decision="denied"] {
+  background: var(--cmd-critical-bg);
+  color: var(--cmd-critical-text);
+}
+
+.cmd-local-run-state[data-state="succeeded"] {
+  background: var(--cmd-positive-bg);
+  color: var(--cmd-positive-text);
+}
+
+.cmd-local-audit-marker[data-decision="allowed"] {
+  background: var(--cmd-positive-bg);
+  color: var(--cmd-positive-text);
+}
+
+.cmd-local-agent-scope {
+  margin-top: var(--cmd-space-6);
+  padding-top: var(--cmd-space-4);
+  border-top: 1px solid var(--cmd-border);
+}
+
+.cmd-local-agent-scope h4 {
+  margin: 0 0 var(--cmd-space-3);
+  font-size: 0.9rem;
+}
+
+.cmd-local-agent-scope ul,
+.cmd-local-run-evidence {
+  display: grid;
+  gap: var(--cmd-space-2);
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.cmd-local-agent-scope li {
+  display: flex;
+  justify-content: space-between;
+  flex-wrap: wrap;
+  gap: var(--cmd-space-2);
+  padding: var(--cmd-space-2) var(--cmd-space-3);
+  background: var(--cmd-surface-muted);
+  overflow-wrap: anywhere;
+}
+
+.cmd-local-agent-scope li span,
+.cmd-local-agent-disclosure,
+.cmd-local-run-disclosure {
+  color: var(--cmd-text-muted);
+  font-size: 0.83rem;
+}
+
+.cmd-local-agent-card a,
+.cmd-local-run a,
+.cmd-local-read-receipt a {
+  color: var(--cmd-accent);
+  text-underline-offset: 0.16em;
+  overflow-wrap: anywhere;
+}
+
+.cmd-local-agent-disclosure {
+  margin: var(--cmd-space-4) 0 0;
+}
+
+.cmd-local-agent-assign,
+.cmd-local-run-read-form {
+  display: grid;
+  gap: var(--cmd-space-2);
+  margin-top: var(--cmd-space-4);
+}
+
+.cmd-local-agent-assign .cmd-button,
+.cmd-local-run-read-form .cmd-button {
+  justify-self: start;
+}
+
+.cmd-local-run-warning {
+  margin: var(--cmd-space-6) 0;
+  padding: var(--cmd-space-4);
+  border-left: 3px solid var(--cmd-caution-text);
+  background: var(--cmd-caution-bg);
+  color: var(--cmd-caution-text);
+}
+
+.cmd-local-run-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: var(--cmd-space-4);
+}
+
+.cmd-local-run-grid h2,
+.cmd-local-run-result h2,
+.cmd-local-run-audit h2,
+.cmd-local-read-receipt h3,
+.cmd-local-run-assignment h2 {
+  margin: 0 0 var(--cmd-space-4);
+  font-family: "Iowan Old Style", "Palatino Linotype", Georgia, serif;
+  font-size: clamp(1.4rem, 2.6vw, 2rem);
+  font-weight: 500;
+  letter-spacing: -0.04em;
+  line-height: 1.14;
+}
+
+.cmd-local-run-facts {
+  display: grid;
+  gap: var(--cmd-space-2);
+  margin: 0;
+}
+
+.cmd-local-run-facts div {
+  display: grid;
+  grid-template-columns: minmax(5.5rem, 0.4fr) minmax(0, 1fr);
+  gap: var(--cmd-space-3);
+  min-width: 0;
+}
+
+.cmd-local-run-facts dt {
+  color: var(--cmd-text-muted);
+  font-size: 0.83rem;
+  font-weight: 700;
+}
+
+.cmd-local-run-facts dd,
+.cmd-local-run-facts code,
+.cmd-local-run-packet-link,
+.cmd-local-run-audit li {
+  min-width: 0;
+  margin: 0;
+  overflow-wrap: anywhere;
+}
+
+.cmd-local-run-result,
+.cmd-local-run-audit,
+.cmd-local-run-assignment {
+  margin-top: var(--cmd-space-4);
+}
+
+.cmd-local-run-attempts {
+  margin-top: var(--cmd-space-4);
+  padding: clamp(1rem, 2vw, 1.5rem);
+  border: 1px solid var(--cmd-border);
+  border-radius: var(--cmd-radius);
+  background: var(--cmd-surface);
+}
+
+.cmd-local-run-attempts h2 {
+  margin: 0 0 var(--cmd-space-4);
+  font-family: "Iowan Old Style", "Palatino Linotype", Georgia, serif;
+  font-size: clamp(1.4rem, 2.6vw, 2rem);
+  font-weight: 500;
+  letter-spacing: -0.04em;
+}
+
+.cmd-local-run-attempts ol {
+  display: grid;
+  gap: var(--cmd-space-3);
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.cmd-local-run-attempts li {
+  padding: var(--cmd-space-3);
+  background: var(--cmd-surface-muted);
+  overflow-wrap: anywhere;
+}
+
+.cmd-local-run-attempts li p {
+  margin: var(--cmd-space-1) 0 0;
+  color: var(--cmd-text-muted);
+  font-size: 0.8rem;
+}
+
+.cmd-local-run-evidence li {
+  display: grid;
+  gap: var(--cmd-space-1);
+  padding: var(--cmd-space-3);
+  border-left: 3px solid var(--cmd-border);
+  background: var(--cmd-surface-muted);
+  font-size: 0.8rem;
+  overflow-wrap: anywhere;
+}
+
+.cmd-local-run-evidence li span,
+.cmd-local-run-evidence li time {
+  color: var(--cmd-text-muted);
+}
+
+.cmd-local-run-packet-link {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--cmd-space-3);
+  margin: var(--cmd-space-4) 0;
+  font-size: 0.85rem;
+}
+
+.cmd-local-read-receipt {
+  margin-top: var(--cmd-space-4);
+  border-left: 3px solid var(--cmd-positive-text);
+}
+
+.cmd-local-run-audit ol {
+  display: grid;
+  gap: var(--cmd-space-2);
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.cmd-local-run-audit li {
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr) auto;
+  align-items: start;
+  gap: var(--cmd-space-3);
+  padding: var(--cmd-space-3) 0;
+  border-top: 1px solid var(--cmd-border);
+}
+
+.cmd-local-run-audit li p {
+  margin: var(--cmd-space-1) 0 0;
+  color: var(--cmd-text-muted);
+  font-size: 0.83rem;
+}
+
+.cmd-local-run-audit li time {
+  color: var(--cmd-text-muted);
+  font-size: 0.76rem;
+  overflow-wrap: anywhere;
+}
+
+@media (max-width: 70rem) {
+  .cmd-agent-workbench {
+    grid-template-columns: minmax(0, 1fr);
+  }
+}
+
+@media (max-width: 48rem) {
+  .cmd-local-run-grid {
+    grid-template-columns: minmax(0, 1fr);
+  }
+
+  .cmd-local-run-audit li {
+    grid-template-columns: auto minmax(0, 1fr);
+  }
+
+  .cmd-local-run-audit li time {
+    grid-column: 2;
+  }
+}
+
+@media (max-width: 23rem) {
+  .cmd-local-run-facts div {
+    grid-template-columns: minmax(0, 1fr);
+    gap: 0;
+  }
+}

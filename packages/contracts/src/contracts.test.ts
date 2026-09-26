@@ -2,6 +2,10 @@ import { expect, test } from "vitest";
 import {
   createCaptureRequestSchema,
   createExecutionPacketRequestSchema,
+  createLocalAgentRunRequestSchema,
+  localAgentRunJobV1Schema,
+  agentContextReadRequestSchema,
+  fakeLocalAgentRunResultSchema,
   executionPacketSnapshotSchema,
   projectResourceLinkDetailSchema,
   listResourcesQuerySchema,
@@ -87,4 +91,40 @@ test("exact project-resource link detail carries only identity, type, lifecycle,
   });
   expect(link.type).toBe("supports");
   expect("externalUrl" in link).toBe(false);
+});
+
+test("local agent jobs are versioned and run submissions require an occurrence", () => {
+  expect(
+    localAgentRunJobV1Schema.safeParse({
+      version: 2,
+      runId: crypto.randomUUID(),
+      occurrenceId: "x",
+    }).success,
+  ).toBe(false);
+  expect(
+    createLocalAgentRunRequestSchema.safeParse({
+      agentId: crypto.randomUUID(),
+      occurrenceId: " ",
+    }).success,
+  ).toBe(false);
+});
+
+test("arbitrary context operations reach policy while result cannot claim external actions", () => {
+  const request = agentContextReadRequestSchema.parse({
+    projectId: crypto.randomUUID(),
+    operation: "deploy.execute",
+    reason: "Test denial",
+  });
+  expect(request.operation).toBe("deploy.execute");
+  expect(
+    fakeLocalAgentRunResultSchema.safeParse({
+      summary: "Fake result",
+      contextReadIds: [],
+      evidence: [],
+      runtime: "local-fake-v1",
+      isSynthetic: true,
+      verificationStatus: "unverified",
+      externalActions: ["deployed"],
+    }).success,
+  ).toBe(false);
 });

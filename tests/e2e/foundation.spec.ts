@@ -9,18 +9,25 @@ test("local shell labels simulated data without claiming live health", async ({
     page.getByRole("heading", { name: "Command Center" }),
   ).toBeVisible();
   const navigation = page.getByRole("navigation", { name: "Main navigation" });
-  await expect(navigation.getByRole("link")).toHaveCount(5);
+  await expect(navigation.getByRole("link")).toHaveCount(6);
   await expect(navigation.getByRole("link", { name: "Inbox" })).toBeVisible();
   await expect(
     navigation.getByRole("link", { name: "Projects" }),
   ).toBeVisible();
   await expect(navigation.getByRole("link", { name: "Search" })).toBeVisible();
-  await expect(navigation.getByRole("link", { name: "Activity" })).toBeVisible();
+  await expect(
+    navigation.getByRole("link", { name: "Activity" }),
+  ).toBeVisible();
+  await expect(
+    navigation.getByRole("link", { name: "Agents" }),
+  ).toHaveAttribute("href", "/agents");
   await expect(page.getByText("No live sources")).toBeVisible();
   await expect(
     page.getByRole("heading", { name: "Attention", exact: true }),
   ).toBeVisible();
-  await expect(page.getByRole("heading", { name: "Recent change" })).toBeVisible();
+  await expect(
+    page.getByRole("heading", { name: "Recent change" }),
+  ).toBeVisible();
   await expect(
     page.getByText(/They do not report project or resource health/),
   ).toBeVisible();
