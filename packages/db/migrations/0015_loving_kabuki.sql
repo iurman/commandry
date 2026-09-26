@@ -1,0 +1,12 @@
+ALTER TABLE "automation_definition" DROP CONSTRAINT "automation_definition_trigger_once";--> statement-breakpoint
+ALTER TABLE "automation_run" DROP CONSTRAINT "automation_run_trigger_valid";--> statement-breakpoint
+ALTER TABLE "automation_run" DROP CONSTRAINT "automation_run_schedule_matches_trigger";--> statement-breakpoint
+ALTER TABLE "automation_definition" ADD COLUMN "recurrence_start_at" timestamp with time zone;--> statement-breakpoint
+ALTER TABLE "automation_definition" ADD COLUMN "recurrence_every_minutes" integer;--> statement-breakpoint
+ALTER TABLE "automation_definition" ADD COLUMN "next_occurrence_at" timestamp with time zone;--> statement-breakpoint
+CREATE INDEX "automation_definition_due_idx" ON "automation_definition" USING btree ("enabled","next_occurrence_at");--> statement-breakpoint
+CREATE UNIQUE INDEX "automation_run_recurring_due_idx" ON "automation_run" USING btree ("definition_id","scheduled_for") WHERE "automation_run"."trigger" = 'recurring';--> statement-breakpoint
+ALTER TABLE "automation_definition" ADD CONSTRAINT "automation_definition_trigger_valid" CHECK ("automation_definition"."trigger_type" in ('on_creation_once', 'recurring_interval'));--> statement-breakpoint
+ALTER TABLE "automation_definition" ADD CONSTRAINT "automation_definition_recurrence_consistent" CHECK (("automation_definition"."trigger_type" = 'on_creation_once' and "automation_definition"."recurrence_start_at" is null and "automation_definition"."recurrence_every_minutes" is null and "automation_definition"."next_occurrence_at" is null) or ("automation_definition"."trigger_type" = 'recurring_interval' and "automation_definition"."recurrence_start_at" is not null and "automation_definition"."recurrence_every_minutes" between 5 and 10080 and "automation_definition"."next_occurrence_at" is not null));--> statement-breakpoint
+ALTER TABLE "automation_run" ADD CONSTRAINT "automation_run_trigger_valid" CHECK ("automation_run"."trigger" in ('on_creation', 'manual', 'scheduled', 'recurring'));--> statement-breakpoint
+ALTER TABLE "automation_run" ADD CONSTRAINT "automation_run_schedule_matches_trigger" CHECK (("automation_run"."trigger" in ('scheduled', 'recurring') and "automation_run"."scheduled_for" is not null) or ("automation_run"."trigger" in ('on_creation', 'manual') and "automation_run"."scheduled_for" is null));

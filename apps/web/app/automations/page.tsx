@@ -27,6 +27,11 @@ export default function AutomationsPage() {
   const [projectId, setProjectId] = useState("");
   const [name, setName] = useState("");
   const [enabled, setEnabled] = useState(true);
+  const [triggerType, setTriggerType] = useState<
+    "on_creation_once" | "recurring_interval"
+  >("on_creation_once");
+  const [recurrenceLocalTime, setRecurrenceLocalTime] = useState("");
+  const [everyMinutes, setEveryMinutes] = useState("60");
   const [loading, setLoading] = useState(true);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -155,6 +160,29 @@ export default function AutomationsPage() {
   async function create(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
     if (!projectId || !name.trim() || busy) return;
+    const start = new Date(recurrenceLocalTime);
+    const recurrence =
+      triggerType === "recurring_interval"
+        ? {
+            startAt: Number.isFinite(start.getTime())
+              ? start.toISOString()
+              : "",
+            everyMinutes: Number(everyMinutes),
+          }
+        : undefined;
+    if (
+      recurrence &&
+      (!Number.isFinite(Date.parse(recurrence.startAt)) ||
+        Date.parse(recurrence.startAt) <= Date.now() ||
+        !Number.isInteger(recurrence.everyMinutes) ||
+        recurrence.everyMinutes < 5 ||
+        recurrence.everyMinutes > 10_080)
+    ) {
+      setError(
+        "Choose a future start and an interval from 5 to 10080 minutes.",
+      );
+      return;
+    }
     setBusy(true);
     setError(null);
     setFeedback(null);
@@ -163,7 +191,12 @@ export default function AutomationsPage() {
         "/api/v1/automations",
         {
           method: "POST",
-          body: JSON.stringify({ projectId, name: name.trim(), enabled }),
+          body: JSON.stringify({
+            projectId,
+            name: name.trim(),
+            enabled,
+            ...(recurrence ? { recurrence } : {}),
+          }),
         },
       );
       setItems((current) => [definition, ...current]);
@@ -173,11 +206,16 @@ export default function AutomationsPage() {
           projects.find((item) => item.id === projectId)?.name ?? projectId,
       }));
       setFeedback(
-        enabled
-          ? "Local automation created and its one-time synthetic summary queued. Open it to review the worker result."
-          : "Disabled local automation saved. It will not run until enabled and manually triggered.",
+        triggerType === "recurring_interval"
+          ? enabled
+            ? "Recurring local summary saved. The worker will create at most one due occurrence per interval; output is synthetic and unverified."
+            : "Disabled recurring local summary saved. No occurrence will be created until it is enabled."
+          : enabled
+            ? "Local automation created and its one-time synthetic summary queued. Open it to review the worker result."
+            : "Disabled local automation saved. It will not run until enabled and manually triggered.",
       );
       setName("");
+      setRecurrenceLocalTime("");
       if (enabled) void enrich([definition]);
     } catch (cause) {
       setError(
@@ -198,9 +236,9 @@ export default function AutomationsPage() {
           <h1>Automations</h1>
           <p className="cmd-lead">
             Review definitions and worker runs. This first routine reads a
-            project brief at creation or a manually scheduled one-time run,
-            produces a synthetic unverified summary, and performs no external
-            action.
+            project brief at creation, at a recurring UTC interval, or in a
+            manually scheduled one-time run, produces a synthetic unverified
+            summary, and performs no external action.
           </p>
         </div>
       </header>
@@ -241,6 +279,7 @@ export default function AutomationsPage() {
                     name: item.name,
                     projectName: projectNames[item.projectId] ?? item.projectId,
                     enabled: item.enabled,
+                    triggerType: item.triggerType,
                     latestRunState: latestRuns[item.id]?.state ?? null,
                     latestRunAt: latestRuns[item.id]?.createdAt ?? null,
                     nextRunAt: item.nextRunAt,
@@ -262,9 +301,9 @@ export default function AutomationsPage() {
           <p className="cmd-eyebrow">Create / Read-only</p>
           <h2 id="automation-create-heading">New local routine</h2>
           <p className="cmd-form-intro">
-            An enabled definition queues one summary at creation. Open its
-            detail page to schedule another one-time local run. There is no
-            recurring schedule or connection to an external system.
+            Choose one summary at creation or a bounded recurring schedule. Open
+            the detail page to review runs or schedule an extra one-time local
+            run. No external system is connected.
           </p>
           <form className="cmd-form" onSubmit={create}>
             <label htmlFor="automation-name">Name</label>
@@ -295,6 +334,57 @@ export default function AutomationsPage() {
               <Button disabled={busy} onClick={loadMoreProjects} type="button">
                 Load more project choices
               </Button>
+            )}
+            <label htmlFor="automation-trigger">Trigger</label>
+            <select
+              id="automation-trigger"
+              onChange={(event) =>
+                setTriggerType(
+                  event.target.value as
+                    "on_creation_once" | "recurring_interval",
+                )
+              }
+              value={triggerType}
+            >
+              <option value="on_creation_once">Once at creation</option>
+              <option value="recurring_interval">
+                Recurring local interval
+              </option>
+            </select>
+            {triggerType === "recurring_interval" && (
+              <>
+                <label htmlFor="automation-recurrence-start">
+                  First run (device time)
+                </label>
+                <input
+                  id="automation-recurrence-start"
+                  onChange={(event) =>
+                    setRecurrenceLocalTime(event.target.value)
+                  }
+                  required
+                  step="1"
+                  type="datetime-local"
+                  value={recurrenceLocalTime}
+                />
+                <label htmlFor="automation-recurrence-interval">
+                  Repeat every (minutes)
+                </label>
+                <input
+                  id="automation-recurrence-interval"
+                  max={10_080}
+                  min={5}
+                  onChange={(event) => setEveryMinutes(event.target.value)}
+                  required
+                  type="number"
+                  value={everyMinutes}
+                />
+                <p className="cmd-form-hint">
+                  Stored in UTC. After downtime, only the latest due occurrence
+                  runs; earlier intervals are counted in the audit trail. A new
+                  run is skipped while another is active. Disabling pauses the
+                  schedule.
+                </p>
+              </>
             )}
             <label
               className="cmd-automation-checkbox"

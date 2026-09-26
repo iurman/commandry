@@ -5,6 +5,9 @@ import {
   requireExpectedAutomationEnabled,
   requireSameAutomationOccurrence,
   scheduledAutomationTime,
+  recurringAutomationStart,
+  firstRecurrenceAfter,
+  dueRecurrence,
 } from "./local-automation";
 
 describe("local automation policy", () => {
@@ -57,5 +60,44 @@ describe("local automation policy", () => {
     expect(() =>
       requireSameAutomationOccurrence(saved, "definition-b", undefined),
     ).toThrow(/different/);
+  });
+
+  it("anchors recurrence in UTC, catches up once, and advances past the latest due time", () => {
+    const now = new Date("2026-09-26T12:00:00.000Z");
+    const recurrence = recurringAutomationStart(
+      { startAt: "2026-09-26T12:05:00+00:00", everyMinutes: 5 },
+      now,
+    );
+    expect(recurrence).toEqual({
+      startAt: new Date("2026-09-26T12:05:00.000Z"),
+      everyMinutes: 5,
+    });
+    expect(() =>
+      recurringAutomationStart(
+        { startAt: now.toISOString(), everyMinutes: 5 },
+        now,
+      ),
+    ).toThrow(/future/);
+    expect(() =>
+      recurringAutomationStart(
+        { startAt: "2026-09-26T12:05:00Z", everyMinutes: 1 },
+        now,
+      ),
+    ).toThrow(/interval/);
+    expect(dueRecurrence(recurrence!.startAt, 5, now)).toBeNull();
+    expect(
+      dueRecurrence(recurrence!.startAt, 5, new Date("2026-09-26T12:21:00Z")),
+    ).toEqual({
+      dueAt: new Date("2026-09-26T12:20:00Z"),
+      nextAt: new Date("2026-09-26T12:25:00Z"),
+      skipped: 3,
+    });
+    expect(
+      firstRecurrenceAfter(
+        recurrence!.startAt,
+        5,
+        new Date("2026-09-26T12:21:00Z"),
+      ),
+    ).toEqual(new Date("2026-09-26T12:25:00Z"));
   });
 });

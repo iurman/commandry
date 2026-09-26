@@ -3,6 +3,7 @@ export interface AutomationCardView {
   name: string;
   projectName: string;
   enabled: boolean;
+  triggerType: "on_creation_once" | "recurring_interval";
   latestRunState:
     "queued" | "running" | "succeeded" | "failed" | "skipped" | null;
   latestRunAt: string | null;
@@ -34,7 +35,11 @@ export function AutomationCard({
         </div>
         <div>
           <dt>Trigger</dt>
-          <dd>On creation once</dd>
+          <dd>
+            {automation.triggerType === "recurring_interval"
+              ? "Recurring local interval"
+              : "On creation once"}
+          </dd>
         </div>
         <div>
           <dt>Routine</dt>
@@ -45,7 +50,7 @@ export function AutomationCard({
           <dd>{automation.latestRunState ?? "No run"}</dd>
         </div>
         <div>
-          <dt>Next queued run</dt>
+          <dt>Next planned run</dt>
           <dd>
             {automation.nextRunAt ? (
               <time dateTime={automation.nextRunAt}>
@@ -66,8 +71,7 @@ export function AutomationCard({
         </p>
       )}
       <p className="cmd-form-hint">
-        Synthetic local output. No external actions, recurring schedule, or
-        verified result.
+        Synthetic local output. No external actions or verified result.
       </p>
     </article>
   );

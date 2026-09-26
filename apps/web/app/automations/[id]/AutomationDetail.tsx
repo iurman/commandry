@@ -74,13 +74,19 @@ export default function AutomationDetail({
   }, [path]);
 
   useEffect(() => {
-    if (!runs.some((run) => run.state === "queued" || run.state === "running"))
+    if (
+      !runs.some((run) => run.state === "queued" || run.state === "running") &&
+      !(definition?.enabled && definition.triggerType === "recurring_interval")
+    )
       return;
     let active = true;
     const nextDue = Math.min(
       ...runs
         .filter((run) => run.state === "queued" && run.scheduledFor)
-        .map((run) => Date.parse(run.scheduledFor!)),
+        .map((run) => Date.parse(run.scheduledFor!))
+        .concat(
+          definition?.nextRunAt ? [Date.parse(definition.nextRunAt)] : [],
+        ),
     );
     const hasReadyRun = runs.some(
       (run) =>
@@ -115,7 +121,7 @@ export default function AutomationDetail({
       active = false;
       window.clearInterval(timer);
     };
-  }, [path, runs]);
+  }, [path, runs, definition]);
 
   async function setEnabled() {
     if (!definition || busy) return;
@@ -133,7 +139,7 @@ export default function AutomationDetail({
       setDefinition(updated);
       setFeedback(
         updated.enabled
-          ? "Enabled. The on-creation trigger does not replay; queued scheduled runs can proceed, and Run now remains available."
+          ? "Enabled. The on-creation trigger does not replay. A recurring schedule resumes at its next future interval; queued one-time runs can proceed."
           : "Disabled. Pending work will be skipped if it has not started.",
       );
     } catch (cause) {
@@ -291,8 +297,9 @@ export default function AutomationDetail({
               <h1>{definition.name}</h1>
               <p className="cmd-lead">
                 A bounded project brief read. An enabled definition runs once at
-                creation; you can also run now or schedule one local run for
-                later. Every result is synthetic and unverified.
+                creation or a recurring UTC interval; you can also run now or
+                schedule one local run for later. Every result is synthetic and
+                unverified, with no external action.
               </p>
               <p className="cmd-record-identity">
                 Definition ID <code>{definition.id}</code>
@@ -323,8 +330,31 @@ export default function AutomationDetail({
                 </div>
                 <div>
                   <dt>Trigger</dt>
-                  <dd>On creation once</dd>
+                  <dd>
+                    {definition.triggerType === "recurring_interval"
+                      ? "Recurring local interval"
+                      : "On creation once"}
+                  </dd>
                 </div>
+                {definition.recurrenceStartAt &&
+                  definition.recurrenceEveryMinutes && (
+                    <>
+                      <div>
+                        <dt>First planned run</dt>
+                        <dd>
+                          <time dateTime={definition.recurrenceStartAt}>
+                            {definition.recurrenceStartAt} UTC
+                          </time>
+                        </dd>
+                      </div>
+                      <div>
+                        <dt>Interval</dt>
+                        <dd>
+                          Every {definition.recurrenceEveryMinutes} minutes
+                        </dd>
+                      </div>
+                    </>
+                  )}
                 <div>
                   <dt>Next run</dt>
                   <dd>
@@ -332,8 +362,10 @@ export default function AutomationDetail({
                       <time dateTime={definition.nextRunAt}>
                         {definition.nextRunAt} UTC
                       </time>
-                    ) : (
+                    ) : definition.enabled ? (
                       "None queued"
+                    ) : (
+                      "Paused while disabled"
                     )}
                   </dd>
                 </div>
@@ -359,6 +391,15 @@ export default function AutomationDetail({
                 a dead-letter queue. This routine cannot use secrets or perform
                 external actions.
               </p>
+              {definition.triggerType === "recurring_interval" && (
+                <p>
+                  Recurrence policy: after worker downtime, at most the latest
+                  due interval becomes a run; older intervals are counted in the
+                  audit. A new interval is recorded as skipped while a previous
+                  run is active. Disabling pauses new occurrences; enabling
+                  resumes at the next future interval.
+                </p>
+              )}
               <div className="cmd-decision-actions">
                 <Button disabled={busy} onClick={setEnabled}>
                   {busy
@@ -389,8 +430,8 @@ export default function AutomationDetail({
                 />
                 <p className="cmd-form-hint">
                   Stored and displayed as UTC. The enabled state is checked
-                  again when the worker starts. This is one run, not a recurring
-                  schedule.
+                  again when the worker starts. This creates one extra run and
+                  does not change the recurring schedule of this definition.
                 </p>
                 <Button
                   disabled={busy || !definition.enabled || !scheduleLocalTime}
@@ -469,9 +510,11 @@ export default function AutomationDetail({
                     <strong>
                       {run.trigger === "on_creation"
                         ? "On-creation run"
-                        : run.trigger === "scheduled"
-                          ? "Scheduled local run"
-                          : "Manual local run"}
+                        : run.trigger === "recurring"
+                          ? "Recurring local run"
+                          : run.trigger === "scheduled"
+                            ? "Scheduled local run"
+                            : "Manual local run"}
                     </strong>
                     <span className="cmd-count">{run.state}</span>
                   </div>

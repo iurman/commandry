@@ -401,6 +401,12 @@ export const createAutomationDefinitionRequestSchema = z.strictObject({
   projectId: z.uuid(),
   name: z.string().trim().min(1).max(200),
   enabled: z.boolean(),
+  recurrence: z
+    .strictObject({
+      startAt: z.iso.datetime({ offset: true }),
+      everyMinutes: z.number().int().min(5).max(10_080),
+    })
+    .optional(),
 });
 export const setAutomationEnabledRequestSchema = z.strictObject({
   enabled: z.boolean(),
@@ -415,9 +421,11 @@ export const automationDefinitionSchema = z.object({
   projectId: z.uuid(),
   name: z.string(),
   routine: z.literal("local_project_summary_v1"),
-  triggerType: z.literal("on_creation_once"),
+  triggerType: z.enum(["on_creation_once", "recurring_interval"]),
   enabled: z.boolean(),
   sourceOfTruth: z.literal("local-only"),
+  recurrenceStartAt: z.iso.datetime({ offset: true }).nullable(),
+  recurrenceEveryMinutes: z.number().int().min(5).max(10_080).nullable(),
   nextRunAt: z.iso.datetime({ offset: true }).nullable(),
   createdAt: z.iso.datetime({ offset: true }),
   updatedAt: z.iso.datetime({ offset: true }),
@@ -640,7 +648,7 @@ export const automationRunSchema = z.object({
   definitionId: z.uuid(),
   projectId: z.uuid(),
   occurrenceId: z.uuid(),
-  trigger: z.enum(["on_creation", "manual", "scheduled"]),
+  trigger: z.enum(["on_creation", "manual", "scheduled", "recurring"]),
   scheduledFor: z.iso.datetime({ offset: true }).nullable(),
   state: z.enum(["queued", "running", "succeeded", "failed", "skipped"]),
   attempts: z.number().int().min(0),

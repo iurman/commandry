@@ -14,16 +14,23 @@ import {
 
 export function automationDefinitionRecord(
   row: typeof automationDefinition.$inferSelect,
-  nextRunAt: Date | null = null,
+  queuedRunAt: Date | null = null,
 ) {
+  const recurringAt = row.enabled ? row.nextOccurrenceAt : null;
+  const nextRunAt =
+    queuedRunAt && recurringAt
+      ? new Date(Math.min(queuedRunAt.getTime(), recurringAt.getTime()))
+      : (queuedRunAt ?? recurringAt);
   return {
     id: row.id,
     projectId: row.projectId,
     name: row.name,
     routine: "local_project_summary_v1" as const,
-    triggerType: "on_creation_once" as const,
+    triggerType: row.triggerType,
     enabled: row.enabled,
     sourceOfTruth: "local-only" as const,
+    recurrenceStartAt: row.recurrenceStartAt?.toISOString() ?? null,
+    recurrenceEveryMinutes: row.recurrenceEveryMinutes,
     nextRunAt: nextRunAt?.toISOString() ?? null,
     createdAt: row.createdAt.toISOString(),
     updatedAt: row.updatedAt.toISOString(),
@@ -90,6 +97,7 @@ export function createLocalAutomationRepository(db: CommandryDatabase) {
           and(
             eq(automationRun.definitionId, id),
             eq(automationRun.state, "queued"),
+            eq(automationRun.trigger, "scheduled"),
             isNotNull(automationRun.scheduledFor),
           ),
         )
@@ -130,6 +138,7 @@ export function createLocalAutomationRepository(db: CommandryDatabase) {
                   visible.map((row) => row.id),
                 ),
                 eq(automationRun.state, "queued"),
+                eq(automationRun.trigger, "scheduled"),
                 isNotNull(automationRun.scheduledFor),
               ),
             )

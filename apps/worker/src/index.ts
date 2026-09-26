@@ -32,6 +32,7 @@ import {
 import {
   CAPTURE_TRIAGE_QUEUE,
   createPgBossProducer,
+  createRecurringAutomationScheduler,
   LOCAL_AGENT_RUN_QUEUE,
   LOCAL_AUTOMATION_QUEUE,
   SIMULATED_APPROVAL_QUEUE,
@@ -81,6 +82,10 @@ const processCaptureTriage = createCaptureTriageProcessor(
 const processLocalAutomation = createLocalAutomationProcessor(
   createLocalAutomationRepository(database.db),
   projectBriefService,
+);
+const recurringAutomationScheduler = createRecurringAutomationScheduler(
+  database.db,
+  transport.boss,
 );
 const workerId = randomUUID();
 
@@ -251,6 +256,28 @@ await transport.boss.work(LOCAL_AUTOMATION_QUEUE, async ([job]) => {
     throw error;
   }
 });
+let reconcilingRecurring = false;
+async function reconcileRecurringAutomations() {
+  if (reconcilingRecurring) return;
+  reconcilingRecurring = true;
+  try {
+    const count = await recurringAutomationScheduler.reconcile();
+    if (count > 0)
+      log("info", "local_automation.recurrence_materialized", { count });
+  } catch (error) {
+    log("error", "local_automation.recurrence_failed", {
+      error: error instanceof Error ? error.name : "unknown",
+    });
+  } finally {
+    reconcilingRecurring = false;
+  }
+}
+await reconcileRecurringAutomations();
+const recurringTimer = setInterval(
+  () => void reconcileRecurringAutomations(),
+  10_000,
+);
+recurringTimer.unref();
 log("info", "worker.started", { workerId });
 
 let stopping = false;
@@ -259,6 +286,7 @@ async function shutdown(signal: string) {
   stopping = true;
   clearInterval(timer);
   clearInterval(approvalExpiryTimer);
+  clearInterval(recurringTimer);
   log("info", "worker.stopping", { signal });
   try {
     await transport.close();

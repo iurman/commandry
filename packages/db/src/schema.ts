@@ -641,9 +641,14 @@ export const automationDefinition = pgTable(
     routine: text("routine", { enum: ["local_project_summary_v1"] })
       .notNull()
       .default("local_project_summary_v1"),
-    triggerType: text("trigger_type", { enum: ["on_creation_once"] })
+    triggerType: text("trigger_type", {
+      enum: ["on_creation_once", "recurring_interval"],
+    })
       .notNull()
       .default("on_creation_once"),
+    recurrenceStartAt: timestamp("recurrence_start_at", { withTimezone: true }),
+    recurrenceEveryMinutes: integer("recurrence_every_minutes"),
+    nextOccurrenceAt: timestamp("next_occurrence_at", { withTimezone: true }),
     enabled: boolean("enabled").notNull().default(true),
     sourceOfTruth: text("source_of_truth").notNull().default("local-only"),
     createdAt: createdAt(),
@@ -655,6 +660,10 @@ export const automationDefinition = pgTable(
       table.projectId,
       table.id,
     ),
+    index("automation_definition_due_idx").on(
+      table.enabled,
+      table.nextOccurrenceAt,
+    ),
     check(
       "automation_definition_name_nonempty",
       sql`length(trim(${table.name})) > 0`,
@@ -664,8 +673,12 @@ export const automationDefinition = pgTable(
       sql`${table.routine} = 'local_project_summary_v1'`,
     ),
     check(
-      "automation_definition_trigger_once",
-      sql`${table.triggerType} = 'on_creation_once'`,
+      "automation_definition_trigger_valid",
+      sql`${table.triggerType} in ('on_creation_once', 'recurring_interval')`,
+    ),
+    check(
+      "automation_definition_recurrence_consistent",
+      sql`(${table.triggerType} = 'on_creation_once' and ${table.recurrenceStartAt} is null and ${table.recurrenceEveryMinutes} is null and ${table.nextOccurrenceAt} is null) or (${table.triggerType} = 'recurring_interval' and ${table.recurrenceStartAt} is not null and ${table.recurrenceEveryMinutes} between 5 and 10080 and ${table.nextOccurrenceAt} is not null)`,
     ),
     check(
       "automation_definition_source_local",
@@ -686,7 +699,7 @@ export const automationRun = pgTable(
       .references(() => project.id, { onDelete: "restrict" }),
     occurrenceId: uuid("occurrence_id").notNull(),
     trigger: text("trigger", {
-      enum: ["on_creation", "manual", "scheduled"],
+      enum: ["on_creation", "manual", "scheduled", "recurring"],
     }).notNull(),
     scheduledFor: timestamp("scheduled_for", { withTimezone: true }),
     state: text("state", {
@@ -703,6 +716,9 @@ export const automationRun = pgTable(
   },
   (table) => [
     uniqueIndex("automation_run_occurrence_idx").on(table.occurrenceId),
+    uniqueIndex("automation_run_recurring_due_idx")
+      .on(table.definitionId, table.scheduledFor)
+      .where(sql`${table.trigger} = 'recurring'`),
     index("automation_run_definition_page_idx").on(
       table.definitionId,
       table.id,
@@ -715,11 +731,11 @@ export const automationRun = pgTable(
     check("automation_run_attempts_nonnegative", sql`${table.attempts} >= 0`),
     check(
       "automation_run_trigger_valid",
-      sql`${table.trigger} in ('on_creation', 'manual', 'scheduled')`,
+      sql`${table.trigger} in ('on_creation', 'manual', 'scheduled', 'recurring')`,
     ),
     check(
       "automation_run_schedule_matches_trigger",
-      sql`(${table.trigger} = 'scheduled' and ${table.scheduledFor} is not null) or (${table.trigger} <> 'scheduled' and ${table.scheduledFor} is null)`,
+      sql`(${table.trigger} in ('scheduled', 'recurring') and ${table.scheduledFor} is not null) or (${table.trigger} in ('on_creation', 'manual') and ${table.scheduledFor} is null)`,
     ),
     check(
       "automation_run_state_valid",

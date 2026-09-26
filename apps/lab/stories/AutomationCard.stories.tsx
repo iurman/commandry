@@ -11,6 +11,7 @@ const meta = {
       name: "Project context snapshot",
       projectName: "Synthetic Storybook project fixture",
       enabled: true,
+      triggerType: "on_creation_once",
       latestRunState: "succeeded",
       latestRunAt: "2026-09-26T12:00:00.000Z",
       nextRunAt: null,
@@ -39,6 +40,18 @@ export const Scheduled: Story = {
     automation: {
       ...meta.args.automation,
       latestRunState: "queued",
+      nextRunAt: "2026-09-27T09:00:00.000Z",
+    },
+  },
+};
+
+export const Recurring: Story = {
+  args: {
+    automation: {
+      ...meta.args.automation,
+      name: "Synthetic recurring project summary",
+      triggerType: "recurring_interval",
+      latestRunState: "succeeded",
       nextRunAt: "2026-09-27T09:00:00.000Z",
     },
   },

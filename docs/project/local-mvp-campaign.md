@@ -119,8 +119,16 @@ local experience lab.
   when scheduling and is checked again by the worker before reading. If the
   run is skipped while disabled, enabling later does not replay that one-time
   occurrence; another explicit run is required. This is a provisional local
-  schedule, not a recurring policy, overnight readiness decision, or external
-  scheduler integration.
+  schedule, not an overnight readiness decision or external scheduler integration.
+- A definition may instead start a local recurring summary at a future UTC
+  instant and repeat at a configured 5 to 10080 minute interval. The worker
+  materializes due occurrences into durable runs and audits. After downtime,
+  it creates only the latest due occurrence and records the number of missed
+  intervals; it records a skipped run if a previous run is active. Disabling
+  prevents new occurrences, and re-enabling resumes at the next future
+  interval without replaying disabled time. The interval, catch-up, and
+  overlap policy are provisional local choices, not a decision about live
+  integration scheduling or an Overnight Queue.
 - The local notification center will derive current items from synthetic
   monitor conditions, pending simulated approvals, and failed local summary
   attempts. A continuing monitor condition yields one item per open cycle and

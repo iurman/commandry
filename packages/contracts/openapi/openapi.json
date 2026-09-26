@@ -7637,6 +7637,26 @@
           },
           "enabled": {
             "type": "boolean"
+          },
+          "recurrence": {
+            "type": "object",
+            "properties": {
+              "startAt": {
+                "type": "string",
+                "format": "date-time",
+                "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))T(?:(?:[01]\\d|2[0-3]):[0-5]\\d:[0-5]\\d(?:\\.\\d+)?(?:Z|([+-](?:[01]\\d|2[0-3]):[0-5]\\d)))$"
+              },
+              "everyMinutes": {
+                "type": "integer",
+                "minimum": 5,
+                "maximum": 10080
+              }
+            },
+            "required": [
+              "startAt",
+              "everyMinutes"
+            ],
+            "additionalProperties": false
           }
         },
         "required": [
@@ -7703,7 +7723,10 @@
           },
           "triggerType": {
             "type": "string",
-            "const": "on_creation_once"
+            "enum": [
+              "on_creation_once",
+              "recurring_interval"
+            ]
           },
           "enabled": {
             "type": "boolean"
@@ -7711,6 +7734,30 @@
           "sourceOfTruth": {
             "type": "string",
             "const": "local-only"
+          },
+          "recurrenceStartAt": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "date-time",
+                "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))T(?:(?:[01]\\d|2[0-3]):[0-5]\\d:[0-5]\\d(?:\\.\\d+)?(?:Z|([+-](?:[01]\\d|2[0-3]):[0-5]\\d)))$"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "recurrenceEveryMinutes": {
+            "anyOf": [
+              {
+                "type": "integer",
+                "minimum": 5,
+                "maximum": 10080
+              },
+              {
+                "type": "null"
+              }
+            ]
           },
           "nextRunAt": {
             "anyOf": [
@@ -7743,6 +7790,8 @@
           "triggerType",
           "enabled",
           "sourceOfTruth",
+          "recurrenceStartAt",
+          "recurrenceEveryMinutes",
           "nextRunAt",
           "createdAt",
           "updatedAt"
@@ -7886,7 +7935,8 @@
             "enum": [
               "on_creation",
               "manual",
-              "scheduled"
+              "scheduled",
+              "recurring"
             ]
           },
           "scheduledFor": {
@@ -8260,7 +8310,10 @@
                 },
                 "triggerType": {
                   "type": "string",
-                  "const": "on_creation_once"
+                  "enum": [
+                    "on_creation_once",
+                    "recurring_interval"
+                  ]
                 },
                 "enabled": {
                   "type": "boolean"
@@ -8268,6 +8321,30 @@
                 "sourceOfTruth": {
                   "type": "string",
                   "const": "local-only"
+                },
+                "recurrenceStartAt": {
+                  "anyOf": [
+                    {
+                      "type": "string",
+                      "format": "date-time",
+                      "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))T(?:(?:[01]\\d|2[0-3]):[0-5]\\d:[0-5]\\d(?:\\.\\d+)?(?:Z|([+-](?:[01]\\d|2[0-3]):[0-5]\\d)))$"
+                    },
+                    {
+                      "type": "null"
+                    }
+                  ]
+                },
+                "recurrenceEveryMinutes": {
+                  "anyOf": [
+                    {
+                      "type": "integer",
+                      "minimum": 5,
+                      "maximum": 10080
+                    },
+                    {
+                      "type": "null"
+                    }
+                  ]
                 },
                 "nextRunAt": {
                   "anyOf": [
@@ -8300,6 +8377,8 @@
                 "triggerType",
                 "enabled",
                 "sourceOfTruth",
+                "recurrenceStartAt",
+                "recurrenceEveryMinutes",
                 "nextRunAt",
                 "createdAt",
                 "updatedAt"
@@ -8359,7 +8438,8 @@
                   "enum": [
                     "on_creation",
                     "manual",
-                    "scheduled"
+                    "scheduled",
+                    "recurring"
                   ]
                 },
                 "scheduledFor": {

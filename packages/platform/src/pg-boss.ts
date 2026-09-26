@@ -1,4 +1,5 @@
-import { and, asc, eq, isNotNull, sql } from "drizzle-orm";
+import { createHash } from "node:crypto";
+import { and, asc, eq, inArray, isNotNull, lte, sql } from "drizzle-orm";
 import { PgBoss, fromDrizzle } from "pg-boss";
 import { Pool } from "pg";
 import type {
@@ -26,6 +27,9 @@ import {
   requireExpectedAutomationEnabled,
   requireSameAutomationOccurrence,
   scheduledAutomationTime,
+  recurringAutomationStart,
+  dueRecurrence,
+  firstRecurrenceAfter,
   LocalAgentError,
   SimulatedApprovalError,
   SyntheticEventImportConflictError,
@@ -174,6 +178,7 @@ export function createLocalAutomationSubmission(
             "Project not found",
           );
         const now = new Date();
+        const recurrence = recurringAutomationStart(input.recurrence, now);
         const id = crypto.randomUUID();
         const [row] = await tx
           .insert(schema.automationDefinition)
@@ -181,6 +186,10 @@ export function createLocalAutomationSubmission(
             id,
             projectId: input.projectId,
             name: input.name,
+            triggerType: recurrence ? "recurring_interval" : "on_creation_once",
+            recurrenceStartAt: recurrence?.startAt ?? null,
+            recurrenceEveryMinutes: recurrence?.everyMinutes ?? null,
+            nextOccurrenceAt: recurrence?.startAt ?? null,
             enabled: input.enabled,
             createdAt: now,
             updatedAt: now,
@@ -192,10 +201,15 @@ export function createLocalAutomationSubmission(
           definitionId: id,
           actor: "local-user:unattributed",
           operation: "automation.created",
-          details: { enabled: input.enabled, triggerType: "on_creation_once" },
+          details: {
+            enabled: input.enabled,
+            triggerType: recurrence ? "recurring_interval" : "on_creation_once",
+            recurrenceStartAt: recurrence?.startAt.toISOString() ?? null,
+            recurrenceEveryMinutes: recurrence?.everyMinutes ?? null,
+          },
           createdAt: now,
         });
-        if (input.enabled) {
+        if (input.enabled && !recurrence) {
           const runId = crypto.randomUUID();
           await tx.insert(schema.automationRun).values({
             id: runId,
@@ -247,9 +261,22 @@ export function createLocalAutomationSubmission(
           input.enabled,
         );
         const now = new Date();
+        let nextOccurrenceAt = current.nextOccurrenceAt;
+        if (
+          input.enabled &&
+          current.recurrenceStartAt &&
+          current.recurrenceEveryMinutes &&
+          current.nextOccurrenceAt
+        ) {
+          nextOccurrenceAt = firstRecurrenceAfter(
+            current.recurrenceStartAt,
+            current.recurrenceEveryMinutes,
+            now,
+          );
+        }
         const [updated] = await tx
           .update(schema.automationDefinition)
-          .set({ enabled: input.enabled, updatedAt: now })
+          .set({ enabled: input.enabled, nextOccurrenceAt, updatedAt: now })
           .where(eq(schema.automationDefinition.id, id))
           .returning();
         if (!updated) throw new Error("Locked automation disappeared");
@@ -258,7 +285,11 @@ export function createLocalAutomationSubmission(
           definitionId: id,
           actor: "local-user:unattributed",
           operation: "automation.enabled_changed",
-          details: { previousEnabled: current.enabled, enabled: input.enabled },
+          details: {
+            previousEnabled: current.enabled,
+            enabled: input.enabled,
+            nextOccurrenceAt: nextOccurrenceAt?.toISOString() ?? null,
+          },
           createdAt: now,
         });
         const [pending] = await tx
@@ -268,6 +299,7 @@ export function createLocalAutomationSubmission(
             and(
               eq(schema.automationRun.definitionId, id),
               eq(schema.automationRun.state, "queued"),
+              eq(schema.automationRun.trigger, "scheduled"),
               isNotNull(schema.automationRun.scheduledFor),
             ),
           )
@@ -359,6 +391,145 @@ export function createLocalAutomationSubmission(
         requireSameAutomationOccurrence(existing, id, input.scheduledFor);
         return automationRunRecord(existing);
       });
+    },
+  };
+}
+
+function recurringOccurrenceId(definitionId: string, dueAt: Date): string {
+  const digest = createHash("sha256")
+    .update(`${definitionId}:${dueAt.toISOString()}`)
+    .digest("hex");
+  return `${digest.slice(0, 8)}-${digest.slice(8, 12)}-5${digest.slice(13, 16)}-a${digest.slice(17, 20)}-${digest.slice(20, 32)}`;
+}
+
+/** Materialize at most one most-recent due occurrence per definition per sweep. */
+export function createRecurringAutomationScheduler(
+  db: CommandryDatabase,
+  boss: PgBoss,
+) {
+  return {
+    async reconcile(now = new Date(), limit = 20): Promise<number> {
+      const candidates = await db
+        .select({ id: schema.automationDefinition.id })
+        .from(schema.automationDefinition)
+        .where(
+          and(
+            eq(schema.automationDefinition.enabled, true),
+            eq(schema.automationDefinition.triggerType, "recurring_interval"),
+            lte(schema.automationDefinition.nextOccurrenceAt, now),
+          ),
+        )
+        .orderBy(asc(schema.automationDefinition.nextOccurrenceAt))
+        .limit(limit);
+      let materialized = 0;
+      for (const candidate of candidates) {
+        const created = await db.transaction(async (tx) => {
+          const [definition] = await tx
+            .select()
+            .from(schema.automationDefinition)
+            .where(eq(schema.automationDefinition.id, candidate.id))
+            .for("update", { skipLocked: true })
+            .limit(1);
+          if (
+            !definition?.enabled ||
+            definition.triggerType !== "recurring_interval" ||
+            !definition.nextOccurrenceAt ||
+            !definition.recurrenceEveryMinutes
+          )
+            return false;
+          const due = dueRecurrence(
+            definition.nextOccurrenceAt,
+            definition.recurrenceEveryMinutes,
+            now,
+          );
+          if (!due) return false;
+          const [active] = await tx
+            .select({ id: schema.automationRun.id })
+            .from(schema.automationRun)
+            .where(
+              and(
+                eq(schema.automationRun.definitionId, definition.id),
+                inArray(schema.automationRun.state, ["queued", "running"]),
+                sql`(${schema.automationRun.scheduledFor} is null or ${schema.automationRun.scheduledFor} <= ${now})`,
+              ),
+            )
+            .limit(1);
+          const runId = crypto.randomUUID();
+          const [run] = await tx
+            .insert(schema.automationRun)
+            .values({
+              id: runId,
+              definitionId: definition.id,
+              projectId: definition.projectId,
+              occurrenceId: recurringOccurrenceId(definition.id, due.dueAt),
+              trigger: "recurring",
+              scheduledFor: due.dueAt,
+              state: active ? "skipped" : "queued",
+              error: active ? "Previous local run is still active" : null,
+              completedAt: active ? now : null,
+              createdAt: now,
+            })
+            .onConflictDoNothing({ target: schema.automationRun.occurrenceId })
+            .returning();
+          await tx
+            .update(schema.automationDefinition)
+            .set({ nextOccurrenceAt: due.nextAt, updatedAt: now })
+            .where(eq(schema.automationDefinition.id, definition.id));
+          if (due.skipped > 0) {
+            await tx.insert(schema.automationAuditEvent).values({
+              id: crypto.randomUUID(),
+              definitionId: definition.id,
+              actor: "system:local-automation-scheduler",
+              operation: "automation.occurrences_skipped",
+              details: {
+                count: due.skipped,
+                reason: "bounded_catch_up",
+                latestDueAt: due.dueAt.toISOString(),
+              },
+              createdAt: now,
+            });
+          }
+          if (!run) return false;
+          if (active) {
+            await tx.insert(schema.automationAuditEvent).values({
+              id: crypto.randomUUID(),
+              definitionId: definition.id,
+              runId,
+              actor: "system:local-automation-scheduler",
+              operation: "automation.run_skipped",
+              details: {
+                reason: "previous_run_active",
+                activeRunId: active.id,
+              },
+              createdAt: now,
+            });
+            return true;
+          }
+          const jobId = await boss.send(
+            LOCAL_AUTOMATION_QUEUE,
+            { version: 1, runId, definitionId: definition.id },
+            { db: fromDrizzle(tx, sql) },
+          );
+          if (!jobId)
+            throw new Error("Recurring local automation job was not enqueued");
+          await tx.insert(schema.automationAuditEvent).values({
+            id: crypto.randomUUID(),
+            definitionId: definition.id,
+            runId,
+            actor: "system:local-automation-scheduler",
+            operation: "automation.run_queued",
+            details: {
+              trigger: "recurring",
+              scheduledFor: due.dueAt.toISOString(),
+              jobId,
+            },
+            createdAt: now,
+          });
+          return true;
+        });
+        if (created) materialized += 1;
+      }
+      return materialized;
     },
   };
 }
