@@ -7,6 +7,7 @@ import {
   chmodSync,
 } from "node:fs";
 import { spawnSync } from "node:child_process";
+import { detectContainerRuntime } from "./container-runtime.mjs";
 
 const requiredNodeMajor = 24;
 const requiredPnpmVersion = "11.19.0";
@@ -74,16 +75,14 @@ if (install.status !== 0) {
   process.exit(install.status || 1);
 }
 
-const docker = spawnSync("docker", ["compose", "version"], {
-  encoding: "utf8",
-});
-if (docker.status !== 0) {
+const runtime = detectContainerRuntime();
+if (!runtime) {
   console.error(
-    "Docker Compose is missing. Install a local container runtime with Compose before `pnpm dev`, `pnpm compose:up`, or container-backed tests.",
+    "A Docker-compatible Compose runtime is missing. Install a host Compose provider before `pnpm dev` or `pnpm compose:up`.",
   );
   process.exit(1);
 }
 
 console.log(
-  `Ready: Node ${process.version}, pnpm ${requiredPnpmVersion}, Docker Compose.`,
+  `Ready: Node ${process.version}, pnpm ${requiredPnpmVersion}, ${runtime.description} (${runtime.version}).`,
 );

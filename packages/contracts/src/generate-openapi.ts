@@ -98,7 +98,7 @@ export function generateOpenApi(): string {
               in: "query",
               name: "cursor",
               required: false,
-              schema: { type: "string", minLength: 1 },
+              schema: { type: "string", format: "uuid" },
             },
           ],
           responses: {

@@ -9,15 +9,18 @@ are in [Deployment strategy](../architecture/deployment-strategy.md).
 ## Host prerequisites
 
 - Node.js 24 and the pnpm version pinned in the root `package.json`.
-- Docker Engine and the Docker Compose plugin for the database and image checks.
+- A Docker-compatible container runtime and Compose provider for the database
+  and image checks. On this Bazzite laptop, host Podman and a Homebrew Docker
+  Compose provider are reached from Toolbx through the repository runtime
+  bridge.
 - A private, gitignored `.env.local` with `DB_NAME`, `DB_ROOT_PASSWORD`,
   `DB_APP_PASSWORD`, `DB_MIGRATION_PASSWORD`, `BETTER_AUTH_SECRET`, and
   `APP_ENCRYPTION_KEY`. `APP_ORIGIN` defaults to
   `http://127.0.0.1:3000` for the local Compose stack.
 
-Docker is absent from this host as checked on 2026-09-25, so image builds,
-Compose startup, database role checks, and container smoke tests cannot run
-here yet. The source checks can still run with the pinned Node and pnpm tools.
+The Toolbx-to-host runtime bridge was verified on 2026-09-26 with
+`pnpm run doctor` and `pnpm compose:up`. The local Compose stack started its
+PostgreSQL, migrator, web, and worker services successfully.
 
 Use independent, random, URL-safe values for all local passwords. The Compose
 connection strings interpolate the password values into URLs, so hex values
@@ -60,6 +63,43 @@ it does not use production data. Playwright starts a loopback Next.js server.
 built-in `pnpm doctor` command, which checks pnpm itself instead of running the
 repository script.
 
+## Authenticated LAN design review
+
+Start the local stack, then run the explicit LAN preview from the repository
+root in a second terminal:
+
+```sh
+cd /home/urmani/Documents/Personal/commandry
+pnpm compose:up
+pnpm preview:lan
+```
+
+The preview command builds an ignored static Storybook output under
+`apps/lab/storybook-static`, selects the active private Wi-Fi IPv4 address,
+and prints two phone-ready URLs. Port 3001 proxies only the app root and
+required Next.js static assets from `127.0.0.1:3000`. Port 3002 serves the
+static design lab. Both ports require HTTP Basic authentication, accept only
+GET and HEAD, and reject clients outside the selected address's subnet. API,
+auth, health, and version paths are unavailable through the preview. The app
+and its unauthenticated API stay bound to loopback.
+
+The username is `preview`. The command creates one random password in the
+gitignored `/home/urmani/Documents/Personal/commandry/.env.lan-preview` file
+with mode 0600 and reuses it on later starts. Read that file on this laptop
+to enter the password on your phone. The command does not print the password.
+If automatic Wi-Fi selection is ambiguous, pass an active private address:
+`pnpm preview:lan --host 10.0.0.73`. The preview uses plain HTTP on the local
+network, so use it only on a trusted private Wi-Fi network. Stop the preview
+with Ctrl+C. `pnpm preview:lan:test` verifies authentication, route denial,
+read-only behavior, and subnet filtering.
+
+As of 2026-09-26, the laptop preview runs as the transient user service
+`commandry-lan-review.service`, so it stays available after the launching
+terminal closes. From Toolbx, inspect or stop it with
+`flatpak-spawn --host systemctl --user status commandry-lan-review.service`
+or `flatpak-spawn --host systemctl --user stop commandry-lan-review.service`.
+It does not start automatically after a reboot; use `pnpm preview:lan` again.
+
 ## Production-shaped local stack
 
 The local stack builds one Node.js 24 image for the web server, worker, and
@@ -72,7 +112,7 @@ worker heartbeat before reporting the stack healthy.
 ```sh
 cd /home/urmani/Documents/Personal/commandry
 pnpm compose:up
-docker compose --env-file .env.local -f compose.yaml ps
+flatpak-spawn --host /home/urmani/.local/bin/docker compose --env-file .env.local -f compose.yaml ps
 curl --fail http://127.0.0.1:3000/health/live
 curl --fail http://127.0.0.1:3000/health/ready
 pnpm compose:down
@@ -82,9 +122,9 @@ To use only the database from the host, add the development override:
 
 ```sh
 cd /home/urmani/Documents/Personal/commandry
-docker compose --env-file .env.local -f compose.yaml -f compose.dev.yaml up -d postgres
-docker compose --env-file .env.local -f compose.yaml -f compose.dev.yaml ps postgres
-docker compose --env-file .env.local -f compose.yaml -f compose.dev.yaml down
+flatpak-spawn --host /home/urmani/.local/bin/docker compose --env-file .env.local -f compose.yaml -f compose.dev.yaml up -d postgres
+flatpak-spawn --host /home/urmani/.local/bin/docker compose --env-file .env.local -f compose.yaml -f compose.dev.yaml ps postgres
+flatpak-spawn --host /home/urmani/.local/bin/docker compose --env-file .env.local -f compose.yaml -f compose.dev.yaml down
 ```
 
 The named volume `commandry-local-postgres` persists across `down` and
@@ -105,12 +145,11 @@ The migrator receives `DATABASE_MIGRATION_URL`; web and worker receive only
 `DATABASE_URL`. pg-boss schema installation runs in the migrator, while the
 worker starts with its own migration behavior disabled.
 
-Once Docker is available and the stack has started, verify the database image
-and local grants with:
+With the stack started, verify the database image and local grants with:
 
 ```sh
 cd /home/urmani/Documents/Personal/commandry
-docker compose --env-file .env.local -f compose.yaml exec postgres sh -lc 'psql -U postgres -d "$POSTGRES_DB" -c "SELECT version(); SELECT name, default_version FROM pg_available_extensions WHERE name IN ('\''vector'\'', '\''pg_trgm'\''); SELECT has_schema_privilege('\''commandry_app'\'', '\''public'\'', '\''CREATE'\'') AS app_can_create_public, has_schema_privilege('\''commandry_app'\'', '\''pgboss'\'', '\''CREATE'\'') AS app_can_create_pgboss;"'
+flatpak-spawn --host /home/urmani/.local/bin/docker compose --env-file .env.local -f compose.yaml exec postgres sh -lc 'psql -U postgres -d "$POSTGRES_DB" -c "SELECT version(); SELECT name, default_version FROM pg_available_extensions WHERE name IN ('\''vector'\'', '\''pg_trgm'\''); SELECT has_schema_privilege('\''commandry_app'\'', '\''public'\'', '\''CREATE'\'') AS app_can_create_public, has_schema_privilege('\''commandry_app'\'', '\''pgboss'\'', '\''CREATE'\'') AS app_can_create_pgboss;"'
 ```
 
 The two privilege results should be false. Availability of `vector` does not

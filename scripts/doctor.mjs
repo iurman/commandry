@@ -1,5 +1,6 @@
 import { existsSync, statSync } from "node:fs";
 import { spawnSync } from "node:child_process";
+import { detectContainerRuntime } from "./container-runtime.mjs";
 
 const results = [];
 
@@ -38,14 +39,12 @@ if (envExists && process.platform !== "win32") {
   );
 }
 
-const docker = spawnSync("docker", ["compose", "version"], {
-  encoding: "utf8",
-});
+const runtime = detectContainerRuntime();
 check(
-  "Docker Compose",
-  docker.status === 0,
-  docker.status === 0
-    ? docker.stdout.trim()
+  "container Compose",
+  runtime !== null,
+  runtime
+    ? `${runtime.description}: ${runtime.version}`
     : "unavailable; local containers cannot start",
 );
 

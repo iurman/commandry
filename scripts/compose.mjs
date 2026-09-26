@@ -1,5 +1,5 @@
 import { existsSync } from "node:fs";
-import { spawnSync } from "node:child_process";
+import { detectContainerRuntime, runContainer } from "./container-runtime.mjs";
 
 const action = process.argv[2];
 if (action !== "up" && action !== "down") {
@@ -12,17 +12,16 @@ if (!existsSync(".env.local")) {
   process.exit(1);
 }
 
-const version = spawnSync("docker", ["compose", "version"], {
-  encoding: "utf8",
-});
-if (version.status !== 0) {
+const runtime = detectContainerRuntime();
+if (!runtime) {
   console.error(
-    "Docker Compose is unavailable. Install a local container runtime with Compose.",
+    "A Docker-compatible Compose runtime is unavailable. On Bazzite, install a host Compose provider for Podman; in Toolbx, ensure flatpak-spawn can reach the host CLI.",
   );
   process.exit(1);
 }
 
 const args = ["compose", "--env-file", ".env.local", "-f", "compose.yaml"];
 args.push(...(action === "up" ? ["up", "--build", "-d", "--wait"] : ["down"]));
-const result = spawnSync("docker", args, { stdio: "inherit" });
-process.exit(result.status || 0);
+const result = runContainer(runtime, args, { stdio: "inherit" });
+if (result.error) console.error(`Compose failed: ${result.error.message}`);
+process.exit(result.status ?? 1);

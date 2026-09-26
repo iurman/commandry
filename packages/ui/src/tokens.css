@@ -222,6 +222,10 @@ textarea {
   padding: 0 var(--cmd-space-2);
 }
 
+.cmd-mobile-nav-hint {
+  display: none;
+}
+
 .cmd-main {
   width: 100%;
   max-width: 88rem;
@@ -408,6 +412,12 @@ textarea {
 
   .cmd-sidebar-note {
     margin: 0;
+  }
+
+  .cmd-mobile-nav-hint {
+    display: inline;
+    color: var(--cmd-text);
+    font-weight: 600;
   }
 }
 

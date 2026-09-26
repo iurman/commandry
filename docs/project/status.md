@@ -2,7 +2,7 @@
 
 **Status: Operational**
 
-**Last updated:** 2026-09-25
+**Last updated:** 2026-09-26
 
 ## Current phase
 
@@ -51,9 +51,16 @@ authentication is complete. There is no production deployment.
   separately from pg-boss transport tables.
 - Semantic CSS tokens, accessible shell components, preference foundations,
   and representative Storybook states exist in the local-only lab.
+- An explicit authenticated LAN preview serves the current app shell and static
+  Storybook lab on the active private Wi-Fi address. It permits read-only
+  viewing; the app API remains on laptop loopback. Phone access still needs
+  confirmation on an actual device.
 - Automated source, unit, browser, and disposable PostgreSQL checks cover this
-  scaffold. Docker image and Compose execution remain unverified on the
-  current host because Docker is unavailable.
+  scaffold. On the current Bazzite laptop, the Docker-compatible host Podman
+  service and Compose provider build the production image and run PostgreSQL,
+  migrations, web, and worker locally. The database, web, and worker report
+  healthy, and a synthetic run submitted through the containerized API completes.
+  The image excludes the local lab, test support, documentation, and local secrets.
 
 ## Not yet decided
 

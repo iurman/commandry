@@ -43,6 +43,7 @@ export function AppShell({ children }: { children: ReactNode }) {
           ))}
         </nav>
         <p className="cmd-sidebar-note">
+          <span className="cmd-mobile-nav-hint">Swipe to see more. </span>
           Planned destinations are visible for orientation and are not available
           yet.
         </p>

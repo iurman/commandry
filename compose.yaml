@@ -21,7 +21,7 @@ services:
       DB_MIGRATION_PASSWORD: ${DB_MIGRATION_PASSWORD:?Set DB_MIGRATION_PASSWORD in .env.local}
     volumes:
       - postgres_data:/var/lib/postgresql
-      - ./docker/postgres/initdb:/docker-entrypoint-initdb.d:ro
+      - ./docker/postgres/initdb:/docker-entrypoint-initdb.d:ro,Z
     healthcheck:
       test:
         [

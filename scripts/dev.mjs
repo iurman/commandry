@@ -1,6 +1,7 @@
 import { existsSync } from "node:fs";
 import { loadEnvFile } from "node:process";
 import { spawn, spawnSync } from "node:child_process";
+import { detectContainerRuntime, runContainer } from "./container-runtime.mjs";
 
 if (!existsSync(".env.local")) {
   console.error("Missing .env.local. Run `pnpm setup` first.");
@@ -8,18 +9,16 @@ if (!existsSync(".env.local")) {
 }
 loadEnvFile(".env.local");
 
-const docker = spawnSync("docker", ["compose", "version"], {
-  encoding: "utf8",
-});
-if (docker.status !== 0) {
+const runtime = detectContainerRuntime();
+if (!runtime) {
   console.error(
-    "Docker Compose is unavailable. `pnpm dev` needs local PostgreSQL 18.",
+    "A Docker-compatible Compose runtime is unavailable. `pnpm dev` needs local PostgreSQL 18.",
   );
   process.exit(1);
 }
 
-const postgres = spawnSync(
-  "docker",
+const postgres = runContainer(
+  runtime,
   [
     "compose",
     "--env-file",
