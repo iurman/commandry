@@ -67,6 +67,7 @@ describe("Project workspace", () => {
                 description: "Confirm access and equipment.",
                 status: "open",
                 createdAt: "2026-09-25T09:00:00.000Z",
+                updatedAt: "2026-09-25T09:00:00.000Z",
               },
             ],
             nextCursor: null,
@@ -88,6 +89,8 @@ describe("Project workspace", () => {
           });
         if (path.includes(`/projects/${project.id}/resources`))
           return json({ items: [], nextCursor: null });
+        if (path.includes(`/projects/${project.id}/decisions`))
+          return json({ items: [], nextCursor: null });
         if (path.includes(`/projects/${project.id}`)) return json(project);
         return json({ items: [], nextCursor: null });
       }),
@@ -100,7 +103,7 @@ describe("Project workspace", () => {
     const knowledge = screen.getByRole("list", { name: "Project knowledge" });
     expect(
       within(work)
-        .getByRole("link", { name: "View original capture" })
+        .getByRole("link", { name: "Original capture" })
         .getAttribute("href"),
     ).toBe(`/inbox?captureId=${taskCaptureId}`);
     expect(
@@ -139,6 +142,8 @@ describe("Project workspace", () => {
           }
           return json({ items: relations, nextCursor: null });
         }
+        if (path.includes(`/projects/${project.id}/decisions`))
+          return json({ items: [], nextCursor: null });
         if (path.includes(`/projects/${project.id}`)) return json(project);
         if (path === "/api/v1/resources" && init?.method === "POST")
           return json(resource);
@@ -197,6 +202,8 @@ describe("Project workspace", () => {
         }
         return json({ items: relations, nextCursor: null });
       }
+      if (path.includes(`/projects/${project.id}/decisions`))
+        return json({ items: [], nextCursor: null });
       if (path.includes(`/projects/${project.id}`)) return json(project);
       return json({ items: [existingResource], nextCursor: null });
     });

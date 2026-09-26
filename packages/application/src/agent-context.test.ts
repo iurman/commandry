@@ -81,6 +81,7 @@ const brief: ProjectBrief = assembleProjectBrief(
       nextCursor: null,
     },
     resources: { items: [], nextCursor: null },
+    decisions: { items: [], nextCursor: null },
     events: { items: [], nextCursor: null },
     attention: { items: [], nextCursor: null },
   },

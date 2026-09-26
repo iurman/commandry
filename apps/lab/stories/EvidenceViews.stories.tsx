@@ -89,6 +89,10 @@ const brief: ProjectBriefView = {
       "knowledge",
       `/api/v1/projects/${projectId}/knowledge`,
     ),
+    decisions: emptySection(
+      "decisions",
+      `/api/v1/projects/${projectId}/decisions`,
+    ),
     resources: emptySection(
       "resources",
       `/api/v1/projects/${projectId}/resources`,
@@ -115,10 +119,6 @@ const brief: ProjectBriefView = {
     ),
   },
   missing: {
-    decisions: {
-      status: "not_recorded",
-      message: "No decisions were recorded.",
-    },
     questions: {
       status: "not_recorded",
       message: "No questions were recorded.",
@@ -227,6 +227,7 @@ function EvidenceViews({ mode }: { mode: "brief" | "empty" | "packet" }) {
                       `/api/v1/projects/${projectId}/work`,
                     ),
                     knowledge: brief.sections.knowledge,
+                    decisions: brief.sections.decisions,
                     resources: brief.sections.resources,
                     activity: emptySection(
                       "activity",
@@ -241,6 +242,7 @@ function EvidenceViews({ mode }: { mode: "brief" | "empty" | "packet" }) {
           sectionHrefs={{
             work: "#work",
             knowledge: "#knowledge",
+            decisions: "#decisions",
             resources: "#resources",
             activity: "#activity",
             attention: "#attention",

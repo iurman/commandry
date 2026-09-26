@@ -10,6 +10,7 @@ import {
   knowledgeItem,
   normalizedEvent,
   project,
+  projectDecision,
   projectResourceLink,
   resource,
   workItem,
@@ -73,6 +74,12 @@ export function createBriefRepository(db: CommandryDatabase) {
             .from(knowledgeItem)
             .where(eq(knowledgeItem.projectId, projectId))
             .orderBy(desc(knowledgeItem.createdAt), desc(knowledgeItem.id))
+            .limit(query.limit + 1);
+          const decisionRows = await tx
+            .select()
+            .from(projectDecision)
+            .where(eq(projectDecision.projectId, projectId))
+            .orderBy(desc(projectDecision.updatedAt), desc(projectDecision.id))
             .limit(query.limit + 1);
           const linkRows = await tx
             .select({ link: projectResourceLink, linkedResource: resource })
@@ -180,6 +187,24 @@ export function createBriefRepository(db: CommandryDatabase) {
                 kind: "note" as const,
                 title: row.title,
                 content: row.content,
+                createdAt: row.createdAt.toISOString(),
+                updatedAt: row.updatedAt.toISOString(),
+              }),
+              (row) => row.id,
+            ),
+            decisions: page(
+              decisionRows,
+              query.limit,
+              (row) => ({
+                id: row.id,
+                projectId: row.projectId,
+                question: row.question,
+                outcome: row.outcome,
+                alternatives: row.alternatives,
+                rationale: row.rationale,
+                status: row.status,
+                revision: row.revision,
+                sourceLabel: "Manual local decision" as const,
                 createdAt: row.createdAt.toISOString(),
                 updatedAt: row.updatedAt.toISOString(),
               }),

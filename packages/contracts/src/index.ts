@@ -308,6 +308,42 @@ export const listKnowledgeItemsResponseSchema = z.object({
   nextCursor: z.uuid().nullable(),
 });
 
+export const decisionFieldsSchema = z.strictObject({
+  question: z.string().trim().min(1).max(500),
+  outcome: z.string().trim().min(1).max(5_000),
+  alternatives: z.string().max(5_000),
+  rationale: z.string().trim().min(1).max(5_000),
+  status: z.enum(["proposed", "accepted", "superseded"]),
+});
+
+export const createProjectDecisionRequestSchema = decisionFieldsSchema;
+export const reviseProjectDecisionRequestSchema = decisionFieldsSchema.extend({
+  expectedRevision: z.number().int().min(1),
+});
+export const projectDecisionSchema = decisionFieldsSchema.extend({
+  id: z.uuid(),
+  projectId: z.uuid(),
+  revision: z.number().int().min(1),
+  sourceLabel: z.literal("Manual local decision"),
+  createdAt: z.iso.datetime({ offset: true }),
+  updatedAt: z.iso.datetime({ offset: true }),
+});
+export const projectDecisionRevisionSchema = decisionFieldsSchema.extend({
+  id: z.uuid(),
+  decisionId: z.uuid(),
+  revision: z.number().int().min(1),
+  actor: z.literal("local-user:unattributed"),
+  createdAt: z.iso.datetime({ offset: true }),
+});
+export const listProjectDecisionsResponseSchema = z.object({
+  items: z.array(projectDecisionSchema),
+  nextCursor: z.uuid().nullable(),
+});
+export const listProjectDecisionRevisionsResponseSchema = z.object({
+  items: z.array(projectDecisionRevisionSchema),
+  nextCursor: z.uuid().nullable(),
+});
+
 export const searchQuerySchema = listResourcesQuerySchema.extend({
   q: z.string().trim().min(1).max(200),
   projectId: z.uuid().optional(),
@@ -315,7 +351,7 @@ export const searchQuerySchema = listResourcesQuerySchema.extend({
 
 export const searchResultSchema = z.object({
   id: z.uuid(),
-  kind: z.enum(["capture", "task", "note", "project", "resource"]),
+  kind: z.enum(["capture", "task", "note", "decision", "project", "resource"]),
   title: z.string(),
   excerpt: z.string(),
   href: z.string().startsWith("/"),
@@ -488,6 +524,7 @@ export const evidenceReferenceSchema = z.object({
     "project",
     "work_item",
     "knowledge_item",
+    "decision",
     "resource",
     "project_resource_link",
     "event",
@@ -504,7 +541,14 @@ export const evidenceReferenceSchema = z.object({
 
 export const briefFactSchema = z.object({
   id: z.uuid(),
-  kind: z.enum(["work_item", "knowledge_item", "resource", "event", "alert"]),
+  kind: z.enum([
+    "work_item",
+    "knowledge_item",
+    "decision",
+    "resource",
+    "event",
+    "alert",
+  ]),
   title: z.string().min(1),
   detail: z.string(),
   evidence: z.array(evidenceReferenceSchema).min(1),
@@ -543,12 +587,12 @@ export const projectBriefSchema = z.object({
   sections: z.object({
     work: briefSectionSchema,
     knowledge: briefSectionSchema,
+    decisions: briefSectionSchema,
     resources: briefSectionSchema,
     activity: briefSectionSchema,
     attention: briefSectionSchema,
   }),
   missing: z.object({
-    decisions: notRecordedSchema,
     questions: notRecordedSchema,
     blockers: notRecordedSchema,
     acceptanceCriteria: notRecordedSchema,
@@ -984,6 +1028,16 @@ export type ChangeWorkItemStatusRequest = z.infer<
 >;
 export type WorkItemStatusEvent = z.infer<typeof workItemStatusEventSchema>;
 export type KnowledgeItem = z.infer<typeof knowledgeItemSchema>;
+export type ProjectDecision = z.infer<typeof projectDecisionSchema>;
+export type ProjectDecisionRevision = z.infer<
+  typeof projectDecisionRevisionSchema
+>;
+export type CreateProjectDecisionRequest = z.infer<
+  typeof createProjectDecisionRequestSchema
+>;
+export type ReviseProjectDecisionRequest = z.infer<
+  typeof reviseProjectDecisionRequestSchema
+>;
 export type FileCaptureResponse = z.infer<typeof fileCaptureResponseSchema>;
 export type CaptureTriageSuggestion = z.infer<
   typeof captureTriageSuggestionSchema

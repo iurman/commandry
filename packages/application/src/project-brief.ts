@@ -2,6 +2,7 @@ import type {
   BriefFact,
   EvidenceReference,
   KnowledgeItem,
+  ProjectDecision,
   NormalizedSyntheticEvent,
   ProjectBrief,
   ProjectResourceLink,
@@ -28,6 +29,7 @@ export type ProjectBriefSnapshot = {
   project: ProjectSummary;
   work: BriefPage<WorkItem>;
   knowledge: BriefPage<KnowledgeItem>;
+  decisions: BriefPage<ProjectDecision>;
   resources: BriefPage<{ link: ProjectResourceLink; linkedAt: string }>;
   events: BriefPage<NormalizedSyntheticEvent>;
   attention: BriefPage<SyntheticAlert & { recordedAt: string }>;
@@ -121,6 +123,26 @@ export function assembleProjectBrief(
         ),
       ],
       sourceLabel: "Manual local capture",
+      isSynthetic: false,
+    }),
+  );
+  const decisions = snapshot.decisions.items.map((item) =>
+    fact({
+      id: item.id,
+      kind: "decision",
+      title: item.question,
+      detail: `${item.status}: ${briefExcerpt(item.outcome)}. Rationale: ${briefExcerpt(item.rationale)}`,
+      evidence: [
+        evidence(
+          "decision",
+          item.id,
+          `/api/v1/decisions/${item.id}`,
+          item.updatedAt,
+          item.sourceLabel,
+          false,
+        ),
+      ],
+      sourceLabel: item.sourceLabel,
       isSynthetic: false,
     }),
   );
@@ -226,6 +248,12 @@ export function assembleProjectBrief(
         `/api/v1/projects/${projectId}/knowledge`,
         "No knowledge notes are recorded in this preview.",
       ),
+      decisions: section(
+        decisions,
+        snapshot.decisions.nextCursor,
+        `/api/v1/projects/${projectId}/decisions`,
+        "No project decisions are recorded in this preview.",
+      ),
       resources: section(
         resources,
         snapshot.resources.nextCursor,
@@ -246,9 +274,6 @@ export function assembleProjectBrief(
       ),
     },
     missing: {
-      decisions: briefMissing(
-        "Structured decisions are not recorded in the local model.",
-      ),
       questions: briefMissing(
         "Structured open questions are not recorded in the local model.",
       ),

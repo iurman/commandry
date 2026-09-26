@@ -36,6 +36,24 @@ const snapshot: ProjectBriefSnapshot = {
     nextCursor: "41360909-b93b-44f6-8ea7-1d1a7f622a20",
   },
   knowledge: { items: [], nextCursor: null },
+  decisions: {
+    items: [
+      {
+        id: "edc86014-4890-42d7-8bb0-4c7217d9c929",
+        projectId,
+        question: "Which timer should we use?",
+        outcome: "Keep the existing local timer",
+        alternatives: "Buy a new controller",
+        rationale: "The current device is repairable",
+        status: "accepted",
+        revision: 2,
+        sourceLabel: "Manual local decision",
+        createdAt: asOf,
+        updatedAt: asOf,
+      },
+    ],
+    nextCursor: null,
+  },
   resources: {
     items: [
       {
@@ -118,6 +136,11 @@ describe("project brief application", () => {
     );
     expect(brief.sections.work.nextCursor).toBe(snapshot.work.nextCursor);
     expect(brief.sections.resources.items[0]?.detail).toContain("unknown");
+    expect(brief.sections.decisions.items[0]?.evidence[0]).toMatchObject({
+      href: "/api/v1/decisions/edc86014-4890-42d7-8bb0-4c7217d9c929",
+      sourceLabel: "Manual local decision",
+      isSynthetic: false,
+    });
     expect(brief.sections.activity.items[0]?.evidence[0]).toMatchObject({
       id: eventId,
       href: `/api/v1/events/${eventId}`,

@@ -64,7 +64,7 @@ async function captureCursor(db: CommandryDatabase, cursor: string) {
 
 type SearchRow = {
   id: string;
-  kind: "capture" | "task" | "note" | "project" | "resource";
+  kind: "capture" | "task" | "note" | "decision" | "project" | "resource";
   project_id: string | null;
   title: string;
   excerpt: string;
@@ -313,6 +313,12 @@ export function createCaptureRepository(db: CommandryDatabase) {
           from knowledge_item
           where to_tsvector('simple', title || ' ' || content) @@ websearch_to_tsquery('simple', ${input.q})
           union all
+          select id, 'decision'::text as kind, project_id, question as title,
+            left(outcome || ' ' || rationale, 220) as excerpt,
+            null::uuid as source_capture_id, created_at
+          from project_decision
+          where to_tsvector('simple', question || ' ' || outcome || ' ' || rationale) @@ websearch_to_tsquery('simple', ${input.q})
+          union all
           select id, 'project'::text as kind, id as project_id, name as title,
             left(coalesce(summary, ''), 220) as excerpt,
             null::uuid as source_capture_id, created_at
@@ -349,7 +355,9 @@ export function createCaptureRepository(db: CommandryDatabase) {
                   ? `/projects/${row.id}`
                   : row.kind === "task"
                     ? `/work-items/${row.id}`
-                    : `/knowledge-items/${row.id}`,
+                    : row.kind === "decision"
+                      ? `/projects/${row.project_id}#decisions-heading`
+                      : `/knowledge-items/${row.id}`,
           projectId: row.project_id,
           sourceCaptureId: row.source_capture_id,
           createdAt: new Date(row.created_at).toISOString(),

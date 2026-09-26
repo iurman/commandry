@@ -47,6 +47,14 @@ local experience lab.
   status as an expected value and append an immutable event. Live briefs will
   select currently open tasks, while already generated execution packets will
   keep their original task-status snapshot.
+- The first task board will be a view over the same cursor-paged open/done task
+  records as the list, using the same audited status operation. It will not
+  introduce separate board copies or silently assign task priority. Manual
+  project decisions will record question, outcome, alternatives, rationale,
+  status, and append-only revisions. A stale editor must reload, and a
+  superseded decision cannot be revised. These are local user-authored facts,
+  not product architecture ADRs or AI conclusions. The live brief will cite the
+  current decision; previously saved execution packets remain snapshots.
 - Two fixture adapters will model development and operational signals without
   connecting to external services. Their source envelopes, normalized events,
   activity, attention, briefs, and search results will all carry a visible

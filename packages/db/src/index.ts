@@ -14,5 +14,6 @@ export * from "./local-agent-run-repository";
 export * from "./simulated-approval-repository";
 export * from "./work-item-status-repository";
 export * from "./resource-topology-repository";
+export * from "./project-decision-repository";
 export * from "./capture-triage-repository";
 export * as schema from "./schema";

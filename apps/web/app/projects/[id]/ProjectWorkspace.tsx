@@ -18,6 +18,7 @@ import {
 } from "../api";
 import ProjectContent from "./ProjectContent";
 import ProjectBriefPanel from "./ProjectBriefPanel";
+import ProjectDecisions from "./ProjectDecisions";
 
 type RelationshipType = "supports" | "relates_to";
 
@@ -500,6 +501,7 @@ export default function ProjectWorkspace({ projectId }: { projectId: string }) {
             </div>
           </div>
           <ProjectContent projectId={projectId} />
+          <ProjectDecisions projectId={projectId} />
         </>
       )}
     </AppShell>

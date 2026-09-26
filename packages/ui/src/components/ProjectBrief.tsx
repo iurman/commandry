@@ -34,12 +34,12 @@ export interface ProjectBriefView {
   sections: {
     work: BriefSectionView;
     knowledge: BriefSectionView;
+    decisions: BriefSectionView;
     resources: BriefSectionView;
     activity: BriefSectionView;
     attention: BriefSectionView;
   };
   missing: {
-    decisions: { status: "not_recorded"; message: string };
     questions: { status: "not_recorded"; message: string };
     blockers: { status: "not_recorded"; message: string };
     acceptanceCriteria: { status: "not_recorded"; message: string };
@@ -86,6 +86,7 @@ function EvidenceLinks({ links }: { links: BriefEvidenceLink[] }) {
 const sectionNames = [
   ["work", "Open work", "work"],
   ["knowledge", "Knowledge", "knowledge"],
+  ["decisions", "Decisions", "decisions"],
   ["resources", "Resources", "resources"],
   ["activity", "Recent change", "activity"],
   ["attention", "Attention", "attention"],
@@ -210,10 +211,6 @@ export function ProjectBrief({ brief, sectionHrefs }: ProjectBriefProps) {
           <p className="cmd-eyebrow">Explicit gaps</p>
           <h3 id="brief-gaps-heading">Not recorded</h3>
           <dl className="cmd-brief-gaps">
-            <div>
-              <dt>Decisions</dt>
-              <dd>{brief.missing.decisions.message}</dd>
-            </div>
             <div>
               <dt>Questions</dt>
               <dd>{brief.missing.questions.message}</dd>

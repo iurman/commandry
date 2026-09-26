@@ -68,6 +68,12 @@ import {
   fileCaptureResponseSchema,
   healthResponseSchema,
   knowledgeItemSchema,
+  createProjectDecisionRequestSchema,
+  reviseProjectDecisionRequestSchema,
+  projectDecisionSchema,
+  projectDecisionRevisionSchema,
+  listProjectDecisionsResponseSchema,
+  listProjectDecisionRevisionsResponseSchema,
   attentionItemSchema,
   listAttentionResponseSchema,
   listNormalizedEventsResponseSchema,
@@ -1077,6 +1083,75 @@ export function generateOpenApi(): string {
           },
         },
       },
+      "/api/v1/projects/{id}/decisions": {
+        get: {
+          operationId: "listProjectDecisions",
+          summary: "Page through manually recorded project decisions",
+          parameters: [idParameter, ...pageParameters],
+          responses: {
+            "200": {
+              description: "A page of decisions",
+              content: jsonContent("ListProjectDecisionsResponse"),
+            },
+          },
+        },
+        post: {
+          operationId: "createProjectDecision",
+          parameters: [idParameter],
+          requestBody: {
+            required: true,
+            content: jsonContent("CreateProjectDecisionRequest"),
+          },
+          responses: {
+            "201": {
+              description: "Decision and first immutable revision",
+              content: jsonContent("ProjectDecision"),
+            },
+          },
+        },
+      },
+      "/api/v1/decisions/{id}": {
+        get: {
+          operationId: "getProjectDecision",
+          parameters: [idParameter],
+          responses: {
+            "200": {
+              description: "Current decision",
+              content: jsonContent("ProjectDecision"),
+            },
+          },
+        },
+        put: {
+          operationId: "reviseProjectDecision",
+          parameters: [idParameter],
+          requestBody: {
+            required: true,
+            content: jsonContent("ReviseProjectDecisionRequest"),
+          },
+          responses: {
+            "200": {
+              description: "Updated decision and immutable new revision",
+              content: jsonContent("ProjectDecision"),
+            },
+            "409": {
+              description: "Stale or terminal decision",
+              content: jsonContent("ErrorResponse"),
+            },
+          },
+        },
+      },
+      "/api/v1/decisions/{id}/revisions": {
+        get: {
+          operationId: "listProjectDecisionRevisions",
+          parameters: [idParameter, ...pageParameters],
+          responses: {
+            "200": {
+              description: "Immutable decision revision page",
+              content: jsonContent("ListProjectDecisionRevisionsResponse"),
+            },
+          },
+        },
+      },
       "/api/v1/search": {
         get: {
           operationId: "searchRecords",
@@ -1384,6 +1459,20 @@ export function generateOpenApi(): string {
           listWorkItemStatusEventsResponseSchema,
         ),
         KnowledgeItem: component(knowledgeItemSchema),
+        CreateProjectDecisionRequest: component(
+          createProjectDecisionRequestSchema,
+        ),
+        ReviseProjectDecisionRequest: component(
+          reviseProjectDecisionRequestSchema,
+        ),
+        ProjectDecision: component(projectDecisionSchema),
+        ProjectDecisionRevision: component(projectDecisionRevisionSchema),
+        ListProjectDecisionsResponse: component(
+          listProjectDecisionsResponseSchema,
+        ),
+        ListProjectDecisionRevisionsResponse: component(
+          listProjectDecisionRevisionsResponseSchema,
+        ),
         ListWorkItemsResponse: component(listWorkItemsResponseSchema),
         ListKnowledgeItemsResponse: component(listKnowledgeItemsResponseSchema),
         SearchResult: component(searchResultSchema),

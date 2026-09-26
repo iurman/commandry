@@ -12,7 +12,7 @@ import styles from "./search.module.css";
 
 interface SearchResult {
   id: string;
-  kind: "project" | "resource" | "capture" | "task" | "note";
+  kind: "project" | "resource" | "capture" | "task" | "note" | "decision";
   title: string;
   excerpt: string;
   href: string;

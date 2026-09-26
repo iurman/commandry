@@ -457,6 +457,90 @@ export const knowledgeItem = pgTable(
   ],
 );
 
+export const projectDecision = pgTable(
+  "project_decision",
+  {
+    id: uuid("id").primaryKey(),
+    projectId: uuid("project_id")
+      .notNull()
+      .references(() => project.id, { onDelete: "restrict" }),
+    question: text("question").notNull(),
+    outcome: text("outcome").notNull(),
+    alternatives: text("alternatives").notNull().default(""),
+    rationale: text("rationale").notNull(),
+    status: text("status", {
+      enum: ["proposed", "accepted", "superseded"],
+    })
+      .notNull()
+      .default("proposed"),
+    revision: integer("revision").notNull().default(1),
+    sourceLabel: text("source_label")
+      .notNull()
+      .default("Manual local decision"),
+    createdAt: createdAt(),
+    updatedAt: updatedAt(),
+  },
+  (table) => [
+    index("project_decision_project_page_idx").on(table.projectId, table.id),
+    index("project_decision_search_idx").using(
+      "gin",
+      sql`to_tsvector('simple', ${table.question} || ' ' || ${table.outcome} || ' ' || ${table.rationale})`,
+    ),
+    check(
+      "project_decision_question_nonempty",
+      sql`length(trim(${table.question})) > 0`,
+    ),
+    check(
+      "project_decision_outcome_nonempty",
+      sql`length(trim(${table.outcome})) > 0`,
+    ),
+    check(
+      "project_decision_rationale_nonempty",
+      sql`length(trim(${table.rationale})) > 0`,
+    ),
+    check("project_decision_revision_positive", sql`${table.revision} > 0`),
+    check(
+      "project_decision_source_local",
+      sql`${table.sourceLabel} = 'Manual local decision'`,
+    ),
+    check(
+      "project_decision_status_valid",
+      sql`${table.status} in ('proposed', 'accepted', 'superseded')`,
+    ),
+  ],
+);
+
+export const projectDecisionRevision = pgTable(
+  "project_decision_revision",
+  {
+    id: uuid("id").primaryKey(),
+    decisionId: uuid("decision_id")
+      .notNull()
+      .references(() => projectDecision.id, { onDelete: "restrict" }),
+    revision: integer("revision").notNull(),
+    question: text("question").notNull(),
+    outcome: text("outcome").notNull(),
+    alternatives: text("alternatives").notNull(),
+    rationale: text("rationale").notNull(),
+    status: text("status", {
+      enum: ["proposed", "accepted", "superseded"],
+    }).notNull(),
+    actor: text("actor").notNull().default("local-user:unattributed"),
+    createdAt: createdAt(),
+  },
+  (table) => [
+    uniqueIndex("project_decision_revision_unique_idx").on(
+      table.decisionId,
+      table.revision,
+    ),
+    check("project_decision_revision_positive", sql`${table.revision} > 0`),
+    check(
+      "project_decision_revision_actor_local",
+      sql`${table.actor} = 'local-user:unattributed'`,
+    ),
+  ],
+);
+
 export const executionPacket = pgTable(
   "execution_packet",
   {

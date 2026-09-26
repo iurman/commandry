@@ -74,6 +74,7 @@ const brief: ProjectBrief = {
       emptyState: null,
     },
     knowledge: emptySection(`/api/v1/projects/${projectId}/knowledge`),
+    decisions: emptySection(`/api/v1/projects/${projectId}/decisions`),
     resources: emptySection(`/api/v1/projects/${projectId}/resources`),
     activity: {
       items: [
@@ -94,7 +95,6 @@ const brief: ProjectBrief = {
     attention: emptySection(`/api/v1/attention?projectId=${projectId}`),
   },
   missing: {
-    decisions: { status: "not_recorded", message: "No decisions recorded." },
     questions: { status: "not_recorded", message: "No questions recorded." },
     blockers: { status: "not_recorded", message: "No blockers recorded." },
     acceptanceCriteria: {
@@ -150,7 +150,11 @@ describe("Project brief panel", () => {
     expect(
       screen.getAllByText(/Synthetic · Synthetic operational fixture/).length,
     ).toBeGreaterThan(0);
-    expect(screen.getByText("No decisions recorded.")).toBeTruthy();
+    expect(
+      within(screen.getByRole("region", { name: "Decisions" })).getByText(
+        "No records in this section.",
+      ),
+    ).toBeTruthy();
     expect(screen.getByText("No blockers recorded.")).toBeTruthy();
     expect(
       screen

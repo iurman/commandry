@@ -10,4 +10,5 @@ export * from "./agent-context";
 export * from "./simulated-approvals";
 export * from "./work-item-status";
 export * from "./resource-topology";
+export * from "./project-decisions";
 export * from "./capture-triage";

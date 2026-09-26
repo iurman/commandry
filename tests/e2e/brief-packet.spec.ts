@@ -118,7 +118,7 @@ test("project brief cites saved sources and an execution packet keeps its select
   expect(
     refreshedBrief.sections.attention.items[0].evidence[0].recordedAt,
   ).toBe(brief.sections.attention.items[0].evidence[0].recordedAt);
-  expect(brief.missing.decisions.status).toBe("not_recorded");
+  expect(brief.sections.decisions.items).toHaveLength(0);
   expect(brief.missing.acceptanceCriteria.status).toBe("not_recorded");
   for (const evidence of brief.state.evidence) {
     expect((await request.get(evidence.href)).status(), evidence.href).toBe(

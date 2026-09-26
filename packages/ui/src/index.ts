@@ -17,6 +17,8 @@ export { CaptureTriageSummary } from "./components/CaptureTriageSummary";
 export type { CaptureTriageSummaryView } from "./components/CaptureTriageSummary";
 export { ResourceTreeRow } from "./components/ResourceTreeRow";
 export type { ResourceTreeRowView } from "./components/ResourceTreeRow";
+export { DecisionCard } from "./components/DecisionCard";
+export type { DecisionCardProps } from "./components/DecisionCard";
 export { ProjectBrief } from "./components/ProjectBrief";
 export type {
   ProjectBriefView,
