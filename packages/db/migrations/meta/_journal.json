@@ -127,6 +127,13 @@
       "when": 1790451493008,
       "tag": "0017_clammy_talisman",
       "breakpoints": true
+    },
+    {
+      "idx": 18,
+      "version": "7",
+      "when": 1790452812112,
+      "tag": "0018_curvy_hex",
+      "breakpoints": true
     }
   ]
 }

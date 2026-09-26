@@ -249,6 +249,9 @@ export default function AutomationsPage() {
             matching synthetic event, or in a manually scheduled one-time run.
             Output is synthetic and unverified; no external action occurs.
           </p>
+          <p>
+            <a href="/morning">Open the source-linked morning run digest</a>
+          </p>
         </div>
       </header>
       <div className="cmd-automation-layout">

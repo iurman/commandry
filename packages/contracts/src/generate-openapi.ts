@@ -90,6 +90,8 @@ import {
   automationRunAttemptSchema,
   automationAuditEventSchema,
   automationJobV1Schema,
+  morningDigestItemSchema,
+  morningDigestResponseSchema,
   listAutomationDefinitionsResponseSchema,
   listAutomationRunsResponseSchema,
   listAutomationRunAttemptsResponseSchema,
@@ -1287,6 +1289,51 @@ export function generateOpenApi(): string {
           },
         },
       },
+      "/api/v1/morning-digest": {
+        get: {
+          operationId: "listLocalMorningDigest",
+          summary:
+            "Page unverified local automation and agent outcomes in an explicit UTC window",
+          parameters: [
+            {
+              in: "query",
+              name: "from",
+              required: true,
+              schema: { type: "string", format: "date-time" },
+            },
+            {
+              in: "query",
+              name: "to",
+              required: true,
+              schema: { type: "string", format: "date-time" },
+            },
+            projectFilterParameter,
+            {
+              in: "query",
+              name: "limit",
+              required: false,
+              schema: {
+                type: "integer",
+                minimum: 1,
+                maximum: 100,
+                default: 20,
+              },
+            },
+            {
+              in: "query",
+              name: "cursor",
+              required: false,
+              schema: { type: "string" },
+            },
+          ],
+          responses: {
+            "200": {
+              description: "Source-linked local morning digest page",
+              content: jsonContent("MorningDigestResponse"),
+            },
+          },
+        },
+      },
       "/api/v1/automations/{id}": {
         get: {
           operationId: "getLocalAutomation",
@@ -1875,6 +1922,8 @@ export function generateOpenApi(): string {
         AutomationRunAttempt: component(automationRunAttemptSchema),
         AutomationAuditEvent: component(automationAuditEventSchema),
         AutomationJobV1: component(automationJobV1Schema),
+        MorningDigestItem: component(morningDigestItemSchema),
+        MorningDigestResponse: component(morningDigestResponseSchema),
         ListAutomationDefinitionsResponse: component(
           listAutomationDefinitionsResponseSchema,
         ),

@@ -751,6 +751,12 @@ export const automationRun = pgTable(
       table.state,
       table.scheduledFor,
     ),
+    index("automation_run_completed_page_idx").on(table.completedAt, table.id),
+    index("automation_run_project_completed_idx").on(
+      table.projectId,
+      table.completedAt,
+      table.id,
+    ),
     check("automation_run_attempts_nonnegative", sql`${table.attempts} >= 0`),
     check(
       "automation_run_trigger_valid",
@@ -956,6 +962,12 @@ export const localAgentRun = pgTable(
       table.id,
     ),
     index("local_agent_run_packet_idx").on(table.packetId),
+    index("local_agent_run_completed_page_idx").on(table.completedAt, table.id),
+    index("local_agent_run_project_completed_idx").on(
+      table.projectId,
+      table.completedAt,
+      table.id,
+    ),
     check("local_agent_run_attempts_nonnegative", sql`${table.attempts} >= 0`),
     check(
       "local_agent_run_state_valid",

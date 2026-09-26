@@ -145,6 +145,13 @@ local experience lab.
   original source envelope remains available through that record. This
   local-only rule is an exercise of the event trigger contract, not a chosen
   live connector or a production automation policy.
+- The local morning run digest is a read-only projection of completed local
+  automation and fake agent runs in an explicit, user-selected UTC window of
+  at most 31 days. It groups successful synthetic outcomes as awaiting review,
+  failed attempts as failed, and skipped occurrences as skipped, with stable
+  cursor continuation and links to the saved run and source evidence. It does
+  not claim verified work, establish overnight readiness, or schedule a
+  morning delivery. Overnight Queue policy remains open.
 - The local notification center will derive current items from synthetic
   monitor conditions, pending simulated approvals, and failed local summary
   attempts. A continuing monitor condition yields one item per open cycle and

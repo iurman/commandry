@@ -16,3 +16,4 @@ export * from "./project-decisions";
 export * from "./local-automations";
 export * from "./notifications";
 export * from "./capture-triage";
+export * from "./morning-digest";

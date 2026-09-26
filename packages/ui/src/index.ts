@@ -22,6 +22,8 @@ export type { ResourceTreeRowView } from "./components/ResourceTreeRow";
 export { DecisionCard } from "./components/DecisionCard";
 export type { DecisionCardProps } from "./components/DecisionCard";
 export { AutomationCard } from "./components/AutomationCard";
+export { MorningDigestCard } from "./components/MorningDigestCard";
+export type { MorningDigestCardView } from "./components/MorningDigestCard";
 export { UpcomingWorkCard } from "./components/UpcomingWorkCard";
 export type { UpcomingWorkCardView } from "./components/UpcomingWorkCard";
 export { KnowledgeRevisionCard } from "./components/KnowledgeRevisionCard";

@@ -735,6 +735,36 @@ export const listAutomationAuditResponseSchema = z.object({
   items: z.array(automationAuditEventSchema),
   nextCursor: z.uuid().nullable(),
 });
+export const morningDigestQuerySchema = z.strictObject({
+  from: z.iso.datetime({ offset: true }),
+  to: z.iso.datetime({ offset: true }),
+  projectId: z.uuid().optional(),
+  limit: z.coerce.number().int().min(1).max(100).default(20),
+  cursor: z.string().min(1).max(100).optional(),
+});
+export const morningDigestItemSchema = z.object({
+  id: z.uuid(),
+  kind: z.enum(["automation", "agent"]),
+  projectId: z.uuid(),
+  title: z.string().min(1),
+  actorLabel: z.string().min(1),
+  state: z.enum(["succeeded", "failed", "skipped"]),
+  outcome: z.enum(["awaiting_review", "failed", "skipped"]),
+  summary: z.string().min(1),
+  completedAt: z.iso.datetime({ offset: true }),
+  href: z.string().startsWith("/"),
+  evidenceHref: z.string().startsWith("/api/v1/"),
+  sourceEvidenceHref: z.string().startsWith("/api/v1/").nullable(),
+  sourceLabel: z.enum(["Synthetic local automation", "Synthetic local agent"]),
+  isSynthetic: z.literal(true),
+  verificationStatus: z.literal("unverified"),
+});
+export const morningDigestResponseSchema = z.object({
+  from: z.iso.datetime({ offset: true }),
+  to: z.iso.datetime({ offset: true }),
+  items: z.array(morningDigestItemSchema),
+  nextCursor: z.string().nullable(),
+});
 export const automationJobV1Schema = z.strictObject({
   version: z.literal(1),
   runId: z.uuid(),
@@ -1332,6 +1362,8 @@ export type AutomationRun = z.infer<typeof automationRunSchema>;
 export type AutomationRunAttempt = z.infer<typeof automationRunAttemptSchema>;
 export type AutomationAuditEvent = z.infer<typeof automationAuditEventSchema>;
 export type AutomationJobV1 = z.infer<typeof automationJobV1Schema>;
+export type MorningDigestItem = z.infer<typeof morningDigestItemSchema>;
+export type MorningDigestResponse = z.infer<typeof morningDigestResponseSchema>;
 export type Notification = z.infer<typeof notificationSchema>;
 export type ChangeNotificationStateRequest = z.infer<
   typeof changeNotificationStateRequestSchema
