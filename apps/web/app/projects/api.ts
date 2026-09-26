@@ -13,6 +13,7 @@ export interface ResourceRecord {
   kind: string;
   name: string;
   subtype: string | null;
+  parentResourceId: string | null;
   state: string | null;
   externalUrl: string | null;
   lastObservedAt: string | null;

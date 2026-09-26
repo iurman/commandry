@@ -31,6 +31,7 @@ const existingResource: ResourceRecord = {
   kind: "domain",
   name: "harbor.example",
   subtype: null,
+  parentResourceId: null,
   state: null,
   externalUrl: null,
   lastObservedAt: null,

@@ -15,12 +15,13 @@ function projectSummary(row: typeof project.$inferSelect) {
   };
 }
 
-function resourceSummary(row: typeof resource.$inferSelect) {
+export function resourceSummary(row: typeof resource.$inferSelect) {
   return {
     id: row.id,
     kind: row.kind,
     name: row.name,
     subtype: row.subtype,
+    parentResourceId: row.parentResourceId,
     state: row.state,
     externalUrl: row.externalUrl,
     lastObservedAt: row.lastObservedAt?.toISOString() ?? null,

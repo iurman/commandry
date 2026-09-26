@@ -48,6 +48,7 @@ const snapshot: ProjectBriefSnapshot = {
             kind: "device",
             name: "Timer",
             subtype: null,
+            parentResourceId: null,
             state: null,
             externalUrl: null,
             lastObservedAt: null,

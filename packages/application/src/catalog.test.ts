@@ -20,6 +20,7 @@ const resource: ResourceSummary = {
   kind: "document",
   name: "Garden plan",
   subtype: null,
+  parentResourceId: null,
   state: null,
   externalUrl: null,
   lastObservedAt: null,

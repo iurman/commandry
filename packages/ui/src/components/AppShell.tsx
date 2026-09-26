@@ -1,11 +1,6 @@
 import type { ReactNode } from "react";
 
-const plannedDestinations = [
-  "Work",
-  "Infrastructure",
-  "Automations",
-  "Knowledge",
-] as const;
+const plannedDestinations = ["Work", "Automations", "Knowledge"] as const;
 
 export function AppShell({
   children,
@@ -16,6 +11,7 @@ export function AppShell({
     | "Home"
     | "Inbox"
     | "Projects"
+    | "Infrastructure"
     | "Activity"
     | "Search"
     | "Agents"
@@ -52,6 +48,13 @@ export function AppShell({
             href="/projects"
           >
             Projects
+          </a>
+          <a
+            aria-current={current === "Infrastructure" ? "page" : undefined}
+            className={`cmd-nav-link ${current === "Infrastructure" ? "cmd-nav-current" : ""}`}
+            href="/infrastructure"
+          >
+            Infrastructure
           </a>
           <a
             aria-current={current === "Activity" ? "page" : undefined}

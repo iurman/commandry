@@ -48,6 +48,10 @@ import {
   createProjectRequestSchema,
   createProjectResourceLinkRequestSchema,
   createResourceRequestSchema,
+  setResourceParentRequestSchema,
+  createResourceDependencyRequestSchema,
+  resourceDependencySchema,
+  listResourceDependenciesResponseSchema,
   createSyntheticRunRequestSchema,
   correlationMetadataSchema,
   errorResponseSchema,
@@ -246,6 +250,102 @@ export function generateOpenApi(): string {
             },
             "404": {
               description: "Resource not found",
+              content: jsonContent("ErrorResponse"),
+            },
+          },
+        },
+      },
+      "/api/v1/resources/roots": {
+        get: {
+          operationId: "listRootResources",
+          summary: "Page through resources with no primary parent",
+          parameters: pageParameters,
+          responses: {
+            "200": {
+              description: "A page of root resources",
+              content: jsonContent("ListResourcesResponse"),
+            },
+          },
+        },
+      },
+      "/api/v1/resources/{id}/children": {
+        get: {
+          operationId: "listResourceChildren",
+          summary: "Page through direct children in the primary hierarchy",
+          parameters: [idParameter, ...pageParameters],
+          responses: {
+            "200": {
+              description: "A page of child resources",
+              content: jsonContent("ListResourcesResponse"),
+            },
+            "404": {
+              description: "Parent resource not found",
+              content: jsonContent("ErrorResponse"),
+            },
+          },
+        },
+      },
+      "/api/v1/resources/{id}/parent": {
+        put: {
+          operationId: "setResourceParent",
+          summary: "Move a resource against its expected primary parent",
+          parameters: [idParameter],
+          requestBody: {
+            required: true,
+            content: jsonContent("SetResourceParentRequest"),
+          },
+          responses: {
+            "200": {
+              description: "Resource with updated primary parent",
+              content: jsonContent("ResourceSummary"),
+            },
+            "409": {
+              description: "Stale parent or containment cycle",
+              content: jsonContent("ErrorResponse"),
+            },
+          },
+        },
+      },
+      "/api/v1/resources/{id}/dependencies": {
+        get: {
+          operationId: "listResourceDependencies",
+          summary: "Page outgoing dependencies or incoming dependents",
+          parameters: [
+            idParameter,
+            ...pageParameters,
+            {
+              in: "query",
+              name: "direction",
+              required: false,
+              schema: {
+                type: "string",
+                enum: ["outgoing", "incoming"],
+                default: "outgoing",
+              },
+            },
+          ],
+          responses: {
+            "200": {
+              description: "A page of typed resource relationships",
+              content: jsonContent("ListResourceDependenciesResponse"),
+            },
+          },
+        },
+        post: {
+          operationId: "addResourceDependency",
+          summary: "Record a manual depends_on relationship",
+          parameters: [idParameter],
+          requestBody: {
+            required: true,
+            content: jsonContent("CreateResourceDependencyRequest"),
+          },
+          responses: {
+            "201": {
+              description: "Typed dependency with inverse semantics",
+              content: jsonContent("ResourceDependency"),
+            },
+            "409": {
+              description: "Dependency already exists",
               content: jsonContent("ErrorResponse"),
             },
           },
@@ -1243,6 +1343,14 @@ export function generateOpenApi(): string {
         ResourceSummary: component(resourceSummarySchema),
         CreateResourceRequest: component(createResourceRequestSchema),
         ListResourcesResponse: component(listResourcesResponseSchema),
+        SetResourceParentRequest: component(setResourceParentRequestSchema),
+        CreateResourceDependencyRequest: component(
+          createResourceDependencyRequestSchema,
+        ),
+        ResourceDependency: component(resourceDependencySchema),
+        ListResourceDependenciesResponse: component(
+          listResourceDependenciesResponseSchema,
+        ),
         ProjectSummary: component(projectSummarySchema),
         CreateProjectRequest: component(createProjectRequestSchema),
         ListProjectsResponse: component(listProjectsResponseSchema),

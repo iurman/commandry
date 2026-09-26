@@ -1,5 +1,6 @@
 import { relations, sql } from "drizzle-orm";
 import {
+  type AnyPgColumn,
   boolean,
   check,
   index,
@@ -118,6 +119,10 @@ export const resource = pgTable(
     kind: text("kind").notNull(),
     name: text("name").notNull(),
     subtype: text("subtype"),
+    parentResourceId: uuid("parent_resource_id").references(
+      (): AnyPgColumn => resource.id,
+      { onDelete: "restrict" },
+    ),
     state: text("state"),
     externalUrl: text("external_url"),
     lastObservedAt: timestamp("last_observed_at", { withTimezone: true }),
@@ -126,8 +131,50 @@ export const resource = pgTable(
   },
   (table) => [
     index("resource_name_id_idx").on(table.name, table.id),
+    index("resource_parent_id_idx").on(table.parentResourceId, table.id),
     check("resource_kind_nonempty", sql`length(trim(${table.kind})) > 0`),
     check("resource_name_nonempty", sql`length(trim(${table.name})) > 0`),
+    check(
+      "resource_parent_not_self",
+      sql`${table.parentResourceId} is null or ${table.parentResourceId} <> ${table.id}`,
+    ),
+  ],
+);
+
+export const resourceDependency = pgTable(
+  "resource_dependency",
+  {
+    id: uuid("id").primaryKey(),
+    dependentResourceId: uuid("dependent_resource_id")
+      .notNull()
+      .references(() => resource.id, { onDelete: "restrict" }),
+    requiredResourceId: uuid("required_resource_id")
+      .notNull()
+      .references(() => resource.id, { onDelete: "restrict" }),
+    type: text("type", { enum: ["depends_on"] })
+      .notNull()
+      .default("depends_on"),
+    provenance: text("provenance").notNull().default("manual"),
+    createdAt: createdAt(),
+  },
+  (table) => [
+    uniqueIndex("resource_dependency_unique_idx").on(
+      table.dependentResourceId,
+      table.requiredResourceId,
+    ),
+    index("resource_dependency_required_page_idx").on(
+      table.requiredResourceId,
+      table.id,
+    ),
+    check(
+      "resource_dependency_not_self",
+      sql`${table.dependentResourceId} <> ${table.requiredResourceId}`,
+    ),
+    check("resource_dependency_type_valid", sql`${table.type} = 'depends_on'`),
+    check(
+      "resource_dependency_provenance_manual",
+      sql`${table.provenance} = 'manual'`,
+    ),
   ],
 );
 

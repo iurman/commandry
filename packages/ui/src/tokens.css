@@ -827,6 +827,7 @@ textarea {
 }
 
 .cmd-inbox-grid .cmd-section-heading h2,
+.cmd-infrastructure-grid .cmd-section-heading h2,
 .cmd-inbox-file-form h3,
 .cmd-inbox-filed h3,
 .cmd-capture-original-heading h3 {
@@ -1041,6 +1042,137 @@ textarea {
 
 .cmd-triage-proposal {
   font-size: 1.1rem;
+}
+
+.cmd-resource-tree,
+.cmd-resource-tree ul {
+  min-width: 0;
+  list-style: none;
+  margin: 0;
+  padding: 0;
+}
+
+.cmd-infrastructure-grid {
+  display: grid;
+  grid-template-columns: minmax(16rem, 0.8fr) minmax(0, 1.5fr);
+  align-items: start;
+  gap: clamp(1rem, 2.5vw, 2rem);
+}
+
+.cmd-infrastructure-grid .cmd-inbox-queue {
+  grid-area: auto;
+}
+
+.cmd-resource-tree ul {
+  margin-left: var(--cmd-space-4);
+  padding-left: var(--cmd-space-4);
+  border-left: 1px solid var(--cmd-border);
+}
+
+.cmd-resource-tree li {
+  min-width: 0;
+  margin-block: var(--cmd-space-3);
+}
+
+.cmd-resource-tree-row {
+  display: flex;
+  min-width: 0;
+  align-items: center;
+  gap: var(--cmd-space-3);
+  padding: var(--cmd-space-3);
+  border: 1px solid var(--cmd-border);
+  border-radius: var(--cmd-radius);
+  background: var(--cmd-surface-muted);
+}
+
+.cmd-resource-tree-toggle {
+  flex: 0 0 auto;
+  width: 2.1rem;
+  height: 2.1rem;
+  border: 1px solid var(--cmd-border);
+  border-radius: var(--cmd-radius);
+  background: var(--cmd-surface);
+  color: var(--cmd-text);
+  cursor: pointer;
+}
+
+.cmd-resource-tree-identity {
+  display: grid;
+  min-width: 0;
+  flex: 1 1 auto;
+  gap: var(--cmd-space-1);
+}
+
+.cmd-resource-tree-identity a,
+.cmd-resource-tree-identity span {
+  overflow-wrap: anywhere;
+}
+
+.cmd-resource-tree-identity a {
+  color: var(--cmd-text);
+  font-weight: 700;
+}
+
+.cmd-resource-tree-identity span {
+  color: var(--cmd-text-muted);
+  font-size: 0.8rem;
+}
+
+.cmd-resource-topology-forms,
+.cmd-resource-topology-links {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: var(--cmd-space-6);
+  margin-block: var(--cmd-space-6);
+}
+
+.cmd-resource-topology-forms > *,
+.cmd-resource-topology-links > * {
+  min-width: 0;
+}
+
+.cmd-resource-topology-links ul {
+  display: grid;
+  gap: var(--cmd-space-2);
+  margin: 0;
+  padding-left: var(--cmd-space-4);
+}
+
+.cmd-resource-topology-links li {
+  overflow-wrap: anywhere;
+}
+
+.cmd-resource-topology-links li span {
+  display: block;
+  color: var(--cmd-text-muted);
+  font-size: 0.8rem;
+}
+
+.cmd-resource-events {
+  display: grid;
+  gap: var(--cmd-space-4);
+  margin-block: var(--cmd-space-4);
+}
+
+@media (max-width: 70rem) {
+  .cmd-infrastructure-grid {
+    grid-template-columns: minmax(0, 1fr);
+  }
+}
+
+@media (max-width: 34rem) {
+  .cmd-resource-topology-forms,
+  .cmd-resource-topology-links {
+    grid-template-columns: minmax(0, 1fr);
+  }
+  .cmd-resource-tree ul {
+    margin-left: var(--cmd-space-2);
+    padding-left: var(--cmd-space-2);
+  }
+
+  .cmd-resource-tree-row {
+    flex-wrap: wrap;
+  }
 }
 
 .cmd-inbox-filed p {

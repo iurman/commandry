@@ -199,6 +199,7 @@ export function createBriefRepository(db: CommandryDatabase) {
                     kind: linkedResource.kind,
                     name: linkedResource.name,
                     subtype: linkedResource.subtype,
+                    parentResourceId: linkedResource.parentResourceId,
                     state: linkedResource.state,
                     externalUrl: linkedResource.externalUrl,
                     lastObservedAt:

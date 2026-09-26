@@ -15,6 +15,8 @@ export { CaptureOriginal } from "./components/CaptureOriginal";
 export type { CaptureOriginalRecord } from "./components/CaptureOriginal";
 export { CaptureTriageSummary } from "./components/CaptureTriageSummary";
 export type { CaptureTriageSummaryView } from "./components/CaptureTriageSummary";
+export { ResourceTreeRow } from "./components/ResourceTreeRow";
+export type { ResourceTreeRowView } from "./components/ResourceTreeRow";
 export { ProjectBrief } from "./components/ProjectBrief";
 export type {
   ProjectBriefView,

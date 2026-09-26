@@ -9,4 +9,5 @@ export * from "./local-agent-runs";
 export * from "./agent-context";
 export * from "./simulated-approvals";
 export * from "./work-item-status";
+export * from "./resource-topology";
 export * from "./capture-triage";

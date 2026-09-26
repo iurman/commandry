@@ -22,6 +22,12 @@ local experience lab.
 - Manually entered resources will have unknown operational state until an
   observation with a named source and time exists. Cached or synthetic health
   will always identify its source and freshness.
+- Local resource containment will use one cycle-safe primary parent for
+  navigation. Manual `depends_on` links will be separate typed edges with a
+  `required_by` inverse; neither containment nor dependency will manufacture
+  operational health. The initial Infrastructure view will page roots and each
+  branch so the entire catalog remains reachable. This is a provisional graph
+  slice, not a decision on live topology discovery or connector ownership.
 - Text and URL capture will come first. Original input will be immutable; filing,
   classification, and generated summaries will remain separate derived records.
   Local deterministic suggestions will identify their rule and rationale and

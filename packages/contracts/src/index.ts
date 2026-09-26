@@ -32,6 +32,7 @@ export const resourceSummarySchema = z.object({
   kind: z.string().min(1),
   name: z.string().min(1),
   subtype: z.string().nullable(),
+  parentResourceId: z.uuid().nullable(),
   state: z.string().nullable(),
   externalUrl: z.url().nullable(),
   lastObservedAt: z.iso.datetime({ offset: true }).nullable(),
@@ -42,6 +43,35 @@ export const createResourceRequestSchema = z.object({
   name: z.string().trim().min(1).max(200),
   subtype: z.string().trim().min(1).max(100).optional(),
   externalUrl: z.url().optional(),
+});
+
+export const setResourceParentRequestSchema = z.strictObject({
+  parentResourceId: z.uuid().nullable(),
+  expectedParentResourceId: z.uuid().nullable(),
+});
+
+export const createResourceDependencyRequestSchema = z.strictObject({
+  requiredResourceId: z.uuid(),
+});
+
+export const resourceDependencySchema = z.object({
+  id: z.uuid(),
+  type: z.literal("depends_on"),
+  inverseType: z.literal("required_by"),
+  direction: z.enum(["outgoing", "incoming"]),
+  resource: resourceSummarySchema,
+  createdAt: z.iso.datetime({ offset: true }),
+});
+
+export const listResourceDependenciesQuerySchema = z.object({
+  direction: z.enum(["outgoing", "incoming"]).default("outgoing"),
+  limit: z.coerce.number().int().min(1).max(100).default(25),
+  cursor: z.uuid().optional(),
+});
+
+export const listResourceDependenciesResponseSchema = z.object({
+  items: z.array(resourceDependencySchema),
+  nextCursor: z.uuid().nullable(),
 });
 
 export const projectSummarySchema = z.object({
@@ -935,6 +965,13 @@ export type ProjectResourceLinkDetail = z.infer<
 >;
 export type CreateProjectRequest = z.infer<typeof createProjectRequestSchema>;
 export type CreateResourceRequest = z.infer<typeof createResourceRequestSchema>;
+export type SetResourceParentRequest = z.infer<
+  typeof setResourceParentRequestSchema
+>;
+export type CreateResourceDependencyRequest = z.infer<
+  typeof createResourceDependencyRequestSchema
+>;
+export type ResourceDependency = z.infer<typeof resourceDependencySchema>;
 export type CreateProjectResourceLinkRequest = z.infer<
   typeof createProjectResourceLinkRequestSchema
 >;

@@ -7,4 +7,5 @@ export * from "./execution-packet";
 export * from "./local-agent-policy";
 export * from "./simulated-approval";
 export * from "./work-item-status";
+export * from "./resource-topology";
 export * from "./capture-triage";

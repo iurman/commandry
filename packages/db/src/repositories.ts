@@ -176,6 +176,7 @@ export function createResourceRepository(db: CommandryDatabase) {
           kind: row.kind,
           name: row.name,
           subtype: row.subtype,
+          parentResourceId: row.parentResourceId,
           state: row.state,
           externalUrl: row.externalUrl,
           lastObservedAt: row.lastObservedAt?.toISOString() ?? null,

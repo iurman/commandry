@@ -57,6 +57,13 @@
       "when": 1790436689270,
       "tag": "0007_amusing_tarot",
       "breakpoints": true
+    },
+    {
+      "idx": 8,
+      "version": "7",
+      "when": 1790438301108,
+      "tag": "0008_stiff_electro",
+      "breakpoints": true
     }
   ]
 }

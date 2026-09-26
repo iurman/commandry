@@ -43,6 +43,7 @@ const linkedResource: ProjectResourceLink = {
     kind: "service",
     name: "Docs service",
     subtype: null,
+    parentResourceId: null,
     state: null,
     externalUrl: null,
     lastObservedAt: null,
