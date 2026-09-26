@@ -83,11 +83,10 @@ GET and HEAD, and reject clients outside the selected address's subnet. API,
 auth, health, and version paths are unavailable through the preview. The app
 and its unauthenticated API stay bound to loopback.
 
-The username is `preview`. The command creates one random password in the
-gitignored `/home/urmani/Documents/Personal/commandry/.env.lan-preview` file
-with mode 0600 and reuses it on later starts. Read that file on this laptop
-to enter the password on your phone. The command does not print the password.
-If automatic Wi-Fi selection is ambiguous, pass an active private address:
+For this local review preview, use username `test` and password `pass` on both
+ports. These fixed credentials are for the read-only preview gateway only;
+they are not Commandry product sign-in credentials. If automatic Wi-Fi
+selection is ambiguous, pass an active private address:
 `pnpm preview:lan --host 10.0.0.73`. The preview uses plain HTTP on the local
 network, so use it only on a trusted private Wi-Fi network. Stop the preview
 with Ctrl+C. `pnpm preview:lan:test` verifies authentication, route denial,

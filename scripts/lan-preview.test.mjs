@@ -2,8 +2,6 @@ import assert from "node:assert/strict";
 import { createServer, request as httpRequest } from "node:http";
 import {
   mkdtempSync,
-  readFileSync,
-  statSync,
   symlinkSync,
   writeFileSync,
   mkdirSync,
@@ -17,7 +15,7 @@ import {
   createLabPreviewServer,
   isAllowedAppPath,
   isClientInSubnet,
-  readOrCreateCredential,
+  localPreviewCredential,
   selectLanAddress,
 } from "./lan-preview.mjs";
 
@@ -97,16 +95,6 @@ test("only active private interfaces can be selected and clients stay within the
   assert.equal(isAllowedAppPath("/_next/static/../api/v1"), false);
 });
 
-test("credential is local, private, and stable", () => {
-  const file = path.join(directory, ".env.lan-preview");
-  const first = readOrCreateCredential(file);
-  assert.equal(first.user, "preview");
-  assert.ok(first.password.length >= 32);
-  assert.deepEqual(readOrCreateCredential(file), first);
-  assert.equal(statSync(file).mode & 0o777, 0o600);
-  assert.ok(readFileSync(file, "utf8").includes("LAN_PREVIEW_PASSWORD="));
-});
-
 test("app preview requires auth and only proxies read-only shell assets", async () => {
   let receivedAuthorization = null;
   const upstream = createServer((request, response) => {
@@ -115,11 +103,11 @@ test("app preview requires auth and only proxies read-only shell assets", async 
     response.end("upstream:" + request.url);
   });
   const upstreamPort = await listen(upstream);
-  const credential = { user: "preview", password: "local-test-secret" };
+  const credential = { user: "test", password: "pass" };
   const server = createAppPreviewServer({
     selected: { address: "127.0.0.1", prefix: 8 },
     port: 0,
-    credential,
+    credential: localPreviewCredential,
     upstreamPort,
   });
   const port = await listen(server);
@@ -172,11 +160,11 @@ test("lab preview serves static files with auth and rejects API, writes, and esc
   const outside = path.join(directory, "outside.txt");
   writeFileSync(outside, "private");
   symlinkSync(outside, path.join(root, "escape.txt"));
-  const credential = { user: "preview", password: "local-test-secret" };
+  const credential = { user: "test", password: "pass" };
   const server = createLabPreviewServer({
     selected: { address: "127.0.0.1", prefix: 8 },
     port: 0,
-    credential,
+    credential: localPreviewCredential,
     root,
   });
   const port = await listen(server);
@@ -213,7 +201,7 @@ test("request from outside the selected subnet is refused", async () => {
   const server = createAppPreviewServer({
     selected: { address: "10.0.0.73", prefix: 24 },
     port: 0,
-    credential: { user: "preview", password: "local-test-secret" },
+    credential: localPreviewCredential,
   });
   const port = await listen(server);
   try {

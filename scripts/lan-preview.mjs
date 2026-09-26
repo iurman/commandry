@@ -1,16 +1,6 @@
 import { spawnSync } from "node:child_process";
-import { createHash, randomBytes, timingSafeEqual } from "node:crypto";
-import {
-  createReadStream,
-  existsSync,
-  mkdirSync,
-  openSync,
-  readFileSync,
-  realpathSync,
-  statSync,
-  writeFileSync,
-  closeSync,
-} from "node:fs";
+import { createHash, timingSafeEqual } from "node:crypto";
+import { createReadStream, existsSync, realpathSync, statSync } from "node:fs";
 import { createServer, request as httpRequest } from "node:http";
 import { networkInterfaces } from "node:os";
 import path from "node:path";
@@ -20,9 +10,11 @@ const repositoryRoot = path.resolve(
   path.dirname(fileURLToPath(import.meta.url)),
   "..",
 );
-const credentialPath = path.join(repositoryRoot, ".env.lan-preview");
 const staticRoot = path.join(repositoryRoot, "apps/lab/storybook-static");
-const user = "preview";
+export const localPreviewCredential = Object.freeze({
+  user: "test",
+  password: "pass",
+});
 
 function ipv4Number(address) {
   const parts = address.split(".");
@@ -95,35 +87,6 @@ export function selectLanAddress(override, interfaces = networkInterfaces()) {
     );
   }
   return wireless[0];
-}
-
-export function readOrCreateCredential(file = credentialPath) {
-  if (!existsSync(file)) {
-    mkdirSync(path.dirname(file), { recursive: true });
-    const descriptor = openSync(file, "wx", 0o600);
-    try {
-      writeFileSync(
-        descriptor,
-        "LAN_PREVIEW_USER=" +
-          user +
-          "\nLAN_PREVIEW_PASSWORD=" +
-          randomBytes(32).toString("base64url") +
-          "\n",
-      );
-    } finally {
-      closeSync(descriptor);
-    }
-  }
-  const mode = statSync(file).mode & 0o777;
-  if (mode !== 0o600) {
-    throw new Error("LAN preview credential file must have mode 0600: " + file);
-  }
-  const match =
-    /^LAN_PREVIEW_USER=preview\nLAN_PREVIEW_PASSWORD=([A-Za-z0-9_-]{32,})\n$/.exec(
-      readFileSync(file, "utf8"),
-    );
-  if (!match) throw new Error("Invalid LAN preview credential file: " + file);
-  return { user, password: match[1] };
 }
 
 function sendPlain(response, status, message, extra = {}) {
@@ -336,7 +299,7 @@ function createPreviewServer(kind, options) {
     if (!authenticated(request.headers.authorization, credential)) {
       return sendPlain(response, 401, "Authentication required.\n", {
         "www-authenticate":
-          'Basic realm="Commandry LAN preview", charset="UTF-8"',
+          'Basic realm="Commandry local preview", charset="UTF-8"',
       });
     }
     if (request.method !== "GET" && request.method !== "HEAD") {
@@ -379,7 +342,6 @@ function listen(server, address, port) {
 async function main() {
   const { host } = parseArgs(process.argv.slice(2));
   const selected = selectLanAddress(host);
-  const credential = readOrCreateCredential();
   const build = spawnSync(
     "pnpm",
     [
@@ -398,8 +360,16 @@ async function main() {
   if (build.error || build.status !== 0) {
     throw new Error("Storybook static build failed.");
   }
-  const app = createAppPreviewServer({ selected, port: 3001, credential });
-  const lab = createLabPreviewServer({ selected, port: 3002, credential });
+  const app = createAppPreviewServer({
+    selected,
+    port: 3001,
+    credential: localPreviewCredential,
+  });
+  const lab = createLabPreviewServer({
+    selected,
+    port: 3002,
+    credential: localPreviewCredential,
+  });
   try {
     await listen(app, selected.address, 3001);
     await listen(lab, selected.address, 3002);
@@ -419,8 +389,7 @@ async function main() {
   );
   console.log("App shell: http://" + selected.address + ":3001/");
   console.log("Design lab: http://" + selected.address + ":3002/");
-  console.log("Username: " + user);
-  console.log("Read the password on this laptop from " + credentialPath + ".");
+  console.log("Local preview login: test / pass");
   console.log(
     "Start the local app on 127.0.0.1:3000 before opening the app shell URL.",
   );
