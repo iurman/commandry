@@ -42,7 +42,7 @@ feature has been implemented.
 ## How should it work internally?
 
 - [Architecture overview](architecture/overview.md) — boundaries and major layers
-- [Technology stack](architecture/technology-stack.md) — proposed languages,
+- [Technology stack](architecture/technology-stack.md) — accepted languages,
   frameworks, data, jobs, auth, tests, and repository shape
 - [Deployment strategy](architecture/deployment-strategy.md) — VPS topology,
   scheduling, containers, runners, and native distribution
@@ -65,7 +65,7 @@ feature has been implemented.
 
 - [Project status](project/status.md) — what exists today
 - [Open questions](project/open-questions.md) — decisions still required
-- [Decision records](decisions/README.md) — accepted, reopened, and proposed choices
+- [Decision records](decisions/README.md) — accepted and superseded choices
 - [Prior art](reference/prior-art.md) — patterns to borrow, integrate, or avoid
 - [Original working definition](reference/original-product-definition.md) —
   archived source preserved for provenance

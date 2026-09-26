@@ -1,0 +1,15 @@
+@import "tailwindcss";
+@import "../../../packages/ui/src/tokens.css";
+@source "../../../packages/ui/src";
+
+@theme inline {
+  --color-canvas: var(--cmd-canvas);
+  --color-surface: var(--cmd-surface);
+  --color-surface-muted: var(--cmd-surface-muted);
+  --color-content: var(--cmd-text);
+  --color-content-muted: var(--cmd-text-muted);
+  --color-border: var(--cmd-border);
+  --color-focus: var(--cmd-focus);
+  --color-attention: var(--cmd-caution-text);
+  --color-critical: var(--cmd-critical-text);
+}

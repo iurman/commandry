@@ -4,10 +4,11 @@
 
 **Research date:** 2026-09-21
 
-This evaluation reopens every application-platform choice recorded on
-2026-09-15. Those choices were written as accepted before the owner had reviewed
-their premises. The recommendation below is evidence for proposed ADRs, not an
-authorization to provision or implement them.
+This evaluation informed the replacement of the application-platform choices
+recorded on 2026-09-15. Those choices were written as accepted before the owner
+had reviewed their premises. The recommendation below supports accepted ADRs
+0009 through 0012. It is historical research, not production-readiness evidence
+or authorization to provision remote infrastructure.
 
 ## Recommendation
 
@@ -330,8 +331,8 @@ functions, or a proprietary database API.
 
 ## Remaining infrastructure facts
 
-The stack recommendation is complete enough for owner review. It is not ready
-for provisioning until the VPS CPU, RAM, storage, operating system, region,
+The stack is accepted, but is not ready for production provisioning until the
+VPS CPU, RAM, storage, operating system, region,
 existing workload, snapshot support, and recovery-console access are recorded.
 Those facts may change database placement or capacity settings, but they do not
 justify returning to Vite, Hono, or Cloudflare Workers.

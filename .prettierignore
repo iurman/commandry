@@ -1,0 +1,7 @@
+node_modules
+**/.next
+**/dist
+**/storybook-static
+packages/contracts/openapi/openapi.json
+packages/db/migrations
+pnpm-lock.yaml

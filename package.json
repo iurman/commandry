@@ -1,0 +1,48 @@
+{
+  "name": "commandry",
+  "private": true,
+  "version": "0.0.0",
+  "packageManager": "pnpm@11.19.0",
+  "engines": {
+    "node": ">=24 <25"
+  },
+  "scripts": {
+    "setup": "node scripts/setup.mjs",
+    "dev": "node scripts/dev.mjs",
+    "check": "pnpm format:check && pnpm lint && pnpm typecheck && pnpm boundaries:check && pnpm contracts:check && pnpm lab:check",
+    "format": "prettier --write \"apps/**/*.{ts,tsx,css,json,mjs,mts}\" \"packages/**/*.{ts,tsx,css,json,mjs,mts}\" \"scripts/**/*.{mjs,ts}\" \"*.{json,mjs,mts,ts,yaml,yml}\"",
+    "format:check": "prettier --check \"apps/**/*.{ts,tsx,css,json,mjs,mts}\" \"packages/**/*.{ts,tsx,css,json,mjs,mts}\" \"scripts/**/*.{mjs,ts}\" \"*.{json,mjs,mts,ts,yaml,yml}\"",
+    "lint": "eslint apps packages scripts",
+    "typecheck": "pnpm -r --if-present typecheck",
+    "boundaries:check": "node scripts/check-boundaries.mjs",
+    "contracts:check": "pnpm --filter @commandry/contracts check:generated",
+    "test": "vitest run --config vitest.config.mts && pnpm --filter @commandry/lab test",
+    "test:integration": "node scripts/test-integration.mjs",
+    "test:smoke": "node scripts/test-integration.mjs --smoke",
+    "test:e2e": "playwright test",
+    "build": "pnpm --filter @commandry/worker build && pnpm --filter @commandry/web build",
+    "compose:up": "node scripts/compose.mjs up",
+    "compose:down": "node scripts/compose.mjs down",
+    "lab": "pnpm --filter @commandry/lab dev",
+    "lab:check": "pnpm --filter @commandry/lab typecheck && node scripts/check-lab.mjs",
+    "doctor": "node scripts/doctor.mjs"
+  },
+  "devDependencies": {
+    "@playwright/test": "1.63.0",
+    "@testing-library/jest-dom": "7.0.1",
+    "@testing-library/react": "16.3.3",
+    "@types/node": "24.19.0",
+    "@types/react": "19.3.0",
+    "@types/react-dom": "19.3.0",
+    "@vitejs/plugin-react": "6.1.1",
+    "embedded-postgres": "18.4.0-beta.17",
+    "eslint": "9.39.2",
+    "eslint-config-next": "16.3.6",
+    "jsdom": "29.1.1",
+    "prettier": "3.9.9",
+    "tsx": "4.23.15",
+    "typescript": "5.9.3",
+    "vite": "8.3.1",
+    "vitest": "4.1.11"
+  }
+}

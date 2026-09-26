@@ -1,8 +1,15 @@
 # ADR 0012: Use PostgreSQL-backed background work
 
-**Status:** Proposed
+**Status:** Accepted
 
 **Date:** 2026-09-21
+
+**Accepted:** 2026-09-25
+
+**Supersedes:** [0005](0005-use-cloudflare-workers-and-neon.md),
+[0006](0006-use-postgres-as-the-canonical-database.md), and
+[0008](0008-separate-control-plane-from-execution-runners.md) for initial
+background-work transport. Privileged execution remains runner-isolated.
 
 ## Context
 
@@ -11,7 +18,7 @@ dead-letter handling, concurrency controls, and eventually multi-step agent
 coordination. The initial workload does not justify operating Redis, Kafka, or a
 provider-specific queue in addition to PostgreSQL.
 
-## Proposed decision
+## Decision
 
 Run a separate Node.js worker process using pg-boss against the canonical
 PostgreSQL database. Use pg-boss for enqueueing, retries, dead letters,
@@ -58,7 +65,9 @@ binaries, private networks, or other privileged work.
 See [Hosting and stack evaluation](../research/hosting-and-stack-evaluation.md)
 and [Technology stack](../architecture/technology-stack.md).
 
-## Acceptance gates
+## Implementation validation gates
+
+These checks validate the accepted job architecture during local implementation:
 
 1. Prove transactional enqueue with the selected Drizzle version.
 2. Prove retries, dead letters, redrive, schedule catch-up, and deterministic

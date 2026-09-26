@@ -1,8 +1,12 @@
 # ADR 0010: Build a Next.js web-first modular monolith
 
-**Status:** Proposed
+**Status:** Accepted
 
 **Date:** 2026-09-21
+
+**Accepted:** 2026-09-25
+
+**Supersedes:** [0007](0007-build-a-portable-web-first-application.md).
 
 ## Context
 
@@ -12,7 +16,7 @@ Docker self-hosting or Vercel. The prior React/Vite SPA plus Hono API was chosen
 to span Cloudflare Workers and Node, but multi-runtime HTTP portability is no
 longer an initial requirement.
 
-## Proposed decision
+## Decision
 
 Use Next.js 16 App Router on Node.js 24 LTS for the initial web application and
 HTTP API. Build a production standalone Docker image. Place versioned REST/JSON
@@ -63,7 +67,10 @@ implementation detail.
 See [Technology stack](../architecture/technology-stack.md) and
 [Hosting and stack evaluation](../research/hosting-and-stack-evaluation.md).
 
-## Acceptance gates
+## Implementation validation gates
+
+These checks validate the accepted decision during implementation; they do
+not block local bootstrap:
 
 1. Build and run the standalone image on Node.js 24.
 2. Exercise one server-rendered route, one `/api/v1` route, authentication, and

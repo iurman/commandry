@@ -110,17 +110,19 @@ planned behavior as though it already exists.
 
 ## Implementation guardrails
 
-The initial stack and deployment topology are under review. ADRs 0005 through
-0008 are reopened; ADRs 0009 through 0012 are proposed. Do not bootstrap the
-application or provision production infrastructure until the proposed ADRs are
-accepted, revised, or rejected by the owner.
+ADRs 0009 through 0012 are accepted; ADRs 0005 through 0008 are superseded.
+Local application bootstrap may proceed on the accepted Node.js 24, Next.js 16,
+PostgreSQL 18, and separate pg-boss worker architecture. Production provisioning
+and deployment remain gated by VPS inventory, capacity, backup and restore,
+deployment-control validation, and the unresolved human sign-in and recovery
+decision. Do not infer production readiness from ADR acceptance.
 
-While evaluating the proposal, preserve the Node/Docker, standard PostgreSQL,
-versioned HTTP contract, and domain/application package boundaries. Do not add
-Cloudflare Workers, Hono, Vite as the application framework, D1, a graph
-database, native-first clients, or a Vercel-only dependency without an accepted
-ADR. New product logic belongs in domain/application packages rather than
-Next.js handlers, React components, job consumers, or provider adapters.
+Preserve the Node/Docker, standard PostgreSQL, versioned HTTP contract, and
+domain/application package boundaries. Do not add Cloudflare Workers, Hono,
+Vite as the application framework, D1, a graph database, native-first clients,
+or a Vercel-only dependency without a new accepted ADR. New product logic
+belongs in domain/application packages rather than Next.js handlers, React
+components, job consumers, or provider adapters.
 
 The local experience lab is committed development tooling, not a product route.
 It may import production UI/experience packages; production code must not import

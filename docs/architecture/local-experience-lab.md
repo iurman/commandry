@@ -1,8 +1,8 @@
 # Local experience lab
 
-**Status: Proposed**
+**Status: Canonical**
 
-The local experience lab is a development-only application where humans and
+The accepted local experience lab will be development-only tooling where humans and
 agents can inspect, exercise, compare, and stress-test Commandry's design system
 and interaction patterns. It is code-based documentation, not a product route.
 
@@ -46,7 +46,7 @@ from `apps/lab`.
 These protections are structural. A runtime `if (development)` around a hidden
 production route is not sufficient.
 
-## Initial pages
+## Candidate initial pages
 
 The lab should grow with real product needs rather than becoming a parallel
 design product. Useful pages include:

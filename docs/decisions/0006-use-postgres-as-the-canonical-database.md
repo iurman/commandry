@@ -1,12 +1,15 @@
 # ADR 0006: Use Postgres as the canonical database
 
-**Status:** Reopened
+**Status:** Superseded
 
 **Reopened:** 2026-09-21
 
-PostgreSQL remains the recommended canonical database, but its initial provider,
-version, operations, and job responsibilities are being reconsidered in ADRs
-0011 and 0012.
+**Superseded:** 2026-09-25 by [0011](0011-self-host-postgres-and-preserve-a-managed-exit.md)
+and [0012](0012-use-postgres-backed-background-work.md).
+
+PostgreSQL remains the accepted canonical database. The initial provider,
+version, operations, and job responsibilities below are historical; the newer
+ADRs define the current implementation.
 
 **Date:** 2026-09-15
 

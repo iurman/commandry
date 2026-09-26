@@ -1,0 +1,30 @@
+{
+  "name": "@commandry/web",
+  "private": true,
+  "version": "0.0.0",
+  "type": "module",
+  "scripts": {
+    "dev": "next dev --hostname 127.0.0.1",
+    "build": "next build",
+    "start": "next start --hostname 127.0.0.1",
+    "typecheck": "tsc --noEmit -p tsconfig.json"
+  },
+  "dependencies": {
+    "@commandry/application": "workspace:*",
+    "@commandry/config": "workspace:*",
+    "@commandry/contracts": "workspace:*",
+    "@commandry/db": "workspace:*",
+    "@commandry/domain": "workspace:*",
+    "@commandry/experience": "workspace:*",
+    "@commandry/platform": "workspace:*",
+    "@commandry/ui": "workspace:*",
+    "@tailwindcss/postcss": "4.3.3",
+    "better-auth": "1.7.6",
+    "next": "16.3.6",
+    "postcss": "8.5.28",
+    "react": "19.3.0",
+    "react-dom": "19.3.0",
+    "tailwindcss": "4.3.3",
+    "zod": "4.6.5"
+  }
+}

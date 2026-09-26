@@ -109,7 +109,7 @@ callbacks may occur more than once.
 
 ## Build shape
 
-The proposed first implementation is a TypeScript modular monolith: a Next.js
+The accepted first implementation direction is a TypeScript modular monolith: a Next.js
 web/API process, a separate Node background worker, and PostgreSQL. It deploys
 as a Docker Compose project on the existing VPS. Vercel and Neon remain optional
 managed paths. Separate execution runners are introduced for operational

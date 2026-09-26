@@ -1,16 +1,18 @@
 # Deployment strategy
 
-**Status: Proposed**
+**Status: Canonical**
 
-**Recommendation date:** 2026-09-21
+**Architecture accepted:** 2026-09-25
 
-The proposed initial deployment is one existing VPS running Docker Compose.
-Cloudflare provides DNS, edge protection, and an outbound Tunnel. It does not
-run Commandry's application code. PostgreSQL, the web application, and the
-background worker run in containers on the VPS.
+The accepted initial deployment topology will run on the existing VPS with
+Docker Compose. Cloudflare will provide DNS, edge protection, and an outbound
+Tunnel. It will not run Commandry's application code. PostgreSQL, the web
+application, and the background worker will run in containers on the VPS.
 
-This proposal must not be provisioned until the owner accepts the related ADRs
-and the VPS inventory in this document is completed.
+The topology is an architecture decision, not production readiness. Do not
+provision or deploy until the VPS inventory, capacity and recovery review,
+offsite backup and restore, constrained deployment controls, and human sign-in
+and recovery requirements are completed and validated.
 
 ## Initial production topology
 
@@ -43,7 +45,7 @@ to production PostgreSQL.
 
 ## Compose services
 
-The production Compose project contains these services:
+The production Compose project will contain these services:
 
 | Service | Responsibility | Public port |
 | --- | --- | --- |
@@ -255,7 +257,7 @@ default production topology for this project.
 
 ## Required VPS inventory before provisioning
 
-Record these facts in the operational inventory before accepting this proposal:
+Record these facts in the operational inventory before production provisioning:
 
 - provider and region;
 - operating system and support lifecycle;

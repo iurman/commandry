@@ -1,12 +1,17 @@
 # ADR 0005: Use Cloudflare Workers and Neon for the initial managed platform
 
-**Status:** Reopened
+**Status:** Superseded
 
 **Reopened:** 2026-09-21
 
-This decision was reopened before implementation because it assumed a managed
-edge control plane before evaluating the owner's existing VPS and continuous
-background-work requirements. See proposed ADRs 0009 through 0012.
+**Superseded:** 2026-09-25 by [0009](0009-deploy-the-initial-control-plane-to-the-vps.md),
+[0010](0010-build-a-nextjs-web-first-modular-monolith.md),
+[0011](0011-self-host-postgres-and-preserve-a-managed-exit.md), and
+[0012](0012-use-postgres-backed-background-work.md).
+
+This historical decision assumed a managed edge control plane before evaluating
+the owner's existing VPS and continuous background-work requirements. Its
+platform, framework, database-hosting, and job choices are no longer current.
 
 **Date:** 2026-09-15
 

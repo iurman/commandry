@@ -1,8 +1,14 @@
 # ADR 0009: Deploy the initial control plane to the existing VPS
 
-**Status:** Proposed
+**Status:** Accepted
 
 **Date:** 2026-09-21
+
+**Accepted:** 2026-09-25
+
+**Supersedes:** [0005](0005-use-cloudflare-workers-and-neon.md) and
+[0008](0008-separate-control-plane-from-execution-runners.md) for initial
+hosting. The runner isolation boundary is retained.
 
 ## Context
 
@@ -17,7 +23,7 @@ full Commandry workload would still need a long-lived worker or execution host.
 Neon's free scale-to-zero behavior is also a poor match for frequent background
 connections.
 
-## Proposed decision
+## Decision
 
 Deploy the initial control plane as a Docker Compose project on the existing
 VPS. Run the web/API process, a separate background worker, PostgreSQL, Caddy,
@@ -70,7 +76,10 @@ or future managed host.
 See [Hosting and stack evaluation](../research/hosting-and-stack-evaluation.md)
 and [Deployment strategy](../architecture/deployment-strategy.md).
 
-## Acceptance gates
+## Implementation and deployment validation gates
+
+Acceptance of this architecture does not authorize production provisioning.
+The following evidence is required before the VPS deployment is ready:
 
 1. Record the VPS inventory and confirm at least 2 GB of available RAM,
    reliable storage, recovery-console access, and an offsite backup path.

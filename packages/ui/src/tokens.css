@@ -1,0 +1,422 @@
+:root {
+  color-scheme: light;
+  --cmd-canvas: #f5f6f8;
+  --cmd-surface: #ffffff;
+  --cmd-surface-muted: #eef1f4;
+  --cmd-text: #17212b;
+  --cmd-text-muted: #52616f;
+  --cmd-border: #cbd3dc;
+  --cmd-focus: #285cc2;
+  --cmd-accent: #244c87;
+  --cmd-accent-text: #ffffff;
+  --cmd-positive-bg: #e7f4eb;
+  --cmd-positive-text: #185631;
+  --cmd-caution-bg: #fff1d8;
+  --cmd-caution-text: #67470b;
+  --cmd-critical-bg: #fbe9e9;
+  --cmd-critical-text: #8a2020;
+  --cmd-radius: 0.65rem;
+  --cmd-space-1: 0.25rem;
+  --cmd-space-2: 0.5rem;
+  --cmd-space-3: 0.75rem;
+  --cmd-space-4: 1rem;
+  --cmd-space-6: 1.5rem;
+  --cmd-space-8: 2rem;
+  --cmd-motion-duration: 140ms;
+}
+
+:root[data-theme="dark"] {
+  color-scheme: dark;
+  --cmd-canvas: #111820;
+  --cmd-surface: #1b252e;
+  --cmd-surface-muted: #26323d;
+  --cmd-text: #edf3f8;
+  --cmd-text-muted: #bac7d2;
+  --cmd-border: #536473;
+  --cmd-focus: #8bb3ff;
+  --cmd-accent: #9dbcf1;
+  --cmd-accent-text: #142338;
+  --cmd-positive-bg: #173e2b;
+  --cmd-positive-text: #b7f0c8;
+  --cmd-caution-bg: #483510;
+  --cmd-caution-text: #ffdea2;
+  --cmd-critical-bg: #4b2227;
+  --cmd-critical-text: #ffd0d2;
+}
+
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) {
+    color-scheme: dark;
+    --cmd-canvas: #111820;
+    --cmd-surface: #1b252e;
+    --cmd-surface-muted: #26323d;
+    --cmd-text: #edf3f8;
+    --cmd-text-muted: #bac7d2;
+    --cmd-border: #536473;
+    --cmd-focus: #8bb3ff;
+    --cmd-accent: #9dbcf1;
+    --cmd-accent-text: #142338;
+    --cmd-positive-bg: #173e2b;
+    --cmd-positive-text: #b7f0c8;
+    --cmd-caution-bg: #483510;
+    --cmd-caution-text: #ffdea2;
+    --cmd-critical-bg: #4b2227;
+    --cmd-critical-text: #ffd0d2;
+  }
+}
+
+:root[data-contrast="high"] {
+  --cmd-canvas: Canvas;
+  --cmd-surface: Canvas;
+  --cmd-surface-muted: Canvas;
+  --cmd-text: CanvasText;
+  --cmd-text-muted: CanvasText;
+  --cmd-border: CanvasText;
+  --cmd-focus: Highlight;
+  --cmd-accent: Highlight;
+  --cmd-accent-text: HighlightText;
+}
+
+@media (prefers-contrast: more) {
+  :root:not([data-contrast="standard"]) {
+    --cmd-border: currentColor;
+  }
+}
+
+@media (forced-colors: active) {
+  :root {
+    --cmd-canvas: Canvas;
+    --cmd-surface: Canvas;
+    --cmd-surface-muted: Canvas;
+    --cmd-text: CanvasText;
+    --cmd-text-muted: CanvasText;
+    --cmd-border: CanvasText;
+    --cmd-focus: Highlight;
+    --cmd-accent: Highlight;
+    --cmd-accent-text: HighlightText;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  :root {
+    --cmd-motion-duration: 0ms;
+  }
+}
+
+:root[data-reduced-sensory="true"] {
+  --cmd-motion-duration: 0ms;
+}
+
+*,
+*::before,
+*::after {
+  box-sizing: border-box;
+}
+
+html {
+  background: var(--cmd-canvas);
+}
+
+body {
+  margin: 0;
+  background: var(--cmd-canvas);
+  color: var(--cmd-text);
+  font-family: Arial, Helvetica, sans-serif;
+  line-height: 1.5;
+}
+
+button,
+input,
+select,
+textarea {
+  font: inherit;
+}
+
+:focus-visible {
+  outline: 3px solid var(--cmd-focus);
+  outline-offset: 3px;
+}
+
+.cmd-skip-link {
+  position: absolute;
+  z-index: 10;
+  top: -5rem;
+  left: var(--cmd-space-4);
+  padding: var(--cmd-space-2) var(--cmd-space-4);
+  background: var(--cmd-surface);
+  color: var(--cmd-text);
+  border: 2px solid var(--cmd-focus);
+}
+
+.cmd-skip-link:focus {
+  top: var(--cmd-space-4);
+}
+
+.cmd-shell {
+  display: grid;
+  grid-template-columns: minmax(13rem, 16rem) minmax(0, 1fr);
+  min-height: 100vh;
+}
+
+.cmd-sidebar {
+  display: flex;
+  flex-direction: column;
+  gap: var(--cmd-space-6);
+  padding: var(--cmd-space-6) var(--cmd-space-4);
+  background: var(--cmd-surface);
+  border-right: 1px solid var(--cmd-border);
+}
+
+.cmd-brand {
+  display: flex;
+  flex-direction: column;
+  padding: 0 var(--cmd-space-2);
+}
+
+.cmd-brand-name {
+  font-size: 1.2rem;
+  font-weight: 750;
+  letter-spacing: -0.02em;
+}
+
+.cmd-brand-caption,
+.cmd-sidebar-note,
+.cmd-nav-note {
+  color: var(--cmd-text-muted);
+  font-size: 0.78rem;
+}
+
+.cmd-navigation {
+  display: flex;
+  flex-direction: column;
+  gap: var(--cmd-space-1);
+}
+
+.cmd-nav-link {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--cmd-space-2);
+  min-height: 2.75rem;
+  padding: var(--cmd-space-2) var(--cmd-space-3);
+  border-radius: var(--cmd-radius);
+  color: var(--cmd-text);
+  text-decoration: none;
+}
+
+.cmd-nav-current {
+  background: var(--cmd-surface-muted);
+  font-weight: 700;
+}
+
+.cmd-nav-planned {
+  color: var(--cmd-text-muted);
+}
+
+.cmd-nav-note {
+  white-space: nowrap;
+}
+
+.cmd-sidebar-note {
+  margin-top: auto;
+  padding: 0 var(--cmd-space-2);
+}
+
+.cmd-main {
+  width: 100%;
+  max-width: 88rem;
+  padding: clamp(1.5rem, 4vw, 3.5rem);
+}
+
+.cmd-page-header {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: space-between;
+  align-items: start;
+  gap: var(--cmd-space-4);
+  margin-bottom: var(--cmd-space-8);
+}
+
+.cmd-eyebrow {
+  margin: 0 0 var(--cmd-space-2);
+  color: var(--cmd-text-muted);
+  font-size: 0.8rem;
+  font-weight: 700;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+}
+
+.cmd-page-header h1 {
+  margin: 0;
+  font-size: clamp(1.8rem, 3vw, 2.5rem);
+  letter-spacing: -0.04em;
+  line-height: 1.15;
+}
+
+.cmd-lead {
+  max-width: 65ch;
+  margin: var(--cmd-space-3) 0 0;
+  color: var(--cmd-text-muted);
+}
+
+.cmd-notice {
+  margin-bottom: var(--cmd-space-6);
+  padding: var(--cmd-space-4) var(--cmd-space-6);
+  border: 1px solid var(--cmd-border);
+  border-left: 4px solid var(--cmd-accent);
+  border-radius: var(--cmd-radius);
+  background: var(--cmd-surface);
+}
+
+.cmd-notice h2 {
+  margin: 0 0 var(--cmd-space-2);
+  font-size: 1rem;
+}
+
+.cmd-notice p {
+  margin: 0;
+  color: var(--cmd-text-muted);
+}
+
+.cmd-panel-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: var(--cmd-space-4);
+}
+
+.cmd-panel {
+  min-height: 13rem;
+  padding: var(--cmd-space-6);
+  background: var(--cmd-surface);
+  border: 1px solid var(--cmd-border);
+  border-radius: var(--cmd-radius);
+}
+
+.cmd-panel:first-child {
+  grid-column: 1 / -1;
+}
+
+.cmd-panel-heading {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  flex-wrap: wrap;
+  gap: var(--cmd-space-2);
+  padding-bottom: var(--cmd-space-3);
+  border-bottom: 1px solid var(--cmd-border);
+}
+
+.cmd-panel-heading h2 {
+  margin: 0;
+  font-size: 1.1rem;
+}
+
+.cmd-panel-state {
+  color: var(--cmd-text-muted);
+  font-size: 0.8rem;
+  font-weight: 700;
+}
+
+.cmd-panel-message {
+  max-width: 60ch;
+  margin: var(--cmd-space-6) 0 0;
+  color: var(--cmd-text-muted);
+}
+
+.cmd-panel-content {
+  padding-top: var(--cmd-space-4);
+}
+
+.cmd-status-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--cmd-space-2);
+  padding: var(--cmd-space-1) var(--cmd-space-3);
+  border: 1px solid currentColor;
+  border-radius: 100rem;
+  background: var(--cmd-surface-muted);
+  color: var(--cmd-text);
+  font-size: 0.78rem;
+  font-weight: 650;
+}
+
+.cmd-status-badge[data-tone="positive"] {
+  background: var(--cmd-positive-bg);
+  color: var(--cmd-positive-text);
+}
+
+.cmd-status-badge[data-tone="caution"] {
+  background: var(--cmd-caution-bg);
+  color: var(--cmd-caution-text);
+}
+
+.cmd-status-badge[data-tone="critical"] {
+  background: var(--cmd-critical-bg);
+  color: var(--cmd-critical-text);
+}
+
+.cmd-status-dimension {
+  font-size: 0.68rem;
+  letter-spacing: 0.05em;
+  text-transform: uppercase;
+}
+
+.cmd-button {
+  min-height: 2.75rem;
+  padding: var(--cmd-space-2) var(--cmd-space-4);
+  border: 1px solid var(--cmd-border);
+  border-radius: var(--cmd-radius);
+  cursor: pointer;
+  transition: background-color var(--cmd-motion-duration) ease;
+}
+
+.cmd-button-primary {
+  background: var(--cmd-accent);
+  border-color: var(--cmd-accent);
+  color: var(--cmd-accent-text);
+}
+
+.cmd-button-secondary {
+  background: var(--cmd-surface);
+  color: var(--cmd-text);
+}
+
+.cmd-button:disabled {
+  cursor: not-allowed;
+  opacity: 0.6;
+}
+
+@media (max-width: 54rem) {
+  .cmd-shell {
+    grid-template-columns: minmax(0, 1fr);
+  }
+
+  .cmd-sidebar {
+    gap: var(--cmd-space-3);
+    border-right: 0;
+    border-bottom: 1px solid var(--cmd-border);
+  }
+
+  .cmd-navigation {
+    flex-direction: row;
+    overflow-x: auto;
+  }
+
+  .cmd-nav-link {
+    flex: 0 0 auto;
+  }
+
+  .cmd-sidebar-note {
+    margin: 0;
+  }
+}
+
+@media (max-width: 40rem) {
+  .cmd-panel-grid {
+    grid-template-columns: minmax(0, 1fr);
+  }
+
+  .cmd-panel:first-child {
+    grid-column: auto;
+  }
+}

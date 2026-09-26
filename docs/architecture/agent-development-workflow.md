@@ -1,11 +1,12 @@
 # Agent development workflow
 
-**Status: Proposed**
+**Status: Canonical**
 
 This workflow is designed so an agent can inspect, implement, test, preview,
 deploy, and diagnose Commandry with minimal human handling and without receiving
-unbounded production credentials. It depends on the proposed stack ADRs and
-must not be treated as an implementation order until those ADRs are accepted.
+unbounded production credentials. It follows the accepted stack ADRs. Local
+bootstrap may proceed; remote provisioning and production deployment require
+the readiness gates in [Deployment strategy](deployment-strategy.md).
 
 ## One-command contract
 
@@ -247,22 +248,30 @@ When release verification fails:
 A container rollback does not restore the database, object storage, environment
 file, Cloudflare configuration, or external side effects.
 
-## Bootstrap sequence after stack acceptance
+## Bootstrap and deployment sequence
 
-1. Record the VPS inventory and prove the backup destination and recovery path.
-2. Initialize the pinned Node.js 24 and pnpm workspace with strict TypeScript,
+Local foundation work can proceed without VPS access or production credentials:
+
+1. Initialize the pinned Node.js 24 and pnpm workspace with strict TypeScript,
    formatting, linting, and root commands.
-3. Create the Next.js application, package boundaries, and local Storybook lab.
-4. Add local PostgreSQL 18, Drizzle, migration roles, and integration tests.
-5. Add configuration validation, structured logging, health, version, and
+2. Create the Next.js application, package boundaries, and local Storybook lab.
+3. Add local PostgreSQL 18, Drizzle, migration roles, and integration tests.
+4. Add configuration validation, structured logging, health, version, and
    OpenTelemetry hooks before product features.
-6. Add pg-boss and prove transactional enqueue, retries, schedules, dead
+5. Add pg-boss and prove transactional enqueue, retries, schedules, dead
    letters, idempotency, and two-worker concurrency.
-7. Add the production image, Compose stack, Caddy, and local Playwright smoke
+6. Add the production image, Compose stack, Caddy, and local Playwright smoke
    tests.
-8. Add Better Auth and the accepted single-user sign-in/recovery flow.
-9. Establish GitHub Actions, GHCR publishing, constrained VPS deployment,
-   Cloudflare Tunnel, backup, restore, and rollback.
-10. Implement the smallest product vertical slice.
-11. Add R2 application blob storage only when the first attachment or large
+7. Add the Better Auth Drizzle/PostgreSQL adapter and server foundation. Add a
+   human sign-in and recovery flow only after [OQ-003](../project/open-questions.md)
+   is decided.
+8. Implement the smallest product vertical slice after its open decisions are
+   resolved.
+9. Add R2 application blob storage only when the first attachment or large
    source payload needs it. Backup storage may use R2 earlier.
+
+Before production provisioning or deployment, record the VPS inventory, prove
+the backup destination and restore path, establish the approved human sign-in
+and recovery flow, and validate the constrained deployment identity. Then
+establish GitHub Actions, GHCR publishing, Cloudflare Tunnel, deployment,
+backup, restore, and rollback against the validated environment.

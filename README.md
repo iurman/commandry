@@ -17,16 +17,22 @@ projects and decisions that give it meaning.
 
 ## Current status
 
-Commandry is in the **architecture review, pre-implementation phase**. The
-product direction is documented, while the proposed technology and deployment
-architecture is awaiting owner review. No production application exists in this
-repository yet.
+Commandry has an **accepted initial architecture** and a local application
+foundation. The repository now contains the Next.js web shell and versioned
+API, a separate pg-boss worker, PostgreSQL migrations, shared contracts,
+semantic UI tokens, and a local Storybook experience lab. See the
+[local-development guide](docs/operations/local-development.md) for setup and
+verification. Production provisioning and deployment remain gated by VPS
+inventory, backup and restore evidence, deployment controls, and the human
+sign-in and recovery decision. No production deployment exists yet.
 
 The domain `commandry.site` is owned, and its nameservers point to Cloudflare.
-The current proposal is a VPS-first Docker Compose deployment with Next.js on
+The accepted direction is a VPS-first Docker Compose deployment with Next.js on
 Node.js, self-hosted PostgreSQL, and a separate PostgreSQL-backed worker.
 Cloudflare provides DNS and ingress; Vercel and Neon remain optional managed
-paths. See the proposed ADRs before starting implementation.
+paths. See the [accepted ADRs](docs/decisions/README.md) and
+[deployment gates](docs/architecture/deployment-strategy.md) before production
+work.
 
 ## Start here
 
@@ -36,8 +42,8 @@ paths. See the proposed ADRs before starting implementation.
 - [Product scope](docs/product/scope.md) — first boundary and non-goals
 - [Core domain model](docs/domain/core-model.md) — canonical entity graph
 - [Architecture overview](docs/architecture/overview.md) — conceptual system design
-- [Technology stack](docs/architecture/technology-stack.md) — proposed initial stack
-- [Deployment strategy](docs/architecture/deployment-strategy.md) — proposed hosting and runtime topology
+- [Technology stack](docs/architecture/technology-stack.md) — accepted initial stack
+- [Deployment strategy](docs/architecture/deployment-strategy.md) — accepted topology and production gates
 - [Agent workflow](docs/architecture/agent-development-workflow.md) — how agents build and deploy it
 - [Stack research](docs/research/hosting-and-stack-evaluation.md) — evaluated alternatives and current constraints
 - [Roadmap](docs/product/roadmap.md) — phased delivery strategy
@@ -57,6 +63,11 @@ That loop—not a single dashboard, chatbot, or task list—is the product.
 ## Repository map
 
 ```text
+apps/
+├── web/           Next.js application and HTTP API
+├── worker/        Separate job worker and one-shot migrator
+└── lab/           Local-only Storybook experience lab
+packages/          Domain, application, contracts, database, platform, UI, experience, and config
 docs/
 ├── product/       Product intent, users, scope, and roadmap
 ├── domain/        Canonical vocabulary, entities, and relationships

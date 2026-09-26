@@ -1,0 +1,22 @@
+{
+  "name": "@commandry/contracts",
+  "private": true,
+  "type": "module",
+  "exports": {
+    ".": "./src/index.ts",
+    "./openapi.json": "./openapi/openapi.json"
+  },
+  "scripts": {
+    "typecheck": "tsc --noEmit -p tsconfig.json",
+    "openapi:generate": "tsx src/generate-openapi.ts",
+    "openapi:check": "tsx src/generate-openapi.ts --check && node src/validate-openapi.mjs",
+    "check:generated": "pnpm openapi:check",
+    "test": "tsx --test src/*.test.ts"
+  },
+  "dependencies": {
+    "zod": "4.6.5"
+  },
+  "devDependencies": {
+    "@apidevtools/swagger-parser": "13.1.0"
+  }
+}

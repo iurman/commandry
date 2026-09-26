@@ -1,0 +1,116 @@
+name: commandry-local
+
+x-app: &app
+  image: commandry-local:${RELEASE_SHA:-dev}
+  build:
+    context: .
+    dockerfile: Dockerfile
+  init: true
+
+services:
+  postgres:
+    image: pgvector/pgvector:0.8.6-pg18-trixie@sha256:78bf48b801e792f99e3ac62b5036fd3876e9be48afda16c1e331af1c75ceb2ff
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: postgres
+      POSTGRES_DB: ${DB_NAME:?Set DB_NAME in .env.local}
+      POSTGRES_PASSWORD: ${DB_ROOT_PASSWORD:?Set DB_ROOT_PASSWORD in .env.local}
+      POSTGRES_INITDB_ARGS: --auth-host=scram-sha-256
+      DB_NAME: ${DB_NAME:?Set DB_NAME in .env.local}
+      DB_APP_PASSWORD: ${DB_APP_PASSWORD:?Set DB_APP_PASSWORD in .env.local}
+      DB_MIGRATION_PASSWORD: ${DB_MIGRATION_PASSWORD:?Set DB_MIGRATION_PASSWORD in .env.local}
+    volumes:
+      - postgres_data:/var/lib/postgresql
+      - ./docker/postgres/initdb:/docker-entrypoint-initdb.d:ro
+    healthcheck:
+      test:
+        [
+          "CMD-SHELL",
+          'pg_isready -h 127.0.0.1 -U postgres -d "$${POSTGRES_DB}"',
+        ]
+      interval: 5s
+      timeout: 3s
+      retries: 12
+      start_period: 15s
+
+  migrate:
+    <<: *app
+    command: ["node", "apps/worker/dist/migrate.js"]
+    restart: "no"
+    environment:
+      APP_ENV: local
+      DATABASE_MIGRATION_URL: postgresql://commandry_migrate:${DB_MIGRATION_PASSWORD:?Set DB_MIGRATION_PASSWORD in .env.local}@postgres:5432/${DB_NAME:?Set DB_NAME in .env.local}
+    depends_on:
+      postgres:
+        condition: service_healthy
+
+  web:
+    <<: *app
+    command: ["node", "apps/web/server.js"]
+    restart: unless-stopped
+    environment:
+      APP_ENV: local
+      APP_ORIGIN: ${APP_ORIGIN:-http://127.0.0.1:3000}
+      DATABASE_URL: postgresql://commandry_app:${DB_APP_PASSWORD:?Set DB_APP_PASSWORD in .env.local}@postgres:5432/${DB_NAME:?Set DB_NAME in .env.local}
+      BETTER_AUTH_SECRET: ${BETTER_AUTH_SECRET:?Set BETTER_AUTH_SECRET in .env.local}
+      APP_ENCRYPTION_KEY: ${APP_ENCRYPTION_KEY:?Set APP_ENCRYPTION_KEY in .env.local}
+      RELEASE_SHA: ${RELEASE_SHA:-local}
+    ports:
+      - 127.0.0.1:3000:3000
+    depends_on:
+      migrate:
+        condition: service_completed_successfully
+    healthcheck:
+      test:
+        [
+          "CMD",
+          "node",
+          "-e",
+          "fetch('http://127.0.0.1:3000/health/ready').then(r => process.exit(r.ok ? 0 : 1)).catch(() => process.exit(1))",
+        ]
+      interval: 10s
+      timeout: 3s
+      retries: 12
+      start_period: 30s
+
+  worker:
+    <<: *app
+    command: ["node", "apps/worker/dist/index.js"]
+    restart: unless-stopped
+    environment:
+      APP_ENV: local
+      APP_ORIGIN: ${APP_ORIGIN:-http://127.0.0.1:3000}
+      DATABASE_URL: postgresql://commandry_app:${DB_APP_PASSWORD:?Set DB_APP_PASSWORD in .env.local}@postgres:5432/${DB_NAME:?Set DB_NAME in .env.local}
+      BETTER_AUTH_SECRET: ${BETTER_AUTH_SECRET:?Set BETTER_AUTH_SECRET in .env.local}
+      APP_ENCRYPTION_KEY: ${APP_ENCRYPTION_KEY:?Set APP_ENCRYPTION_KEY in .env.local}
+      RELEASE_SHA: ${RELEASE_SHA:-local}
+    depends_on:
+      migrate:
+        condition: service_completed_successfully
+    healthcheck:
+      test:
+        - CMD
+        - node
+        - -e
+        - >-
+          const { Client } = require('./apps/worker/node_modules/pg');
+          (async () => {
+            const client = new Client({ connectionString: process.env.DATABASE_URL, connectionTimeoutMillis: 2000 });
+            try {
+              await client.connect();
+              const result = await client.query("SELECT EXISTS (SELECT 1 FROM worker_heartbeat WHERE seen_at > now() - interval '30 seconds') AS healthy");
+              process.exitCode = result.rows[0]?.healthy ? 0 : 1;
+            } catch {
+              process.exitCode = 1;
+            } finally {
+              await client.end().catch(() => {});
+            }
+          })();
+      interval: 10s
+      timeout: 5s
+      retries: 6
+      start_period: 30s
+
+volumes:
+  postgres_data:
+    name: commandry-local-postgres

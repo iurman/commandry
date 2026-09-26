@@ -1,0 +1,12 @@
+{
+  "name": "@commandry/domain",
+  "private": true,
+  "type": "module",
+  "exports": {
+    ".": "./src/index.ts"
+  },
+  "scripts": {
+    "typecheck": "tsc --noEmit -p tsconfig.json",
+    "test": "tsx --test src/*.test.ts"
+  }
+}

@@ -6,14 +6,7 @@ These are unresolved choices. Agents must not silently settle them in code or
 documentation. When decided, create or update an ADR and remove the item from
 this list.
 
-## P0 — required during implementation foundation
-
-### OQ-018: Is the proposed stack accepted?
-
-Review ADRs 0009 through 0012 together. They propose a VPS-first Docker Compose
-deployment, Next.js on Node.js 24, self-hosted PostgreSQL 18 with stable
-Drizzle, and a separate pg-boss worker. Implementation bootstrap must not begin
-until these ADRs are accepted, revised, or rejected.
+## P0 — required for production readiness or the first product slice
 
 ### OQ-019: Can the existing VPS safely host the initial database?
 
@@ -21,8 +14,8 @@ Record its provider, region, operating system, CPU architecture and count, RAM,
 swap, disk type and capacity, current workloads, snapshots, recovery console,
 firewall, and backup bandwidth. Confirm the recovery point and recovery time the
 owner will accept. If it lacks 2 GB of available RAM, reliable storage, recovery
-access, or tested offsite backup, select a managed PostgreSQL provider before
-implementation.
+access, or tested offsite backup, revisit database placement before production
+deployment. Disposable local PostgreSQL work can proceed without this inventory.
 
 ### OQ-003: What is the first human sign-in and recovery method?
 

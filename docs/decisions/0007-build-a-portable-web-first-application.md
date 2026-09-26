@@ -1,12 +1,14 @@
 # ADR 0007: Build a portable web-first application
 
-**Status:** Reopened
+**Status:** Superseded
 
 **Reopened:** 2026-09-21
 
-The responsive web/PWA direction remains recommended. The React/Vite and Hono
-implementation was reopened because it was selected to fit Cloudflare Workers
-rather than from the product's application requirements. See ADR 0010.
+**Superseded:** 2026-09-25 by [0010](0010-build-a-nextjs-web-first-modular-monolith.md).
+
+The responsive web/PWA direction remains accepted. The React/Vite and Hono
+implementation below was selected to fit Cloudflare Workers rather than the
+product's application requirements and is no longer current.
 
 **Date:** 2026-09-15
 

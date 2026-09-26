@@ -1,20 +1,20 @@
 # Technology stack
 
-**Status: Proposed**
+**Status: Canonical**
 
-**Recommendation date:** 2026-09-21
+**Architecture accepted:** 2026-09-25
 
-This document is the proposed implementation baseline for Commandry. It is not
-an accepted stack until the owner accepts the related ADRs. No implementation
-agent should bootstrap the application from this document while its status is
-Proposed.
+This document is the accepted implementation baseline for Commandry under
+[ADRs 0009 through 0012](../decisions/README.md). Local bootstrap may proceed.
+VPS capacity, backups, restore, deployment controls, and human sign-in and
+recovery remain separate production-readiness gates.
 
-The recommendation is VPS-first and container-first. It uses standard Node.js
+The architecture is VPS-first and container-first. It uses standard Node.js
 and PostgreSQL so the production system can run on the existing VPS without
 depending on a serverless platform. Vercel and Neon remain compatible optional
 paths, not required production services.
 
-## Recommended stack
+## Accepted stack
 
 | Concern | Recommendation | Why it fits Commandry |
 | --- | --- | --- |
@@ -69,7 +69,7 @@ maintenance work and must pass the full compatibility suite.
 
 ## Repository shape
 
-The application starts as a modular monolith with two production processes:
+The application will start as a modular monolith with two production processes:
 the web process and the job worker.
 
 ```text
@@ -91,7 +91,7 @@ packages/
 `-- test-support/     fixtures, factories, and integration harnesses
 ```
 
-`apps/web` and `apps/worker` use the same domain, application, database, and
+`apps/web` and `apps/worker` will use the same domain, application, database, and
 contract packages. They are separate processes so web requests are not delayed
 by polling, long integrations, model calls, or scheduled work. They are not
 separate microservices and do not receive separate domain models.
@@ -122,7 +122,7 @@ they must call the same application services and may not replace the versioned
 HTTP API for capabilities needed by native clients, agents, integrations, or
 MCP tools.
 
-The first API uses REST/JSON because Commandry's operations are resource and
+The first API will use REST/JSON because Commandry's operations are resource and
 command oriented, Zod/OpenAPI tooling is mature, and external clients can
 inspect the contract easily. GraphQL and tRPC are deferred until a measured
 client problem justifies another protocol.
@@ -176,7 +176,7 @@ control plane never hands a runner the production database password.
 
 ## Authentication and identity
 
-Better Auth is the recommended identity library because it is self-hostable,
+Better Auth is the selected identity library because it is self-hostable,
 supports Next.js, and has a maintained Drizzle/Postgres adapter. Its latest
 stable release must be pinned and kept current because the project supports
 security fixes on the current release rather than old release lines.
@@ -204,16 +204,19 @@ does not change the infrastructure choice.
 The `/api/v1` and event contracts are the portability boundary. Native shells
 may add device adapters but must not fork domain behavior.
 
-## Compatibility gates
+## Implementation validation gates
 
-Before this proposal is accepted, the bootstrap implementation must prove:
+The accepted stack still needs the following implementation evidence. These
+checks do not block local bootstrap, and remote checks do not authorize
+production provisioning:
 
 1. a production Next.js standalone image starts on Node.js 24;
 2. the web and worker containers connect to PostgreSQL 18 through bounded pools;
 3. Drizzle migrations apply to an empty database and upgrade the previous test
    schema;
-4. Better Auth session creation and validation work through the Caddy/Tunnel
-   forwarding headers and production origin;
+4. Better Auth's adapter and server integration work locally; session creation,
+   validation, and recovery through the production origin follow the human
+   sign-in decision in [OQ-003](../project/open-questions.md);
 5. pg-boss schedules, retries, dead letters, and transactional enqueue work on
    the selected PostgreSQL image;
 6. Playwright can exercise login, one API route, one server-rendered route, and

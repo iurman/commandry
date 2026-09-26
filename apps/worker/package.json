@@ -1,0 +1,30 @@
+{
+  "name": "@commandry/worker",
+  "private": true,
+  "version": "0.0.0",
+  "type": "module",
+  "scripts": {
+    "dev": "tsx watch src/index.ts",
+    "migrate": "tsx src/migrate.ts",
+    "build": "node build.mjs",
+    "typecheck": "tsc --noEmit -p tsconfig.json"
+  },
+  "dependencies": {
+    "@better-auth/drizzle-adapter": "1.7.6",
+    "@commandry/application": "workspace:*",
+    "@commandry/config": "workspace:*",
+    "@commandry/contracts": "workspace:*",
+    "@commandry/db": "workspace:*",
+    "@commandry/domain": "workspace:*",
+    "@commandry/platform": "workspace:*",
+    "better-auth": "1.7.6",
+    "drizzle-orm": "0.45.3",
+    "pg": "8.23.0",
+    "pg-boss": "12.34.0",
+    "zod": "4.6.5"
+  },
+  "devDependencies": {
+    "@types/pg": "8.23.1",
+    "esbuild": "0.28.2"
+  }
+}

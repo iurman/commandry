@@ -1,12 +1,15 @@
 # ADR 0008: Separate the control plane from execution runners
 
-**Status:** Reopened
+**Status:** Superseded
 
 **Reopened:** 2026-09-21
 
+**Superseded:** 2026-09-25 by [0009](0009-deploy-the-initial-control-plane-to-the-vps.md)
+and [0012](0012-use-postgres-backed-background-work.md).
+
 The security boundary between the control plane and privileged execution
-runners remains recommended. Its assumption that the public control plane must
-be a managed serverless deployment is being reconsidered in ADR 0009.
+runners remains accepted. The managed serverless deployment assumption below
+is no longer current.
 
 **Date:** 2026-09-15
 

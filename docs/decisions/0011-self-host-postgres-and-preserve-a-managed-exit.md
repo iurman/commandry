@@ -1,8 +1,14 @@
 # ADR 0011: Self-host PostgreSQL and preserve a managed exit
 
-**Status:** Proposed
+**Status:** Accepted
 
 **Date:** 2026-09-21
+
+**Accepted:** 2026-09-25
+
+**Supersedes:** [0005](0005-use-cloudflare-workers-and-neon.md) and
+[0006](0006-use-postgres-as-the-canonical-database.md) for initial database
+hosting and operations. PostgreSQL remains the canonical database.
 
 ## Context
 
@@ -12,7 +18,7 @@ owner already has a VPS. A continuously active background worker can prevent a
 Neon compute from scaling to zero, weakening the case for Neon Free as the
 initial production database.
 
-## Proposed decision
+## Decision
 
 Run PostgreSQL 18 at its current minor release on the VPS. Use a pinned container
 image that includes pgvector, with `pg_trgm` and `vector` enabled only when a
@@ -66,7 +72,10 @@ application code.
 See [Hosting and stack evaluation](../research/hosting-and-stack-evaluation.md)
 and [Technology stack](../architecture/technology-stack.md).
 
-## Acceptance gates
+## Implementation and deployment validation gates
+
+The local migration and extension checks can begin now. VPS placement, offsite
+restore, and a tested managed fallback remain separate deployment claims:
 
 1. Verify the VPS storage and memory meet the deployment readiness threshold.
 2. Run Drizzle migrations and integration tests on PostgreSQL 18.
