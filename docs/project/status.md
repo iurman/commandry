@@ -50,7 +50,7 @@ authentication is complete. There is no production deployment.
   captures, Work, Knowledge, search, synthetic development and operational
   evidence, explainable activity and attention, briefs, packets, scoped fake
   agents, simulated approvals, local automation, integration fixtures, and the
-  Overnight Queue.
+  Overnight Queue, and local packet-scoped MCP read sessions.
 - Shared Zod contracts generate a checked OpenAPI document. PostgreSQL has
   reviewed, repeatable Drizzle migrations and separate local migration and
   application roles. The pg-boss worker records attempts, audits, and heartbeat
@@ -62,6 +62,13 @@ authentication is complete. There is no production deployment.
   Cancellation, changed-work blocking, replay, and recovery scans are local
   behaviors. The seven-day scheduling horizon is configurable through
   `LOCAL_OVERNIGHT_MAX_DAYS`; it is not a settled product policy.
+- A local read-only MCP endpoint exposes the saved packet's project brief and
+  work item to a loopback client through short-lived, one-time bearer sessions.
+  The database stores only token digests. Project and work scope, revocation,
+  expiry, and each tool read are checked and audited; the UI shows session
+  history. The endpoint has no write or external action tools. Its provisional
+  local session policy does not settle human sign-in, machine identity, or the
+  production capability model.
 - Semantic CSS tokens, accessible responsive components, and representative
   Storybook states exist in the local-only lab. The lab is excluded from the
   production image.

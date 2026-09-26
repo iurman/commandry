@@ -23,4 +23,5 @@ export * from "./capture-triage-repository";
 export * from "./morning-digest-repository";
 export * from "./integration-repository";
 export * from "./overnight-queue-repository";
+export * from "./local-mcp-repository";
 export * as schema from "./schema";

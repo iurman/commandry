@@ -102,6 +102,13 @@ local experience lab.
   as the local API, then report a cited, unverified result with no external
   actions. A person selecting an agent in the local UI does not establish a
   production agent or human identity while OQ-003 and OQ-006 remain open.
+- The local MCP preview will issue a one-time bearer token bound to a saved
+  packet and assigned synthetic agent. It will store only a token digest,
+  expose read-only brief and packet-work tools to loopback clients, check
+  project and work scope at each call, and retain an audit record. Sessions
+  will expire and can be revoked. The same-Wi-Fi review gateway will not
+  proxy MCP writes. This local interface does not settle product sign-in,
+  machine identity, external runner access, or the final capability policy.
 - The first higher-risk review will be one fixed `simulated.resource.restart`
   descriptor linked to a successful fake run and an exact resource selected in
   its immutable packet. Its conceptual `infrastructure.restart` capability is

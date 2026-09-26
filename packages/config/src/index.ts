@@ -47,6 +47,12 @@ const environmentSchema = z.object({
     .max(86_400)
     .default(3_600),
   LOCAL_OVERNIGHT_MAX_DAYS: z.coerce.number().int().min(1).max(90).default(7),
+  LOCAL_MCP_SESSION_TTL_SECONDS: z.coerce
+    .number()
+    .int()
+    .min(60)
+    .max(3600)
+    .default(1800),
 });
 
 export type RuntimeConfig = {
@@ -65,6 +71,7 @@ export type RuntimeConfig = {
   localApprovalAutoCeiling: "read_only" | "reversible";
   localApprovalTtlSeconds: number;
   localOvernightMaxDays: number;
+  localMcpSessionTtlSeconds: number;
 };
 
 export class ConfigurationError extends Error {
@@ -140,6 +147,7 @@ export function loadRuntimeConfig(
     localApprovalAutoCeiling: value.LOCAL_APPROVAL_AUTO_CEILING,
     localApprovalTtlSeconds: value.LOCAL_APPROVAL_TTL_SECONDS,
     localOvernightMaxDays: value.LOCAL_OVERNIGHT_MAX_DAYS,
+    localMcpSessionTtlSeconds: value.LOCAL_MCP_SESSION_TTL_SECONDS,
   };
 }
 

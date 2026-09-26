@@ -1071,6 +1071,86 @@ export const overnightQueueAuditEvent = pgTable(
   ],
 );
 
+export const localMcpSession = pgTable(
+  "local_mcp_session",
+  {
+    id: uuid("id").primaryKey(),
+    packetId: uuid("packet_id")
+      .notNull()
+      .references(() => executionPacket.id, { onDelete: "restrict" }),
+    packetVersion: integer("packet_version").notNull(),
+    packetDigest: text("packet_digest").notNull(),
+    agentId: uuid("agent_id")
+      .notNull()
+      .references(() => localAgentProfile.id, { onDelete: "restrict" }),
+    projectId: uuid("project_id")
+      .notNull()
+      .references(() => project.id, { onDelete: "restrict" }),
+    workItemId: uuid("work_item_id")
+      .notNull()
+      .references(() => workItem.id, { onDelete: "restrict" }),
+    tokenDigest: text("token_digest").notNull(),
+    expiresAt: timestamp("expires_at", { withTimezone: true }).notNull(),
+    revokedAt: timestamp("revoked_at", { withTimezone: true }),
+    createdAt: createdAt(),
+  },
+  (table) => [
+    uniqueIndex("local_mcp_session_token_idx").on(table.tokenDigest),
+    index("local_mcp_session_packet_page_idx").on(
+      table.packetId,
+      table.createdAt,
+      table.id,
+    ),
+    check(
+      "local_mcp_session_token_digest_valid",
+      sql`${table.tokenDigest} ~ '^[0-9a-f]{64}$'`,
+    ),
+    check(
+      "local_mcp_session_packet_digest_valid",
+      sql`${table.packetDigest} ~ '^[0-9a-f]{64}$'`,
+    ),
+    check(
+      "local_mcp_session_packet_version_valid",
+      sql`${table.packetVersion} > 0`,
+    ),
+    check(
+      "local_mcp_session_expiry_valid",
+      sql`${table.expiresAt} > ${table.createdAt}`,
+    ),
+  ],
+);
+
+export const localMcpAuditEvent = pgTable(
+  "local_mcp_audit_event",
+  {
+    id: uuid("id").primaryKey(),
+    sessionId: uuid("session_id")
+      .notNull()
+      .references(() => localMcpSession.id, { onDelete: "restrict" }),
+    actor: text("actor").notNull().default("local-mcp-client:unattributed"),
+    operation: text("operation").notNull(),
+    decision: text("decision", { enum: ["allowed", "denied"] }).notNull(),
+    code: text("code").notNull(),
+    reason: text("reason").notNull(),
+    createdAt: createdAt(),
+  },
+  (table) => [
+    index("local_mcp_audit_page_idx").on(
+      table.sessionId,
+      table.createdAt,
+      table.id,
+    ),
+    check(
+      "local_mcp_audit_actor_valid",
+      sql`${table.actor} in ('local-mcp-client:unattributed','local-reviewer:unattributed')`,
+    ),
+    check(
+      "local_mcp_audit_decision_valid",
+      sql`${table.decision} in ('allowed','denied')`,
+    ),
+  ],
+);
+
 export const localAgentRunGrant = pgTable(
   "local_agent_run_grant",
   {

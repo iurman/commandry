@@ -37,6 +37,14 @@ import {
   overnightQueueJobV1Schema,
   overnightQueueAuditEventSchema,
   listOvernightQueueAuditResponseSchema,
+  createLocalMcpSessionRequestSchema,
+  createdLocalMcpSessionSchema,
+  localMcpSessionSchema,
+  listLocalMcpSessionsResponseSchema,
+  localMcpReadRequestSchema,
+  localMcpReadResponseSchema,
+  localMcpAuditEventSchema,
+  listLocalMcpAuditResponseSchema,
   localAgentRunJobV1Schema,
   localAgentRunGrantSchema,
   localAgentRunAttemptSchema,
@@ -1100,6 +1108,83 @@ export function generateOpenApi(): string {
             "200": {
               description: "Immutable queue transition audit page",
               content: jsonContent("ListOvernightQueueAuditResponse"),
+            },
+          },
+        },
+      },
+      "/api/v1/mcp-sessions": {
+        get: {
+          operationId: "listLocalMcpSessions",
+          summary:
+            "Page packet-scoped local MCP read sessions without bearer tokens",
+          parameters: [
+            {
+              in: "query",
+              name: "packetId",
+              required: false,
+              schema: { type: "string", format: "uuid" },
+            },
+            ...pageParameters,
+          ],
+          responses: {
+            "200": {
+              description: "Local MCP read sessions",
+              content: jsonContent("ListLocalMcpSessionsResponse"),
+            },
+          },
+        },
+        post: {
+          operationId: "createLocalMcpSession",
+          summary:
+            "Create a short-lived packet-scoped read session; return token once",
+          requestBody: {
+            required: true,
+            content: jsonContent("CreateLocalMcpSessionRequest"),
+          },
+          responses: {
+            "201": {
+              description: "Created local read session with one-time token",
+              content: jsonContent("CreatedLocalMcpSession"),
+            },
+            "403": {
+              description: "Agent is not assigned to the packet project",
+              content: jsonContent("ErrorResponse"),
+            },
+          },
+        },
+      },
+      "/api/v1/mcp-sessions/{id}": {
+        get: {
+          operationId: "getLocalMcpSession",
+          parameters: [idParameter],
+          responses: {
+            "200": {
+              description: "Local read session without token",
+              content: jsonContent("LocalMcpSession"),
+            },
+          },
+        },
+      },
+      "/api/v1/mcp-sessions/{id}/revoke": {
+        post: {
+          operationId: "revokeLocalMcpSession",
+          parameters: [idParameter],
+          responses: {
+            "200": {
+              description: "Revoked local read session",
+              content: jsonContent("LocalMcpSession"),
+            },
+          },
+        },
+      },
+      "/api/v1/mcp-sessions/{id}/audit": {
+        get: {
+          operationId: "listLocalMcpSessionAudit",
+          parameters: [idParameter, ...pageParameters],
+          responses: {
+            "200": {
+              description: "Local read session audit page",
+              content: jsonContent("ListLocalMcpAuditResponse"),
             },
           },
         },
@@ -2257,6 +2342,18 @@ export function generateOpenApi(): string {
         ListOvernightQueueAuditResponse: component(
           listOvernightQueueAuditResponseSchema,
         ),
+        CreateLocalMcpSessionRequest: component(
+          createLocalMcpSessionRequestSchema,
+        ),
+        CreatedLocalMcpSession: component(createdLocalMcpSessionSchema),
+        LocalMcpSession: component(localMcpSessionSchema),
+        ListLocalMcpSessionsResponse: component(
+          listLocalMcpSessionsResponseSchema,
+        ),
+        LocalMcpReadRequest: component(localMcpReadRequestSchema),
+        LocalMcpReadResponse: component(localMcpReadResponseSchema),
+        LocalMcpAuditEvent: component(localMcpAuditEventSchema),
+        ListLocalMcpAuditResponse: component(listLocalMcpAuditResponseSchema),
         AgentContextReadRequest: component(agentContextReadRequestSchema),
         AgentContextReadSource: component(agentContextReadSourceSchema),
         AgentContextReadResponse: component(agentContextReadResponseSchema),

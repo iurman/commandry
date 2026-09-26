@@ -15,6 +15,7 @@ import {
   type LocalAgentRunView,
 } from "@commandry/ui";
 import { apiJson, pagePath, type PageResponse } from "../../projects/api";
+import LocalMcpAccess from "./LocalMcpAccess";
 
 interface AgentChoice {
   agent: LocalAgentProfileView;
@@ -419,6 +420,7 @@ export default function ExecutionPacketWorkspace({
               </p>
             )}
           </section>
+          <LocalMcpAccess packet={packet} agentId={selectedAgentId} />
         </>
       )}
     </AppShell>

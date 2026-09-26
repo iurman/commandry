@@ -1286,6 +1286,81 @@ export const agentContextReadResponseSchema = z.object({
   auditId: z.uuid(),
 });
 
+export const createLocalMcpSessionRequestSchema = z.strictObject({
+  packetId: z.uuid(),
+  agentId: z.uuid(),
+});
+
+export const localMcpSessionSchema = z.object({
+  id: z.uuid(),
+  packetId: z.uuid(),
+  packetVersion: z.number().int().min(1),
+  packetDigest: z.string().regex(/^[a-f0-9]{64}$/),
+  agentId: z.uuid(),
+  projectId: z.uuid(),
+  workItemId: z.uuid(),
+  operations: z.tuple([
+    z.literal("project.brief.read"),
+    z.literal("work.read"),
+  ]),
+  expiresAt: z.iso.datetime({ offset: true }),
+  revokedAt: z.iso.datetime({ offset: true }).nullable(),
+  sourceLabel: z.literal("Local read-only MCP preview"),
+  createdAt: z.iso.datetime({ offset: true }),
+});
+
+export const createdLocalMcpSessionSchema = localMcpSessionSchema.extend({
+  token: z.string().startsWith("mcp_").min(30),
+  endpoint: z.literal("/mcp"),
+});
+
+export const listLocalMcpSessionsQuerySchema = z.object({
+  packetId: z.uuid().optional(),
+  limit: z.coerce.number().int().min(1).max(100).default(25),
+  cursor: z.uuid().optional(),
+});
+
+export const listLocalMcpSessionsResponseSchema = z.object({
+  items: z.array(localMcpSessionSchema),
+  nextCursor: z.uuid().nullable(),
+});
+
+export const localMcpReadRequestSchema = z.strictObject({
+  operation: localAgentReadOperationSchema,
+  projectId: z.uuid(),
+  workItemId: z.uuid().optional(),
+  reason: z.string().trim().min(1).max(500),
+});
+
+export const localMcpReadResponseSchema = z.object({
+  sessionId: z.uuid(),
+  projectId: z.uuid(),
+  operation: localAgentReadOperationSchema,
+  readAt: z.iso.datetime({ offset: true }),
+  auditId: z.uuid(),
+  sensitivity: z.literal("unclassified-local-data"),
+  source: agentContextReadSourceSchema,
+});
+
+export const localMcpAuditEventSchema = z.object({
+  id: z.uuid(),
+  sessionId: z.uuid(),
+  actor: z.enum([
+    "local-mcp-client:unattributed",
+    "local-reviewer:unattributed",
+  ]),
+  operation: z.string().min(1),
+  decision: z.enum(["allowed", "denied"]),
+  code: z.string().min(1),
+  reason: z.string().min(1),
+  createdAt: z.iso.datetime({ offset: true }),
+});
+
+export const listLocalMcpAuditResponseSchema = z.object({
+  items: z.array(localMcpAuditEventSchema),
+  nextCursor: z.uuid().nullable(),
+});
+
 export const agentRunAuditEventSchema = z.object({
   id: z.uuid(),
   runId: z.uuid(),
@@ -1617,6 +1692,16 @@ export type OvernightReadiness = z.infer<typeof overnightReadinessSchema>;
 export type OvernightQueueAuditEvent = z.infer<
   typeof overnightQueueAuditEventSchema
 >;
+export type CreateLocalMcpSessionRequest = z.infer<
+  typeof createLocalMcpSessionRequestSchema
+>;
+export type LocalMcpSession = z.infer<typeof localMcpSessionSchema>;
+export type CreatedLocalMcpSession = z.infer<
+  typeof createdLocalMcpSessionSchema
+>;
+export type LocalMcpReadRequest = z.infer<typeof localMcpReadRequestSchema>;
+export type LocalMcpReadResponse = z.infer<typeof localMcpReadResponseSchema>;
+export type LocalMcpAuditEvent = z.infer<typeof localMcpAuditEventSchema>;
 export type FakeLocalAgentRunResult = z.infer<
   typeof fakeLocalAgentRunResultSchema
 >;

@@ -108,6 +108,17 @@ proxy in this local manifest. The Node.js and PostgreSQL base images are pinned
 to OCI manifest digests. Compose waits for the web readiness query and a recent
 worker heartbeat before reporting the stack healthy.
 
+In the isolated `commandry-mvp` campaign worktree, the Compose web port is
+`127.0.0.1:3010` and the full same-Wi-Fi review gateway is
+`http://10.0.0.73:3011/` with the local `test` / `pass` review gate. That
+gateway permits same-origin `/api/v1` interactions for phone review but does
+not proxy `/mcp` writes. An assigned synthetic agent can receive a
+packet-scoped MCP read session from its execution-packet page. Its bearer token
+is shown once; a client on this laptop uses `http://127.0.0.1:3010/mcp` and
+`Authorization: Bearer <token>`. Session scope, expiry, revocation, and audits
+are visible from the packet. This is local review tooling, not product
+authentication or a public MCP deployment.
+
 ```sh
 cd /home/urmani/Documents/Personal/commandry
 pnpm compose:up

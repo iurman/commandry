@@ -24,6 +24,8 @@ export type { DecisionCardProps } from "./components/DecisionCard";
 export { AutomationCard } from "./components/AutomationCard";
 export { OvernightQueueCard } from "./components/OvernightQueueCard";
 export type { OvernightQueueCardView } from "./components/OvernightQueueCard";
+export { LocalMcpSessionCard } from "./components/LocalMcpSessionCard";
+export type { LocalMcpSessionCardView } from "./components/LocalMcpSessionCard";
 export { MorningDigestCard } from "./components/MorningDigestCard";
 export type { MorningDigestCardView } from "./components/MorningDigestCard";
 export { UpcomingWorkCard } from "./components/UpcomingWorkCard";

@@ -32,6 +32,7 @@
     "doctor": "node scripts/doctor.mjs"
   },
   "devDependencies": {
+    "@modelcontextprotocol/client": "2.1.0",
     "@playwright/test": "1.63.0",
     "@testing-library/jest-dom": "7.0.1",
     "@testing-library/react": "16.3.3",

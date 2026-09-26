@@ -205,6 +205,15 @@ test("full LAN gateway accepts same-origin API writes and rejects cross-origin r
     );
     assert.equal(
       (
+        await request(port, "/mcp", {
+          method: "POST",
+          body: "{}",
+        })
+      ).status,
+      405,
+    );
+    assert.equal(
+      (
         await request(port, "/api/v1/projects", {
           method: "POST",
           body: "{}",
