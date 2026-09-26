@@ -54,6 +54,11 @@ import {
   simulatedApprovalJobV1Schema,
   createExecutionPacketRequestSchema,
   createSyntheticEventImportRequestSchema,
+  createLocalIntegrationRequestSchema,
+  setLocalIntegrationEnabledRequestSchema,
+  runLocalIntegrationSampleRequestSchema,
+  localIntegrationSchema,
+  listLocalIntegrationsResponseSchema,
   createCaptureRequestSchema,
   createProjectRequestSchema,
   createProjectResourceLinkRequestSchema,
@@ -1637,6 +1642,101 @@ export function generateOpenApi(): string {
           },
         },
       },
+      "/api/v1/integrations": {
+        get: {
+          operationId: "listLocalIntegrations",
+          summary: "Page through configured local fixture sources",
+          parameters: [...pageParameters, projectFilterParameter],
+          responses: {
+            "200": {
+              description: "Local integration page with observed sync state",
+              content: jsonContent("ListLocalIntegrationsResponse"),
+            },
+          },
+        },
+        post: {
+          operationId: "createLocalIntegration",
+          summary:
+            "Create a project-bound local fixture source in local or test mode",
+          requestBody: {
+            required: true,
+            content: jsonContent("CreateLocalIntegrationRequest"),
+          },
+          responses: {
+            "201": {
+              description: "Configured local source",
+              content: jsonContent("LocalIntegration"),
+            },
+            "403": {
+              description: "Local fixture writes are disabled",
+              content: jsonContent("ErrorResponse"),
+            },
+          },
+        },
+      },
+      "/api/v1/integrations/{id}": {
+        get: {
+          operationId: "getLocalIntegration",
+          parameters: [idParameter],
+          responses: {
+            "200": {
+              description: "Configured local source and observed sync state",
+              content: jsonContent("LocalIntegration"),
+            },
+            "404": {
+              description: "Source not found",
+              content: jsonContent("ErrorResponse"),
+            },
+          },
+        },
+      },
+      "/api/v1/integrations/{id}/enabled": {
+        put: {
+          operationId: "setLocalIntegrationEnabled",
+          parameters: [idParameter],
+          requestBody: {
+            required: true,
+            content: jsonContent("SetLocalIntegrationEnabledRequest"),
+          },
+          responses: {
+            "200": {
+              description: "Updated source",
+              content: jsonContent("LocalIntegration"),
+            },
+            "403": {
+              description: "Local fixture writes are disabled",
+              content: jsonContent("ErrorResponse"),
+            },
+          },
+        },
+      },
+      "/api/v1/integrations/{id}/sample": {
+        post: {
+          operationId: "runLocalIntegrationSample",
+          summary:
+            "Queue a labeled, replay-safe development or operations fixture",
+          parameters: [idParameter],
+          requestBody: {
+            required: true,
+            content: jsonContent("RunLocalIntegrationSampleRequest"),
+          },
+          responses: {
+            "202": {
+              description: "Synthetic import receipt",
+              content: jsonContent("SyntheticEventImport"),
+            },
+            "403": {
+              description: "Local fixture writes are disabled",
+              content: jsonContent("ErrorResponse"),
+            },
+            "409": {
+              description:
+                "Disabled source, unlinked resource, or occurrence conflict",
+              content: jsonContent("ErrorResponse"),
+            },
+          },
+        },
+      },
       "/api/v1/synthetic-event-imports": {
         get: {
           operationId: "listSyntheticEventImports",
@@ -2076,6 +2176,19 @@ export function generateOpenApi(): string {
         SimulatedApprovalJobV1: component(simulatedApprovalJobV1Schema),
         CreateSyntheticEventImportRequest: component(
           createSyntheticEventImportRequestSchema,
+        ),
+        CreateLocalIntegrationRequest: component(
+          createLocalIntegrationRequestSchema,
+        ),
+        SetLocalIntegrationEnabledRequest: component(
+          setLocalIntegrationEnabledRequestSchema,
+        ),
+        RunLocalIntegrationSampleRequest: component(
+          runLocalIntegrationSampleRequestSchema,
+        ),
+        LocalIntegration: component(localIntegrationSchema),
+        ListLocalIntegrationsResponse: component(
+          listLocalIntegrationsResponseSchema,
         ),
         SyntheticEventImportJobV1: component(syntheticEventImportJobV1Schema),
         SyntheticEventImport: component(syntheticEventImportSchema),

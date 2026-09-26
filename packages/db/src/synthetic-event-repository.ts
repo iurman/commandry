@@ -56,6 +56,7 @@ function importRecord(
     occurrenceId: run.occurrenceId,
     scenarioId: run.scenarioId,
     projectId: run.projectId,
+    integrationInstanceId: run.integrationInstanceId,
     resourceId: run.resourceId,
     sourceKind: envelope.sourceKind,
     sourceLabel: envelope.sourceLabel as SourceLabel,

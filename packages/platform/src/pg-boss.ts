@@ -33,6 +33,7 @@ import {
   localAutomationTrigger,
   syntheticEventAutomationDecision,
   LocalAgentError,
+  LocalIntegrationError,
   SimulatedApprovalError,
   SyntheticEventImportConflictError,
   type SyntheticRun,
@@ -757,12 +758,67 @@ export function createSyntheticEventImportSubmission(
   return {
     async submitOnce(input: PreparedSyntheticEventImport) {
       const importId = await db.transaction(async (tx) => {
+        if (input.integrationInstanceId) {
+          const [instance] = await tx
+            .select()
+            .from(schema.integrationInstance)
+            .where(
+              eq(schema.integrationInstance.id, input.integrationInstanceId),
+            )
+            .for("update")
+            .limit(1);
+          if (!instance) {
+            throw new LocalIntegrationError(
+              "INTEGRATION_NOT_FOUND",
+              "Integration not found",
+            );
+          }
+          if (!instance.enabled) {
+            throw new LocalIntegrationError(
+              "INTEGRATION_DISABLED",
+              "Enable the integration before running a sample",
+            );
+          }
+          if (
+            instance.kind !== input.sourceKind ||
+            instance.projectId !== input.projectId ||
+            instance.resourceId !== input.resourceId
+          ) {
+            throw new LocalIntegrationError(
+              "SCENARIO_MISMATCH",
+              "Sample does not match its configured source",
+            );
+          }
+          if (instance.resourceId) {
+            const [link] = await tx
+              .select({ id: schema.projectResourceLink.id })
+              .from(schema.projectResourceLink)
+              .where(
+                and(
+                  eq(schema.projectResourceLink.projectId, instance.projectId),
+                  eq(
+                    schema.projectResourceLink.resourceId,
+                    instance.resourceId,
+                  ),
+                  eq(schema.projectResourceLink.lifecycle, "active"),
+                ),
+              )
+              .limit(1);
+            if (!link) {
+              throw new LocalIntegrationError(
+                "RESOURCE_NOT_LINKED",
+                "Resource is no longer linked to this project",
+              );
+            }
+          }
+        }
         const [inserted] = await tx
           .insert(schema.syntheticEventImport)
           .values({
             id: crypto.randomUUID(),
             occurrenceId: input.occurrenceId,
             requestFingerprint: input.requestFingerprint,
+            integrationInstanceId: input.integrationInstanceId,
             scenarioId: input.scenarioId,
             projectId: input.projectId,
             resourceId: input.resourceId,
@@ -829,6 +885,7 @@ export function createSyntheticEventImportSubmission(
             jobId,
             envelopeId,
             scenarioId: input.scenarioId,
+            integrationInstanceId: input.integrationInstanceId,
           },
         });
         return inserted.id;

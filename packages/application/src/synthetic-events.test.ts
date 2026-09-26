@@ -37,6 +37,7 @@ const run: SyntheticEventImportRecord = {
   occurrenceId: envelope.sourceEventId,
   scenarioId: "operations.monitor-down",
   projectId,
+  integrationInstanceId: null,
   resourceId,
   sourceKind: envelope.sourceKind,
   sourceLabel: envelope.sourceLabel,

@@ -286,6 +286,11 @@ export default function ProjectWorkspace({ projectId }: { projectId: string }) {
               <p className="cmd-record-identity cmd-heading-id">
                 <span>Project ID</span> <code>{project.id}</code>
               </p>
+              <p className="cmd-record-identity">
+                <a href={`/integrations?projectId=${projectId}`}>
+                  Configure local sources
+                </a>
+              </p>
             </div>
             <StatusBadge
               dimension="lifecycle"

@@ -23,6 +23,7 @@ import {
 export type PreparedSyntheticEventImport = {
   occurrenceId: string;
   requestFingerprint: string;
+  integrationInstanceId: string | null;
   scenarioId: SyntheticScenarioId;
   projectId: string;
   resourceId: string | null;
@@ -49,6 +50,7 @@ export type SyntheticEventPage<T> = {
 
 export function prepareSyntheticEventImport(
   input: CreateSyntheticEventImportRequest,
+  integrationInstanceId: string | null = null,
 ): PreparedSyntheticEventImport {
   const scenario = syntheticScenario(input.scenarioId);
   if (scenario.requiresResource && !input.resourceId) {
@@ -60,6 +62,7 @@ export function prepareSyntheticEventImport(
   const occurredAt = input.occurredAt ?? null;
   const resourceId = input.resourceId ?? null;
   const fingerprintPayload = {
+    integrationInstanceId,
     scenarioId: input.scenarioId,
     projectId: input.projectId,
     resourceId,
@@ -71,6 +74,7 @@ export function prepareSyntheticEventImport(
   return {
     occurrenceId: input.occurrenceId,
     requestFingerprint,
+    integrationInstanceId,
     scenarioId: input.scenarioId,
     projectId: input.projectId,
     resourceId,

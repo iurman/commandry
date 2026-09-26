@@ -17,3 +17,4 @@ export * from "./local-automations";
 export * from "./notifications";
 export * from "./capture-triage";
 export * from "./morning-digest";
+export * from "./integrations";

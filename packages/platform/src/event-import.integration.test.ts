@@ -5,12 +5,14 @@ import { eq } from "drizzle-orm";
 import { Pool } from "pg";
 import type { PgBoss } from "pg-boss";
 import {
+  createLocalIntegrationService,
   createSyntheticEventImportProcessor,
   prepareSyntheticEventImport,
 } from "@commandry/application";
 import { syntheticEventImportJobV1Schema } from "@commandry/contracts";
 import {
   createDatabase,
+  createLocalIntegrationRepository,
   createSyntheticEventImportRepository,
   schema,
 } from "@commandry/db";
@@ -304,6 +306,96 @@ test(
             .limit(1);
           assert.equal(linkedResource?.state, null);
           assert.equal(linkedResource?.lastObservedAt, null);
+        },
+      );
+
+      await t.test(
+        "configured local sources bind samples and expose worker-observed sync state",
+        async () => {
+          const instances = createLocalIntegrationRepository(runtime.db);
+          const service = createLocalIntegrationService({
+            ...instances,
+            ...submission,
+          });
+          await assert.rejects(
+            service.create({
+              name: "Invalid operational source",
+              kind: "synthetic-operations",
+              projectId,
+              resourceId: null,
+            }),
+            { code: "RESOURCE_REQUIRED" },
+          );
+          const development = await service.create({
+            name: "Local repository fixture",
+            kind: "synthetic-development",
+            projectId,
+            resourceId: null,
+          });
+          const operations = await service.create({
+            name: "Local uptime fixture",
+            kind: "synthetic-operations",
+            projectId,
+            resourceId,
+          });
+          assert.equal(operations.adapterMode, "local_fixture");
+          assert.equal(operations.isSynthetic, true);
+          assert.equal(operations.lastAttemptAt, null);
+          const firstPage = await service.list({ limit: 1, projectId });
+          assert.equal(firstPage.items.length, 1);
+          assert.ok(firstPage.nextCursor);
+          const secondPage = await service.list({
+            limit: 1,
+            projectId,
+            cursor: firstPage.nextCursor,
+          });
+          assert.equal(secondPage.items.length, 1);
+          assert.notEqual(firstPage.items[0]?.id, secondPage.items[0]?.id);
+
+          const occurrenceId = `integration-sample:${crypto.randomUUID()}`;
+          const sample = {
+            scenarioId: "operations.monitor-down" as const,
+            occurrenceId,
+            occurredAt: "2026-09-25T09:59:00.000Z",
+          };
+          const queued = await service.submitSample(operations.id, sample);
+          const replay = await service.submitSample(operations.id, sample);
+          assert.equal(replay.id, queued.id);
+          assert.equal(queued.integrationInstanceId, operations.id);
+          assert.equal(
+            (await service.get(operations.id))?.latestImportId,
+            queued.id,
+          );
+          await assert.rejects(service.submitSample(development.id, sample), {
+            code: "SCENARIO_MISMATCH",
+          });
+          const finished = await processor({
+            version: 1,
+            runId: queued.id,
+            occurrenceId,
+          });
+          assert.equal(finished.state, "succeeded");
+          const observed = await service.get(operations.id);
+          assert.ok(observed?.lastAttemptAt);
+          assert.ok(observed?.lastSuccessAt);
+          assert.equal(observed.lastError, null);
+          assert.equal(observed.nextAttemptAt, null);
+          const disabled = await service.setEnabled(operations.id, false);
+          assert.equal(disabled.enabled, false);
+          await assert.rejects(
+            service.submitSample(operations.id, {
+              ...sample,
+              occurrenceId: `disabled:${crypto.randomUUID()}`,
+            }),
+            { code: "INTEGRATION_DISABLED" },
+          );
+          const audits = await instances.listAudit(operations.id, {
+            limit: 10,
+          });
+          assert.deepEqual(
+            audits.items.map((entry) => entry.operation),
+            ["integration.disabled", "integration.created"],
+          );
         },
       );
 

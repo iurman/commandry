@@ -80,6 +80,7 @@ describe("Command Center", () => {
       ["Projects", "/projects"],
       ["Work", "/work"],
       ["Knowledge", "/knowledge"],
+      ["Integrations", "/integrations"],
       ["Infrastructure", "/infrastructure"],
       ["Activity", "/activity"],
       ["Search", "/search"],

@@ -530,6 +530,57 @@ export const createSyntheticEventImportRequestSchema = z.object({
   occurredAt: z.iso.datetime({ offset: true }).optional(),
 });
 
+export const localIntegrationKindSchema = syntheticSourceKindSchema;
+
+export const createLocalIntegrationRequestSchema = z.strictObject({
+  name: z.string().trim().min(1).max(160),
+  kind: localIntegrationKindSchema,
+  projectId: z.uuid(),
+  resourceId: z.uuid().nullable(),
+});
+
+export const setLocalIntegrationEnabledRequestSchema = z.strictObject({
+  enabled: z.boolean(),
+});
+
+export const runLocalIntegrationSampleRequestSchema = z.strictObject({
+  scenarioId: syntheticScenarioIdSchema,
+  occurrenceId: z.string().trim().min(1).max(180),
+  occurredAt: z.iso.datetime({ offset: true }).optional(),
+});
+
+export const localIntegrationSchema = z.object({
+  id: z.uuid(),
+  name: z.string(),
+  kind: localIntegrationKindSchema,
+  projectId: z.uuid(),
+  projectName: z.string(),
+  resourceId: z.uuid().nullable(),
+  resourceName: z.string().nullable(),
+  enabled: z.boolean(),
+  adapterMode: z.literal("local_fixture"),
+  isSynthetic: z.literal(true),
+  lastAttemptAt: z.iso.datetime({ offset: true }).nullable(),
+  lastSuccessAt: z.iso.datetime({ offset: true }).nullable(),
+  lastError: z.string().nullable(),
+  nextAttemptAt: z.null(),
+  cursor: z.null(),
+  latestImportId: z.uuid().nullable(),
+  createdAt: z.iso.datetime({ offset: true }),
+  updatedAt: z.iso.datetime({ offset: true }),
+});
+
+export const listLocalIntegrationsQuerySchema = listResourcesQuerySchema.extend(
+  {
+    projectId: z.uuid().optional(),
+  },
+);
+
+export const listLocalIntegrationsResponseSchema = z.object({
+  items: z.array(localIntegrationSchema),
+  nextCursor: z.uuid().nullable(),
+});
+
 export const syntheticEventImportJobV1Schema = z.object({
   version: z.literal(1),
   runId: z.uuid(),
@@ -541,6 +592,7 @@ export const syntheticEventImportSchema = z.object({
   occurrenceId: z.string(),
   scenarioId: syntheticScenarioIdSchema,
   projectId: z.uuid(),
+  integrationInstanceId: z.uuid().nullable(),
   resourceId: z.uuid().nullable(),
   sourceKind: syntheticSourceKindSchema,
   sourceLabel: syntheticSourceLabelSchema,
@@ -1427,6 +1479,16 @@ export type ReviewCaptureTriageResponse = z.infer<
 export type SearchResult = z.infer<typeof searchResultSchema>;
 export type CreateSyntheticEventImportRequest = z.infer<
   typeof createSyntheticEventImportRequestSchema
+>;
+export type LocalIntegration = z.infer<typeof localIntegrationSchema>;
+export type CreateLocalIntegrationRequest = z.infer<
+  typeof createLocalIntegrationRequestSchema
+>;
+export type SetLocalIntegrationEnabledRequest = z.infer<
+  typeof setLocalIntegrationEnabledRequestSchema
+>;
+export type RunLocalIntegrationSampleRequest = z.infer<
+  typeof runLocalIntegrationSampleRequestSchema
 >;
 export type SyntheticEventImportJobV1 = z.infer<
   typeof syntheticEventImportJobV1Schema

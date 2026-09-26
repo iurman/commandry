@@ -27,6 +27,7 @@ export type { MorningDigestCardView } from "./components/MorningDigestCard";
 export { UpcomingWorkCard } from "./components/UpcomingWorkCard";
 export type { UpcomingWorkCardView } from "./components/UpcomingWorkCard";
 export { KnowledgeRevisionCard } from "./components/KnowledgeRevisionCard";
+export { LocalIntegrationCard } from "./components/LocalIntegrationCard";
 export type { KnowledgeRevisionCardView } from "./components/KnowledgeRevisionCard";
 export type { AutomationCardView } from "./components/AutomationCard";
 export { NotificationCard } from "./components/NotificationCard";

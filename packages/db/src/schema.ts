@@ -1262,6 +1262,64 @@ export const localAgentRunAttempt = pgTable(
   ],
 );
 
+export const integrationInstance = pgTable(
+  "integration_instance",
+  {
+    id: uuid("id").primaryKey(),
+    name: text("name").notNull(),
+    kind: text("kind", {
+      enum: ["synthetic-development", "synthetic-operations"],
+    }).notNull(),
+    projectId: uuid("project_id")
+      .notNull()
+      .references(() => project.id, { onDelete: "restrict" }),
+    resourceId: uuid("resource_id").references(() => resource.id, {
+      onDelete: "restrict",
+    }),
+    enabled: boolean("enabled").notNull().default(true),
+    createdAt: createdAt(),
+    updatedAt: timestamp("updated_at", { withTimezone: true })
+      .notNull()
+      .defaultNow(),
+  },
+  (table) => [
+    index("integration_instance_project_idx").on(table.projectId),
+    index("integration_instance_created_idx").on(table.createdAt, table.id),
+    check(
+      "integration_instance_kind_valid",
+      sql`${table.kind} in ('synthetic-development', 'synthetic-operations')`,
+    ),
+    check(
+      "integration_instance_resource_required",
+      sql`${table.kind} = 'synthetic-development' or ${table.resourceId} is not null`,
+    ),
+  ],
+);
+
+export const integrationInstanceAudit = pgTable(
+  "integration_instance_audit",
+  {
+    id: uuid("id").primaryKey(),
+    integrationInstanceId: uuid("integration_instance_id")
+      .notNull()
+      .references(() => integrationInstance.id, { onDelete: "restrict" }),
+    actor: text("actor").notNull(),
+    operation: text("operation").notNull(),
+    details: jsonb("details")
+      .$type<Record<string, string | boolean | null>>()
+      .notNull()
+      .default({}),
+    createdAt: createdAt(),
+  },
+  (table) => [
+    index("integration_instance_audit_instance_idx").on(
+      table.integrationInstanceId,
+      table.createdAt,
+      table.id,
+    ),
+  ],
+);
+
 export const syntheticEventImport = pgTable(
   "synthetic_event_import",
   {
@@ -1278,6 +1336,10 @@ export const syntheticEventImport = pgTable(
     projectId: uuid("project_id")
       .notNull()
       .references(() => project.id, { onDelete: "restrict" }),
+    integrationInstanceId: uuid("integration_instance_id").references(
+      () => integrationInstance.id,
+      { onDelete: "restrict" },
+    ),
     resourceId: uuid("resource_id").references(() => resource.id, {
       onDelete: "restrict",
     }),
@@ -1295,6 +1357,11 @@ export const syntheticEventImport = pgTable(
   (table) => [
     uniqueIndex("synthetic_event_import_occurrence_idx").on(table.occurrenceId),
     index("synthetic_event_import_created_idx").on(table.createdAt, table.id),
+    index("synthetic_event_import_integration_idx").on(
+      table.integrationInstanceId,
+      table.createdAt,
+      table.id,
+    ),
     check(
       "synthetic_event_import_scenario_valid",
       sql`${table.scenarioId} in ('development.pr-merged', 'operations.monitor-down', 'operations.monitor-recovered')`,

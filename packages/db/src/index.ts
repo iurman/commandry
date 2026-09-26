@@ -21,4 +21,5 @@ export * from "./local-automation-repository";
 export * from "./notification-repository";
 export * from "./capture-triage-repository";
 export * from "./morning-digest-repository";
+export * from "./integration-repository";
 export * as schema from "./schema";
