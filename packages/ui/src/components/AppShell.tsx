@@ -18,6 +18,7 @@ export function AppShell({
     | "Agents"
     | "Approvals"
     | "Automations"
+    | "Overnight"
     | "Notifications";
 }) {
   return (
@@ -114,6 +115,13 @@ export function AppShell({
             href="/automations"
           >
             Automations
+          </a>
+          <a
+            aria-current={current === "Overnight" ? "page" : undefined}
+            className={`cmd-nav-link ${current === "Overnight" ? "cmd-nav-current" : ""}`}
+            href="/overnight"
+          >
+            Overnight
           </a>
           <a
             aria-current={current === "Notifications" ? "page" : undefined}

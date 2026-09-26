@@ -10,6 +10,7 @@ export interface MorningDigestCardView {
   evidenceHref: string;
   sourceEvidenceHref: string | null;
   sourceLabel: string;
+  queueHref?: string | null | undefined;
 }
 
 export function MorningDigestCard({ item }: { item: MorningDigestCardView }) {
@@ -45,6 +46,12 @@ export function MorningDigestCard({ item }: { item: MorningDigestCardView }) {
           <>
             {" "}
             · <a href={item.sourceEvidenceHref}>Source evidence</a>
+          </>
+        )}
+        {item.queueHref && (
+          <>
+            {" "}
+            · <a href={item.queueHref}>Overnight plan</a>
           </>
         )}
       </p>

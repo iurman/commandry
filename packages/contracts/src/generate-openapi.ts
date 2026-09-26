@@ -30,6 +30,13 @@ import {
   localAgentProjectAssignmentSchema,
   listLocalAgentProjectAssignmentsResponseSchema,
   createLocalAgentRunRequestSchema,
+  createOvernightQueueEntryRequestSchema,
+  overnightQueueEntrySchema,
+  listOvernightQueueResponseSchema,
+  overnightReadinessSchema,
+  overnightQueueJobV1Schema,
+  overnightQueueAuditEventSchema,
+  listOvernightQueueAuditResponseSchema,
   localAgentRunJobV1Schema,
   localAgentRunGrantSchema,
   localAgentRunAttemptSchema,
@@ -997,6 +1004,102 @@ export function generateOpenApi(): string {
             "404": {
               description: "Run not found",
               content: jsonContent("ErrorResponse"),
+            },
+          },
+        },
+      },
+      "/api/v1/overnight": {
+        get: {
+          operationId: "listOvernightQueue",
+          summary: "Page labeled synthetic local overnight work and results",
+          parameters: [projectFilterParameter, ...pageParameters],
+          responses: {
+            "200": {
+              description: "Overnight queue page",
+              content: jsonContent("ListOvernightQueueResponse"),
+            },
+          },
+        },
+        post: {
+          operationId: "scheduleOvernightQueueEntry",
+          summary: "Schedule a packet-bound fake local agent run",
+          requestBody: {
+            required: true,
+            content: jsonContent("CreateOvernightQueueEntryRequest"),
+          },
+          responses: {
+            "201": {
+              description: "Scheduled synthetic entry",
+              content: jsonContent("OvernightQueueEntry"),
+            },
+            "409": {
+              description: "Packet, work, or assignment is not ready",
+              content: jsonContent("ErrorResponse"),
+            },
+          },
+        },
+      },
+      "/api/v1/overnight/readiness": {
+        get: {
+          operationId: "getOvernightReadiness",
+          parameters: [
+            {
+              in: "query",
+              name: "packetId",
+              required: true,
+              schema: { type: "string", format: "uuid" },
+            },
+            {
+              in: "query",
+              name: "agentId",
+              required: true,
+              schema: { type: "string", format: "uuid" },
+            },
+          ],
+          responses: {
+            "200": {
+              description: "Current synthetic scheduling readiness",
+              content: jsonContent("OvernightReadiness"),
+            },
+          },
+        },
+      },
+      "/api/v1/overnight/{id}": {
+        get: {
+          operationId: "getOvernightQueueEntry",
+          parameters: [idParameter],
+          responses: {
+            "200": {
+              description: "Queue entry and linked run state",
+              content: jsonContent("OvernightQueueEntry"),
+            },
+          },
+        },
+      },
+      "/api/v1/overnight/{id}/cancel": {
+        post: {
+          operationId: "cancelOvernightQueueEntry",
+          parameters: [idParameter],
+          responses: {
+            "200": {
+              description: "Canceled scheduled entry",
+              content: jsonContent("OvernightQueueEntry"),
+            },
+            "409": {
+              description: "Entry already dispatched or blocked",
+              content: jsonContent("ErrorResponse"),
+            },
+          },
+        },
+      },
+      "/api/v1/overnight/{id}/audit": {
+        get: {
+          operationId: "listOvernightQueueAudit",
+          parameters: [idParameter, ...pageParameters],
+          responses: {
+            "200": {
+              description: "Immutable queue transition audit page",
+              content: jsonContent("ListOvernightQueueAuditResponse"),
             },
           },
         },
@@ -2143,6 +2246,17 @@ export function generateOpenApi(): string {
         LocalAgentRunAttempt: component(localAgentRunAttemptSchema),
         FakeLocalAgentRunResult: component(fakeLocalAgentRunResultSchema),
         LocalAgentRun: component(localAgentRunSchema),
+        CreateOvernightQueueEntryRequest: component(
+          createOvernightQueueEntryRequestSchema,
+        ),
+        OvernightQueueEntry: component(overnightQueueEntrySchema),
+        ListOvernightQueueResponse: component(listOvernightQueueResponseSchema),
+        OvernightReadiness: component(overnightReadinessSchema),
+        OvernightQueueJobV1: component(overnightQueueJobV1Schema),
+        OvernightQueueAuditEvent: component(overnightQueueAuditEventSchema),
+        ListOvernightQueueAuditResponse: component(
+          listOvernightQueueAuditResponseSchema,
+        ),
         AgentContextReadRequest: component(agentContextReadRequestSchema),
         AgentContextReadSource: component(agentContextReadSourceSchema),
         AgentContextReadResponse: component(agentContextReadResponseSchema),

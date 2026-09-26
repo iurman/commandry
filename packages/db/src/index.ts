@@ -22,4 +22,5 @@ export * from "./notification-repository";
 export * from "./capture-triage-repository";
 export * from "./morning-digest-repository";
 export * from "./integration-repository";
+export * from "./overnight-queue-repository";
 export * as schema from "./schema";

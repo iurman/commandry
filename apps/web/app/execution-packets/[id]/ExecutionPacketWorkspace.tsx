@@ -1,7 +1,11 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import type { ExecutionPacket as ExecutionPacketRecord } from "@commandry/contracts";
+import type {
+  ExecutionPacket as ExecutionPacketRecord,
+  OvernightQueueEntry,
+  OvernightReadiness,
+} from "@commandry/contracts";
 import {
   AppShell,
   Button,
@@ -49,6 +53,12 @@ export default function ExecutionPacketWorkspace({
   const [starting, setStarting] = useState(false);
   const [startError, setStartError] = useState<string | null>(null);
   const [startedRun, setStartedRun] = useState<LocalAgentRunView | null>(null);
+  const [readiness, setReadiness] = useState<OvernightReadiness | null>(null);
+  const [runAfterLocal, setRunAfterLocal] = useState("");
+  const [scheduling, setScheduling] = useState(false);
+  const [scheduleError, setScheduleError] = useState<string | null>(null);
+  const [scheduledEntry, setScheduledEntry] =
+    useState<OvernightQueueEntry | null>(null);
 
   async function loadAgents(projectId: string, cursor?: string | null) {
     setAgentsLoading(true);
@@ -110,6 +120,25 @@ export default function ExecutionPacketWorkspace({
       active = false;
     };
   }, [packetId]);
+
+  useEffect(() => {
+    if (!packet || !selectedAgentId) return;
+    let active = true;
+    const params = new URLSearchParams({
+      packetId: packet.id,
+      agentId: selectedAgentId,
+    });
+    apiJson<OvernightReadiness>(`/api/v1/overnight/readiness?${params}`)
+      .then((result) => {
+        if (active) setReadiness(result);
+      })
+      .catch(() => {
+        if (active) setReadiness(null);
+      });
+    return () => {
+      active = false;
+    };
+  }, [packet, selectedAgentId]);
 
   return (
     <AppShell current="Projects">
@@ -219,7 +248,10 @@ export default function ExecutionPacketWorkspace({
                 <select
                   id="packet-agent-choice"
                   value={selectedAgentId}
-                  onChange={(event) => setSelectedAgentId(event.target.value)}
+                  onChange={(event) => {
+                    setReadiness(null);
+                    setSelectedAgentId(event.target.value);
+                  }}
                 >
                   <option value="">Choose an eligible local agent</option>
                   {agents.map(({ agent, eligible }) => (
@@ -268,6 +300,122 @@ export default function ExecutionPacketWorkspace({
                 <a href={`/agent-runs/${encodeURIComponent(startedRun.id)}`}>
                   Review agent run
                 </a>
+              </p>
+            )}
+          </section>
+          <section
+            className="cmd-local-run-assignment"
+            aria-labelledby="overnight-heading"
+          >
+            <p className="cmd-eyebrow">
+              Next step / Synthetic local overnight queue
+            </p>
+            <h2 id="overnight-heading">Queue a fake overnight run</h2>
+            <p className="cmd-section-intro">
+              This schedules the same packet and agent for a later local worker
+              read. Read grants are created only when due. The result is
+              unverified; no external action occurs.
+            </p>
+            {selectedAgentId && readiness && (
+              <div aria-label="Overnight readiness">
+                <h3>Readiness</h3>
+                <ul>
+                  {readiness.checks.map((check) => (
+                    <li key={check.key}>
+                      {check.ok ? "Ready" : "Blocked"}: {check.message}
+                    </li>
+                  ))}
+                </ul>
+                {readiness.warnings.map((warning) => (
+                  <p className="cmd-form-hint" key={warning}>
+                    {warning}
+                  </p>
+                ))}
+              </div>
+            )}
+            {!selectedAgentId && (
+              <p className="cmd-form-hint">
+                Choose an eligible agent in the local run section above to
+                review readiness.
+              </p>
+            )}
+            <form
+              className="cmd-form"
+              onSubmit={async (event) => {
+                event.preventDefault();
+                if (
+                  !packet ||
+                  !selectedAgentId ||
+                  !readiness?.ready ||
+                  scheduling
+                )
+                  return;
+                const date = new Date(runAfterLocal);
+                if (
+                  !Number.isFinite(date.getTime()) ||
+                  date.getTime() <= Date.now()
+                ) {
+                  setScheduleError("Choose a future local time.");
+                  return;
+                }
+                setScheduling(true);
+                setScheduleError(null);
+                setScheduledEntry(null);
+                try {
+                  const entry = await apiJson<OvernightQueueEntry>(
+                    "/api/v1/overnight",
+                    {
+                      method: "POST",
+                      body: JSON.stringify({
+                        packetId: packet.id,
+                        agentId: selectedAgentId,
+                        runAfter: date.toISOString(),
+                      }),
+                    },
+                  );
+                  setScheduledEntry(entry);
+                } catch (cause) {
+                  setScheduleError(
+                    cause instanceof Error
+                      ? cause.message
+                      : "Could not schedule fake overnight run.",
+                  );
+                } finally {
+                  setScheduling(false);
+                }
+              }}
+            >
+              <label htmlFor="overnight-run-after">
+                Run after (your local time)
+              </label>
+              <input
+                id="overnight-run-after"
+                type="datetime-local"
+                step={1}
+                value={runAfterLocal}
+                onChange={(event) => setRunAfterLocal(event.target.value)}
+                required
+              />
+              <Button
+                type="submit"
+                variant="primary"
+                disabled={!readiness?.ready || !runAfterLocal || scheduling}
+              >
+                {scheduling ? "Scheduling..." : "Schedule fake local run"}
+              </Button>
+            </form>
+            {scheduleError && (
+              <p className="cmd-form-error" role="alert">
+                {scheduleError}
+              </p>
+            )}
+            {scheduledEntry && (
+              <p className="cmd-form-success" role="status">
+                Synthetic run scheduled for{" "}
+                <time dateTime={scheduledEntry.runAfter}>
+                  {new Date(scheduledEntry.runAfter).toLocaleString()}
+                </time>
+                . <a href="/overnight">Review Overnight Queue</a>
               </p>
             )}
           </section>

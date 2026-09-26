@@ -3,6 +3,8 @@ import {
   createAgentContextService,
   createCaptureTriageProcessor,
   createLocalAgentRunProcessor,
+  createLocalAgentRunService,
+  createOvernightQueueProcessor,
   createLocalAutomationProcessor,
   createSimulatedApprovalProcessor,
   createProjectBriefService,
@@ -14,6 +16,7 @@ import {
   captureTriageJobV1Schema,
   automationJobV1Schema,
   localAgentRunJobV1Schema,
+  overnightQueueJobV1Schema,
   simulatedApprovalJobV1Schema,
   syntheticEventImportJobV1Schema,
   syntheticJobV1Schema,
@@ -23,6 +26,9 @@ import {
   createCaptureTriageRepository,
   createDatabase,
   createLocalAgentRunRepository,
+  createLocalAgentRepository,
+  createExecutionPacketRepository,
+  createOvernightQueueRepository,
   createLocalAutomationRepository,
   createSimulatedApprovalRepository,
   createSyntheticEventImportRepository,
@@ -32,9 +38,11 @@ import {
 import {
   CAPTURE_TRIAGE_QUEUE,
   createPgBossProducer,
+  createLocalAgentRunSubmission,
   createRecurringAutomationScheduler,
   createSyntheticEventAutomationReconciler,
   LOCAL_AGENT_RUN_QUEUE,
+  OVERNIGHT_QUEUE,
   LOCAL_AUTOMATION_QUEUE,
   SIMULATED_APPROVAL_QUEUE,
   SYNTHETIC_EVENT_IMPORT_QUEUE,
@@ -74,6 +82,48 @@ const processLocalAgentRun = createLocalAgentRunProcessor(
   localAgentRunRepository,
   localAgentContext,
 );
+const overnightQueueRepository = createOvernightQueueRepository(database.db);
+const agentRepository = createLocalAgentRepository(database.db);
+const packetRepository = createExecutionPacketRepository(database.db);
+const submitLocalAgentRun = createLocalAgentRunService({
+  getPacketById: packetRepository.getById,
+  getAgentById: agentRepository.getById,
+  isAssigned: agentRepository.isAssigned,
+  getById: localAgentRunRepository.getById,
+  ...createLocalAgentRunSubmission(database.db, transport.boss),
+});
+const processOvernightQueue = createOvernightQueueProcessor(
+  overnightQueueRepository,
+  submitLocalAgentRun.submit,
+);
+async function reconcileOvernightQueue() {
+  try {
+    let cursor: string | undefined;
+    while (true) {
+      const ids = await overnightQueueRepository.listRecoverable(
+        new Date(),
+        cursor,
+      );
+      if (ids.length === 0) break;
+      for (const id of ids) {
+        try {
+          await processOvernightQueue(id);
+        } catch (error) {
+          log("error", "overnight_queue.recovery_failed", {
+            entryId: id,
+            error: error instanceof Error ? error.name : "unknown",
+          });
+        }
+      }
+      if (ids.length < 100) break;
+      cursor = ids.at(-1);
+    }
+  } catch (error) {
+    log("error", "overnight_queue.reconciliation_failed", {
+      error: error instanceof Error ? error.name : "unknown",
+    });
+  }
+}
 const simulatedApprovalRepository = createSimulatedApprovalRepository(
   database.db,
 );
@@ -138,6 +188,12 @@ async function reconcileExpiredApprovals() {
   }
 }
 await reconcileExpiredApprovals();
+await reconcileOvernightQueue();
+const overnightRecoveryTimer = setInterval(
+  () => void reconcileOvernightQueue(),
+  60_000,
+);
+overnightRecoveryTimer.unref();
 const approvalExpiryTimer = setInterval(
   () => void reconcileExpiredApprovals(),
   10_000,
@@ -199,6 +255,24 @@ await transport.boss.work(LOCAL_AGENT_RUN_QUEUE, async ([job]) => {
     log("error", "local_agent_run.failed_attempt", {
       correlationId: input.runId,
       occurrenceId: input.occurrenceId,
+      jobId: job.id,
+      error: error instanceof Error ? error.name : "unknown",
+    });
+    throw error;
+  }
+});
+await transport.boss.work(OVERNIGHT_QUEUE, async ([job]) => {
+  if (!job) throw new Error("pg-boss delivered an empty overnight job batch");
+  const input = overnightQueueJobV1Schema.parse(job.data);
+  try {
+    await processOvernightQueue(input.entryId);
+    log("info", "overnight_queue.processed", {
+      entryId: input.entryId,
+      jobId: job.id,
+    });
+  } catch (error) {
+    log("error", "overnight_queue.failed_attempt", {
+      entryId: input.entryId,
       jobId: job.id,
       error: error instanceof Error ? error.name : "unknown",
     });

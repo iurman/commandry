@@ -21,6 +21,7 @@ type Candidate = {
   definitionId: string | null;
   sourceEventId: string | null;
   packetId: string | null;
+  queueEntryId?: string | null;
 };
 
 export interface MorningDigestPort {
@@ -63,7 +64,10 @@ function digestItem(row: Candidate): MorningDigestItem {
     sourceLabel:
       row.kind === "automation"
         ? "Synthetic local automation"
-        : "Synthetic local agent",
+        : row.queueEntryId
+          ? "Synthetic local overnight queue"
+          : "Synthetic local agent",
+    queueHref: row.queueEntryId ? `/overnight/${row.queueEntryId}` : null,
     isSynthetic: true,
     verificationStatus: "unverified",
   };

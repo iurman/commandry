@@ -10,7 +10,10 @@ Commandry has completed its initial product definition. ADRs 0009 through 0012
 establish the initial technology and deployment architecture. The local
 application foundation now includes a Next.js web shell and API, PostgreSQL
 schema and migrations, a separate pg-boss worker, shared contracts, and the
-local experience lab. The accepted architecture and local code do not establish
+local experience lab. The autonomous local MVP campaign now exercises the
+interconnected project, capture, Work, Knowledge, infrastructure, activity,
+agent, approval, automation, integration fixture, and morning review paths.
+The accepted architecture and local code do not establish
 that the VPS is ready, that backups and restores work, or that human
 authentication is complete. There is no production deployment.
 
@@ -43,24 +46,35 @@ authentication is complete. There is no production deployment.
 ## Local implementation evidence
 
 - The web application exposes `/health/live`, `/health/ready`, `/version`, and
-  initial `/api/v1` resource and synthetic-run routes.
-- Shared Zod contracts generate a checked OpenAPI document. The database has a
-  reviewed initial Drizzle SQL migration and separate local migration and
-  application roles.
-- The worker records product-visible run attempts and heartbeat evidence
-  separately from pg-boss transport tables.
-- Semantic CSS tokens, accessible shell components, preference foundations,
-  and representative Storybook states exist in the local-only lab.
-- An explicit authenticated LAN preview serves the current app shell and static
-  Storybook lab on the active private Wi-Fi address. It permits read-only
-  viewing; the app API remains on laptop loopback. Phone access still needs
-  confirmation on an actual device.
-- Automated source, unit, browser, and disposable PostgreSQL checks cover this
-  scaffold. On the current Bazzite laptop, the Docker-compatible host Podman
-  service and Compose provider build the production image and run PostgreSQL,
-  migrations, web, and worker locally. The database, web, and worker report
-  healthy, and a synthetic run submitted through the containerized API completes.
-  The image excludes the local lab, test support, documentation, and local secrets.
+  versioned `/api/v1` routes for project and resource relationships, original
+  captures, Work, Knowledge, search, synthetic development and operational
+  evidence, explainable activity and attention, briefs, packets, scoped fake
+  agents, simulated approvals, local automation, integration fixtures, and the
+  Overnight Queue.
+- Shared Zod contracts generate a checked OpenAPI document. PostgreSQL has
+  reviewed, repeatable Drizzle migrations and separate local migration and
+  application roles. The pg-boss worker records attempts, audits, and heartbeat
+  evidence separately from transport tables.
+- The local Overnight Queue binds a saved packet to an assigned synthetic agent
+  and a due time. Its delayed job, audit, and entry commit together. The worker
+  checks current readiness at dispatch, creates fresh scoped read grants,
+  records an unverified fake result, and links it into the morning digest.
+  Cancellation, changed-work blocking, replay, and recovery scans are local
+  behaviors. The seven-day scheduling horizon is configurable through
+  `LOCAL_OVERNIGHT_MAX_DAYS`; it is not a settled product policy.
+- Semantic CSS tokens, accessible responsive components, and representative
+  Storybook states exist in the local-only lab. The lab is excluded from the
+  production image.
+- The current local app is served on the same Wi-Fi through a separate review
+  gateway at `http://10.0.0.73:3011/` with `test` / `pass`; the Compose app
+  remains on laptop loopback. That gate is only for local review, not product
+  authentication. Browser checks cover desktop, 390 px, and 320 px widths;
+  actual device rendering remains to be confirmed on the phone.
+- Automated source, unit, browser, built-service smoke, and disposable
+  PostgreSQL checks cover the local paths. On this Bazzite laptop, the
+  Docker-compatible Podman service and Compose provider build the image and run
+  PostgreSQL, migrations, web, and worker locally. The database, web, and worker
+  report healthy. No VPS or production environment has been provisioned.
 
 ## Not yet decided
 

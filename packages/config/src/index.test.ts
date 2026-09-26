@@ -17,6 +17,17 @@ describe("runtime configuration", () => {
     expect(config.bossPoolMax).toBe(5);
     expect(config.localApprovalAutoCeiling).toBe("reversible");
     expect(config.localApprovalTtlSeconds).toBe(3_600);
+    expect(config.localOvernightMaxDays).toBe(7);
+  });
+
+  it("bounds the provisional local overnight scheduling horizon", () => {
+    expect(
+      loadRuntimeConfig({ ...valid, LOCAL_OVERNIGHT_MAX_DAYS: "14" })
+        .localOvernightMaxDays,
+    ).toBe(14);
+    expect(() =>
+      loadRuntimeConfig({ ...valid, LOCAL_OVERNIGHT_MAX_DAYS: "91" }),
+    ).toThrow(ConfigurationError);
   });
 
   it("keeps the local simulated approval threshold below sensitive actions", () => {

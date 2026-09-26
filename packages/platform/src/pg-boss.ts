@@ -4,6 +4,7 @@ import { PgBoss, fromDrizzle } from "pg-boss";
 import { Pool } from "pg";
 import type {
   CreateAutomationDefinitionRequest,
+  CreateOvernightQueueEntryRequest,
   SetAutomationEnabledRequest,
   TriggerAutomationRunRequest,
 } from "@commandry/contracts";
@@ -17,6 +18,7 @@ import {
   automationDefinitionRecord,
   automationRunRecord,
   createLocalAgentRunRepository,
+  createOvernightQueueRepository,
   createSimulatedApprovalRepository,
   createSyntheticEventImportRepository,
   schema,
@@ -33,6 +35,7 @@ import {
   localAutomationTrigger,
   syntheticEventAutomationDecision,
   LocalAgentError,
+  OvernightQueueError,
   LocalIntegrationError,
   SimulatedApprovalError,
   SyntheticEventImportConflictError,
@@ -48,6 +51,8 @@ export const SYNTHETIC_EVENT_IMPORT_DEAD_LETTER_QUEUE =
 export const LOCAL_AGENT_RUN_QUEUE = "commandry-local-agent-run-v1";
 export const LOCAL_AGENT_RUN_DEAD_LETTER_QUEUE =
   "commandry-local-agent-run-dlq";
+export const OVERNIGHT_QUEUE = "commandry-overnight-v1";
+export const OVERNIGHT_DEAD_LETTER_QUEUE = "commandry-overnight-dlq";
 export const SIMULATED_APPROVAL_QUEUE = "commandry-simulated-approval-v1";
 export const SIMULATED_APPROVAL_DEAD_LETTER_QUEUE =
   "commandry-simulated-approval-dlq";
@@ -98,6 +103,13 @@ export async function installPgBossSchema(options: {
       retryDelay: 1,
       retryBackoff: true,
       deadLetter: LOCAL_AGENT_RUN_DEAD_LETTER_QUEUE,
+    });
+    await boss.createQueue(OVERNIGHT_DEAD_LETTER_QUEUE);
+    await boss.createQueue(OVERNIGHT_QUEUE, {
+      retryLimit: 3,
+      retryDelay: 1,
+      retryBackoff: true,
+      deadLetter: OVERNIGHT_DEAD_LETTER_QUEUE,
     });
     await boss.createQueue(SIMULATED_APPROVAL_DEAD_LETTER_QUEUE);
     await boss.createQueue(SIMULATED_APPROVAL_QUEUE, {
@@ -1034,6 +1046,116 @@ export function createLocalAgentRunSubmission(
       const record = await repository.getById(runId);
       if (!record) throw new Error("Queued local agent run disappeared");
       return record;
+    },
+  };
+}
+
+/** An overnight entry, delayed worker job, and audit commit together. */
+export function createOvernightQueueSubmission(
+  db: CommandryDatabase,
+  boss: PgBoss,
+) {
+  const repository = createOvernightQueueRepository(db);
+  return {
+    async schedule(input: CreateOvernightQueueEntryRequest, runAfter: Date) {
+      const id = await db.transaction(async (tx) => {
+        const [packet] = await tx
+          .select({
+            id: schema.executionPacket.id,
+            packetVersion: schema.executionPacket.packetVersion,
+            contentDigest: schema.executionPacket.contentDigest,
+            projectId: schema.executionPacket.projectId,
+            workItemId: schema.executionPacket.workItemId,
+            status: schema.workItem.status,
+          })
+          .from(schema.executionPacket)
+          .innerJoin(
+            schema.workItem,
+            eq(schema.workItem.id, schema.executionPacket.workItemId),
+          )
+          .where(eq(schema.executionPacket.id, input.packetId))
+          .limit(1);
+        if (!packet)
+          throw new OvernightQueueError(
+            "PACKET_NOT_FOUND",
+            "Execution packet not found",
+          );
+        if (packet.status !== "open")
+          throw new OvernightQueueError("NOT_READY", "Packet work is done");
+        const [agent] = await tx
+          .select({ id: schema.localAgentProfile.id })
+          .from(schema.localAgentProfile)
+          .where(eq(schema.localAgentProfile.id, input.agentId))
+          .limit(1);
+        if (!agent)
+          throw new OvernightQueueError(
+            "AGENT_NOT_FOUND",
+            "Synthetic local agent not found",
+          );
+        const [assignment] = await tx
+          .select({ id: schema.localAgentProjectAssignment.id })
+          .from(schema.localAgentProjectAssignment)
+          .where(
+            and(
+              eq(schema.localAgentProjectAssignment.agentId, input.agentId),
+              eq(
+                schema.localAgentProjectAssignment.projectId,
+                packet.projectId,
+              ),
+            ),
+          )
+          .limit(1);
+        if (!assignment)
+          throw new OvernightQueueError(
+            "NOT_READY",
+            "Agent is not assigned to the packet project",
+          );
+        const now = new Date();
+        if (runAfter.getTime() <= now.getTime())
+          throw new OvernightQueueError(
+            "INVALID_SCHEDULE",
+            "Choose a future time",
+          );
+        const id = crypto.randomUUID();
+        await tx.insert(schema.overnightQueueEntry).values({
+          id,
+          packetId: packet.id,
+          packetVersion: packet.packetVersion,
+          packetDigest: packet.contentDigest,
+          projectId: packet.projectId,
+          workItemId: packet.workItemId,
+          agentId: input.agentId,
+          runAfter,
+          createdAt: now,
+          updatedAt: now,
+        });
+        const jobId = await boss.send(
+          OVERNIGHT_QUEUE,
+          { version: 1, entryId: id },
+          {
+            db: fromDrizzle(tx, sql),
+            startAfter: runAfter,
+          },
+        );
+        if (!jobId) throw new Error("Overnight job was not enqueued");
+        await tx.insert(schema.overnightQueueAuditEvent).values({
+          id: crypto.randomUUID(),
+          entryId: id,
+          actor: "local-user:unattributed",
+          operation: "overnight_queue.scheduled",
+          details: {
+            jobId,
+            runAfter: runAfter.toISOString(),
+            packetId: packet.id,
+            agentId: input.agentId,
+          },
+          createdAt: now,
+        });
+        return id;
+      });
+      const entry = await repository.getById(id);
+      if (!entry) throw new Error("Scheduled overnight entry disappeared");
+      return entry;
     },
   };
 }

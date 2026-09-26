@@ -21,6 +21,7 @@ import {
   automationRun,
   localAgentProfile,
   localAgentRun,
+  overnightQueueEntry,
   workItem,
 } from "./schema";
 
@@ -85,6 +86,7 @@ export function createMorningDigestRepository(db: CommandryDatabase) {
             run: localAgentRun,
             agentName: localAgentProfile.name,
             workTitle: workItem.title,
+            queueEntryId: overnightQueueEntry.id,
           })
           .from(localAgentRun)
           .innerJoin(
@@ -92,6 +94,10 @@ export function createMorningDigestRepository(db: CommandryDatabase) {
             eq(localAgentProfile.id, localAgentRun.agentId),
           )
           .innerJoin(workItem, eq(workItem.id, localAgentRun.workItemId))
+          .leftJoin(
+            overnightQueueEntry,
+            eq(overnightQueueEntry.runId, localAgentRun.id),
+          )
           .where(
             and(
               isNotNull(localAgentRun.completedAt),
@@ -134,7 +140,7 @@ export function createMorningDigestRepository(db: CommandryDatabase) {
             packetId: null,
           };
         }),
-        ...agents.map(({ run, agentName, workTitle }) => {
+        ...agents.map(({ run, agentName, workTitle, queueEntryId }) => {
           if (!run.completedAt)
             throw new Error("Completed agent run has no time");
           const result = fakeLocalAgentRunResultSchema.safeParse(run.result);
@@ -153,6 +159,7 @@ export function createMorningDigestRepository(db: CommandryDatabase) {
             definitionId: null,
             sourceEventId: null,
             packetId: run.packetId,
+            queueEntryId,
           };
         }),
       ].sort((a, b) => {

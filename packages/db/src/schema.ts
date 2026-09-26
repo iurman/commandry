@@ -997,6 +997,80 @@ export const localAgentRun = pgTable(
   ],
 );
 
+export const overnightQueueEntry = pgTable(
+  "overnight_queue_entry",
+  {
+    id: uuid("id").primaryKey(),
+    packetId: uuid("packet_id")
+      .notNull()
+      .references(() => executionPacket.id, { onDelete: "restrict" }),
+    packetVersion: integer("packet_version").notNull(),
+    packetDigest: text("packet_digest").notNull(),
+    projectId: uuid("project_id")
+      .notNull()
+      .references(() => project.id, { onDelete: "restrict" }),
+    workItemId: uuid("work_item_id")
+      .notNull()
+      .references(() => workItem.id, { onDelete: "restrict" }),
+    agentId: uuid("agent_id")
+      .notNull()
+      .references(() => localAgentProfile.id, { onDelete: "restrict" }),
+    runAfter: timestamp("run_after", { withTimezone: true }).notNull(),
+    state: text("state", {
+      enum: ["scheduled", "dispatching", "dispatched", "blocked", "canceled"],
+    })
+      .notNull()
+      .default("scheduled"),
+    runId: uuid("run_id").references(() => localAgentRun.id, {
+      onDelete: "restrict",
+    }),
+    blockedReason: text("blocked_reason"),
+    createdAt: createdAt(),
+    updatedAt: updatedAt(),
+  },
+  (table) => [
+    index("overnight_queue_page_idx").on(table.createdAt, table.id),
+    index("overnight_queue_project_idx").on(
+      table.projectId,
+      table.createdAt,
+      table.id,
+    ),
+    index("overnight_queue_due_idx").on(table.state, table.runAfter),
+    check(
+      "overnight_queue_packet_version_positive",
+      sql`${table.packetVersion} > 0`,
+    ),
+    check(
+      "overnight_queue_packet_digest_valid",
+      sql`${table.packetDigest} ~ '^[0-9a-f]{64}$'`,
+    ),
+    check(
+      "overnight_queue_state_valid",
+      sql`${table.state} in ('scheduled', 'dispatching', 'dispatched', 'blocked', 'canceled')`,
+    ),
+  ],
+);
+
+export const overnightQueueAuditEvent = pgTable(
+  "overnight_queue_audit_event",
+  {
+    id: uuid("id").primaryKey(),
+    entryId: uuid("entry_id")
+      .notNull()
+      .references(() => overnightQueueEntry.id, { onDelete: "restrict" }),
+    actor: text("actor").notNull(),
+    operation: text("operation").notNull(),
+    details: jsonb("details")
+      .$type<Record<string, string | number | boolean | null>>()
+      .notNull()
+      .default({}),
+    createdAt: createdAt(),
+  },
+  (table) => [
+    index("overnight_queue_audit_page_idx").on(table.entryId, table.id),
+  ],
+);
+
 export const localAgentRunGrant = pgTable(
   "local_agent_run_grant",
   {

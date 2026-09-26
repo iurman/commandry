@@ -13,6 +13,7 @@ import {
   executionPacket,
   localAgentProfile,
   localAgentRun,
+  overnightQueueEntry,
   workItem,
 } from "./schema";
 
@@ -174,6 +175,19 @@ test(
         },
         completedAt: new Date("2026-09-26T06:00:00Z"),
       });
+      const overnightEntryId = crypto.randomUUID();
+      await database.db.insert(overnightQueueEntry).values({
+        id: overnightEntryId,
+        packetId,
+        packetVersion: 1,
+        packetDigest: "a".repeat(64),
+        projectId: project.id,
+        workItemId: taskId,
+        agentId,
+        runAfter: new Date("2026-09-26T05:00:00Z"),
+        state: "dispatched",
+        runId: agentRunId,
+      });
 
       const service = createMorningDigestService(
         createMorningDigestRepository(database.db),
@@ -204,6 +218,11 @@ test(
         `/api/v1/execution-packets/${packetId}`,
       );
       assert.equal(all.items[1]?.href, `/agent-runs/${agentRunId}`);
+      assert.equal(
+        all.items[1]?.sourceLabel,
+        "Synthetic local overnight queue",
+      );
+      assert.equal(all.items[1]?.queueHref, `/overnight/${overnightEntryId}`);
       assert.ok(all.items.every((item) => item.isSynthetic));
       assert.ok(
         all.items.every((item) => item.verificationStatus === "unverified"),

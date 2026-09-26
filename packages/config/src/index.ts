@@ -46,6 +46,7 @@ const environmentSchema = z.object({
     .min(60)
     .max(86_400)
     .default(3_600),
+  LOCAL_OVERNIGHT_MAX_DAYS: z.coerce.number().int().min(1).max(90).default(7),
 });
 
 export type RuntimeConfig = {
@@ -63,6 +64,7 @@ export type RuntimeConfig = {
   bossPoolMax: number;
   localApprovalAutoCeiling: "read_only" | "reversible";
   localApprovalTtlSeconds: number;
+  localOvernightMaxDays: number;
 };
 
 export class ConfigurationError extends Error {
@@ -137,6 +139,7 @@ export function loadRuntimeConfig(
     bossPoolMax: value.BOSS_POOL_MAX,
     localApprovalAutoCeiling: value.LOCAL_APPROVAL_AUTO_CEILING,
     localApprovalTtlSeconds: value.LOCAL_APPROVAL_TTL_SECONDS,
+    localOvernightMaxDays: value.LOCAL_OVERNIGHT_MAX_DAYS,
   };
 }
 

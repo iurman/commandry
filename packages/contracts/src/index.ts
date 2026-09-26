@@ -843,7 +843,12 @@ export const morningDigestItemSchema = z.object({
   href: z.string().startsWith("/"),
   evidenceHref: z.string().startsWith("/api/v1/"),
   sourceEvidenceHref: z.string().startsWith("/api/v1/").nullable(),
-  sourceLabel: z.enum(["Synthetic local automation", "Synthetic local agent"]),
+  sourceLabel: z.enum([
+    "Synthetic local automation",
+    "Synthetic local agent",
+    "Synthetic local overnight queue",
+  ]),
+  queueHref: z.string().startsWith("/").nullable().optional(),
   isSynthetic: z.literal(true),
   verificationStatus: z.literal("unverified"),
 });
@@ -1118,6 +1123,87 @@ export const localAgentRunJobV1Schema = z.object({
   version: z.literal(1),
   runId: z.uuid(),
   occurrenceId: z.string().min(1).max(180),
+});
+
+export const createOvernightQueueEntryRequestSchema = z.strictObject({
+  packetId: z.uuid(),
+  agentId: z.uuid(),
+  runAfter: z.iso.datetime({ offset: true }),
+});
+
+export const overnightQueueEntrySchema = z.object({
+  id: z.uuid(),
+  packetId: z.uuid(),
+  packetVersion: z.number().int().min(1),
+  packetDigest: z.string().regex(/^[a-f0-9]{64}$/),
+  projectId: z.uuid(),
+  projectName: z.string().min(1),
+  workItemId: z.uuid(),
+  workTitle: z.string().min(1),
+  agentId: z.uuid(),
+  agentName: z.string().min(1),
+  runAfter: z.iso.datetime({ offset: true }),
+  state: z.enum([
+    "scheduled",
+    "dispatching",
+    "dispatched",
+    "blocked",
+    "canceled",
+  ]),
+  runId: z.uuid().nullable(),
+  runState: z.enum(["queued", "running", "succeeded", "failed"]).nullable(),
+  blockedReason: z.string().nullable(),
+  sourceLabel: z.literal("Synthetic local overnight queue"),
+  isSynthetic: z.literal(true),
+  createdAt: z.iso.datetime({ offset: true }),
+  updatedAt: z.iso.datetime({ offset: true }),
+});
+
+export const listOvernightQueueQuerySchema = z.object({
+  limit: z.coerce.number().int().min(1).max(100).default(25),
+  cursor: z.uuid().optional(),
+  projectId: z.uuid().optional(),
+});
+
+export const listOvernightQueueResponseSchema = z.object({
+  items: z.array(overnightQueueEntrySchema),
+  nextCursor: z.uuid().nullable(),
+});
+
+export const overnightReadinessQuerySchema = z.object({
+  packetId: z.uuid(),
+  agentId: z.uuid(),
+});
+
+export const overnightReadinessSchema = z.object({
+  ready: z.boolean(),
+  checks: z.array(
+    z.object({ key: z.string(), ok: z.boolean(), message: z.string() }),
+  ),
+  warnings: z.array(z.string()),
+  sourceLabel: z.literal("Synthetic local overnight queue"),
+});
+
+export const overnightQueueJobV1Schema = z.strictObject({
+  version: z.literal(1),
+  entryId: z.uuid(),
+});
+
+export const overnightQueueAuditEventSchema = z.object({
+  id: z.uuid(),
+  entryId: z.uuid(),
+  actor: z.string().min(1),
+  operation: z.string().min(1),
+  details: z.record(
+    z.string(),
+    z.union([z.string(), z.number(), z.boolean(), z.null()]),
+  ),
+  createdAt: z.iso.datetime({ offset: true }),
+});
+
+export const listOvernightQueueAuditResponseSchema = z.object({
+  items: z.array(overnightQueueAuditEventSchema),
+  nextCursor: z.uuid().nullable(),
 });
 
 export const localAgentRunGrantSchema = z.object({
@@ -1522,6 +1608,15 @@ export type CreateLocalAgentRunRequest = z.infer<
   typeof createLocalAgentRunRequestSchema
 >;
 export type LocalAgentRunJobV1 = z.infer<typeof localAgentRunJobV1Schema>;
+export type CreateOvernightQueueEntryRequest = z.infer<
+  typeof createOvernightQueueEntryRequestSchema
+>;
+export type OvernightQueueEntry = z.infer<typeof overnightQueueEntrySchema>;
+export type OvernightQueueJobV1 = z.infer<typeof overnightQueueJobV1Schema>;
+export type OvernightReadiness = z.infer<typeof overnightReadinessSchema>;
+export type OvernightQueueAuditEvent = z.infer<
+  typeof overnightQueueAuditEventSchema
+>;
 export type FakeLocalAgentRunResult = z.infer<
   typeof fakeLocalAgentRunResultSchema
 >;
