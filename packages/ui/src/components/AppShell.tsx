@@ -1,14 +1,12 @@
 import type { ReactNode } from "react";
 
 const plannedDestinations = [
-  "Inbox",
   "Work",
   "Infrastructure",
   "Automations",
   "Agents",
   "Knowledge",
   "Activity",
-  "Search",
 ] as const;
 
 export function AppShell({
@@ -16,7 +14,7 @@ export function AppShell({
   current = "Home",
 }: {
   children: ReactNode;
-  current?: "Home" | "Projects";
+  current?: "Home" | "Inbox" | "Projects" | "Search";
 }) {
   return (
     <div className="cmd-shell">
@@ -26,7 +24,7 @@ export function AppShell({
       <aside className="cmd-sidebar">
         <div className="cmd-brand">
           <span className="cmd-brand-name">Commandry</span>
-          <span className="cmd-brand-caption">Local foundation</span>
+          <span className="cmd-brand-caption">Local workspace</span>
         </div>
         <nav aria-label="Main navigation" className="cmd-navigation">
           <a
@@ -37,11 +35,25 @@ export function AppShell({
             Home
           </a>
           <a
+            aria-current={current === "Inbox" ? "page" : undefined}
+            className={`cmd-nav-link ${current === "Inbox" ? "cmd-nav-current" : ""}`}
+            href="/inbox"
+          >
+            Inbox
+          </a>
+          <a
             aria-current={current === "Projects" ? "page" : undefined}
             className={`cmd-nav-link ${current === "Projects" ? "cmd-nav-current" : ""}`}
             href="/projects"
           >
             Projects
+          </a>
+          <a
+            aria-current={current === "Search" ? "page" : undefined}
+            className={`cmd-nav-link ${current === "Search" ? "cmd-nav-current" : ""}`}
+            href="/search"
+          >
+            Search
           </a>
           {plannedDestinations.map((destination) => (
             <span

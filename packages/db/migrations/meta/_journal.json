@@ -15,6 +15,13 @@
       "when": 1790394596896,
       "tag": "0001_fantastic_veda",
       "breakpoints": true
+    },
+    {
+      "idx": 2,
+      "version": "7",
+      "when": 1790395994008,
+      "tag": "0002_lively_surge",
+      "breakpoints": true
     }
   ]
 }

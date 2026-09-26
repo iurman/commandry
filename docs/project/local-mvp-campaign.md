@@ -22,10 +22,15 @@ local experience lab.
 - Manually entered resources will have unknown operational state until an
   observation with a named source and time exists. Cached or synthetic health
   will always identify its source and freshness.
-- Text capture will come first. Its original content will be immutable; filing,
+- Text and URL capture will come first. Original input will be immutable; filing,
   classification, and generated summaries will remain separate derived records.
   Local deterministic suggestions will identify their rule and rationale and
   will never be labeled as AI analysis.
+- Initial manual filing will create a project task or note while retaining a
+  direct link to the capture. PostgreSQL full-text search will cover these
+  records and the project/resource catalog with a project filter and cursor
+  continuation. This local search is not a semantic answer or an access-control
+  substitute while OQ-003 remains open.
 - Two fixture adapters will model development and operational signals without
   connecting to external services. Their source envelopes, normalized events,
   activity, attention, briefs, and search results will all carry a visible

@@ -1,0 +1,23 @@
+.section {
+  max-width: 48rem;
+}
+
+.section p {
+  line-height: 1.5;
+}
+
+.external {
+  overflow-wrap: anywhere;
+}
+
+.searchLink {
+  color: var(--cmd-accent);
+  text-decoration-thickness: 1px;
+  text-underline-offset: 0.2rem;
+}
+
+.searchLink {
+  display: inline-block;
+  font-weight: 700;
+  margin-top: 1rem;
+}

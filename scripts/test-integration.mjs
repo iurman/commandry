@@ -2,7 +2,7 @@ import { spawn } from "node:child_process";
 import { randomBytes, randomUUID } from "node:crypto";
 import assert from "node:assert/strict";
 import { existsSync } from "node:fs";
-import { mkdtemp, rm } from "node:fs/promises";
+import { mkdtemp, readdir, rm } from "node:fs/promises";
 import { createServer } from "node:net";
 import { tmpdir } from "node:os";
 import { join, resolve } from "node:path";
@@ -260,11 +260,15 @@ try {
   );
   if (process.argv.includes("--smoke"))
     await runSmoke(postgres, connectionString, runtimePassword);
-  await runTests(
-    connectionString,
-    runtimePassword,
-    "packages/db/src/catalog-repository.integration.test.ts",
-  );
+  const repositoryTests = (await readdir(resolve(root, "packages/db/src")))
+    .filter((file) => file.endsWith(".integration.test.ts"))
+    .sort();
+  for (const file of repositoryTests)
+    await runTests(
+      connectionString,
+      runtimePassword,
+      `packages/db/src/${file}`,
+    );
 } catch (error) {
   failed = true;
   console.error(error instanceof Error ? error.message : error);

@@ -3,22 +3,33 @@ import { dirname } from "node:path";
 import { fileURLToPath } from "node:url";
 import { z } from "zod";
 import {
+  captureSchema,
+  createCaptureRequestSchema,
   createProjectRequestSchema,
   createProjectResourceLinkRequestSchema,
   createResourceRequestSchema,
   createSyntheticRunRequestSchema,
   correlationMetadataSchema,
   errorResponseSchema,
+  fileCaptureRequestSchema,
+  fileCaptureResponseSchema,
   healthResponseSchema,
+  knowledgeItemSchema,
+  listCapturesResponseSchema,
+  listKnowledgeItemsResponseSchema,
   listProjectResourceLinksResponseSchema,
   listProjectsResponseSchema,
   listResourcesResponseSchema,
+  listWorkItemsResponseSchema,
   projectResourceLinkSchema,
   projectSummarySchema,
   resourceSummarySchema,
+  searchResponseSchema,
+  searchResultSchema,
   syntheticJobV1Schema,
   syntheticRunSchema,
   versionResponseSchema,
+  workItemSchema,
 } from "./index";
 
 function component(schema: z.ZodType): Record<string, unknown> {
@@ -250,6 +261,141 @@ export function generateOpenApi(): string {
           },
         },
       },
+      "/api/v1/captures": {
+        get: {
+          operationId: "listCaptures",
+          summary: "List original manual captures with cursor pagination",
+          parameters: pageParameters,
+          responses: {
+            "200": {
+              description: "A page of captures",
+              content: jsonContent("ListCapturesResponse"),
+            },
+          },
+        },
+        post: {
+          operationId: "createCapture",
+          summary: "Preserve original manual text or URL",
+          requestBody: {
+            required: true,
+            content: jsonContent("CreateCaptureRequest"),
+          },
+          responses: {
+            "201": {
+              description: "Preserved manual capture",
+              content: jsonContent("Capture"),
+            },
+            "400": {
+              description: "Invalid capture",
+              content: jsonContent("ErrorResponse"),
+            },
+          },
+        },
+      },
+      "/api/v1/captures/{id}": {
+        get: {
+          operationId: "getCapture",
+          parameters: [idParameter],
+          responses: {
+            "200": {
+              description: "Original capture and filing reference",
+              content: jsonContent("Capture"),
+            },
+            "404": {
+              description: "Capture not found",
+              content: jsonContent("ErrorResponse"),
+            },
+          },
+        },
+      },
+      "/api/v1/captures/{id}/file": {
+        post: {
+          operationId: "fileCapture",
+          summary: "Manually file a capture as project work or knowledge",
+          parameters: [idParameter],
+          requestBody: {
+            required: true,
+            content: jsonContent("FileCaptureRequest"),
+          },
+          responses: {
+            "201": {
+              description: "Capture and created record with provenance",
+              content: jsonContent("FileCaptureResponse"),
+            },
+            "404": {
+              description: "Capture or project not found",
+              content: jsonContent("ErrorResponse"),
+            },
+            "409": {
+              description: "Capture already filed",
+              content: jsonContent("ErrorResponse"),
+            },
+          },
+        },
+      },
+      "/api/v1/projects/{id}/work": {
+        get: {
+          operationId: "listProjectWork",
+          parameters: [idParameter, ...pageParameters],
+          responses: {
+            "200": {
+              description: "A page of project work items",
+              content: jsonContent("ListWorkItemsResponse"),
+            },
+            "404": {
+              description: "Project not found",
+              content: jsonContent("ErrorResponse"),
+            },
+          },
+        },
+      },
+      "/api/v1/projects/{id}/knowledge": {
+        get: {
+          operationId: "listProjectKnowledge",
+          parameters: [idParameter, ...pageParameters],
+          responses: {
+            "200": {
+              description: "A page of project knowledge notes",
+              content: jsonContent("ListKnowledgeItemsResponse"),
+            },
+            "404": {
+              description: "Project not found",
+              content: jsonContent("ErrorResponse"),
+            },
+          },
+        },
+      },
+      "/api/v1/search": {
+        get: {
+          operationId: "searchRecords",
+          summary: "PostgreSQL full-text search of local records",
+          parameters: [
+            {
+              in: "query",
+              name: "q",
+              required: true,
+              schema: { type: "string", minLength: 1, maxLength: 200 },
+            },
+            {
+              in: "query",
+              name: "projectId",
+              required: false,
+              schema: { type: "string", format: "uuid" },
+            },
+            ...pageParameters,
+          ],
+          responses: {
+            "200": {
+              description: "A page of evidence-linked search results",
+              content: jsonContent("SearchResponse"),
+            },
+            "400": {
+              description: "Invalid search query",
+              content: jsonContent("ErrorResponse"),
+            },
+          },
+        },
+      },
       "/api/v1/synthetic-runs": {
         post: {
           operationId: "createSyntheticRun",
@@ -319,6 +465,17 @@ export function generateOpenApi(): string {
         ListProjectResourceLinksResponse: component(
           listProjectResourceLinksResponseSchema,
         ),
+        CreateCaptureRequest: component(createCaptureRequestSchema),
+        Capture: component(captureSchema),
+        ListCapturesResponse: component(listCapturesResponseSchema),
+        FileCaptureRequest: component(fileCaptureRequestSchema),
+        FileCaptureResponse: component(fileCaptureResponseSchema),
+        WorkItem: component(workItemSchema),
+        KnowledgeItem: component(knowledgeItemSchema),
+        ListWorkItemsResponse: component(listWorkItemsResponseSchema),
+        ListKnowledgeItemsResponse: component(listKnowledgeItemsResponseSchema),
+        SearchResult: component(searchResultSchema),
+        SearchResponse: component(searchResponseSchema),
         CreateSyntheticRunRequest: component(createSyntheticRunRequestSchema),
         SyntheticJobV1: component(syntheticJobV1Schema),
         SyntheticRun: component(syntheticRunSchema),

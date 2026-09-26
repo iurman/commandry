@@ -1,0 +1,71 @@
+.content {
+  margin-top: 2rem;
+}
+
+.actions {
+  align-items: center;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem 1.25rem;
+}
+
+.captureLink {
+  align-self: center;
+  color: var(--cmd-accent);
+  font-weight: 700;
+  text-decoration-thickness: 1px;
+  text-underline-offset: 0.2rem;
+}
+
+.grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 1rem;
+}
+
+.list {
+  display: grid;
+  gap: 0.75rem;
+  list-style: none;
+  margin: 1rem 0;
+  padding: 0;
+}
+
+.record {
+  overflow-wrap: anywhere;
+  padding: 1rem;
+  background: var(--cmd-surface-muted);
+  border: 1px solid var(--cmd-border);
+  border-radius: var(--cmd-radius);
+}
+
+.recordTop {
+  align-items: baseline;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+  justify-content: space-between;
+}
+
+.record p {
+  color: var(--cmd-text-muted);
+  white-space: pre-wrap;
+}
+
+.record a {
+  color: var(--cmd-accent);
+  font-size: 0.875rem;
+  font-weight: 700;
+}
+
+.meta {
+  color: var(--cmd-text-muted);
+  font-size: 0.75rem;
+  text-transform: uppercase;
+}
+
+@media (max-width: 760px) {
+  .grid {
+    grid-template-columns: minmax(0, 1fr);
+  }
+}

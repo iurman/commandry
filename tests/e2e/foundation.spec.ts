@@ -9,8 +9,12 @@ test("local shell identifies unavailable data without claiming system health", a
     page.getByRole("heading", { name: "Command Center" }),
   ).toBeVisible();
   const navigation = page.getByRole("navigation", { name: "Main navigation" });
-  await expect(navigation.getByRole("link")).toHaveCount(2);
-  await expect(navigation.getByRole("link", { name: "Projects" })).toBeVisible();
+  await expect(navigation.getByRole("link")).toHaveCount(4);
+  await expect(navigation.getByRole("link", { name: "Inbox" })).toBeVisible();
+  await expect(
+    navigation.getByRole("link", { name: "Projects" }),
+  ).toBeVisible();
+  await expect(navigation.getByRole("link", { name: "Search" })).toBeVisible();
   await expect(page.getByText("Not connected")).toBeVisible();
   await expect(page.getByText("No data")).toHaveCount(3);
   await expect(

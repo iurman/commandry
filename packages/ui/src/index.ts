@@ -5,6 +5,8 @@ export { StatusBadge } from "./components/StatusBadge";
 export { RecordCard } from "./components/RecordCard";
 export { RelationshipCard } from "./components/RelationshipCard";
 export { RecordEmptyState } from "./components/RecordEmptyState";
+export { CaptureOriginal } from "./components/CaptureOriginal";
+export type { CaptureOriginalRecord } from "./components/CaptureOriginal";
 export type { RelationshipResource } from "./components/RelationshipCard";
 export type { StatePanelState } from "./components/StatePanel";
 export type { StatusDimension, StatusTone } from "./components/StatusBadge";

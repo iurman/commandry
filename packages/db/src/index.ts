@@ -4,4 +4,5 @@ export { createAuth } from "./auth";
 export { migrateDatabase } from "./migrate";
 export * from "./repositories";
 export * from "./catalog-repository";
+export * from "./capture-repository";
 export * as schema from "./schema";

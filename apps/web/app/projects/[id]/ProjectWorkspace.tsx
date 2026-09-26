@@ -16,6 +16,7 @@ import {
   type ProjectResourceLink,
   type ResourceRecord,
 } from "../api";
+import ProjectContent from "./ProjectContent";
 
 type RelationshipType = "supports" | "relates_to";
 
@@ -495,6 +496,7 @@ export default function ProjectWorkspace({ projectId }: { projectId: string }) {
               </section>
             </div>
           </div>
+          <ProjectContent projectId={projectId} />
         </>
       )}
     </AppShell>

@@ -99,6 +99,120 @@ export const listProjectResourceLinksResponseSchema = z.object({
   nextCursor: z.uuid().nullable(),
 });
 
+export const createCaptureRequestSchema = z
+  .object({
+    inputType: z.enum(["text", "url"]),
+    originalContent: z
+      .string()
+      .min(1)
+      .max(20_000)
+      .refine((value) => value.trim().length > 0),
+    projectId: z.uuid().optional(),
+  })
+  .superRefine((input, context) => {
+    if (input.inputType !== "url") return;
+    try {
+      if (input.originalContent !== input.originalContent.trim()) {
+        throw new Error("surrounding whitespace");
+      }
+      const url = new URL(input.originalContent);
+      if (url.protocol !== "http:" && url.protocol !== "https:") {
+        throw new Error("unsupported protocol");
+      }
+    } catch {
+      context.addIssue({
+        code: "custom",
+        message: "Capture URL must be a valid HTTP or HTTPS URL",
+        path: ["originalContent"],
+      });
+    }
+  });
+
+export const captureSchema = z.object({
+  id: z.uuid(),
+  inputType: z.enum(["text", "url"]),
+  originalContent: z.string(),
+  source: z.literal("manual-local"),
+  author: z.literal("local-user"),
+  state: z.enum(["unfiled", "filed"]),
+  projectId: z.uuid().nullable(),
+  filedRecord: z
+    .object({ kind: z.enum(["task", "note"]), id: z.uuid() })
+    .nullable(),
+  createdAt: z.iso.datetime({ offset: true }),
+  filedAt: z.iso.datetime({ offset: true }).nullable(),
+});
+
+export const listCapturesResponseSchema = z.object({
+  items: z.array(captureSchema),
+  nextCursor: z.uuid().nullable(),
+});
+
+export const fileCaptureRequestSchema = z.object({
+  projectId: z.uuid(),
+  kind: z.enum(["task", "note"]),
+  title: z.string().trim().min(1).max(200),
+  body: z.string().max(20_000).optional(),
+});
+
+export const workItemSchema = z.object({
+  id: z.uuid(),
+  projectId: z.uuid(),
+  sourceCaptureId: z.uuid(),
+  title: z.string(),
+  description: z.string(),
+  status: z.enum(["open", "done"]),
+  createdAt: z.iso.datetime({ offset: true }),
+  updatedAt: z.iso.datetime({ offset: true }),
+});
+
+export const knowledgeItemSchema = z.object({
+  id: z.uuid(),
+  projectId: z.uuid(),
+  sourceCaptureId: z.uuid(),
+  kind: z.literal("note"),
+  title: z.string(),
+  content: z.string(),
+  createdAt: z.iso.datetime({ offset: true }),
+  updatedAt: z.iso.datetime({ offset: true }),
+});
+
+export const fileCaptureResponseSchema = z.object({
+  capture: captureSchema,
+  record: z.union([workItemSchema, knowledgeItemSchema]),
+});
+
+export const listWorkItemsResponseSchema = z.object({
+  items: z.array(workItemSchema),
+  nextCursor: z.uuid().nullable(),
+});
+
+export const listKnowledgeItemsResponseSchema = z.object({
+  items: z.array(knowledgeItemSchema),
+  nextCursor: z.uuid().nullable(),
+});
+
+export const searchQuerySchema = listResourcesQuerySchema.extend({
+  q: z.string().trim().min(1).max(200),
+  projectId: z.uuid().optional(),
+});
+
+export const searchResultSchema = z.object({
+  id: z.uuid(),
+  kind: z.enum(["capture", "task", "note", "project", "resource"]),
+  title: z.string(),
+  excerpt: z.string(),
+  href: z.string().startsWith("/"),
+  projectId: z.uuid().nullable(),
+  sourceCaptureId: z.uuid().nullable(),
+  createdAt: z.iso.datetime({ offset: true }),
+});
+
+export const searchResponseSchema = z.object({
+  items: z.array(searchResultSchema),
+  nextCursor: z.uuid().nullable(),
+});
+
 export const createSyntheticRunRequestSchema = z.object({
   idempotencyKey: z.string().trim().min(1).max(180),
 });
@@ -129,5 +243,12 @@ export type CreateResourceRequest = z.infer<typeof createResourceRequestSchema>;
 export type CreateProjectResourceLinkRequest = z.infer<
   typeof createProjectResourceLinkRequestSchema
 >;
+export type CreateCaptureRequest = z.infer<typeof createCaptureRequestSchema>;
+export type Capture = z.infer<typeof captureSchema>;
+export type FileCaptureRequest = z.infer<typeof fileCaptureRequestSchema>;
+export type WorkItem = z.infer<typeof workItemSchema>;
+export type KnowledgeItem = z.infer<typeof knowledgeItemSchema>;
+export type FileCaptureResponse = z.infer<typeof fileCaptureResponseSchema>;
+export type SearchResult = z.infer<typeof searchResultSchema>;
 export type SyntheticJobV1 = z.infer<typeof syntheticJobV1Schema>;
 export type SyntheticRunResponse = z.infer<typeof syntheticRunSchema>;

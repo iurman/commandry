@@ -1,0 +1,90 @@
+.form {
+  align-items: end;
+  background: var(--cmd-surface);
+  border: 1px solid var(--cmd-border);
+  border-radius: var(--cmd-radius);
+  display: grid;
+  gap: 1rem;
+  grid-template-columns: minmax(0, 2fr) minmax(13rem, 1fr) auto;
+  padding: 1.25rem;
+}
+
+.form label {
+  display: block;
+  font-size: 0.875rem;
+  font-weight: 700;
+  margin-bottom: 0.35rem;
+}
+
+.form input,
+.form select {
+  background: var(--cmd-surface);
+  border: 1px solid var(--cmd-border);
+  border-radius: 0.4rem;
+  color: var(--cmd-text);
+  font: inherit;
+  min-height: 2.75rem;
+  padding: 0.55rem 0.7rem;
+  width: 100%;
+}
+
+.queryField,
+.projectField {
+  min-width: 0;
+}
+
+.results {
+  margin-top: 2rem;
+}
+
+.list {
+  display: grid;
+  gap: 0.75rem;
+  list-style: none;
+  margin: 1rem 0;
+  padding: 0;
+}
+
+.result {
+  background: var(--cmd-surface);
+  border: 1px solid var(--cmd-border);
+  border-radius: var(--cmd-radius);
+  overflow-wrap: anywhere;
+  padding: 1.1rem 1.25rem;
+}
+
+.resultMeta {
+  color: var(--cmd-text-muted);
+  display: flex;
+  flex-wrap: wrap;
+  font-size: 0.75rem;
+  gap: 1rem;
+  text-transform: uppercase;
+}
+
+.result h3 {
+  font-size: 1.125rem;
+  margin: 0.4rem 0;
+}
+
+.result a,
+.sourceLink {
+  color: var(--cmd-accent);
+}
+
+.result p {
+  color: var(--cmd-text-muted);
+  margin: 0.4rem 0 0.75rem;
+  white-space: pre-wrap;
+}
+
+.sourceLink {
+  font-size: 0.875rem;
+  font-weight: 700;
+}
+
+@media (max-width: 900px) {
+  .form {
+    grid-template-columns: minmax(0, 1fr);
+  }
+}

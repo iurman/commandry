@@ -177,6 +177,118 @@ export const projectResourceLink = pgTable(
   ],
 );
 
+export const capture = pgTable(
+  "capture",
+  {
+    id: uuid("id").primaryKey(),
+    inputType: text("input_type", { enum: ["text", "url"] }).notNull(),
+    originalContent: text("original_content").notNull(),
+    source: text("source").notNull().default("manual-local"),
+    author: text("author").notNull().default("local-user"),
+    state: text("state", { enum: ["unfiled", "filed"] })
+      .notNull()
+      .default("unfiled"),
+    projectId: uuid("project_id").references(() => project.id, {
+      onDelete: "restrict",
+    }),
+    filedRecordKind: text("filed_record_kind", {
+      enum: ["task", "note"],
+    }),
+    filedRecordId: uuid("filed_record_id"),
+    createdAt: createdAt(),
+    filedAt: timestamp("filed_at", { withTimezone: true }),
+  },
+  (table) => [
+    index("capture_created_id_idx").on(table.createdAt, table.id),
+    index("capture_project_idx").on(table.projectId),
+    index("capture_original_search_idx").using(
+      "gin",
+      sql`to_tsvector('simple', ${table.originalContent})`,
+    ),
+    check(
+      "capture_original_nonempty",
+      sql`length(trim(${table.originalContent})) > 0`,
+    ),
+    check(
+      "capture_input_type_valid",
+      sql`${table.inputType} in ('text', 'url')`,
+    ),
+    check("capture_source_manual", sql`${table.source} = 'manual-local'`),
+    check("capture_author_local", sql`${table.author} = 'local-user'`),
+    check(
+      "capture_filing_state_valid",
+      sql`(${table.state} = 'unfiled' and ${table.filedAt} is null and ${table.filedRecordKind} is null and ${table.filedRecordId} is null) or (${table.state} = 'filed' and ${table.filedAt} is not null and ${table.projectId} is not null and ${table.filedRecordKind} in ('task', 'note') and ${table.filedRecordId} is not null)`,
+    ),
+  ],
+);
+
+export const workItem = pgTable(
+  "work_item",
+  {
+    id: uuid("id").primaryKey(),
+    projectId: uuid("project_id")
+      .notNull()
+      .references(() => project.id, { onDelete: "restrict" }),
+    sourceCaptureId: uuid("source_capture_id")
+      .notNull()
+      .references(() => capture.id, { onDelete: "restrict" }),
+    title: text("title").notNull(),
+    description: text("description").notNull(),
+    status: text("status", { enum: ["open", "done"] })
+      .notNull()
+      .default("open"),
+    createdAt: createdAt(),
+    updatedAt: updatedAt(),
+  },
+  (table) => [
+    uniqueIndex("work_item_source_capture_unique_idx").on(
+      table.sourceCaptureId,
+    ),
+    index("work_item_project_id_idx").on(table.projectId, table.id),
+    index("work_item_search_idx").using(
+      "gin",
+      sql`to_tsvector('simple', ${table.title} || ' ' || ${table.description})`,
+    ),
+    check("work_item_title_nonempty", sql`length(trim(${table.title})) > 0`),
+    check("work_item_status_valid", sql`${table.status} in ('open', 'done')`),
+  ],
+);
+
+export const knowledgeItem = pgTable(
+  "knowledge_item",
+  {
+    id: uuid("id").primaryKey(),
+    projectId: uuid("project_id")
+      .notNull()
+      .references(() => project.id, { onDelete: "restrict" }),
+    sourceCaptureId: uuid("source_capture_id")
+      .notNull()
+      .references(() => capture.id, { onDelete: "restrict" }),
+    kind: text("kind", { enum: ["note"] })
+      .notNull()
+      .default("note"),
+    title: text("title").notNull(),
+    content: text("content").notNull(),
+    createdAt: createdAt(),
+    updatedAt: updatedAt(),
+  },
+  (table) => [
+    uniqueIndex("knowledge_item_source_capture_unique_idx").on(
+      table.sourceCaptureId,
+    ),
+    index("knowledge_item_project_id_idx").on(table.projectId, table.id),
+    index("knowledge_item_search_idx").using(
+      "gin",
+      sql`to_tsvector('simple', ${table.title} || ' ' || ${table.content})`,
+    ),
+    check(
+      "knowledge_item_title_nonempty",
+      sql`length(trim(${table.title})) > 0`,
+    ),
+    check("knowledge_item_kind_valid", sql`${table.kind} = 'note'`),
+  ],
+);
+
 export const syntheticRun = pgTable(
   "synthetic_run",
   {

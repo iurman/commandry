@@ -49,6 +49,66 @@ afterEach(() => {
 });
 
 describe("Project workspace", () => {
+  it("shows filed work and notes with a route back to each original capture", async () => {
+    const taskCaptureId = "7cb8f86e-a063-4658-8d5e-0cc3678ca2a7";
+    const noteCaptureId = "6d61656a-1a69-43f7-abeb-2d3b82e1a7e9";
+    vi.stubGlobal(
+      "fetch",
+      vi.fn(async (path: string) => {
+        if (path.includes(`/projects/${project.id}/work`))
+          return json({
+            items: [
+              {
+                id: "ba972830-024c-4bb5-b60c-eb20256fe76d",
+                projectId: project.id,
+                sourceCaptureId: taskCaptureId,
+                title: "Prepare the venue",
+                description: "Confirm access and equipment.",
+                status: "open",
+                createdAt: "2026-09-25T09:00:00.000Z",
+              },
+            ],
+            nextCursor: null,
+          });
+        if (path.includes(`/projects/${project.id}/knowledge`))
+          return json({
+            items: [
+              {
+                id: "dd51b59e-9013-4e49-84c3-c177ad0b7956",
+                projectId: project.id,
+                sourceCaptureId: noteCaptureId,
+                kind: "note",
+                title: "Venue context",
+                content: "The west door is accessible.",
+                createdAt: "2026-09-25T09:00:00.000Z",
+              },
+            ],
+            nextCursor: null,
+          });
+        if (path.includes(`/projects/${project.id}/resources`))
+          return json({ items: [], nextCursor: null });
+        if (path.includes(`/projects/${project.id}`)) return json(project);
+        return json({ items: [], nextCursor: null });
+      }),
+    );
+
+    render(<ProjectWorkspace projectId={project.id} />);
+    expect(await screen.findByText("Prepare the venue")).toBeTruthy();
+    expect(screen.getByText("Venue context")).toBeTruthy();
+    const work = screen.getByRole("list", { name: "Project work" });
+    const knowledge = screen.getByRole("list", { name: "Project knowledge" });
+    expect(
+      within(work)
+        .getByRole("link", { name: "View original capture" })
+        .getAttribute("href"),
+    ).toBe(`/inbox?captureId=${taskCaptureId}`);
+    expect(
+      within(knowledge)
+        .getByRole("link", { name: "View original capture" })
+        .getAttribute("href"),
+    ).toBe(`/inbox?captureId=${noteCaptureId}`);
+  });
+
   it("creates and links a manual resource, then reads the same canonical ID after remount", async () => {
     const relations: ProjectResourceLink[] = [];
     const resource: ResourceRecord = {
@@ -60,6 +120,11 @@ describe("Project workspace", () => {
     vi.stubGlobal(
       "fetch",
       vi.fn(async (path: string, init?: RequestInit) => {
+        if (
+          path.includes(`/projects/${project.id}/work`) ||
+          path.includes(`/projects/${project.id}/knowledge`)
+        )
+          return json({ items: [], nextCursor: null });
         if (path.includes(`/projects/${project.id}/resources`)) {
           if (init?.method === "POST") {
             const relation = {
@@ -113,6 +178,11 @@ describe("Project workspace", () => {
   it("links an existing record without creating another resource", async () => {
     const relations: ProjectResourceLink[] = [];
     const fetchMock = vi.fn(async (path: string, init?: RequestInit) => {
+      if (
+        path.includes(`/projects/${project.id}/work`) ||
+        path.includes(`/projects/${project.id}/knowledge`)
+      )
+        return json({ items: [], nextCursor: null });
       if (path.includes(`/projects/${project.id}/resources`)) {
         if (init?.method === "POST") {
           const relation = {

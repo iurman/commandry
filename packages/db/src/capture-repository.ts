@@ -1,0 +1,360 @@
+import { and, desc, eq, sql } from "drizzle-orm";
+import {
+  CaptureError,
+  MANUAL_CAPTURE_AUTHOR,
+  MANUAL_CAPTURE_SOURCE,
+} from "@commandry/domain";
+import type { CommandryDatabase } from "./client";
+import { capture, knowledgeItem, project, workItem } from "./schema";
+
+function captureRecord(row: typeof capture.$inferSelect) {
+  return {
+    id: row.id,
+    inputType: row.inputType,
+    originalContent: row.originalContent,
+    source: MANUAL_CAPTURE_SOURCE,
+    author: MANUAL_CAPTURE_AUTHOR,
+    state: row.state,
+    projectId: row.projectId,
+    filedRecord:
+      row.filedRecordKind && row.filedRecordId
+        ? { kind: row.filedRecordKind, id: row.filedRecordId }
+        : null,
+    createdAt: row.createdAt.toISOString(),
+    filedAt: row.filedAt?.toISOString() ?? null,
+  };
+}
+
+function workRecord(row: typeof workItem.$inferSelect) {
+  return {
+    id: row.id,
+    projectId: row.projectId,
+    sourceCaptureId: row.sourceCaptureId,
+    title: row.title,
+    description: row.description,
+    status: row.status,
+    createdAt: row.createdAt.toISOString(),
+    updatedAt: row.updatedAt.toISOString(),
+  };
+}
+
+function knowledgeRecord(row: typeof knowledgeItem.$inferSelect) {
+  return {
+    id: row.id,
+    projectId: row.projectId,
+    sourceCaptureId: row.sourceCaptureId,
+    kind: "note" as const,
+    title: row.title,
+    content: row.content,
+    createdAt: row.createdAt.toISOString(),
+    updatedAt: row.updatedAt.toISOString(),
+  };
+}
+
+type PageQuery = { limit: number; cursor?: string | undefined };
+
+async function captureCursor(db: CommandryDatabase, cursor: string) {
+  const [anchor] = await db
+    .select({ createdAt: capture.createdAt })
+    .from(capture)
+    .where(eq(capture.id, cursor))
+    .limit(1);
+  return anchor?.createdAt ?? null;
+}
+
+type SearchRow = {
+  id: string;
+  kind: "capture" | "task" | "note" | "project" | "resource";
+  project_id: string | null;
+  title: string;
+  excerpt: string;
+  source_capture_id: string | null;
+  created_at: Date | string;
+};
+
+export function createCaptureRepository(db: CommandryDatabase) {
+  return {
+    async projectExists(projectId: string) {
+      const rows = await db
+        .select({ id: project.id })
+        .from(project)
+        .where(eq(project.id, projectId))
+        .limit(1);
+      return rows.length === 1;
+    },
+    async createCapture(input: {
+      id: string;
+      inputType: "text" | "url";
+      originalContent: string;
+      projectId?: string;
+    }) {
+      const [row] = await db
+        .insert(capture)
+        .values({
+          id: input.id,
+          inputType: input.inputType,
+          originalContent: input.originalContent,
+          source: MANUAL_CAPTURE_SOURCE,
+          author: MANUAL_CAPTURE_AUTHOR,
+          projectId: input.projectId ?? null,
+        })
+        .returning();
+      if (!row) throw new Error("Capture insert returned no row");
+      return captureRecord(row);
+    },
+    async getCapture(id: string) {
+      const [row] = await db
+        .select()
+        .from(capture)
+        .where(eq(capture.id, id))
+        .limit(1);
+      return row ? captureRecord(row) : null;
+    },
+    async listCaptures(input: PageQuery) {
+      const anchor = input.cursor
+        ? await captureCursor(db, input.cursor)
+        : null;
+      if (input.cursor && !anchor) return { items: [], nextCursor: null };
+      const rows = await db
+        .select()
+        .from(capture)
+        .where(
+          anchor
+            ? sql`(${capture.createdAt}, ${capture.id}) < (${anchor}, ${input.cursor}::uuid)`
+            : undefined,
+        )
+        .orderBy(desc(capture.createdAt), desc(capture.id))
+        .limit(input.limit + 1);
+      const page = rows.slice(0, input.limit);
+      return {
+        items: page.map(captureRecord),
+        nextCursor:
+          rows.length > input.limit ? (page.at(-1)?.id ?? null) : null,
+      };
+    },
+    async fileAsTask(input: {
+      captureId: string;
+      recordId: string;
+      projectId: string;
+      title: string;
+      description: string;
+    }) {
+      return db.transaction(async (tx) => {
+        const [updated] = await tx
+          .update(capture)
+          .set({
+            state: "filed",
+            projectId: input.projectId,
+            filedRecordKind: "task",
+            filedRecordId: input.recordId,
+            filedAt: new Date(),
+          })
+          .where(
+            and(eq(capture.id, input.captureId), eq(capture.state, "unfiled")),
+          )
+          .returning();
+        if (!updated) {
+          throw new CaptureError(
+            "CAPTURE_ALREADY_FILED",
+            "Capture is already filed",
+          );
+        }
+        const [record] = await tx
+          .insert(workItem)
+          .values({
+            id: input.recordId,
+            projectId: input.projectId,
+            sourceCaptureId: input.captureId,
+            title: input.title,
+            description: input.description,
+          })
+          .returning();
+        if (!record) throw new Error("Work item insert returned no row");
+        return { capture: captureRecord(updated), record: workRecord(record) };
+      });
+    },
+    async fileAsNote(input: {
+      captureId: string;
+      recordId: string;
+      projectId: string;
+      title: string;
+      content: string;
+    }) {
+      return db.transaction(async (tx) => {
+        const [updated] = await tx
+          .update(capture)
+          .set({
+            state: "filed",
+            projectId: input.projectId,
+            filedRecordKind: "note",
+            filedRecordId: input.recordId,
+            filedAt: new Date(),
+          })
+          .where(
+            and(eq(capture.id, input.captureId), eq(capture.state, "unfiled")),
+          )
+          .returning();
+        if (!updated) {
+          throw new CaptureError(
+            "CAPTURE_ALREADY_FILED",
+            "Capture is already filed",
+          );
+        }
+        const [record] = await tx
+          .insert(knowledgeItem)
+          .values({
+            id: input.recordId,
+            projectId: input.projectId,
+            sourceCaptureId: input.captureId,
+            kind: "note",
+            title: input.title,
+            content: input.content,
+          })
+          .returning();
+        if (!record) throw new Error("Knowledge insert returned no row");
+        return {
+          capture: captureRecord(updated),
+          record: knowledgeRecord(record),
+        };
+      });
+    },
+    async listProjectWork(projectId: string, input: PageQuery) {
+      const [anchor] = input.cursor
+        ? await db
+            .select({ createdAt: workItem.createdAt })
+            .from(workItem)
+            .where(eq(workItem.id, input.cursor))
+            .limit(1)
+        : [];
+      if (input.cursor && !anchor) return { items: [], nextCursor: null };
+      const rows = await db
+        .select()
+        .from(workItem)
+        .where(
+          and(
+            eq(workItem.projectId, projectId),
+            anchor
+              ? sql`(${workItem.createdAt}, ${workItem.id}) < (${anchor.createdAt}, ${input.cursor}::uuid)`
+              : undefined,
+          ),
+        )
+        .orderBy(desc(workItem.createdAt), desc(workItem.id))
+        .limit(input.limit + 1);
+      const page = rows.slice(0, input.limit);
+      return {
+        items: page.map(workRecord),
+        nextCursor:
+          rows.length > input.limit ? (page.at(-1)?.id ?? null) : null,
+      };
+    },
+    async listProjectKnowledge(projectId: string, input: PageQuery) {
+      const [anchor] = input.cursor
+        ? await db
+            .select({ createdAt: knowledgeItem.createdAt })
+            .from(knowledgeItem)
+            .where(eq(knowledgeItem.id, input.cursor))
+            .limit(1)
+        : [];
+      if (input.cursor && !anchor) return { items: [], nextCursor: null };
+      const rows = await db
+        .select()
+        .from(knowledgeItem)
+        .where(
+          and(
+            eq(knowledgeItem.projectId, projectId),
+            anchor
+              ? sql`(${knowledgeItem.createdAt}, ${knowledgeItem.id}) < (${anchor.createdAt}, ${input.cursor}::uuid)`
+              : undefined,
+          ),
+        )
+        .orderBy(desc(knowledgeItem.createdAt), desc(knowledgeItem.id))
+        .limit(input.limit + 1);
+      const page = rows.slice(0, input.limit);
+      return {
+        items: page.map(knowledgeRecord),
+        nextCursor:
+          rows.length > input.limit ? (page.at(-1)?.id ?? null) : null,
+      };
+    },
+    async search(input: PageQuery & { q: string; projectId?: string }) {
+      const scope = input.projectId
+        ? sql`project_id = ${input.projectId}::uuid`
+        : sql`true`;
+      const resourceScope = input.projectId
+        ? sql`exists (
+            select 1 from project_resource_link link
+            where link.resource_id = resource.id
+              and link.project_id = ${input.projectId}::uuid
+              and link.lifecycle = 'active'
+          )`
+        : sql`true`;
+      const resourceProjectId = input.projectId
+        ? sql`${input.projectId}::uuid`
+        : sql`null::uuid`;
+      const continuation = input.cursor
+        ? sql`(created_at, id) < (select created_at, id from hits where id = ${input.cursor}::uuid)`
+        : sql`true`;
+      const result = await db.execute<SearchRow>(sql`
+        with hits as (
+          select id, 'capture'::text as kind, project_id,
+            left(original_content, 100) as title,
+            left(original_content, 220) as excerpt,
+            null::uuid as source_capture_id, created_at
+          from capture
+          where to_tsvector('simple', original_content) @@ websearch_to_tsquery('simple', ${input.q})
+          union all
+          select id, 'task'::text as kind, project_id, title,
+            left(description, 220) as excerpt, source_capture_id, created_at
+          from work_item
+          where to_tsvector('simple', title || ' ' || description) @@ websearch_to_tsquery('simple', ${input.q})
+          union all
+          select id, 'note'::text as kind, project_id, title,
+            left(content, 220) as excerpt, source_capture_id, created_at
+          from knowledge_item
+          where to_tsvector('simple', title || ' ' || content) @@ websearch_to_tsquery('simple', ${input.q})
+          union all
+          select id, 'project'::text as kind, id as project_id, name as title,
+            left(coalesce(summary, ''), 220) as excerpt,
+            null::uuid as source_capture_id, created_at
+          from project
+          where to_tsvector('simple', name || ' ' || coalesce(summary, '')) @@ websearch_to_tsquery('simple', ${input.q})
+          union all
+          select resource.id, 'resource'::text as kind,
+            ${resourceProjectId} as project_id, resource.name as title,
+            left(resource.kind || coalesce(' · ' || resource.subtype, ''), 220) as excerpt,
+            null::uuid as source_capture_id, resource.created_at
+          from resource
+          where to_tsvector('simple', resource.name || ' ' || resource.kind || ' ' || coalesce(resource.subtype, '')) @@ websearch_to_tsquery('simple', ${input.q})
+            and ${resourceScope}
+        )
+        select id, kind, project_id, title, excerpt, source_capture_id, created_at
+        from hits
+        where ${scope} and ${continuation}
+        order by created_at desc, id desc
+        limit ${input.limit + 1}
+      `);
+      const page = result.rows.slice(0, input.limit);
+      return {
+        items: page.map((row) => ({
+          id: row.id,
+          kind: row.kind,
+          title: row.title,
+          excerpt: row.excerpt,
+          href:
+            row.kind === "capture"
+              ? `/inbox?captureId=${row.id}`
+              : row.kind === "resource"
+                ? `/resources/${row.id}`
+                : row.kind === "project"
+                  ? `/projects/${row.id}`
+                  : `/projects/${row.project_id}`,
+          projectId: row.project_id,
+          sourceCaptureId: row.source_capture_id,
+          createdAt: new Date(row.created_at).toISOString(),
+        })),
+        nextCursor:
+          result.rows.length > input.limit ? (page.at(-1)?.id ?? null) : null,
+      };
+    },
+  };
+}
