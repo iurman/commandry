@@ -407,6 +407,9 @@ export const createAutomationDefinitionRequestSchema = z.strictObject({
       everyMinutes: z.number().int().min(5).max(10_080),
     })
     .optional(),
+  eventType: z
+    .enum(["git.pull_request.merged", "monitor.down", "monitor.recovered"])
+    .optional(),
 });
 export const setAutomationEnabledRequestSchema = z.strictObject({
   enabled: z.boolean(),
@@ -421,7 +424,14 @@ export const automationDefinitionSchema = z.object({
   projectId: z.uuid(),
   name: z.string(),
   routine: z.literal("local_project_summary_v1"),
-  triggerType: z.enum(["on_creation_once", "recurring_interval"]),
+  triggerType: z.enum([
+    "on_creation_once",
+    "recurring_interval",
+    "synthetic_event",
+  ]),
+  eventType: z
+    .enum(["git.pull_request.merged", "monitor.down", "monitor.recovered"])
+    .nullable(),
   enabled: z.boolean(),
   sourceOfTruth: z.literal("local-only"),
   recurrenceStartAt: z.iso.datetime({ offset: true }).nullable(),
@@ -675,7 +685,14 @@ export const automationRunSchema = z.object({
   definitionId: z.uuid(),
   projectId: z.uuid(),
   occurrenceId: z.uuid(),
-  trigger: z.enum(["on_creation", "manual", "scheduled", "recurring"]),
+  trigger: z.enum([
+    "on_creation",
+    "manual",
+    "scheduled",
+    "recurring",
+    "synthetic_event",
+  ]),
+  sourceEventId: z.uuid().nullable(),
   scheduledFor: z.iso.datetime({ offset: true }).nullable(),
   state: z.enum(["queued", "running", "succeeded", "failed", "skipped"]),
   attempts: z.number().int().min(0),

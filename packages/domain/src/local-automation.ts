@@ -3,6 +3,7 @@ export const LOCAL_PROJECT_SUMMARY_POLICY = {
   triggerType: "on_creation_once",
   optionalManualSchedule: "one_time_utc",
   optionalRecurrence: "bounded_utc_interval",
+  optionalSyntheticEvent: "project_scoped_synthetic_event",
   sourceOfTruth: "local-only",
   risk: "read_only",
   requiredCapability: "project.brief.read",
@@ -29,6 +30,53 @@ export type LocalAutomationErrorCode =
   | "AUTOMATION_OCCURRENCE_CONFLICT"
   | "AUTOMATION_RUN_NOT_FOUND"
   | "AUTOMATION_INVALID_SCHEDULE";
+
+export const LOCAL_AUTOMATION_EVENT_TYPES = [
+  "git.pull_request.merged",
+  "monitor.down",
+  "monitor.recovered",
+] as const;
+
+export type LocalAutomationEventType =
+  (typeof LOCAL_AUTOMATION_EVENT_TYPES)[number];
+
+export function localAutomationTrigger(input: {
+  recurrence?: { startAt: string; everyMinutes: number } | undefined;
+  eventType?: LocalAutomationEventType | undefined;
+}) {
+  if (input.recurrence && input.eventType)
+    throw new LocalAutomationError(
+      "AUTOMATION_INVALID_SCHEDULE",
+      "Choose a recurring interval or synthetic event, not both",
+    );
+  return input.eventType
+    ? "synthetic_event"
+    : input.recurrence
+      ? "recurring_interval"
+      : "on_creation_once";
+}
+
+export function syntheticEventAutomationDecision(
+  definition: {
+    projectId: string;
+    triggerType: string;
+    eventType: string | null;
+    createdAt: Date;
+    enabled: boolean;
+  },
+  event: { projectId: string; type: string; ingestedAt: Date },
+  hasActiveRun: boolean,
+): "ineligible" | "queue" | "skip_disabled" | "skip_overlap" {
+  if (
+    definition.triggerType !== "synthetic_event" ||
+    definition.projectId !== event.projectId ||
+    definition.eventType !== event.type ||
+    definition.createdAt > event.ingestedAt
+  )
+    return "ineligible";
+  if (!definition.enabled) return "skip_disabled";
+  return hasActiveRun ? "skip_overlap" : "queue";
+}
 
 export class LocalAutomationError extends Error {
   constructor(

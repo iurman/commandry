@@ -7725,6 +7725,14 @@
               "everyMinutes"
             ],
             "additionalProperties": false
+          },
+          "eventType": {
+            "type": "string",
+            "enum": [
+              "git.pull_request.merged",
+              "monitor.down",
+              "monitor.recovered"
+            ]
           }
         },
         "required": [
@@ -7793,7 +7801,23 @@
             "type": "string",
             "enum": [
               "on_creation_once",
-              "recurring_interval"
+              "recurring_interval",
+              "synthetic_event"
+            ]
+          },
+          "eventType": {
+            "anyOf": [
+              {
+                "type": "string",
+                "enum": [
+                  "git.pull_request.merged",
+                  "monitor.down",
+                  "monitor.recovered"
+                ]
+              },
+              {
+                "type": "null"
+              }
             ]
           },
           "enabled": {
@@ -7856,6 +7880,7 @@
           "name",
           "routine",
           "triggerType",
+          "eventType",
           "enabled",
           "sourceOfTruth",
           "recurrenceStartAt",
@@ -8004,7 +8029,20 @@
               "on_creation",
               "manual",
               "scheduled",
-              "recurring"
+              "recurring",
+              "synthetic_event"
+            ]
+          },
+          "sourceEventId": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "uuid",
+                "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$"
+              },
+              {
+                "type": "null"
+              }
             ]
           },
           "scheduledFor": {
@@ -8192,6 +8230,7 @@
           "projectId",
           "occurrenceId",
           "trigger",
+          "sourceEventId",
           "scheduledFor",
           "state",
           "attempts",
@@ -8380,7 +8419,23 @@
                   "type": "string",
                   "enum": [
                     "on_creation_once",
-                    "recurring_interval"
+                    "recurring_interval",
+                    "synthetic_event"
+                  ]
+                },
+                "eventType": {
+                  "anyOf": [
+                    {
+                      "type": "string",
+                      "enum": [
+                        "git.pull_request.merged",
+                        "monitor.down",
+                        "monitor.recovered"
+                      ]
+                    },
+                    {
+                      "type": "null"
+                    }
                   ]
                 },
                 "enabled": {
@@ -8443,6 +8498,7 @@
                 "name",
                 "routine",
                 "triggerType",
+                "eventType",
                 "enabled",
                 "sourceOfTruth",
                 "recurrenceStartAt",
@@ -8507,7 +8563,20 @@
                     "on_creation",
                     "manual",
                     "scheduled",
-                    "recurring"
+                    "recurring",
+                    "synthetic_event"
+                  ]
+                },
+                "sourceEventId": {
+                  "anyOf": [
+                    {
+                      "type": "string",
+                      "format": "uuid",
+                      "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$"
+                    },
+                    {
+                      "type": "null"
+                    }
                   ]
                 },
                 "scheduledFor": {
@@ -8695,6 +8764,7 @@
                 "projectId",
                 "occurrenceId",
                 "trigger",
+                "sourceEventId",
                 "scheduledFor",
                 "state",
                 "attempts",

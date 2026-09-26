@@ -56,3 +56,16 @@ export const Recurring: Story = {
     },
   },
 };
+
+export const SyntheticEvent: Story = {
+  args: {
+    automation: {
+      ...meta.args.automation,
+      name: "Investigate synthetic monitor down",
+      triggerType: "synthetic_event",
+      eventType: "monitor.down",
+      latestRunState: "succeeded",
+      nextRunAt: null,
+    },
+  },
+};

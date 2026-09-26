@@ -120,6 +120,13 @@
       "when": 1790450516637,
       "tag": "0016_long_madelyne_pryor",
       "breakpoints": true
+    },
+    {
+      "idx": 17,
+      "version": "7",
+      "when": 1790451493008,
+      "tag": "0017_clammy_talisman",
+      "breakpoints": true
     }
   ]
 }

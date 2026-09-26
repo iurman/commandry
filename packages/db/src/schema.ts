@@ -642,10 +642,13 @@ export const automationDefinition = pgTable(
       .notNull()
       .default("local_project_summary_v1"),
     triggerType: text("trigger_type", {
-      enum: ["on_creation_once", "recurring_interval"],
+      enum: ["on_creation_once", "recurring_interval", "synthetic_event"],
     })
       .notNull()
       .default("on_creation_once"),
+    eventType: text("event_type", {
+      enum: ["git.pull_request.merged", "monitor.down", "monitor.recovered"],
+    }),
     recurrenceStartAt: timestamp("recurrence_start_at", { withTimezone: true }),
     recurrenceEveryMinutes: integer("recurrence_every_minutes"),
     nextOccurrenceAt: timestamp("next_occurrence_at", { withTimezone: true }),
@@ -664,6 +667,11 @@ export const automationDefinition = pgTable(
       table.enabled,
       table.nextOccurrenceAt,
     ),
+    index("automation_definition_event_idx").on(
+      table.projectId,
+      table.eventType,
+      table.enabled,
+    ),
     check(
       "automation_definition_name_nonempty",
       sql`length(trim(${table.name})) > 0`,
@@ -674,11 +682,11 @@ export const automationDefinition = pgTable(
     ),
     check(
       "automation_definition_trigger_valid",
-      sql`${table.triggerType} in ('on_creation_once', 'recurring_interval')`,
+      sql`${table.triggerType} in ('on_creation_once', 'recurring_interval', 'synthetic_event')`,
     ),
     check(
       "automation_definition_recurrence_consistent",
-      sql`(${table.triggerType} = 'on_creation_once' and ${table.recurrenceStartAt} is null and ${table.recurrenceEveryMinutes} is null and ${table.nextOccurrenceAt} is null) or (${table.triggerType} = 'recurring_interval' and ${table.recurrenceStartAt} is not null and ${table.recurrenceEveryMinutes} between 5 and 10080 and ${table.nextOccurrenceAt} is not null)`,
+      sql`(${table.triggerType} = 'on_creation_once' and ${table.eventType} is null and ${table.recurrenceStartAt} is null and ${table.recurrenceEveryMinutes} is null and ${table.nextOccurrenceAt} is null) or (${table.triggerType} = 'recurring_interval' and ${table.eventType} is null and ${table.recurrenceStartAt} is not null and ${table.recurrenceEveryMinutes} between 5 and 10080 and ${table.nextOccurrenceAt} is not null) or (${table.triggerType} = 'synthetic_event' and ${table.eventType} in ('git.pull_request.merged', 'monitor.down', 'monitor.recovered') and ${table.recurrenceStartAt} is null and ${table.recurrenceEveryMinutes} is null and ${table.nextOccurrenceAt} is null)`,
     ),
     check(
       "automation_definition_source_local",
@@ -699,8 +707,20 @@ export const automationRun = pgTable(
       .references(() => project.id, { onDelete: "restrict" }),
     occurrenceId: uuid("occurrence_id").notNull(),
     trigger: text("trigger", {
-      enum: ["on_creation", "manual", "scheduled", "recurring"],
+      enum: [
+        "on_creation",
+        "manual",
+        "scheduled",
+        "recurring",
+        "synthetic_event",
+      ],
     }).notNull(),
+    sourceEventId: uuid("source_event_id").references(
+      () => normalizedEvent.id,
+      {
+        onDelete: "restrict",
+      },
+    ),
     scheduledFor: timestamp("scheduled_for", { withTimezone: true }),
     state: text("state", {
       enum: ["queued", "running", "succeeded", "failed", "skipped"],
@@ -719,6 +739,9 @@ export const automationRun = pgTable(
     uniqueIndex("automation_run_recurring_due_idx")
       .on(table.definitionId, table.scheduledFor)
       .where(sql`${table.trigger} = 'recurring'`),
+    uniqueIndex("automation_run_source_event_idx")
+      .on(table.definitionId, table.sourceEventId)
+      .where(sql`${table.sourceEventId} is not null`),
     index("automation_run_definition_page_idx").on(
       table.definitionId,
       table.id,
@@ -731,11 +754,11 @@ export const automationRun = pgTable(
     check("automation_run_attempts_nonnegative", sql`${table.attempts} >= 0`),
     check(
       "automation_run_trigger_valid",
-      sql`${table.trigger} in ('on_creation', 'manual', 'scheduled', 'recurring')`,
+      sql`${table.trigger} in ('on_creation', 'manual', 'scheduled', 'recurring', 'synthetic_event')`,
     ),
     check(
       "automation_run_schedule_matches_trigger",
-      sql`(${table.trigger} in ('scheduled', 'recurring') and ${table.scheduledFor} is not null) or (${table.trigger} in ('on_creation', 'manual') and ${table.scheduledFor} is null)`,
+      sql`(${table.trigger} in ('scheduled', 'recurring') and ${table.scheduledFor} is not null and ${table.sourceEventId} is null) or (${table.trigger} in ('on_creation', 'manual') and ${table.scheduledFor} is null and ${table.sourceEventId} is null) or (${table.trigger} = 'synthetic_event' and ${table.scheduledFor} is null and ${table.sourceEventId} is not null)`,
     ),
     check(
       "automation_run_state_valid",

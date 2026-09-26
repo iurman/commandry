@@ -33,6 +33,7 @@ import {
   CAPTURE_TRIAGE_QUEUE,
   createPgBossProducer,
   createRecurringAutomationScheduler,
+  createSyntheticEventAutomationReconciler,
   LOCAL_AGENT_RUN_QUEUE,
   LOCAL_AUTOMATION_QUEUE,
   SIMULATED_APPROVAL_QUEUE,
@@ -52,8 +53,11 @@ const transport = await createPgBossProducer({
 const runRepository = createSyntheticRunRepository(database.db);
 const heartbeatRepository = createWorkerHeartbeatRepository(database.db);
 const processRun = createSyntheticRunProcessor(runRepository);
+const syntheticEventRepository = createSyntheticEventImportRepository(
+  database.db,
+);
 const processEventImport = createSyntheticEventImportProcessor(
-  createSyntheticEventImportRepository(database.db),
+  syntheticEventRepository,
 );
 const localAgentRunRepository = createLocalAgentRunRepository(database.db);
 const projectBriefService = createProjectBriefService(
@@ -82,11 +86,14 @@ const processCaptureTriage = createCaptureTriageProcessor(
 const processLocalAutomation = createLocalAutomationProcessor(
   createLocalAutomationRepository(database.db),
   projectBriefService,
+  syntheticEventRepository,
 );
 const recurringAutomationScheduler = createRecurringAutomationScheduler(
   database.db,
   transport.boss,
 );
+const syntheticEventAutomationReconciler =
+  createSyntheticEventAutomationReconciler(database.db, transport.boss);
 const workerId = randomUUID();
 
 function log(
@@ -159,7 +166,10 @@ await transport.boss.work(SYNTHETIC_EVENT_IMPORT_QUEUE, async ([job]) => {
   if (!job) throw new Error("pg-boss delivered an empty import job batch");
   const input = syntheticEventImportJobV1Schema.parse(job.data);
   try {
-    await processEventImport(input);
+    const imported = await processEventImport(input);
+    if (!imported.eventId)
+      throw new Error("Synthetic import completed without a normalized event");
+    await syntheticEventAutomationReconciler.reconcileEvent(imported.eventId);
     log("info", "synthetic_event_import.completed", {
       correlationId: input.runId,
       occurrenceId: input.occurrenceId,

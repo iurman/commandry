@@ -8,6 +8,8 @@ import {
   recurringAutomationStart,
   firstRecurrenceAfter,
   dueRecurrence,
+  localAutomationTrigger,
+  syntheticEventAutomationDecision,
 } from "./local-automation";
 
 describe("local automation policy", () => {
@@ -99,5 +101,65 @@ describe("local automation policy", () => {
         new Date("2026-09-26T12:21:00Z"),
       ),
     ).toEqual(new Date("2026-09-26T12:25:00Z"));
+  });
+
+  it("separates creation, recurring, and synthetic event triggers", () => {
+    expect(localAutomationTrigger({})).toBe("on_creation_once");
+    expect(localAutomationTrigger({ eventType: "monitor.down" })).toBe(
+      "synthetic_event",
+    );
+    expect(
+      localAutomationTrigger({
+        recurrence: { startAt: "2026-09-26T12:05:00Z", everyMinutes: 5 },
+      }),
+    ).toBe("recurring_interval");
+    expect(() =>
+      localAutomationTrigger({
+        eventType: "monitor.down",
+        recurrence: { startAt: "2026-09-26T12:05:00Z", everyMinutes: 5 },
+      }),
+    ).toThrow(/Choose/);
+  });
+
+  it("matches only newly ingested project events and records disabled or overlapping work", () => {
+    const event = {
+      projectId: "project-a",
+      type: "monitor.down",
+      ingestedAt: new Date("2026-09-26T12:00:00Z"),
+    };
+    const definition = {
+      projectId: "project-a",
+      triggerType: "synthetic_event",
+      eventType: "monitor.down",
+      createdAt: new Date("2026-09-26T11:59:00Z"),
+      enabled: true,
+    };
+    expect(syntheticEventAutomationDecision(definition, event, false)).toBe(
+      "queue",
+    );
+    expect(syntheticEventAutomationDecision(definition, event, true)).toBe(
+      "skip_overlap",
+    );
+    expect(
+      syntheticEventAutomationDecision(
+        { ...definition, enabled: false },
+        event,
+        false,
+      ),
+    ).toBe("skip_disabled");
+    expect(
+      syntheticEventAutomationDecision(
+        { ...definition, projectId: "project-b" },
+        event,
+        false,
+      ),
+    ).toBe("ineligible");
+    expect(
+      syntheticEventAutomationDecision(
+        { ...definition, createdAt: new Date("2026-09-26T12:01:00Z") },
+        event,
+        false,
+      ),
+    ).toBe("ineligible");
   });
 });

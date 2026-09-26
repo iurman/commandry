@@ -8,6 +8,7 @@ import {
   type AutomationRunAttempt,
   type AutomationRunResult,
   type CreateAutomationDefinitionRequest,
+  type NormalizedSyntheticEvent,
   type ProjectBrief,
   type SetAutomationEnabledRequest,
   type TriggerAutomationRunRequest,
@@ -63,11 +64,25 @@ export function createLocalAutomationService(port: LocalAutomationPort) {
 
 export function buildLocalProjectSummaryResult(
   brief: ProjectBrief,
+  sourceEvent: NormalizedSyntheticEvent | null = null,
 ): AutomationRunResult {
   const work = brief.sections.work;
   const decisions = brief.sections.decisions;
   const attention = brief.sections.attention;
   const evidence = [
+    ...(sourceEvent
+      ? [
+          {
+            kind: "event" as const,
+            id: sourceEvent.id,
+            href: `/api/v1/events/${sourceEvent.id}`,
+            recordedAt: sourceEvent.ingestedAt,
+            occurredAt: sourceEvent.occurredAt,
+            sourceLabel: sourceEvent.sourceLabel,
+            isSynthetic: true,
+          },
+        ]
+      : []),
     ...brief.state.evidence,
     ...work.items.flatMap((item) => item.evidence),
     ...decisions.items.flatMap((item) => item.evidence),
@@ -77,7 +92,7 @@ export function buildLocalProjectSummaryResult(
     new Map(evidence.map((item) => [`${item.kind}:${item.id}`, item])).values(),
   );
   return automationRunResultSchema.parse({
-    summary: `Local brief preview: ${work.items.length} open work item(s), ${decisions.items.length} decision(s), and ${attention.items.length} synthetic attention item(s). Review the source pages for the complete records. No work was executed or verified.`,
+    summary: `${sourceEvent ? `Synthetic ${sourceEvent.type} event prompted this summary. ` : ""}Local brief preview: ${work.items.length} open work item(s), ${decisions.items.length} decision(s), and ${attention.items.length} synthetic attention item(s). Review the source pages for the complete records. No work was executed or verified.`,
     asOf: brief.asOf,
     evidence: distinctEvidence,
     sourceLabel: "Synthetic local automation",
@@ -102,6 +117,9 @@ export interface LocalAutomationProcessingPort {
 export function createLocalAutomationProcessor(
   port: LocalAutomationProcessingPort,
   briefs: { getBrief(projectId: string): Promise<ProjectBrief | null> },
+  events?: {
+    getEventById(id: string): Promise<NormalizedSyntheticEvent | null>;
+  },
 ) {
   return async (job: AutomationJobV1): Promise<AutomationRun> => {
     const parsed = automationJobV1Schema.parse(job);
@@ -123,6 +141,20 @@ export function createLocalAutomationProcessor(
       return current;
     }
     try {
+      const sourceEvent = run.sourceEventId
+        ? ((await events?.getEventById(run.sourceEventId)) ?? null)
+        : null;
+      if (
+        run.sourceEventId &&
+        (!sourceEvent ||
+          sourceEvent.id !== run.sourceEventId ||
+          sourceEvent.projectId !== run.projectId ||
+          !sourceEvent.isSynthetic)
+      )
+        throw new LocalAutomationError(
+          "AUTOMATION_RUN_NOT_FOUND",
+          "Synthetic source event is unavailable for this run",
+        );
       const brief = await briefs.getBrief(run.projectId);
       if (!brief || brief.project.id !== run.projectId)
         throw new LocalAutomationError(
@@ -133,7 +165,7 @@ export function createLocalAutomationProcessor(
       return await port.complete(
         run.id,
         attemptId,
-        buildLocalProjectSummaryResult(brief),
+        buildLocalProjectSummaryResult(brief, sourceEvent),
       );
     } catch (error) {
       await port.failAttempt(run.id, attemptId);

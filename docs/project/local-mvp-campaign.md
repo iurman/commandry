@@ -136,6 +136,15 @@ local experience lab.
   interval without replaying disabled time. The interval, catch-up, and
   overlap policy are provisional local choices, not a decision about live
   integration scheduling or an Overnight Queue.
+- A definition may instead match one of the three named synthetic fixture
+  event types within its project. The separate worker materializes one
+  source-linked local summary run per newly normalized event, or an audited
+  skipped run if the definition is disabled or already busy. Replaying an
+  import does not duplicate its occurrence; enabling later does not replay a
+  skipped event. Each completed summary cites the normalized event and its
+  original source envelope remains available through that record. This
+  local-only rule is an exercise of the event trigger contract, not a chosen
+  live connector or a production automation policy.
 - The local notification center will derive current items from synthetic
   monitor conditions, pending simulated approvals, and failed local summary
   attempts. A continuing monitor condition yields one item per open cycle and

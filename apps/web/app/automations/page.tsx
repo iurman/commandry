@@ -28,8 +28,11 @@ export default function AutomationsPage() {
   const [name, setName] = useState("");
   const [enabled, setEnabled] = useState(true);
   const [triggerType, setTriggerType] = useState<
-    "on_creation_once" | "recurring_interval"
+    "on_creation_once" | "recurring_interval" | "synthetic_event"
   >("on_creation_once");
+  const [eventType, setEventType] = useState<
+    "git.pull_request.merged" | "monitor.down" | "monitor.recovered"
+  >("monitor.down");
   const [recurrenceLocalTime, setRecurrenceLocalTime] = useState("");
   const [everyMinutes, setEveryMinutes] = useState("60");
   const [loading, setLoading] = useState(true);
@@ -196,6 +199,7 @@ export default function AutomationsPage() {
             name: name.trim(),
             enabled,
             ...(recurrence ? { recurrence } : {}),
+            ...(triggerType === "synthetic_event" ? { eventType } : {}),
           }),
         },
       );
@@ -210,13 +214,18 @@ export default function AutomationsPage() {
           ? enabled
             ? "Recurring local summary saved. The worker will create at most one due occurrence per interval; output is synthetic and unverified."
             : "Disabled recurring local summary saved. No occurrence will be created until it is enabled."
-          : enabled
-            ? "Local automation created and its one-time synthetic summary queued. Open it to review the worker result."
-            : "Disabled local automation saved. It will not run until enabled and manually triggered.",
+          : triggerType === "synthetic_event"
+            ? enabled
+              ? "Synthetic event routine saved. A new matching fixture event will queue a source-linked local summary."
+              : "Disabled synthetic event routine saved. Matching events will be recorded as skipped."
+            : enabled
+              ? "Local automation created and its one-time synthetic summary queued. Open it to review the worker result."
+              : "Disabled local automation saved. It will not run until enabled and manually triggered.",
       );
       setName("");
       setRecurrenceLocalTime("");
-      if (enabled) void enrich([definition]);
+      if (enabled && triggerType === "on_creation_once")
+        void enrich([definition]);
     } catch (cause) {
       setError(
         cause instanceof Error
@@ -236,9 +245,9 @@ export default function AutomationsPage() {
           <h1>Automations</h1>
           <p className="cmd-lead">
             Review definitions and worker runs. This first routine reads a
-            project brief at creation, at a recurring UTC interval, or in a
-            manually scheduled one-time run, produces a synthetic unverified
-            summary, and performs no external action.
+            project brief at creation, at a recurring UTC interval, after a
+            matching synthetic event, or in a manually scheduled one-time run.
+            Output is synthetic and unverified; no external action occurs.
           </p>
         </div>
       </header>
@@ -280,6 +289,7 @@ export default function AutomationsPage() {
                     projectName: projectNames[item.projectId] ?? item.projectId,
                     enabled: item.enabled,
                     triggerType: item.triggerType,
+                    eventType: item.eventType,
                     latestRunState: latestRuns[item.id]?.state ?? null,
                     latestRunAt: latestRuns[item.id]?.createdAt ?? null,
                     nextRunAt: item.nextRunAt,
@@ -301,9 +311,9 @@ export default function AutomationsPage() {
           <p className="cmd-eyebrow">Create / Read-only</p>
           <h2 id="automation-create-heading">New local routine</h2>
           <p className="cmd-form-intro">
-            Choose one summary at creation or a bounded recurring schedule. Open
-            the detail page to review runs or schedule an extra one-time local
-            run. No external system is connected.
+            Choose a summary at creation, a bounded recurring schedule, or a
+            project-scoped synthetic fixture event. Open the detail page to
+            review runs or schedule an extra one-time local run.
           </p>
           <form className="cmd-form" onSubmit={create}>
             <label htmlFor="automation-name">Name</label>
@@ -341,7 +351,9 @@ export default function AutomationsPage() {
               onChange={(event) =>
                 setTriggerType(
                   event.target.value as
-                    "on_creation_once" | "recurring_interval",
+                    | "on_creation_once"
+                    | "recurring_interval"
+                    | "synthetic_event",
                 )
               }
               value={triggerType}
@@ -350,7 +362,33 @@ export default function AutomationsPage() {
               <option value="recurring_interval">
                 Recurring local interval
               </option>
+              <option value="synthetic_event">Synthetic fixture event</option>
             </select>
+            {triggerType === "synthetic_event" && (
+              <>
+                <label htmlFor="automation-event-type">Matching event</label>
+                <select
+                  id="automation-event-type"
+                  onChange={(event) =>
+                    setEventType(event.target.value as typeof eventType)
+                  }
+                  value={eventType}
+                >
+                  <option value="monitor.down">Synthetic monitor down</option>
+                  <option value="monitor.recovered">
+                    Synthetic monitor recovered
+                  </option>
+                  <option value="git.pull_request.merged">
+                    Synthetic pull request merged
+                  </option>
+                </select>
+                <p className="cmd-form-hint">
+                  Only newly ingested fixture events for this project match.
+                  Each source event is evaluated once; a disabled or busy
+                  routine records a skipped run. No live connector is attached.
+                </p>
+              </>
+            )}
             {triggerType === "recurring_interval" && (
               <>
                 <label htmlFor="automation-recurrence-start">

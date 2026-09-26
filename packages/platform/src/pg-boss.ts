@@ -30,6 +30,8 @@ import {
   recurringAutomationStart,
   dueRecurrence,
   firstRecurrenceAfter,
+  localAutomationTrigger,
+  syntheticEventAutomationDecision,
   LocalAgentError,
   SimulatedApprovalError,
   SyntheticEventImportConflictError,
@@ -179,6 +181,7 @@ export function createLocalAutomationSubmission(
           );
         const now = new Date();
         const recurrence = recurringAutomationStart(input.recurrence, now);
+        const triggerType = localAutomationTrigger(input);
         const id = crypto.randomUUID();
         const [row] = await tx
           .insert(schema.automationDefinition)
@@ -186,7 +189,8 @@ export function createLocalAutomationSubmission(
             id,
             projectId: input.projectId,
             name: input.name,
-            triggerType: recurrence ? "recurring_interval" : "on_creation_once",
+            triggerType,
+            eventType: input.eventType ?? null,
             recurrenceStartAt: recurrence?.startAt ?? null,
             recurrenceEveryMinutes: recurrence?.everyMinutes ?? null,
             nextOccurrenceAt: recurrence?.startAt ?? null,
@@ -203,13 +207,14 @@ export function createLocalAutomationSubmission(
           operation: "automation.created",
           details: {
             enabled: input.enabled,
-            triggerType: recurrence ? "recurring_interval" : "on_creation_once",
+            triggerType,
+            eventType: input.eventType ?? null,
             recurrenceStartAt: recurrence?.startAt.toISOString() ?? null,
             recurrenceEveryMinutes: recurrence?.everyMinutes ?? null,
           },
           createdAt: now,
         });
-        if (input.enabled && !recurrence) {
+        if (input.enabled && triggerType === "on_creation_once") {
           const runId = crypto.randomUUID();
           await tx.insert(schema.automationRun).values({
             id: runId,
@@ -391,6 +396,151 @@ export function createLocalAutomationSubmission(
         requireSameAutomationOccurrence(existing, id, input.scheduledFor);
         return automationRunRecord(existing);
       });
+    },
+  };
+}
+
+function eventOccurrenceId(definitionId: string, eventId: string): string {
+  const digest = createHash("sha256")
+    .update(`synthetic_event:${definitionId}:${eventId}`)
+    .digest("hex");
+  return `${digest.slice(0, 8)}-${digest.slice(8, 12)}-5${digest.slice(13, 16)}-a${digest.slice(17, 20)}-${digest.slice(20, 32)}`;
+}
+
+/** Materialize one local, source-linked occurrence per matching synthetic event. */
+export function createSyntheticEventAutomationReconciler(
+  db: CommandryDatabase,
+  boss: PgBoss,
+) {
+  return {
+    async reconcileEvent(eventId: string): Promise<number> {
+      const [event] = await db
+        .select()
+        .from(schema.normalizedEvent)
+        .where(eq(schema.normalizedEvent.id, eventId))
+        .limit(1);
+      if (!event?.isSynthetic) return 0;
+      const candidates = await db
+        .select({ id: schema.automationDefinition.id })
+        .from(schema.automationDefinition)
+        .where(
+          and(
+            eq(schema.automationDefinition.projectId, event.projectId),
+            eq(schema.automationDefinition.triggerType, "synthetic_event"),
+            eq(schema.automationDefinition.eventType, event.type),
+            lte(schema.automationDefinition.createdAt, event.ingestedAt),
+          ),
+        );
+      let materialized = 0;
+      for (const candidate of candidates) {
+        const created = await db.transaction(async (tx) => {
+          const [definition] = await tx
+            .select()
+            .from(schema.automationDefinition)
+            .where(eq(schema.automationDefinition.id, candidate.id))
+            .for("update")
+            .limit(1);
+          if (
+            !definition ||
+            syntheticEventAutomationDecision(definition, event, false) ===
+              "ineligible"
+          )
+            return false;
+          const [existing] = await tx
+            .select({ id: schema.automationRun.id })
+            .from(schema.automationRun)
+            .where(
+              and(
+                eq(schema.automationRun.definitionId, definition.id),
+                eq(schema.automationRun.sourceEventId, event.id),
+              ),
+            )
+            .limit(1);
+          if (existing) return false;
+          const now = new Date();
+          const [active] = definition.enabled
+            ? await tx
+                .select({ id: schema.automationRun.id })
+                .from(schema.automationRun)
+                .where(
+                  and(
+                    eq(schema.automationRun.definitionId, definition.id),
+                    inArray(schema.automationRun.state, ["queued", "running"]),
+                    sql`(${schema.automationRun.scheduledFor} is null or ${schema.automationRun.scheduledFor} <= ${now})`,
+                  ),
+                )
+                .limit(1)
+            : [];
+          const decision = syntheticEventAutomationDecision(
+            definition,
+            event,
+            Boolean(active),
+          );
+          const reason =
+            decision === "skip_disabled"
+              ? "disabled_at_event"
+              : decision === "skip_overlap"
+                ? "previous_run_active"
+                : null;
+          const runId = crypto.randomUUID();
+          await tx.insert(schema.automationRun).values({
+            id: runId,
+            definitionId: definition.id,
+            projectId: definition.projectId,
+            occurrenceId: eventOccurrenceId(definition.id, event.id),
+            trigger: "synthetic_event",
+            sourceEventId: event.id,
+            state: reason ? "skipped" : "queued",
+            error: reason
+              ? reason === "disabled_at_event"
+                ? "Disabled when synthetic event was processed"
+                : "Previous local run is still active"
+              : null,
+            completedAt: reason ? now : null,
+            createdAt: now,
+          });
+          if (reason) {
+            await tx.insert(schema.automationAuditEvent).values({
+              id: crypto.randomUUID(),
+              definitionId: definition.id,
+              runId,
+              actor: "system:synthetic-event-automation",
+              operation: "automation.run_skipped",
+              details: {
+                reason,
+                sourceEventId: event.id,
+                eventType: event.type,
+              },
+              createdAt: now,
+            });
+            return true;
+          }
+          const jobId = await boss.send(
+            LOCAL_AUTOMATION_QUEUE,
+            { version: 1, runId, definitionId: definition.id },
+            { db: fromDrizzle(tx, sql) },
+          );
+          if (!jobId)
+            throw new Error("Synthetic event automation job was not enqueued");
+          await tx.insert(schema.automationAuditEvent).values({
+            id: crypto.randomUUID(),
+            definitionId: definition.id,
+            runId,
+            actor: "system:synthetic-event-automation",
+            operation: "automation.run_queued",
+            details: {
+              trigger: "synthetic_event",
+              sourceEventId: event.id,
+              eventType: event.type,
+              jobId,
+            },
+            createdAt: now,
+          });
+          return true;
+        });
+        if (created) materialized += 1;
+      }
+      return materialized;
     },
   };
 }

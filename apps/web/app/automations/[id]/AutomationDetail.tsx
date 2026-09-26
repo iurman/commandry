@@ -76,7 +76,11 @@ export default function AutomationDetail({
   useEffect(() => {
     if (
       !runs.some((run) => run.state === "queued" || run.state === "running") &&
-      !(definition?.enabled && definition.triggerType === "recurring_interval")
+      !(
+        definition?.enabled &&
+        (definition.triggerType === "recurring_interval" ||
+          definition.triggerType === "synthetic_event")
+      )
     )
       return;
     let active = true;
@@ -94,9 +98,11 @@ export default function AutomationDetail({
         (run.state === "queued" && !run.scheduledFor),
     );
     const delay =
-      hasReadyRun || !Number.isFinite(nextDue)
-        ? 1500
-        : Math.max(1500, Math.min(30_000, nextDue - Date.now()));
+      definition?.triggerType === "synthetic_event" && !hasReadyRun
+        ? 5000
+        : hasReadyRun || !Number.isFinite(nextDue)
+          ? 1500
+          : Math.max(1500, Math.min(30_000, nextDue - Date.now()));
     const timer = window.setInterval(() => {
       void Promise.all([
         apiJson<PageResponse<AutomationRun>>(pagePath(`${path}/runs`)),
@@ -139,7 +145,7 @@ export default function AutomationDetail({
       setDefinition(updated);
       setFeedback(
         updated.enabled
-          ? "Enabled. The on-creation trigger does not replay. A recurring schedule resumes at its next future interval; queued one-time runs can proceed."
+          ? "Enabled. Future matching synthetic events can create runs; the on-creation trigger does not replay. A recurring schedule resumes at its next future interval."
           : "Disabled. Pending work will be skipped if it has not started.",
       );
     } catch (cause) {
@@ -297,9 +303,10 @@ export default function AutomationDetail({
               <h1>{definition.name}</h1>
               <p className="cmd-lead">
                 A bounded project brief read. An enabled definition runs once at
-                creation or a recurring UTC interval; you can also run now or
-                schedule one local run for later. Every result is synthetic and
-                unverified, with no external action.
+                creation, a recurring UTC interval, or a matching synthetic
+                fixture event; you can also run now or schedule one local run
+                for later. Every result is synthetic and unverified, with no
+                external action.
               </p>
               <p className="cmd-record-identity">
                 Definition ID <code>{definition.id}</code>
@@ -333,9 +340,17 @@ export default function AutomationDetail({
                   <dd>
                     {definition.triggerType === "recurring_interval"
                       ? "Recurring local interval"
-                      : "On creation once"}
+                      : definition.triggerType === "synthetic_event"
+                        ? "Synthetic fixture event"
+                        : "On creation once"}
                   </dd>
                 </div>
+                {definition.eventType && (
+                  <div>
+                    <dt>Event type</dt>
+                    <dd>{definition.eventType} (synthetic only)</dd>
+                  </div>
+                )}
                 {definition.recurrenceStartAt &&
                   definition.recurrenceEveryMinutes && (
                     <>
@@ -362,6 +377,9 @@ export default function AutomationDetail({
                       <time dateTime={definition.nextRunAt}>
                         {definition.nextRunAt} UTC
                       </time>
+                    ) : definition.enabled &&
+                      definition.triggerType === "synthetic_event" ? (
+                      "On next matching synthetic event"
                     ) : definition.enabled ? (
                       "None queued"
                     ) : (
@@ -398,6 +416,14 @@ export default function AutomationDetail({
                   audit. A new interval is recorded as skipped while a previous
                   run is active. Disabling pauses new occurrences; enabling
                   resumes at the next future interval.
+                </p>
+              )}
+              {definition.triggerType === "synthetic_event" && (
+                <p>
+                  Event policy: a newly ingested fixture event for this project
+                  is evaluated once. Disabled or overlapping work is recorded as
+                  skipped. Each run links to its exact normalized source event
+                  and preserves the original source envelope.
                 </p>
               )}
               <div className="cmd-decision-actions">
@@ -497,7 +523,7 @@ export default function AutomationDetail({
             {runs.length === 0 && (
               <RecordEmptyState
                 title="No runs yet"
-                description="Enable this definition, then run it now or schedule one local run."
+                description="Import a matching synthetic event, run this routine now, or schedule one local run."
               />
             )}
             <ul
@@ -512,9 +538,11 @@ export default function AutomationDetail({
                         ? "On-creation run"
                         : run.trigger === "recurring"
                           ? "Recurring local run"
-                          : run.trigger === "scheduled"
-                            ? "Scheduled local run"
-                            : "Manual local run"}
+                          : run.trigger === "synthetic_event"
+                            ? "Synthetic event run"
+                            : run.trigger === "scheduled"
+                              ? "Scheduled local run"
+                              : "Manual local run"}
                     </strong>
                     <span className="cmd-count">{run.state}</span>
                   </div>
@@ -528,6 +556,15 @@ export default function AutomationDetail({
                       <time dateTime={run.scheduledFor}>
                         {run.scheduledFor} UTC
                       </time>
+                    </p>
+                  )}
+                  {run.sourceEventId && (
+                    <p>
+                      Triggered by{" "}
+                      <a href={`/api/v1/events/${run.sourceEventId}`}>
+                        synthetic source event
+                      </a>{" "}
+                      <code>{run.sourceEventId}</code>
                     </p>
                   )}
                   {run.error && (
