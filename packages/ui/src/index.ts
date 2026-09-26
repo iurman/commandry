@@ -21,6 +21,8 @@ export { DecisionCard } from "./components/DecisionCard";
 export type { DecisionCardProps } from "./components/DecisionCard";
 export { AutomationCard } from "./components/AutomationCard";
 export type { AutomationCardView } from "./components/AutomationCard";
+export { NotificationCard } from "./components/NotificationCard";
+export type { NotificationCardView } from "./components/NotificationCard";
 export { ProjectBrief } from "./components/ProjectBrief";
 export type {
   ProjectBriefView,

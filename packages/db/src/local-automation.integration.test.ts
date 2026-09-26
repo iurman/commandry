@@ -10,6 +10,7 @@ import { createCatalogRepository } from "./catalog-repository";
 import { createDatabase } from "./client";
 import { createLocalAutomationRepository } from "./local-automation-repository";
 import { migrateDatabase } from "./migrate";
+import { createNotificationRepository } from "./notification-repository";
 import { automationDefinition, automationRun } from "./schema";
 
 const connectionString = process.env.COMMANDRY_TEST_DATABASE_URL;
@@ -96,6 +97,15 @@ test(
       const firstAttempt = await repository.beginAttempt(retryId);
       assert.ok(firstAttempt);
       await repository.failAttempt(retryId, firstAttempt);
+      const failedNotice = (
+        await createNotificationRepository(database.db).list({
+          limit: 10,
+          view: "active",
+          projectId: project.id,
+        })
+      ).items.find((item) => item.kind === "automation_failure");
+      assert.ok(failedNotice);
+      assert.equal(failedNotice.sourceLabel, "Synthetic local automation");
       const retried = await processor({
         version: 1,
         runId: retryId,
@@ -103,6 +113,12 @@ test(
       });
       assert.equal(retried.state, "succeeded");
       assert.equal(retried.attempts, 2);
+      assert.equal(
+        await createNotificationRepository(database.db).getById(
+          failedNotice.id,
+        ),
+        null,
+      );
       const seenAttempts: number[] = [];
       let cursor: string | null = null;
       do {

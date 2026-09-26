@@ -633,6 +633,75 @@ export const automationJobV1Schema = z.strictObject({
   definitionId: z.uuid(),
 });
 
+export const notificationSchema = z.object({
+  id: z.string().min(1).max(120),
+  kind: z.enum(["synthetic_alert", "approval", "automation_failure"]),
+  projectId: z.uuid(),
+  projectName: z.string().min(1),
+  priority: z.enum(["critical", "action_required", "informational"]),
+  title: z.string().min(1),
+  reason: z.string().min(1),
+  sourceLabel: z.string().min(1),
+  isSynthetic: z.literal(true),
+  occurredAt: z.iso.datetime({ offset: true }),
+  href: z.string().startsWith("/"),
+  evidenceHref: z.string().startsWith("/api/v1/"),
+  state: z.enum(["unread", "acknowledged", "dismissed", "snoozed"]),
+  snoozedUntil: z.iso.datetime({ offset: true }).nullable(),
+  version: z.number().int().min(0),
+});
+
+export const listNotificationsQuerySchema = z.object({
+  limit: z.coerce.number().int().min(1).max(100).default(25),
+  cursor: z.string().min(1).max(500).optional(),
+  view: z.enum(["active", "all"]).default("active"),
+  projectId: z.uuid().optional(),
+});
+
+export const listNotificationsResponseSchema = z.object({
+  items: z.array(notificationSchema),
+  nextCursor: z.string().nullable(),
+});
+
+export const changeNotificationStateRequestSchema = z.discriminatedUnion(
+  "action",
+  [
+    z.strictObject({
+      action: z.literal("acknowledge"),
+      expectedVersion: z.number().int().min(0),
+    }),
+    z.strictObject({
+      action: z.literal("dismiss"),
+      expectedVersion: z.number().int().min(0),
+    }),
+    z.strictObject({
+      action: z.literal("restore"),
+      expectedVersion: z.number().int().min(0),
+    }),
+    z.strictObject({
+      action: z.literal("snooze"),
+      expectedVersion: z.number().int().min(0),
+      snoozedUntil: z.iso.datetime({ offset: true }),
+    }),
+  ],
+);
+
+export const notificationAuditEventSchema = z.object({
+  id: z.uuid(),
+  notificationId: z.string(),
+  actor: z.string(),
+  operation: z.literal("notification.state_changed"),
+  previousState: z.enum(["unread", "acknowledged", "dismissed", "snoozed"]),
+  nextState: z.enum(["unread", "acknowledged", "dismissed", "snoozed"]),
+  snoozedUntil: z.iso.datetime({ offset: true }).nullable(),
+  createdAt: z.iso.datetime({ offset: true }),
+});
+
+export const listNotificationAuditResponseSchema = z.object({
+  items: z.array(notificationAuditEventSchema),
+  nextCursor: z.uuid().nullable(),
+});
+
 export const briefFactSchema = z.object({
   id: z.uuid(),
   kind: z.enum([
@@ -1147,6 +1216,13 @@ export type AutomationRun = z.infer<typeof automationRunSchema>;
 export type AutomationRunAttempt = z.infer<typeof automationRunAttemptSchema>;
 export type AutomationAuditEvent = z.infer<typeof automationAuditEventSchema>;
 export type AutomationJobV1 = z.infer<typeof automationJobV1Schema>;
+export type Notification = z.infer<typeof notificationSchema>;
+export type ChangeNotificationStateRequest = z.infer<
+  typeof changeNotificationStateRequestSchema
+>;
+export type NotificationAuditEvent = z.infer<
+  typeof notificationAuditEventSchema
+>;
 export type FileCaptureResponse = z.infer<typeof fileCaptureResponseSchema>;
 export type CaptureTriageSuggestion = z.infer<
   typeof captureTriageSuggestionSchema

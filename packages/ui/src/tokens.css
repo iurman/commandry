@@ -2578,3 +2578,100 @@ textarea {
     grid-template-columns: minmax(0, 1fr);
   }
 }
+
+.cmd-notification-list {
+  display: grid;
+  gap: var(--cmd-space-4);
+  margin: var(--cmd-space-4) 0;
+  padding: 0;
+  list-style: none;
+}
+
+.cmd-notification-card {
+  min-width: 0;
+  padding: var(--cmd-space-4);
+  border: 1px solid var(--cmd-border);
+  border-radius: var(--cmd-radius);
+  background: var(--cmd-surface);
+  overflow-wrap: anywhere;
+}
+
+.cmd-notification-card h3 {
+  margin: var(--cmd-space-3) 0;
+}
+
+.cmd-notification-card-top,
+.cmd-notification-links,
+.cmd-notification-actions,
+.cmd-notification-toolbar {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--cmd-space-3);
+}
+
+.cmd-notification-priority {
+  border-radius: 999px;
+  padding: 0.25rem 0.6rem;
+  font-size: 0.75rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  background: var(--cmd-surface-muted);
+}
+
+.cmd-notification-priority-critical {
+  color: var(--cmd-critical-text);
+  background: var(--cmd-critical-bg);
+}
+.cmd-notification-priority-action_required {
+  color: var(--cmd-caution-text);
+  background: var(--cmd-caution-bg);
+}
+.cmd-notification-priority-informational {
+  color: var(--cmd-text-muted);
+}
+
+.cmd-notification-facts {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: var(--cmd-space-3);
+  margin: var(--cmd-space-4) 0;
+}
+
+.cmd-notification-facts dt {
+  color: var(--cmd-text-muted);
+  font-size: 0.75rem;
+  text-transform: uppercase;
+}
+.cmd-notification-facts dd {
+  margin: var(--cmd-space-1) 0 0;
+  overflow-wrap: anywhere;
+}
+.cmd-notification-links a {
+  color: var(--cmd-accent);
+  font-weight: 700;
+}
+.cmd-notification-actions {
+  margin-top: var(--cmd-space-4);
+}
+.cmd-notification-toolbar select {
+  width: auto;
+  min-width: 0;
+  max-width: 100%;
+  flex: 1 1 10rem;
+}
+
+.cmd-notification-audit {
+  flex-basis: 100%;
+  min-width: 0;
+  margin-top: var(--cmd-space-3);
+  padding: var(--cmd-space-3);
+  border: 1px solid var(--cmd-border);
+  border-radius: var(--cmd-radius);
+}
+
+@media (max-width: 35rem) {
+  .cmd-notification-facts {
+    grid-template-columns: minmax(0, 1fr);
+  }
+}

@@ -169,6 +169,18 @@ test("a sensitive synthetic action requires exact approval and records no extern
   expect(proposal.descriptor.packet.digest).toBe(packet.contentDigest);
   expect(proposal.descriptor.externalActions).toEqual([]);
   expect(JSON.stringify(proposal)).not.toContain("must-not-enter-approval");
+  const pendingNoticeResponse = await request.get(
+    `/api/v1/notifications?projectId=${project.id}`,
+  );
+  expect(pendingNoticeResponse.status()).toBe(200);
+  const pendingNotice = (await pendingNoticeResponse.json()).items.find(
+    (item: { kind: string }) => item.kind === "approval",
+  );
+  expect(pendingNotice).toMatchObject({
+    priority: "action_required",
+    isSynthetic: true,
+  });
+  expect(pendingNotice.href).toBe(`/approvals/${proposal.id}`);
   const replayResponse = await request.post(
     `/api/v1/agent-runs/${run.id}/simulated-actions`,
     { data: proposalBody },
@@ -206,6 +218,15 @@ test("a sensitive synthetic action requires exact approval and records no extern
   const decisionResponse = await decisionResponsePromise;
   expect(decisionResponse.status()).toBe(200);
   expect((await decisionResponse.json()).state).toBe("approved");
+  const decidedNoticeResponse = await request.get(
+    `/api/v1/notifications?projectId=${project.id}`,
+  );
+  expect(decidedNoticeResponse.status()).toBe(200);
+  expect(
+    (await decidedNoticeResponse.json()).items.some(
+      (item: { id: string }) => item.id === pendingNotice.id,
+    ),
+  ).toBe(false);
   const decisionBody = decisionResponse.request().postDataJSON();
   expect(decisionBody.expectedDigest).toBe(proposal.descriptorDigest);
   const decisionReplay = await request.post(

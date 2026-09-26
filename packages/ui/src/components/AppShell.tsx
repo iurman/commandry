@@ -16,7 +16,8 @@ export function AppShell({
     | "Search"
     | "Agents"
     | "Approvals"
-    | "Automations";
+    | "Automations"
+    | "Notifications";
 }) {
   return (
     <div className="cmd-shell">
@@ -91,6 +92,13 @@ export function AppShell({
             href="/automations"
           >
             Automations
+          </a>
+          <a
+            aria-current={current === "Notifications" ? "page" : undefined}
+            className={`cmd-nav-link ${current === "Notifications" ? "cmd-nav-current" : ""}`}
+            href="/notifications"
+          >
+            Notifications
           </a>
           {plannedDestinations.map((destination) => (
             <span

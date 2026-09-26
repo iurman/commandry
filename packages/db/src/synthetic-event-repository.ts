@@ -412,6 +412,10 @@ export function createSyntheticEventImportRepository(db: CommandryDatabase) {
               .update(alertCondition)
               .set({
                 state: "open",
+                cycle:
+                  decision === "open" && current.state === "resolved"
+                    ? current.cycle + 1
+                    : current.cycle,
                 reason: syntheticMonitorReason("open"),
                 lastObservedAt: event.occurredAt,
                 lastEventId: event.id,

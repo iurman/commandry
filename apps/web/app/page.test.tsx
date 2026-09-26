@@ -40,6 +40,7 @@ describe("Command Center", () => {
       ["Agents", "/agents"],
       ["Approvals", "/approvals"],
       ["Automations", "/automations"],
+      ["Notifications", "/notifications"],
     ]);
 
     expect(

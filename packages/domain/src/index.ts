@@ -10,4 +10,5 @@ export * from "./work-item-status";
 export * from "./resource-topology";
 export * from "./project-decision";
 export * from "./local-automation";
+export * from "./notification";
 export * from "./capture-triage";

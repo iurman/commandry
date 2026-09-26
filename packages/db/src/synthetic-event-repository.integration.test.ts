@@ -9,6 +9,7 @@ import {
 } from "@commandry/domain";
 import { createDatabase } from "./client";
 import { migrateDatabase } from "./migrate";
+import { createNotificationRepository } from "./notification-repository";
 import { createSyntheticEventImportRepository } from "./synthetic-event-repository";
 import {
   alertCondition,
@@ -30,6 +31,7 @@ test("synthetic evidence projects replay-safe activity and one time-ordered moni
   });
   const database = createDatabase({ connectionString, max: 2 });
   const repository = createSyntheticEventImportRepository(database.db);
+  const notifications = createNotificationRepository(database.db);
   const projectId = crypto.randomUUID();
   const otherProjectId = crypto.randomUUID();
   const resourceId = crypto.randomUUID();
@@ -113,6 +115,25 @@ test("synthetic evidence projects replay-safe activity and one time-ordered moni
     assert.equal(alert.state, "open");
     assert.equal(alert.evidenceEventIds.length, 1);
     assert.match(alert.reason, /Synthetic monitor-down evidence/);
+    const firstNotice = (
+      await notifications.list({ limit: 10, view: "active", projectId })
+    ).items[0];
+    assert.ok(firstNotice);
+    assert.equal(firstNotice.kind, "synthetic_alert");
+    assert.equal(firstNotice.priority, "critical");
+    assert.equal(firstNotice.isSynthetic, true);
+    const acknowledged = await notifications.changeState(firstNotice.id, {
+      action: "acknowledge",
+      expectedVersion: 0,
+    });
+    assert.equal(acknowledged.state, "acknowledged");
+    await assert.rejects(
+      notifications.changeState(firstNotice.id, {
+        action: "dismiss",
+        expectedVersion: 0,
+      }),
+      { code: "NOTIFICATION_STALE" },
+    );
     const repeat = await projectOne(
       "operations.monitor-down",
       "2026-09-25T11:00:00.000Z",
@@ -130,6 +151,45 @@ test("synthetic evidence projects replay-safe activity and one time-ordered moni
     assert.ok(resolved);
     assert.equal(resolved.id, alert.id);
     assert.equal(resolved.state, "resolved");
+    const recoveryNotice = (
+      await notifications.list({ limit: 10, view: "active", projectId })
+    ).items[0];
+    assert.ok(recoveryNotice);
+    assert.equal(recoveryNotice.priority, "informational");
+    assert.notEqual(recoveryNotice.id, firstNotice.id);
+    const snoozed = await notifications.changeState(recoveryNotice.id, {
+      action: "snooze",
+      expectedVersion: 0,
+      snoozedUntil: new Date(Date.now() + 60_000).toISOString(),
+    });
+    assert.equal(snoozed.state, "snoozed");
+    assert.equal(
+      (await notifications.list({ limit: 10, view: "active", projectId })).items
+        .length,
+      0,
+    );
+    assert.equal(
+      (await notifications.list({ limit: 10, view: "all", projectId })).items[0]
+        ?.state,
+      "snoozed",
+    );
+    const restored = await notifications.changeState(recoveryNotice.id, {
+      action: "restore",
+      expectedVersion: 1,
+    });
+    assert.equal(restored.state, "unread");
+    assert.equal(
+      (await notifications.listAudit(recoveryNotice.id, { limit: 10 })).items
+        .length,
+      2,
+    );
+    await assert.rejects(
+      database.pool.query(
+        "delete from notification_audit_event where notification_id = $1",
+        [recoveryNotice.id],
+      ),
+      /Notification audit events are immutable/,
+    );
     assert.equal(resolved.lastObservedAt, "2026-09-25T12:00:00.000Z");
     assert.deepEqual(
       new Set(resolved.evidenceEventIds),
@@ -244,6 +304,28 @@ test("synthetic evidence projects replay-safe activity and one time-ordered moni
       .where(eq(resource.id, resourceId));
     assert.equal(untouched?.state, null);
     assert.equal(untouched?.lastObservedAt, null);
+    await projectOne("operations.monitor-down", "2026-09-25T14:00:00.000Z");
+    const reopened = (
+      await notifications.list({ limit: 10, view: "active", projectId })
+    ).items[0];
+    assert.ok(reopened);
+    assert.equal(reopened.priority, "critical");
+    assert.notEqual(reopened.id, firstNotice.id);
+    assert.equal(reopened.state, "unread");
+    const notificationIds: string[] = [];
+    let notificationCursor: string | null = null;
+    do {
+      const page = await notifications.list({
+        limit: 1,
+        view: "all",
+        ...(notificationCursor ? { cursor: notificationCursor } : {}),
+      });
+      notificationIds.push(...page.items.map((item) => item.id));
+      notificationCursor = page.nextCursor;
+    } while (notificationCursor);
+    assert.equal(notificationIds.length, new Set(notificationIds).size);
+    assert.ok(notificationIds.includes(reopened.id));
+    assert.ok(notificationIds.some((id) => id !== reopened.id));
   } finally {
     await database.close();
   }

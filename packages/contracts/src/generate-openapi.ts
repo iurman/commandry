@@ -87,6 +87,11 @@ import {
   listAutomationRunsResponseSchema,
   listAutomationRunAttemptsResponseSchema,
   listAutomationAuditResponseSchema,
+  notificationSchema,
+  listNotificationsResponseSchema,
+  changeNotificationStateRequestSchema,
+  notificationAuditEventSchema,
+  listNotificationAuditResponseSchema,
   attentionItemSchema,
   listAttentionResponseSchema,
   listNormalizedEventsResponseSchema,
@@ -1292,6 +1297,125 @@ export function generateOpenApi(): string {
           },
         },
       },
+      "/api/v1/notifications": {
+        get: {
+          operationId: "listLocalNotifications",
+          summary:
+            "Page source-backed local notifications without outbound delivery",
+          parameters: [
+            {
+              in: "query",
+              name: "limit",
+              required: false,
+              schema: {
+                type: "integer",
+                minimum: 1,
+                maximum: 100,
+                default: 25,
+              },
+            },
+            {
+              in: "query",
+              name: "cursor",
+              required: false,
+              schema: { type: "string" },
+            },
+            {
+              in: "query",
+              name: "view",
+              required: false,
+              schema: {
+                type: "string",
+                enum: ["active", "all"],
+                default: "active",
+              },
+            },
+            projectFilterParameter,
+          ],
+          responses: {
+            "200": {
+              description: "Notification page",
+              content: jsonContent("ListNotificationsResponse"),
+            },
+            "400": {
+              description: "Invalid page query or cursor",
+              content: jsonContent("ErrorResponse"),
+            },
+          },
+        },
+      },
+      "/api/v1/notifications/{id}": {
+        get: {
+          operationId: "getLocalNotification",
+          parameters: [
+            {
+              in: "path",
+              name: "id",
+              required: true,
+              schema: { type: "string" },
+            },
+          ],
+          responses: {
+            "200": {
+              description: "Current source-backed notification",
+              content: jsonContent("Notification"),
+            },
+            "404": {
+              description: "Source is no longer current",
+              content: jsonContent("ErrorResponse"),
+            },
+          },
+        },
+      },
+      "/api/v1/notifications/{id}/state": {
+        put: {
+          operationId: "changeLocalNotificationState",
+          summary:
+            "Locally acknowledge, dismiss, snooze, or restore a notification",
+          parameters: [
+            {
+              in: "path",
+              name: "id",
+              required: true,
+              schema: { type: "string" },
+            },
+          ],
+          requestBody: {
+            required: true,
+            content: jsonContent("ChangeNotificationStateRequest"),
+          },
+          responses: {
+            "200": {
+              description: "Updated local receipt",
+              content: jsonContent("Notification"),
+            },
+            "409": {
+              description: "Stale expected version",
+              content: jsonContent("ErrorResponse"),
+            },
+          },
+        },
+      },
+      "/api/v1/notifications/{id}/audit": {
+        get: {
+          operationId: "listLocalNotificationAudit",
+          parameters: [
+            {
+              in: "path",
+              name: "id",
+              required: true,
+              schema: { type: "string" },
+            },
+            ...pageParameters,
+          ],
+          responses: {
+            "200": {
+              description: "Immutable notification state history",
+              content: jsonContent("ListNotificationAuditResponse"),
+            },
+          },
+        },
+      },
       "/api/v1/search": {
         get: {
           operationId: "searchRecords",
@@ -1637,6 +1761,15 @@ export function generateOpenApi(): string {
         ),
         ListAutomationAuditResponse: component(
           listAutomationAuditResponseSchema,
+        ),
+        Notification: component(notificationSchema),
+        ListNotificationsResponse: component(listNotificationsResponseSchema),
+        ChangeNotificationStateRequest: component(
+          changeNotificationStateRequestSchema,
+        ),
+        NotificationAuditEvent: component(notificationAuditEventSchema),
+        ListNotificationAuditResponse: component(
+          listNotificationAuditResponseSchema,
         ),
         ListWorkItemsResponse: component(listWorkItemsResponseSchema),
         ListKnowledgeItemsResponse: component(listKnowledgeItemsResponseSchema),

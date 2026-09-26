@@ -16,5 +16,6 @@ export * from "./work-item-status-repository";
 export * from "./resource-topology-repository";
 export * from "./project-decision-repository";
 export * from "./local-automation-repository";
+export * from "./notification-repository";
 export * from "./capture-triage-repository";
 export * as schema from "./schema";

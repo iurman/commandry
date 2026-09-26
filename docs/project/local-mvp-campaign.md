@@ -98,6 +98,14 @@ local experience lab.
   attempts and audit events, and returns a synthetic, unverified preview with
   no external action. This is a local scheduler/source-of-truth assumption,
   not a choice of live integration scheduler or an Overnight Queue policy.
+- The local notification center will derive current items from synthetic
+  monitor conditions, pending simulated approvals, and failed local summary
+  attempts. A continuing monitor condition yields one item per open cycle and
+  a distinct recovery item; repeated down events do not create more items.
+  Acknowledgement, dismissal, and one-hour UI snooze are reversible local
+  receipts with immutable audit, not alert-source mutations or external
+  delivery. Priority and the local-only channel are provisional examples;
+  notification budgets, routing, and live channels remain open under OQ-012.
 
 ## Evidence expected before campaign completion
 

@@ -1260,6 +1260,7 @@ export const alertCondition = pgTable(
       .notNull()
       .references(() => resource.id, { onDelete: "restrict" }),
     state: text("state", { enum: ["open", "resolved"] }).notNull(),
+    cycle: integer("cycle").notNull().default(1),
     severity: text("severity", { enum: ["critical"] })
       .notNull()
       .default("critical"),
@@ -1289,6 +1290,7 @@ export const alertCondition = pgTable(
     index("alert_condition_updated_idx").on(table.updatedAt, table.id),
     index("alert_condition_project_idx").on(table.projectId),
     check("alert_condition_synthetic_only", sql`${table.isSynthetic} = true`),
+    check("alert_condition_cycle_positive", sql`${table.cycle} > 0`),
     check(
       "alert_condition_state_valid",
       sql`${table.state} in ('open', 'resolved')`,
@@ -1311,6 +1313,55 @@ export const alertEvidence = pgTable(
   (table) => [
     uniqueIndex("alert_evidence_unique_idx").on(table.alertId, table.eventId),
     index("alert_evidence_alert_idx").on(table.alertId),
+  ],
+);
+
+export const notificationReceipt = pgTable(
+  "notification_receipt",
+  {
+    id: text("id").primaryKey(),
+    state: text("state", {
+      enum: ["unread", "acknowledged", "dismissed", "snoozed"],
+    })
+      .notNull()
+      .default("unread"),
+    snoozedUntil: timestamp("snoozed_until", { withTimezone: true }),
+    version: integer("version").notNull().default(1),
+    updatedAt: updatedAt(),
+  },
+  (table) => [
+    check("notification_receipt_version_positive", sql`${table.version} > 0`),
+    check(
+      "notification_receipt_state_valid",
+      sql`${table.state} in ('unread', 'acknowledged', 'dismissed', 'snoozed')`,
+    ),
+    check(
+      "notification_receipt_snooze_valid",
+      sql`(${table.state} = 'snoozed') = (${table.snoozedUntil} is not null)`,
+    ),
+  ],
+);
+
+export const notificationAuditEvent = pgTable(
+  "notification_audit_event",
+  {
+    id: uuid("id").primaryKey(),
+    notificationId: text("notification_id")
+      .notNull()
+      .references(() => notificationReceipt.id, { onDelete: "restrict" }),
+    actor: text("actor").notNull(),
+    operation: text("operation").notNull(),
+    previousState: text("previous_state").notNull(),
+    nextState: text("next_state").notNull(),
+    snoozedUntil: timestamp("snoozed_until", { withTimezone: true }),
+    createdAt: createdAt(),
+  },
+  (table) => [
+    index("notification_audit_notification_idx").on(
+      table.notificationId,
+      table.createdAt,
+      table.id,
+    ),
   ],
 );
 
