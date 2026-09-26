@@ -34,7 +34,9 @@ local experience lab.
 - Two fixture adapters will model development and operational signals without
   connecting to external services. Their source envelopes, normalized events,
   activity, attention, briefs, and search results will all carry a visible
-  `Synthetic` label. Replaying a fixture should be idempotent.
+  `Synthetic` label. Replaying a fixture should be idempotent. Operational
+  fixture observations will have their own projection and will not update a
+  resource's real observed state or last observed time.
 - Briefs and execution packets will initially use deterministic assembly from
   stored records, with evidence links and generation time. This will not claim
   semantic answer quality or resolve OQ-009.

@@ -201,15 +201,21 @@ async function runSmoke(postgres, adminUrl, runtimePassword) {
       const firstPage = await fetch(`${origin}/api/v1/resources?limit=1`);
       assert.equal(firstPage.status, 200);
       const firstResources = await firstPage.json();
-      assert.equal(firstResources.items[0]?.id, resourceIds[0]);
-      assert.equal(firstResources.nextCursor, resourceIds[0]);
+      assert.equal(firstResources.items.length, 1);
+      assert.equal(firstResources.nextCursor, firstResources.items[0].id);
       const secondPage = await fetch(
         `${origin}/api/v1/resources?limit=1&cursor=${firstResources.nextCursor}`,
       );
       assert.equal(secondPage.status, 200);
       const secondResources = await secondPage.json();
-      assert.equal(secondResources.items[0]?.id, resourceIds[1]);
-      assert.equal(secondResources.nextCursor, null);
+      assert.equal(secondResources.items.length, 1);
+      assert.notEqual(secondResources.items[0].id, firstResources.items[0].id);
+      for (const id of resourceIds) {
+        const resourceResponse = await fetch(
+          `${origin}/api/v1/resources/${id}`,
+        );
+        assert.equal(resourceResponse.status, 200);
+      }
 
       const result = await client.query(
         "SELECT (SELECT count(*) FROM synthetic_run_effect WHERE run_id = $1) AS effects, (SELECT count(*) FROM audit_event WHERE target_run_id = $1 AND operation = 'synthetic_run.succeeded') AS audits, (SELECT count(*) FROM worker_heartbeat) AS heartbeats",
@@ -221,8 +227,144 @@ async function runSmoke(postgres, adminUrl, runtimePassword) {
     } finally {
       await client.end();
     }
+    const eventProjectResponse = await fetch(`${origin}/api/v1/projects`, {
+      method: "POST",
+      headers: { "content-type": "application/json" },
+      body: JSON.stringify({
+        name: `Smoke event project ${key}`,
+        type: "software",
+      }),
+    });
+    assert.equal(eventProjectResponse.status, 201);
+    const eventProject = await eventProjectResponse.json();
+    const eventResourceResponse = await fetch(`${origin}/api/v1/resources`, {
+      method: "POST",
+      headers: { "content-type": "application/json" },
+      body: JSON.stringify({ name: `Smoke monitor ${key}`, kind: "service" }),
+    });
+    assert.equal(eventResourceResponse.status, 201);
+    const eventResource = await eventResourceResponse.json();
+    const eventLinkResponse = await fetch(
+      `${origin}/api/v1/projects/${eventProject.id}/resources`,
+      {
+        method: "POST",
+        headers: { "content-type": "application/json" },
+        body: JSON.stringify({
+          resourceId: eventResource.id,
+          type: "supports",
+        }),
+      },
+    );
+    assert.equal(eventLinkResponse.status, 201);
+
+    async function importEvent(scenarioId, occurrenceId) {
+      const response = await fetch(`${origin}/api/v1/synthetic-event-imports`, {
+        method: "POST",
+        headers: { "content-type": "application/json" },
+        body: JSON.stringify({
+          scenarioId,
+          occurrenceId,
+          projectId: eventProject.id,
+          resourceId: eventResource.id,
+        }),
+      });
+      assert.equal(response.status, 202);
+      return response.json();
+    }
+    async function awaitImport(id) {
+      const importDeadline = Date.now() + 30_000;
+      while (Date.now() < importDeadline) {
+        const response = await fetch(
+          `${origin}/api/v1/synthetic-event-imports/${id}`,
+        );
+        assert.equal(response.status, 200);
+        const current = await response.json();
+        if (current.state === "succeeded") return current;
+        if (current.state === "failed")
+          throw new Error(`Event import failed: ${current.error}`);
+        for (const service of services) {
+          if (service.error || service.child.exitCode !== null)
+            throw new Error(
+              `${service.name} exited during event import: ${service.tail}`,
+            );
+        }
+        await delay(150);
+      }
+      throw new Error(`Event import timed out: ${id}`);
+    }
+
+    const downOccurrenceId = randomUUID();
+    const down = await importEvent("operations.monitor-down", downOccurrenceId);
+    const duplicateDown = await importEvent(
+      "operations.monitor-down",
+      downOccurrenceId,
+    );
+    assert.equal(duplicateDown.id, down.id);
+    const completedDown = await awaitImport(down.id);
+    assert.equal(completedDown.isSynthetic, true);
+    assert.ok(completedDown.sourceEnvelopeId);
+    assert.ok(completedDown.eventId);
+
+    const envelopeResponse = await fetch(
+      `${origin}/api/v1/source-envelopes/${completedDown.sourceEnvelopeId}`,
+    );
+    assert.equal(envelopeResponse.status, 200);
+    const envelope = await envelopeResponse.json();
+    assert.equal(envelope.isSynthetic, true);
+
+    const eventsResponse = await fetch(
+      `${origin}/api/v1/events?projectId=${eventProject.id}`,
+    );
+    assert.equal(eventsResponse.status, 200);
+    const eventPage = await eventsResponse.json();
+    assert.ok(
+      eventPage.items.some((event) => event.id === completedDown.eventId),
+    );
+
+    const alertsResponse = await fetch(
+      `${origin}/api/v1/alerts?projectId=${eventProject.id}`,
+    );
+    assert.equal(alertsResponse.status, 200);
+    const alerts = await alertsResponse.json();
+    assert.ok(alerts.items.length >= 1);
+    const activeAlert = alerts.items.find((alert) => alert.state === "open");
+    assert.ok(activeAlert);
+    assert.equal(activeAlert.isSynthetic, true);
+    assert.ok(activeAlert.reason);
+    assert.ok(activeAlert.ruleId);
+    const attentionResponse = await fetch(
+      `${origin}/api/v1/attention?projectId=${eventProject.id}`,
+    );
+    assert.equal(attentionResponse.status, 200);
+    const attention = await attentionResponse.json();
+    assert.ok(attention.items.length >= 1);
+
+    const recovery = await importEvent(
+      "operations.monitor-recovered",
+      randomUUID(),
+    );
+    await awaitImport(recovery.id);
+    const recoveredAttentionResponse = await fetch(
+      `${origin}/api/v1/attention?projectId=${eventProject.id}`,
+    );
+    assert.equal(recoveredAttentionResponse.status, 200);
+    const recoveredAttention = await recoveredAttentionResponse.json();
+    assert.equal(recoveredAttention.items.length, 0);
+    const resolvedAlertResponse = await fetch(
+      `${origin}/api/v1/alerts/${activeAlert.id}`,
+    );
+    assert.equal(resolvedAlertResponse.status, 200);
+    const resolvedAlert = await resolvedAlertResponse.json();
+    assert.equal(resolvedAlert.state, "resolved");
+    const realResourceResponse = await fetch(
+      `${origin}/api/v1/resources/${eventResource.id}`,
+    );
+    assert.equal(realResourceResponse.status, 200);
+    const realResource = await realResourceResponse.json();
+    assert.equal(realResource.state, null);
+    assert.equal(realResource.lastObservedAt, null);
     console.log(
-      "Built web and worker smoke passed: health, resource pages, HTTP idempotency, queue processing, and audit.",
+      "Built web and worker smoke passed: health, resource pages, queue processing, synthetic event evidence, attention lifecycle, and real health isolation.",
     );
   } finally {
     await Promise.all(services.reverse().map(stopService));
@@ -258,6 +400,19 @@ try {
     runtimePassword,
     "packages/platform/src/foundation.integration.test.ts",
   );
+  const platformTests = (await readdir(resolve(root, "packages/platform/src")))
+    .filter(
+      (file) =>
+        file.endsWith(".integration.test.ts") &&
+        file !== "foundation.integration.test.ts",
+    )
+    .sort();
+  for (const file of platformTests)
+    await runTests(
+      connectionString,
+      runtimePassword,
+      `packages/platform/src/${file}`,
+    );
   if (process.argv.includes("--smoke"))
     await runSmoke(postgres, connectionString, runtimePassword);
   const repositoryTests = (await readdir(resolve(root, "packages/db/src")))

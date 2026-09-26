@@ -5,4 +5,5 @@ export { migrateDatabase } from "./migrate";
 export * from "./repositories";
 export * from "./catalog-repository";
 export * from "./capture-repository";
+export * from "./synthetic-event-repository";
 export * as schema from "./schema";

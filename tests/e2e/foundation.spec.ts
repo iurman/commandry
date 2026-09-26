@@ -1,6 +1,6 @@
 import { expect, test } from "@playwright/test";
 
-test("local shell identifies unavailable data without claiming system health", async ({
+test("local shell labels simulated data without claiming live health", async ({
   page,
 }) => {
   await page.goto("/");
@@ -9,16 +9,20 @@ test("local shell identifies unavailable data without claiming system health", a
     page.getByRole("heading", { name: "Command Center" }),
   ).toBeVisible();
   const navigation = page.getByRole("navigation", { name: "Main navigation" });
-  await expect(navigation.getByRole("link")).toHaveCount(4);
+  await expect(navigation.getByRole("link")).toHaveCount(5);
   await expect(navigation.getByRole("link", { name: "Inbox" })).toBeVisible();
   await expect(
     navigation.getByRole("link", { name: "Projects" }),
   ).toBeVisible();
   await expect(navigation.getByRole("link", { name: "Search" })).toBeVisible();
-  await expect(page.getByText("Not connected")).toBeVisible();
-  await expect(page.getByText("No data")).toHaveCount(3);
+  await expect(navigation.getByRole("link", { name: "Activity" })).toBeVisible();
+  await expect(page.getByText("No live sources")).toBeVisible();
   await expect(
-    page.getByText(/does not report project or system health/),
+    page.getByRole("heading", { name: "Attention", exact: true }),
+  ).toBeVisible();
+  await expect(page.getByRole("heading", { name: "Recent change" })).toBeVisible();
+  await expect(
+    page.getByText(/They do not report project or resource health/),
   ).toBeVisible();
   expect(
     await page.evaluate(

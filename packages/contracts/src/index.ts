@@ -213,6 +213,160 @@ export const searchResponseSchema = z.object({
   nextCursor: z.uuid().nullable(),
 });
 
+export const syntheticScenarioIdSchema = z.enum([
+  "development.pr-merged",
+  "operations.monitor-down",
+  "operations.monitor-recovered",
+]);
+
+export const syntheticSourceKindSchema = z.enum([
+  "synthetic-development",
+  "synthetic-operations",
+]);
+
+export const syntheticSourceLabelSchema = z.enum([
+  "Synthetic development fixture",
+  "Synthetic operational fixture",
+]);
+
+export const createSyntheticEventImportRequestSchema = z.object({
+  scenarioId: syntheticScenarioIdSchema,
+  projectId: z.uuid(),
+  resourceId: z.uuid().optional(),
+  occurrenceId: z.string().trim().min(1).max(180),
+  occurredAt: z.iso.datetime({ offset: true }).optional(),
+});
+
+export const syntheticEventImportJobV1Schema = z.object({
+  version: z.literal(1),
+  runId: z.uuid(),
+  occurrenceId: z.string().min(1).max(180),
+});
+
+export const syntheticEventImportSchema = z.object({
+  id: z.uuid(),
+  occurrenceId: z.string(),
+  scenarioId: syntheticScenarioIdSchema,
+  projectId: z.uuid(),
+  resourceId: z.uuid().nullable(),
+  sourceKind: syntheticSourceKindSchema,
+  sourceLabel: syntheticSourceLabelSchema,
+  isSynthetic: z.literal(true),
+  state: z.enum(["queued", "running", "succeeded", "failed"]),
+  attempts: z.number().int().min(0),
+  error: z.string().nullable(),
+  sourceEnvelopeId: z.uuid(),
+  eventId: z.uuid().nullable(),
+  occurredAt: z.iso.datetime({ offset: true }),
+  receivedAt: z.iso.datetime({ offset: true }),
+  createdAt: z.iso.datetime({ offset: true }),
+  completedAt: z.iso.datetime({ offset: true }).nullable(),
+});
+
+export const listSyntheticEventImportsResponseSchema = z.object({
+  items: z.array(syntheticEventImportSchema),
+  nextCursor: z.uuid().nullable(),
+});
+
+export const sourceEnvelopeSchema = z.object({
+  id: z.uuid(),
+  importId: z.uuid(),
+  sourceKind: syntheticSourceKindSchema,
+  sourceLabel: syntheticSourceLabelSchema,
+  sourceSchemaVersion: z.literal("synthetic-fixture/v1"),
+  sourceEventId: z.string(),
+  rawPayload: z.record(z.string(), z.string().nullable()),
+  occurredAt: z.iso.datetime({ offset: true }),
+  receivedAt: z.iso.datetime({ offset: true }),
+  isSynthetic: z.literal(true),
+});
+
+export const normalizedEventSchema = z.object({
+  id: z.uuid(),
+  type: z.enum([
+    "git.pull_request.merged",
+    "monitor.down",
+    "monitor.recovered",
+  ]),
+  summary: z.string(),
+  severity: z.enum(["info", "critical"]),
+  projectId: z.uuid(),
+  resourceId: z.uuid().nullable(),
+  occurredAt: z.iso.datetime({ offset: true }),
+  ingestedAt: z.iso.datetime({ offset: true }),
+  sourceEnvelopeId: z.uuid(),
+  sourceKind: syntheticSourceKindSchema,
+  sourceLabel: syntheticSourceLabelSchema,
+  isSynthetic: z.literal(true),
+  processingVersion: z.literal("synthetic-projection/v1"),
+  alertId: z.uuid().nullable(),
+  evidenceHref: z.string().startsWith("/api/v1/source-envelopes/"),
+});
+
+export const listNormalizedEventsResponseSchema = z.object({
+  items: z.array(normalizedEventSchema),
+  nextCursor: z.uuid().nullable(),
+});
+
+export const syntheticAlertSchema = z.object({
+  id: z.uuid(),
+  state: z.enum(["open", "resolved"]),
+  severity: z.literal("critical"),
+  ruleId: z.literal("synthetic.monitor.availability.v1"),
+  reason: z.string(),
+  projectId: z.uuid(),
+  resourceId: z.uuid(),
+  firstObservedAt: z.iso.datetime({ offset: true }),
+  lastObservedAt: z.iso.datetime({ offset: true }),
+  resolvedAt: z.iso.datetime({ offset: true }).nullable(),
+  lastEventId: z.uuid(),
+  evidenceEventIds: z.array(z.uuid()),
+  sourceKind: z.literal("synthetic-operations"),
+  sourceLabel: z.literal("Synthetic operational fixture"),
+  isSynthetic: z.literal(true),
+});
+
+export const listSyntheticAlertsQuerySchema = listResourcesQuerySchema.extend({
+  projectId: z.uuid().optional(),
+  resourceId: z.uuid().optional(),
+  state: z.enum(["open", "resolved"]).optional(),
+});
+
+export const listSyntheticAlertsResponseSchema = z.object({
+  items: z.array(syntheticAlertSchema),
+  nextCursor: z.uuid().nullable(),
+});
+
+export const listNormalizedEventsQuerySchema = listResourcesQuerySchema.extend({
+  projectId: z.uuid().optional(),
+  resourceId: z.uuid().optional(),
+});
+
+export const attentionItemSchema = z.object({
+  id: z.uuid(),
+  priority: z.literal("critical"),
+  title: z.string(),
+  reason: z.string(),
+  ruleId: z.literal("synthetic.monitor.availability.v1"),
+  alertId: z.uuid(),
+  projectId: z.uuid(),
+  resourceId: z.uuid(),
+  lastObservedAt: z.iso.datetime({ offset: true }),
+  evidenceEventIds: z.array(z.uuid()),
+  evidenceHref: z.string().startsWith("/api/v1/events/"),
+  sourceLabel: z.literal("Synthetic operational fixture"),
+  isSynthetic: z.literal(true),
+});
+
+export const listAttentionQuerySchema = listResourcesQuerySchema.extend({
+  projectId: z.uuid().optional(),
+});
+
+export const listAttentionResponseSchema = z.object({
+  items: z.array(attentionItemSchema),
+  nextCursor: z.uuid().nullable(),
+});
+
 export const createSyntheticRunRequestSchema = z.object({
   idempotencyKey: z.string().trim().min(1).max(180),
 });
@@ -250,5 +404,18 @@ export type WorkItem = z.infer<typeof workItemSchema>;
 export type KnowledgeItem = z.infer<typeof knowledgeItemSchema>;
 export type FileCaptureResponse = z.infer<typeof fileCaptureResponseSchema>;
 export type SearchResult = z.infer<typeof searchResultSchema>;
+export type CreateSyntheticEventImportRequest = z.infer<
+  typeof createSyntheticEventImportRequestSchema
+>;
+export type SyntheticEventImportJobV1 = z.infer<
+  typeof syntheticEventImportJobV1Schema
+>;
+export type SyntheticEventImportRecord = z.infer<
+  typeof syntheticEventImportSchema
+>;
+export type SourceEnvelopeRecord = z.infer<typeof sourceEnvelopeSchema>;
+export type NormalizedSyntheticEvent = z.infer<typeof normalizedEventSchema>;
+export type SyntheticAlert = z.infer<typeof syntheticAlertSchema>;
+export type AttentionItem = z.infer<typeof attentionItemSchema>;
 export type SyntheticJobV1 = z.infer<typeof syntheticJobV1Schema>;
 export type SyntheticRunResponse = z.infer<typeof syntheticRunSchema>;

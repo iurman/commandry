@@ -1,12 +1,20 @@
 import { eq, sql } from "drizzle-orm";
 import { PgBoss, fromDrizzle } from "pg-boss";
 import { Pool } from "pg";
+import type { PreparedSyntheticEventImport } from "@commandry/application";
 import type { CommandryDatabase } from "@commandry/db";
-import { schema } from "@commandry/db";
-import type { SyntheticRun } from "@commandry/domain";
+import { createSyntheticEventImportRepository, schema } from "@commandry/db";
+import {
+  SyntheticEventImportConflictError,
+  type SyntheticRun,
+} from "@commandry/domain";
 
 export const SYNTHETIC_QUEUE = "commandry-synthetic-v1";
 export const SYNTHETIC_DEAD_LETTER_QUEUE = "commandry-synthetic-dlq";
+export const SYNTHETIC_EVENT_IMPORT_QUEUE =
+  "commandry-synthetic-event-import-v1";
+export const SYNTHETIC_EVENT_IMPORT_DEAD_LETTER_QUEUE =
+  "commandry-synthetic-event-import-dlq";
 
 function bossOptions(connectionString: string, max: number, migrate: boolean) {
   return {
@@ -35,6 +43,13 @@ export async function installPgBossSchema(options: {
       retryDelay: 1,
       retryBackoff: true,
       deadLetter: SYNTHETIC_DEAD_LETTER_QUEUE,
+    });
+    await boss.createQueue(SYNTHETIC_EVENT_IMPORT_DEAD_LETTER_QUEUE);
+    await boss.createQueue(SYNTHETIC_EVENT_IMPORT_QUEUE, {
+      retryLimit: 3,
+      retryDelay: 1,
+      retryBackoff: true,
+      deadLetter: SYNTHETIC_EVENT_IMPORT_DEAD_LETTER_QUEUE,
     });
   } finally {
     await boss.stop();
@@ -127,6 +142,100 @@ export function createSyntheticRunSubmission(
           throw new Error("Synthetic occurrence was not found after conflict");
         return existing;
       });
+    },
+  };
+}
+
+/** Persist the original synthetic evidence, product run, queue job, and audit atomically. */
+export function createSyntheticEventImportSubmission(
+  db: CommandryDatabase,
+  boss: PgBoss,
+) {
+  const repository = createSyntheticEventImportRepository(db);
+  return {
+    async submitOnce(input: PreparedSyntheticEventImport) {
+      const importId = await db.transaction(async (tx) => {
+        const [inserted] = await tx
+          .insert(schema.syntheticEventImport)
+          .values({
+            id: crypto.randomUUID(),
+            occurrenceId: input.occurrenceId,
+            requestFingerprint: input.requestFingerprint,
+            scenarioId: input.scenarioId,
+            projectId: input.projectId,
+            resourceId: input.resourceId,
+            state: "queued",
+          })
+          .onConflictDoNothing({
+            target: schema.syntheticEventImport.occurrenceId,
+          })
+          .returning({ id: schema.syntheticEventImport.id });
+
+        if (!inserted) {
+          const [existing] = await tx
+            .select({
+              id: schema.syntheticEventImport.id,
+              requestFingerprint:
+                schema.syntheticEventImport.requestFingerprint,
+            })
+            .from(schema.syntheticEventImport)
+            .where(
+              eq(schema.syntheticEventImport.occurrenceId, input.occurrenceId),
+            )
+            .limit(1);
+          if (!existing)
+            throw new Error(
+              "Synthetic event import was not found after conflict",
+            );
+          if (existing.requestFingerprint !== input.requestFingerprint)
+            throw new SyntheticEventImportConflictError();
+          return existing.id;
+        }
+
+        const envelopeId = crypto.randomUUID();
+        await tx.insert(schema.sourceEnvelope).values({
+          id: envelopeId,
+          importId: inserted.id,
+          sourceKind: input.sourceKind,
+          sourceLabel: input.sourceLabel,
+          sourceSchemaVersion: input.sourceSchemaVersion,
+          sourceEventId: input.sourceEventId,
+          rawPayload: input.rawPayload,
+          occurredAt: input.occurredAt
+            ? new Date(input.occurredAt)
+            : new Date(),
+          isSynthetic: true,
+        });
+
+        const jobId = await boss.send(
+          SYNTHETIC_EVENT_IMPORT_QUEUE,
+          {
+            version: 1,
+            runId: inserted.id,
+            occurrenceId: input.occurrenceId,
+          },
+          { db: fromDrizzle(tx, sql) },
+        );
+        if (!jobId) throw new Error("Synthetic event import was not enqueued");
+
+        await tx.insert(schema.auditEvent).values({
+          id: crypto.randomUUID(),
+          actor: "system:api",
+          operation: "synthetic_event_import.queued",
+          targetImportId: inserted.id,
+          details: {
+            jobId,
+            envelopeId,
+            scenarioId: input.scenarioId,
+          },
+        });
+        return inserted.id;
+      });
+
+      const record = await repository.getById(importId);
+      if (!record)
+        throw new Error("Synthetic event import disappeared after submission");
+      return record;
     },
   };
 }

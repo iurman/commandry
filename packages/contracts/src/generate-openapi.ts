@@ -4,6 +4,7 @@ import { fileURLToPath } from "node:url";
 import { z } from "zod";
 import {
   captureSchema,
+  createSyntheticEventImportRequestSchema,
   createCaptureRequestSchema,
   createProjectRequestSchema,
   createProjectResourceLinkRequestSchema,
@@ -15,18 +16,28 @@ import {
   fileCaptureResponseSchema,
   healthResponseSchema,
   knowledgeItemSchema,
+  attentionItemSchema,
+  listAttentionResponseSchema,
+  listNormalizedEventsResponseSchema,
+  listSyntheticAlertsResponseSchema,
+  listSyntheticEventImportsResponseSchema,
   listCapturesResponseSchema,
   listKnowledgeItemsResponseSchema,
   listProjectResourceLinksResponseSchema,
   listProjectsResponseSchema,
   listResourcesResponseSchema,
   listWorkItemsResponseSchema,
+  normalizedEventSchema,
   projectResourceLinkSchema,
   projectSummarySchema,
   resourceSummarySchema,
   searchResponseSchema,
   searchResultSchema,
   syntheticJobV1Schema,
+  sourceEnvelopeSchema,
+  syntheticAlertSchema,
+  syntheticEventImportJobV1Schema,
+  syntheticEventImportSchema,
   syntheticRunSchema,
   versionResponseSchema,
   workItemSchema,
@@ -65,6 +76,20 @@ const pageParameters = [
     schema: { type: "string", format: "uuid" },
   },
 ];
+
+const projectFilterParameter = {
+  in: "query",
+  name: "projectId",
+  required: false,
+  schema: { type: "string", format: "uuid" },
+};
+
+const resourceFilterParameter = {
+  in: "query",
+  name: "resourceId",
+  required: false,
+  schema: { type: "string", format: "uuid" },
+};
 
 export function generateOpenApi(): string {
   const document = {
@@ -396,6 +421,182 @@ export function generateOpenApi(): string {
           },
         },
       },
+      "/api/v1/synthetic-event-imports": {
+        get: {
+          operationId: "listSyntheticEventImports",
+          summary: "Page through locally submitted synthetic imports",
+          parameters: pageParameters,
+          responses: {
+            "200": {
+              description: "A page of synthetic imports",
+              content: jsonContent("ListSyntheticEventImportsResponse"),
+            },
+            "400": {
+              description: "Invalid page query",
+              content: jsonContent("ErrorResponse"),
+            },
+          },
+        },
+        post: {
+          operationId: "createSyntheticEventImport",
+          summary: "Submit a fixed synthetic fixture in local or test mode",
+          requestBody: {
+            required: true,
+            content: jsonContent("CreateSyntheticEventImportRequest"),
+          },
+          responses: {
+            "202": {
+              description: "Queued or existing import",
+              content: jsonContent("SyntheticEventImport"),
+            },
+            "400": {
+              description: "Invalid fixture or missing required resource",
+              content: jsonContent("ErrorResponse"),
+            },
+            "403": {
+              description: "Only local and test imports are allowed",
+              content: jsonContent("ErrorResponse"),
+            },
+            "404": {
+              description: "Project or resource not found",
+              content: jsonContent("ErrorResponse"),
+            },
+            "409": {
+              description: "Occurrence conflict or unlinked resource",
+              content: jsonContent("ErrorResponse"),
+            },
+          },
+        },
+      },
+      "/api/v1/synthetic-event-imports/{id}": {
+        get: {
+          operationId: "getSyntheticEventImport",
+          parameters: [idParameter],
+          responses: {
+            "200": {
+              description: "Import processing state and evidence",
+              content: jsonContent("SyntheticEventImport"),
+            },
+            "404": {
+              description: "Import not found",
+              content: jsonContent("ErrorResponse"),
+            },
+          },
+        },
+      },
+      "/api/v1/events": {
+        get: {
+          operationId: "listNormalizedEvents",
+          summary: "Page through normalized synthetic activity",
+          parameters: [
+            ...pageParameters,
+            projectFilterParameter,
+            resourceFilterParameter,
+          ],
+          responses: {
+            "200": {
+              description: "An evidence-linked activity page",
+              content: jsonContent("ListNormalizedEventsResponse"),
+            },
+            "400": {
+              description: "Invalid event query",
+              content: jsonContent("ErrorResponse"),
+            },
+          },
+        },
+      },
+      "/api/v1/events/{id}": {
+        get: {
+          operationId: "getNormalizedEvent",
+          parameters: [idParameter],
+          responses: {
+            "200": {
+              description: "Normalized event with source reference",
+              content: jsonContent("NormalizedEvent"),
+            },
+            "404": {
+              description: "Event not found",
+              content: jsonContent("ErrorResponse"),
+            },
+          },
+        },
+      },
+      "/api/v1/source-envelopes/{id}": {
+        get: {
+          operationId: "getSourceEnvelope",
+          parameters: [idParameter],
+          responses: {
+            "200": {
+              description: "Immutable synthetic source evidence",
+              content: jsonContent("SourceEnvelope"),
+            },
+            "404": {
+              description: "Source envelope not found",
+              content: jsonContent("ErrorResponse"),
+            },
+          },
+        },
+      },
+      "/api/v1/alerts": {
+        get: {
+          operationId: "listAlerts",
+          summary: "Page through open and resolved synthetic alert conditions",
+          parameters: [
+            ...pageParameters,
+            projectFilterParameter,
+            resourceFilterParameter,
+            {
+              in: "query",
+              name: "state",
+              required: false,
+              schema: { type: "string", enum: ["open", "resolved"] },
+            },
+          ],
+          responses: {
+            "200": {
+              description: "Alert conditions with rule and evidence",
+              content: jsonContent("ListSyntheticAlertsResponse"),
+            },
+            "400": {
+              description: "Invalid alert query",
+              content: jsonContent("ErrorResponse"),
+            },
+          },
+        },
+      },
+      "/api/v1/alerts/{id}": {
+        get: {
+          operationId: "getAlert",
+          parameters: [idParameter],
+          responses: {
+            "200": {
+              description: "Synthetic alert condition and evidence",
+              content: jsonContent("SyntheticAlert"),
+            },
+            "404": {
+              description: "Alert not found",
+              content: jsonContent("ErrorResponse"),
+            },
+          },
+        },
+      },
+      "/api/v1/attention": {
+        get: {
+          operationId: "listAttention",
+          summary: "Page through open synthetic monitor attention",
+          parameters: [...pageParameters, projectFilterParameter],
+          responses: {
+            "200": {
+              description: "Explainable attention from open synthetic alerts",
+              content: jsonContent("ListAttentionResponse"),
+            },
+            "400": {
+              description: "Invalid attention query",
+              content: jsonContent("ErrorResponse"),
+            },
+          },
+        },
+      },
       "/api/v1/synthetic-runs": {
         post: {
           operationId: "createSyntheticRun",
@@ -476,6 +677,25 @@ export function generateOpenApi(): string {
         ListKnowledgeItemsResponse: component(listKnowledgeItemsResponseSchema),
         SearchResult: component(searchResultSchema),
         SearchResponse: component(searchResponseSchema),
+        CreateSyntheticEventImportRequest: component(
+          createSyntheticEventImportRequestSchema,
+        ),
+        SyntheticEventImportJobV1: component(syntheticEventImportJobV1Schema),
+        SyntheticEventImport: component(syntheticEventImportSchema),
+        ListSyntheticEventImportsResponse: component(
+          listSyntheticEventImportsResponseSchema,
+        ),
+        SourceEnvelope: component(sourceEnvelopeSchema),
+        NormalizedEvent: component(normalizedEventSchema),
+        ListNormalizedEventsResponse: component(
+          listNormalizedEventsResponseSchema,
+        ),
+        SyntheticAlert: component(syntheticAlertSchema),
+        ListSyntheticAlertsResponse: component(
+          listSyntheticAlertsResponseSchema,
+        ),
+        AttentionItem: component(attentionItemSchema),
+        ListAttentionResponse: component(listAttentionResponseSchema),
         CreateSyntheticRunRequest: component(createSyntheticRunRequestSchema),
         SyntheticJobV1: component(syntheticJobV1Schema),
         SyntheticRun: component(syntheticRunSchema),

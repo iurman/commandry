@@ -6,7 +6,6 @@ const plannedDestinations = [
   "Automations",
   "Agents",
   "Knowledge",
-  "Activity",
 ] as const;
 
 export function AppShell({
@@ -14,7 +13,7 @@ export function AppShell({
   current = "Home",
 }: {
   children: ReactNode;
-  current?: "Home" | "Inbox" | "Projects" | "Search";
+  current?: "Home" | "Inbox" | "Projects" | "Activity" | "Search";
 }) {
   return (
     <div className="cmd-shell">
@@ -47,6 +46,13 @@ export function AppShell({
             href="/projects"
           >
             Projects
+          </a>
+          <a
+            aria-current={current === "Activity" ? "page" : undefined}
+            className={`cmd-nav-link ${current === "Activity" ? "cmd-nav-current" : ""}`}
+            href="/activity"
+          >
+            Activity
           </a>
           <a
             aria-current={current === "Search" ? "page" : undefined}

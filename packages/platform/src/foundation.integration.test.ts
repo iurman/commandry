@@ -17,6 +17,8 @@ import {
   createSyntheticRunSubmission,
   installPgBossSchema,
   SYNTHETIC_DEAD_LETTER_QUEUE,
+  SYNTHETIC_EVENT_IMPORT_DEAD_LETTER_QUEUE,
+  SYNTHETIC_EVENT_IMPORT_QUEUE,
   SYNTHETIC_QUEUE,
 } from "./pg-boss.js";
 
@@ -64,6 +66,12 @@ test(
             "synthetic_run_attempt",
             "synthetic_run_effect",
             "audit_event",
+            "synthetic_event_import",
+            "synthetic_event_import_attempt",
+            "source_envelope",
+            "normalized_event",
+            "alert_condition",
+            "alert_evidence",
           ]) {
             assert.ok(
               tables.rows.some((row) => row.name === name),
@@ -191,6 +199,28 @@ test(
           );
           assert.equal(redriven.rows.length, 1);
           await producer.boss.deleteJob(SYNTHETIC_QUEUE, redriven.rows[0]!.id);
+        },
+      );
+
+      await t.test(
+        "synthetic event import has a retrying dead-letter queue",
+        async () => {
+          const queue = await admin.query<{
+            retry_limit: number;
+            retry_delay: number;
+            retry_backoff: boolean;
+            dead_letter: string;
+          }>(
+            "SELECT retry_limit, retry_delay, retry_backoff, dead_letter FROM pgboss.queue WHERE name = $1",
+            [SYNTHETIC_EVENT_IMPORT_QUEUE],
+          );
+          assert.equal(queue.rows[0]?.retry_limit, 3);
+          assert.equal(queue.rows[0]?.retry_delay, 1);
+          assert.equal(queue.rows[0]?.retry_backoff, true);
+          assert.equal(
+            queue.rows[0]?.dead_letter,
+            SYNTHETIC_EVENT_IMPORT_DEAD_LETTER_QUEUE,
+          );
         },
       );
 

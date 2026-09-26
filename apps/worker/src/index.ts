@@ -1,13 +1,24 @@
 import { randomUUID } from "node:crypto";
-import { createSyntheticRunProcessor } from "@commandry/application";
+import {
+  createSyntheticEventImportProcessor,
+  createSyntheticRunProcessor,
+} from "@commandry/application";
 import { loadRuntimeConfig } from "@commandry/config";
-import { syntheticJobV1Schema } from "@commandry/contracts";
+import {
+  syntheticEventImportJobV1Schema,
+  syntheticJobV1Schema,
+} from "@commandry/contracts";
 import {
   createDatabase,
+  createSyntheticEventImportRepository,
   createSyntheticRunRepository,
   createWorkerHeartbeatRepository,
 } from "@commandry/db";
-import { createPgBossProducer, SYNTHETIC_QUEUE } from "@commandry/platform";
+import {
+  createPgBossProducer,
+  SYNTHETIC_EVENT_IMPORT_QUEUE,
+  SYNTHETIC_QUEUE,
+} from "@commandry/platform";
 
 const config = loadRuntimeConfig();
 const database = createDatabase({
@@ -21,6 +32,9 @@ const transport = await createPgBossProducer({
 const runRepository = createSyntheticRunRepository(database.db);
 const heartbeatRepository = createWorkerHeartbeatRepository(database.db);
 const processRun = createSyntheticRunProcessor(runRepository);
+const processEventImport = createSyntheticEventImportProcessor(
+  createSyntheticEventImportRepository(database.db),
+);
 const workerId = randomUUID();
 
 function log(
@@ -67,6 +81,26 @@ await transport.boss.work(SYNTHETIC_QUEUE, async ([job]) => {
   } catch (error) {
     log("error", "synthetic_run.failed_attempt", {
       correlationId: input.runId,
+      jobId: job.id,
+      error: error instanceof Error ? error.name : "unknown",
+    });
+    throw error;
+  }
+});
+await transport.boss.work(SYNTHETIC_EVENT_IMPORT_QUEUE, async ([job]) => {
+  if (!job) throw new Error("pg-boss delivered an empty import job batch");
+  const input = syntheticEventImportJobV1Schema.parse(job.data);
+  try {
+    await processEventImport(input);
+    log("info", "synthetic_event_import.completed", {
+      correlationId: input.runId,
+      occurrenceId: input.occurrenceId,
+      jobId: job.id,
+    });
+  } catch (error) {
+    log("error", "synthetic_event_import.failed_attempt", {
+      correlationId: input.runId,
+      occurrenceId: input.occurrenceId,
       jobId: job.id,
       error: error instanceof Error ? error.name : "unknown",
     });
