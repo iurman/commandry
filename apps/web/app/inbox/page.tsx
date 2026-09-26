@@ -5,6 +5,7 @@ import {
   AppShell,
   Button,
   CaptureOriginal,
+  CaptureTriageSummary,
   RecordEmptyState,
   StatusBadge,
 } from "@commandry/ui";
@@ -14,7 +15,11 @@ import {
   type PageResponse,
   type ProjectRecord,
 } from "../projects/api";
-import type { CaptureRecord, FiledCaptureResponse } from "./api";
+import type {
+  CaptureRecord,
+  CaptureTriageReview,
+  FiledCaptureResponse,
+} from "./api";
 
 type FilingKind = "task" | "note";
 
@@ -32,6 +37,8 @@ function linkedCaptureId() {
 
 export default function InboxPage() {
   const detailRef = useRef<HTMLElement>(null);
+  const filingTouched = useRef(false);
+  const suggestionPrefilledFor = useRef<string | null>(null);
   const [captures, setCaptures] = useState<CaptureRecord[]>([]);
   const [nextCursor, setNextCursor] = useState<string | null>(null);
   const [listLoading, setListLoading] = useState(true);
@@ -41,6 +48,14 @@ export default function InboxPage() {
   const [detail, setDetail] = useState<CaptureRecord | null>(null);
   const [detailError, setDetailError] = useState<string | null>(null);
   const [detailReload, setDetailReload] = useState(0);
+  const [triageReview, setTriageReview] = useState<CaptureTriageReview | null>(
+    null,
+  );
+  const [triageError, setTriageError] = useState<string | null>(null);
+  const [triageLoading, setTriageLoading] = useState(false);
+  const [triageSaving, setTriageSaving] = useState(false);
+  const [triageFeedback, setTriageFeedback] = useState<string | null>(null);
+  const [triageReload, setTriageReload] = useState(0);
   const [projects, setProjects] = useState<ProjectRecord[]>([]);
   const [nextProjectCursor, setNextProjectCursor] = useState<string | null>(
     null,
@@ -139,10 +154,59 @@ export default function InboxPage() {
     };
   }, [selectedId, detailReload]);
 
+  useEffect(() => {
+    if (!selectedId) return;
+    let active = true;
+    let timer: ReturnType<typeof setTimeout> | undefined;
+    let attempts = 0;
+    async function loadReview() {
+      if (!selectedId || !active) return;
+      setTriageLoading(true);
+      try {
+        const review = await apiJson<CaptureTriageReview>(
+          `/api/v1/captures/${encodeURIComponent(selectedId)}/triage`,
+        );
+        if (!active) return;
+        setTriageReview(review);
+        setTriageError(null);
+        if (
+          review.suggestion &&
+          !review.decision &&
+          !filingTouched.current &&
+          suggestionPrefilledFor.current !== review.suggestion.id
+        ) {
+          setKind(review.suggestion.kind);
+          setTitle(review.suggestion.title);
+          setProjectId(review.suggestion.proposedProjectId ?? "");
+          suggestionPrefilledFor.current = review.suggestion.id;
+        } else if (
+          !review.suggestion &&
+          detail?.state === "unfiled" &&
+          attempts < 60
+        ) {
+          attempts += 1;
+          timer = setTimeout(loadReview, 1_000);
+        }
+      } catch (cause) {
+        if (active)
+          setTriageError(message(cause, "Triage suggestion is unavailable."));
+      } finally {
+        if (active) setTriageLoading(false);
+      }
+    }
+    void loadReview();
+    return () => {
+      active = false;
+      if (timer) clearTimeout(timer);
+    };
+  }, [selectedId, triageReload, detail?.state]);
+
   function selectCapture(id: string) {
     detailRef.current?.scrollIntoView?.({ behavior: "smooth", block: "start" });
     if (id === selectedId) return;
     setSelectedId(id);
+    filingTouched.current = false;
+    suggestionPrefilledFor.current = null;
     setDetail(null);
     setDetailError(null);
     setKind("task");
@@ -151,6 +215,84 @@ export default function InboxPage() {
     setProjectId("");
     setFilingError(null);
     setFilingFeedback(null);
+    setTriageReview(null);
+    setTriageError(null);
+    setTriageFeedback(null);
+  }
+
+  async function queueSuggestion() {
+    if (!detail || detail.state === "filed" || triageLoading) return;
+    setTriageLoading(true);
+    setTriageError(null);
+    try {
+      await apiJson(
+        `/api/v1/captures/${encodeURIComponent(detail.id)}/triage-suggestion`,
+        {
+          method: "POST",
+        },
+      );
+      setTriageFeedback(
+        "Rule-based suggestion queued. The original capture remains unchanged.",
+      );
+      setTriageReload((value) => value + 1);
+    } catch (cause) {
+      setTriageError(message(cause, "Could not queue a local suggestion."));
+    } finally {
+      setTriageLoading(false);
+    }
+  }
+
+  async function reviewSuggestion(decision: "approve" | "reject") {
+    if (
+      !detail ||
+      !triageReview?.suggestion ||
+      triageReview.decision ||
+      triageSaving
+    )
+      return;
+    if (decision === "approve" && (!projectId || !title.trim())) return;
+    setTriageSaving(true);
+    setTriageError(null);
+    try {
+      const result = await apiJson<{
+        capture: CaptureRecord;
+        decision: CaptureTriageReview["decision"];
+        suggestion: CaptureTriageReview["suggestion"];
+        record: { id: string } | null;
+      }>(`/api/v1/captures/${encodeURIComponent(detail.id)}/triage`, {
+        method: "POST",
+        body: JSON.stringify(
+          decision === "approve"
+            ? {
+                decision,
+                projectId,
+                kind,
+                title: title.trim(),
+                ...(body.trim() ? { body } : {}),
+              }
+            : { decision },
+        ),
+      });
+      setTriageReview({
+        suggestion: result.suggestion,
+        decision: result.decision,
+      });
+      setDetail(result.capture);
+      setCaptures((current) =>
+        current.map((item) =>
+          item.id === result.capture.id ? result.capture : item,
+        ),
+      );
+      setTriageFeedback(
+        decision === "approve"
+          ? "Reviewed suggestion filed. The original capture is unchanged."
+          : "Suggestion rejected. The original capture stays in the Inbox for manual filing.",
+      );
+    } catch (cause) {
+      setTriageError(message(cause, "Could not review suggestion."));
+    } finally {
+      setTriageSaving(false);
+    }
   }
 
   async function loadMoreCaptures() {
@@ -477,6 +619,55 @@ export default function InboxPage() {
                 <span className="cmd-count">Capture ID {detail.id}</span>
               </div>
               <CaptureOriginal capture={detail} />
+              <section
+                className="cmd-inbox-file-form"
+                aria-labelledby="triage-suggestion-heading"
+              >
+                <p className="cmd-eyebrow">
+                  Reviewable local rule / No automatic filing
+                </p>
+                <h3 id="triage-suggestion-heading">Capture suggestion</h3>
+                {triageLoading && !triageReview?.suggestion && (
+                  <p className="cmd-inline-state" role="status">
+                    Checking for a suggestion...
+                  </p>
+                )}
+                {!triageLoading &&
+                  !triageReview?.suggestion &&
+                  detail.state === "unfiled" && (
+                    <div>
+                      <p>
+                        No suggestion is ready yet. The local worker may still
+                        be processing; the original is safe in the Inbox, and
+                        manual filing remains available.
+                      </p>
+                      <Button onClick={queueSuggestion} type="button">
+                        Generate local suggestion
+                      </Button>
+                    </div>
+                  )}
+                {triageReview?.suggestion && (
+                  <CaptureTriageSummary
+                    captureState={detail.state}
+                    onReject={() => reviewSuggestion("reject")}
+                    review={{
+                      suggestion: triageReview.suggestion,
+                      decision: triageReview.decision,
+                    }}
+                    saving={triageSaving}
+                  />
+                )}
+                {triageError && (
+                  <p className="cmd-form-error" role="alert">
+                    {triageError}
+                  </p>
+                )}
+                {triageFeedback && (
+                  <p className="cmd-form-success" role="status">
+                    {triageFeedback}
+                  </p>
+                )}
+              </section>
               {detail.state === "filed" && detail.filedRecord ? (
                 <div className="cmd-inbox-filed">
                   <p className="cmd-eyebrow">Connected record</p>
@@ -517,7 +708,10 @@ export default function InboxPage() {
                     <select
                       disabled={projectsLoading || projects.length === 0}
                       id="file-project"
-                      onChange={(event) => setProjectId(event.target.value)}
+                      onChange={(event) => {
+                        filingTouched.current = true;
+                        setProjectId(event.target.value);
+                      }}
                       required
                       value={projectId}
                     >
@@ -559,9 +753,10 @@ export default function InboxPage() {
                     <label htmlFor="file-kind">File as</label>
                     <select
                       id="file-kind"
-                      onChange={(event) =>
-                        setKind(event.target.value as FilingKind)
-                      }
+                      onChange={(event) => {
+                        filingTouched.current = true;
+                        setKind(event.target.value as FilingKind);
+                      }}
                       value={kind}
                     >
                       <option value="task">Task</option>
@@ -573,7 +768,10 @@ export default function InboxPage() {
                     <input
                       id="file-title"
                       maxLength={160}
-                      onChange={(event) => setTitle(event.target.value)}
+                      onChange={(event) => {
+                        filingTouched.current = true;
+                        setTitle(event.target.value);
+                      }}
                       required
                       value={title}
                     />
@@ -583,7 +781,10 @@ export default function InboxPage() {
                     </label>
                     <textarea
                       id="file-body"
-                      onChange={(event) => setBody(event.target.value)}
+                      onChange={(event) => {
+                        filingTouched.current = true;
+                        setBody(event.target.value);
+                      }}
                       rows={4}
                       value={body}
                     />
@@ -599,6 +800,17 @@ export default function InboxPage() {
                     >
                       {filing ? "Filing..." : `File as ${kind}`}
                     </Button>
+                    {triageReview?.suggestion && !triageReview.decision && (
+                      <Button
+                        disabled={triageSaving || !projectId || !title.trim()}
+                        onClick={() => reviewSuggestion("approve")}
+                        type="button"
+                      >
+                        {triageSaving
+                          ? "Saving review..."
+                          : "Approve reviewed suggestion"}
+                      </Button>
+                    )}
                   </form>
                 </div>
               )}

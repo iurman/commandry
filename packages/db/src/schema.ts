@@ -222,6 +222,96 @@ export const capture = pgTable(
   ],
 );
 
+export const captureTriageSuggestion = pgTable(
+  "capture_triage_suggestion",
+  {
+    id: uuid("id").primaryKey(),
+    captureId: uuid("capture_id")
+      .notNull()
+      .references(() => capture.id, { onDelete: "restrict" }),
+    kind: text("kind", { enum: ["task", "note"] }).notNull(),
+    proposedProjectId: uuid("proposed_project_id").references(
+      () => project.id,
+      {
+        onDelete: "restrict",
+      },
+    ),
+    title: text("title").notNull(),
+    confidence: integer("confidence").notNull(),
+    rationale: text("rationale").notNull(),
+    ruleVersion: text("rule_version").notNull(),
+    sourceLabel: text("source_label").notNull(),
+    createdAt: createdAt(),
+  },
+  (table) => [
+    uniqueIndex("capture_triage_suggestion_capture_idx").on(table.captureId),
+    check(
+      "capture_triage_suggestion_kind_valid",
+      sql`${table.kind} in ('task', 'note')`,
+    ),
+    check(
+      "capture_triage_suggestion_title_nonempty",
+      sql`length(trim(${table.title})) > 0`,
+    ),
+    check(
+      "capture_triage_suggestion_confidence_valid",
+      sql`${table.confidence} between 0 and 100`,
+    ),
+    check(
+      "capture_triage_suggestion_rule_v1",
+      sql`${table.ruleVersion} = 'capture-triage/v1'`,
+    ),
+    check(
+      "capture_triage_suggestion_source_local",
+      sql`${table.sourceLabel} = 'Local deterministic rule'`,
+    ),
+  ],
+);
+
+export const captureTriageDecision = pgTable(
+  "capture_triage_decision",
+  {
+    id: uuid("id").primaryKey(),
+    captureId: uuid("capture_id")
+      .notNull()
+      .references(() => capture.id, { onDelete: "restrict" }),
+    suggestionId: uuid("suggestion_id")
+      .notNull()
+      .references(() => captureTriageSuggestion.id, { onDelete: "restrict" }),
+    decision: text("decision", { enum: ["approve", "reject"] }).notNull(),
+    selectedProjectId: uuid("selected_project_id").references(
+      () => project.id,
+      {
+        onDelete: "restrict",
+      },
+    ),
+    selectedKind: text("selected_kind", { enum: ["task", "note"] }),
+    selectedTitle: text("selected_title"),
+    selectedBody: text("selected_body"),
+    filedRecordId: uuid("filed_record_id"),
+    actor: text("actor").notNull(),
+    createdAt: createdAt(),
+  },
+  (table) => [
+    uniqueIndex("capture_triage_decision_capture_idx").on(table.captureId),
+    uniqueIndex("capture_triage_decision_suggestion_idx").on(
+      table.suggestionId,
+    ),
+    check(
+      "capture_triage_decision_actor_local",
+      sql`${table.actor} = 'local-user:unattributed'`,
+    ),
+    check(
+      "capture_triage_decision_kind_valid",
+      sql`${table.selectedKind} is null or ${table.selectedKind} in ('task', 'note')`,
+    ),
+    check(
+      "capture_triage_decision_state_valid",
+      sql`(${table.decision} = 'reject' and ${table.selectedProjectId} is null and ${table.selectedKind} is null and ${table.selectedTitle} is null and ${table.selectedBody} is null and ${table.filedRecordId} is null) or (${table.decision} = 'approve' and ${table.selectedProjectId} is not null and ${table.selectedKind} is not null and ${table.selectedTitle} is not null and ${table.selectedBody} is not null and ${table.filedRecordId} is not null)`,
+    ),
+  ],
+);
+
 export const workItem = pgTable(
   "work_item",
   {
@@ -251,6 +341,37 @@ export const workItem = pgTable(
     ),
     check("work_item_title_nonempty", sql`length(trim(${table.title})) > 0`),
     check("work_item_status_valid", sql`${table.status} in ('open', 'done')`),
+  ],
+);
+
+export const workItemStatusEvent = pgTable(
+  "work_item_status_event",
+  {
+    id: uuid("id").primaryKey(),
+    workItemId: uuid("work_item_id")
+      .notNull()
+      .references(() => workItem.id, { onDelete: "restrict" }),
+    previousStatus: text("previous_status", {
+      enum: ["open", "done"],
+    }).notNull(),
+    nextStatus: text("next_status", { enum: ["open", "done"] }).notNull(),
+    actor: text("actor").notNull(),
+    createdAt: createdAt(),
+  },
+  (table) => [
+    index("work_item_status_event_page_idx").on(
+      table.workItemId,
+      table.createdAt,
+      table.id,
+    ),
+    check(
+      "work_item_status_event_changed",
+      sql`${table.previousStatus} <> ${table.nextStatus}`,
+    ),
+    check(
+      "work_item_status_event_actor_local",
+      sql`${table.actor} = 'local-user:unattributed'`,
+    ),
   ],
 );
 

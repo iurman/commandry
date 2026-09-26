@@ -25,12 +25,22 @@ local experience lab.
 - Text and URL capture will come first. Original input will be immutable; filing,
   classification, and generated summaries will remain separate derived records.
   Local deterministic suggestions will identify their rule and rationale and
-  will never be labeled as AI analysis.
+  will never be labeled as AI analysis. The provisional `capture-triage/v1` rule
+  suggests a task for text containing a small fixed action-word list, a note
+  for other text, and a note for an HTTP URL. Its confidence is a fixed rule
+  score, not a calibrated probability. A person can correct the proposed
+  project, kind, title, and body before approval, or reject it. A separate
+  immutable decision records the local unattributed reviewer label. Queue
+  failure must not lose the original, and manual filing remains available.
 - Initial manual filing will create a project task or note while retaining a
   direct link to the capture. PostgreSQL full-text search will cover these
   records and the project/resource catalog with a project filter and cursor
   continuation. This local search is not a semantic answer or an access-control
   substitute while OQ-003 remains open.
+- A local task may be completed and reopened. Each change will use the displayed
+  status as an expected value and append an immutable event. Live briefs will
+  select currently open tasks, while already generated execution packets will
+  keep their original task-status snapshot.
 - Two fixture adapters will model development and operational signals without
   connecting to external services. Their source envelopes, normalized events,
   activity, attention, briefs, and search results will all carry a visible

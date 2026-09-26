@@ -1,4 +1,5 @@
 import { loadRuntimeConfig } from "@commandry/config";
+import { createCaptureAndRequestTriage } from "@commandry/application";
 import {
   captureSchema,
   createCaptureRequestSchema,
@@ -6,6 +7,7 @@ import {
   listResourcesQuerySchema,
 } from "@commandry/contracts";
 import { captureFailure, getCaptureService } from "../../../../lib/capture";
+import { getCaptureTriageService } from "../../../../lib/capture-triage";
 import { jsonResponse } from "../../../../lib/http";
 
 export const runtime = "nodejs";
@@ -51,12 +53,17 @@ export async function POST(request: Request): Promise<Response> {
     );
   }
   try {
-    const created = await getCaptureService().createCapture(parsed.data);
+    const { capture: created, triageQueued } =
+      await createCaptureAndRequestTriage(
+        getCaptureService().createCapture,
+        async (id) => (await getCaptureTriageService()).requestSuggestion(id),
+        parsed.data,
+      );
     return jsonResponse(
       request,
       captureSchema.parse(created),
       201,
-      "captures.create",
+      triageQueued ? "captures.create" : "captures.create.triage_unavailable",
     );
   } catch (error) {
     return captureFailure(request, error, "captures.create");

@@ -32,6 +32,8 @@ export const LOCAL_AGENT_RUN_DEAD_LETTER_QUEUE =
 export const SIMULATED_APPROVAL_QUEUE = "commandry-simulated-approval-v1";
 export const SIMULATED_APPROVAL_DEAD_LETTER_QUEUE =
   "commandry-simulated-approval-dlq";
+export const CAPTURE_TRIAGE_QUEUE = "commandry-capture-triage-v1";
+export const CAPTURE_TRIAGE_DEAD_LETTER_QUEUE = "commandry-capture-triage-dlq";
 
 function bossOptions(connectionString: string, max: number, migrate: boolean) {
   return {
@@ -82,6 +84,13 @@ export async function installPgBossSchema(options: {
       retryBackoff: true,
       deadLetter: SIMULATED_APPROVAL_DEAD_LETTER_QUEUE,
     });
+    await boss.createQueue(CAPTURE_TRIAGE_DEAD_LETTER_QUEUE);
+    await boss.createQueue(CAPTURE_TRIAGE_QUEUE, {
+      retryLimit: 3,
+      retryDelay: 1,
+      retryBackoff: true,
+      deadLetter: CAPTURE_TRIAGE_DEAD_LETTER_QUEUE,
+    });
   } finally {
     await boss.stop();
   }
@@ -111,6 +120,18 @@ export async function installPgBossSchema(options: {
   } finally {
     await pool.end();
   }
+}
+
+export function createCaptureTriageSubmission(boss: PgBoss) {
+  return {
+    async enqueueSuggestion(captureId: string): Promise<void> {
+      const jobId = await boss.send(CAPTURE_TRIAGE_QUEUE, {
+        version: 1,
+        captureId,
+      });
+      if (!jobId) throw new Error("Capture triage job was not enqueued");
+    },
+  };
 }
 
 /** Producer startup has no schema mutation and uses a separate bounded pool. */

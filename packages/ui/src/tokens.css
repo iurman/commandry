@@ -1015,6 +1015,34 @@ textarea {
   border-top: 1px solid var(--cmd-border);
 }
 
+.cmd-triage-summary {
+  min-width: 0;
+  display: grid;
+  gap: var(--cmd-space-2);
+  padding: var(--cmd-space-4);
+  border: 1px solid var(--cmd-border);
+  border-radius: var(--cmd-radius);
+  background: var(--cmd-surface-muted);
+}
+
+.cmd-triage-summary p {
+  margin: 0;
+  overflow-wrap: anywhere;
+}
+
+.cmd-triage-source {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: space-between;
+  gap: var(--cmd-space-2);
+  color: var(--cmd-text-muted);
+  font-size: 0.8rem;
+}
+
+.cmd-triage-proposal {
+  font-size: 1.1rem;
+}
+
 .cmd-inbox-filed p {
   color: var(--cmd-text-muted);
   overflow-wrap: anywhere;

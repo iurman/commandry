@@ -175,6 +175,25 @@ export const workItemSchema = z.object({
   updatedAt: z.iso.datetime({ offset: true }),
 });
 
+export const changeWorkItemStatusRequestSchema = z.strictObject({
+  status: z.enum(["open", "done"]),
+  expectedStatus: z.enum(["open", "done"]),
+});
+
+export const workItemStatusEventSchema = z.object({
+  id: z.uuid(),
+  workItemId: z.uuid(),
+  previousStatus: z.enum(["open", "done"]),
+  nextStatus: z.enum(["open", "done"]),
+  actor: z.literal("local-user:unattributed"),
+  createdAt: z.iso.datetime({ offset: true }),
+});
+
+export const listWorkItemStatusEventsResponseSchema = z.object({
+  items: z.array(workItemStatusEventSchema),
+  nextCursor: z.uuid().nullable(),
+});
+
 export const knowledgeItemSchema = z.object({
   id: z.uuid(),
   projectId: z.uuid(),
@@ -189,6 +208,64 @@ export const knowledgeItemSchema = z.object({
 export const fileCaptureResponseSchema = z.object({
   capture: captureSchema,
   record: z.union([workItemSchema, knowledgeItemSchema]),
+});
+
+export const captureTriageSuggestionSchema = z.object({
+  id: z.uuid(),
+  captureId: z.uuid(),
+  kind: z.enum(["task", "note"]),
+  proposedProjectId: z.uuid().nullable(),
+  title: z.string(),
+  confidence: z.number().int().min(0).max(100),
+  rationale: z.string(),
+  ruleVersion: z.literal("capture-triage/v1"),
+  sourceLabel: z.literal("Local deterministic rule"),
+  createdAt: z.iso.datetime({ offset: true }),
+});
+
+export const captureTriageDecisionSchema = z.object({
+  id: z.uuid(),
+  captureId: z.uuid(),
+  suggestionId: z.uuid(),
+  decision: z.enum(["approve", "reject"]),
+  selectedProjectId: z.uuid().nullable(),
+  selectedKind: z.enum(["task", "note"]).nullable(),
+  selectedTitle: z.string().nullable(),
+  selectedBody: z.string().nullable(),
+  filedRecordId: z.uuid().nullable(),
+  actor: z.literal("local-user:unattributed"),
+  createdAt: z.iso.datetime({ offset: true }),
+});
+
+export const captureTriageReviewSchema = z.object({
+  suggestion: captureTriageSuggestionSchema.nullable(),
+  decision: captureTriageDecisionSchema.nullable(),
+});
+
+export const reviewCaptureTriageRequestSchema = z.discriminatedUnion(
+  "decision",
+  [
+    z.strictObject({
+      decision: z.literal("approve"),
+      projectId: z.uuid(),
+      kind: z.enum(["task", "note"]),
+      title: z.string().trim().min(1).max(200),
+      body: z.string().max(20_000).optional(),
+    }),
+    z.strictObject({ decision: z.literal("reject") }),
+  ],
+);
+
+export const reviewCaptureTriageResponseSchema = z.object({
+  capture: captureSchema,
+  suggestion: captureTriageSuggestionSchema,
+  decision: captureTriageDecisionSchema,
+  record: z.union([workItemSchema, knowledgeItemSchema]).nullable(),
+});
+
+export const captureTriageJobV1Schema = z.strictObject({
+  version: z.literal(1),
+  captureId: z.uuid(),
 });
 
 export const listWorkItemsResponseSchema = z.object({
@@ -865,8 +942,23 @@ export type CreateCaptureRequest = z.infer<typeof createCaptureRequestSchema>;
 export type Capture = z.infer<typeof captureSchema>;
 export type FileCaptureRequest = z.infer<typeof fileCaptureRequestSchema>;
 export type WorkItem = z.infer<typeof workItemSchema>;
+export type ChangeWorkItemStatusRequest = z.infer<
+  typeof changeWorkItemStatusRequestSchema
+>;
+export type WorkItemStatusEvent = z.infer<typeof workItemStatusEventSchema>;
 export type KnowledgeItem = z.infer<typeof knowledgeItemSchema>;
 export type FileCaptureResponse = z.infer<typeof fileCaptureResponseSchema>;
+export type CaptureTriageSuggestion = z.infer<
+  typeof captureTriageSuggestionSchema
+>;
+export type CaptureTriageDecision = z.infer<typeof captureTriageDecisionSchema>;
+export type CaptureTriageReview = z.infer<typeof captureTriageReviewSchema>;
+export type ReviewCaptureTriageRequest = z.infer<
+  typeof reviewCaptureTriageRequestSchema
+>;
+export type ReviewCaptureTriageResponse = z.infer<
+  typeof reviewCaptureTriageResponseSchema
+>;
 export type SearchResult = z.infer<typeof searchResultSchema>;
 export type CreateSyntheticEventImportRequest = z.infer<
   typeof createSyntheticEventImportRequestSchema

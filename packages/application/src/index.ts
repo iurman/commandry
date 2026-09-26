@@ -8,3 +8,5 @@ export * from "./local-agents";
 export * from "./local-agent-runs";
 export * from "./agent-context";
 export * from "./simulated-approvals";
+export * from "./work-item-status";
+export * from "./capture-triage";

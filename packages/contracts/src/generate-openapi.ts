@@ -4,6 +4,15 @@ import { fileURLToPath } from "node:url";
 import { z } from "zod";
 import {
   captureSchema,
+  captureTriageSuggestionSchema,
+  captureTriageDecisionSchema,
+  captureTriageReviewSchema,
+  reviewCaptureTriageRequestSchema,
+  reviewCaptureTriageResponseSchema,
+  captureTriageJobV1Schema,
+  changeWorkItemStatusRequestSchema,
+  workItemStatusEventSchema,
+  listWorkItemStatusEventsResponseSchema,
   createLocalAgentRequestSchema,
   localAgentProfileSchema,
   listLocalAgentsResponseSchema,
@@ -434,6 +443,57 @@ export function generateOpenApi(): string {
           },
         },
       },
+      "/api/v1/captures/{id}/triage": {
+        get: {
+          operationId: "getCaptureTriageReview",
+          summary:
+            "Read the local rule suggestion and separate review decision",
+          parameters: [idParameter],
+          responses: {
+            "200": {
+              description: "Suggestion and decision",
+              content: jsonContent("CaptureTriageReview"),
+            },
+            "404": {
+              description: "Capture not found",
+              content: jsonContent("ErrorResponse"),
+            },
+          },
+        },
+        post: {
+          operationId: "reviewCaptureTriage",
+          summary: "Correct and approve, or reject, a local rule suggestion",
+          parameters: [idParameter],
+          requestBody: {
+            required: true,
+            content: jsonContent("ReviewCaptureTriageRequest"),
+          },
+          responses: {
+            "200": {
+              description: "Saved review and optional filed record",
+              content: jsonContent("ReviewCaptureTriageResponse"),
+            },
+            "409": {
+              description: "Suggestion missing or already reviewed",
+              content: jsonContent("ErrorResponse"),
+            },
+          },
+        },
+      },
+      "/api/v1/captures/{id}/triage-suggestion": {
+        post: {
+          operationId: "requestCaptureTriageSuggestion",
+          summary: "Queue a replay-safe local rule suggestion",
+          parameters: [idParameter],
+          responses: {
+            "202": { description: "Suggestion job queued" },
+            "404": {
+              description: "Capture not found",
+              content: jsonContent("ErrorResponse"),
+            },
+          },
+        },
+      },
       "/api/v1/work-items/{id}": {
         get: {
           operationId: "getWorkItem",
@@ -442,6 +502,46 @@ export function generateOpenApi(): string {
             "200": {
               description: "Exact work item and source capture reference",
               content: jsonContent("WorkItem"),
+            },
+            "404": {
+              description: "Work item not found",
+              content: jsonContent("ErrorResponse"),
+            },
+          },
+        },
+      },
+      "/api/v1/work-items/{id}/status": {
+        post: {
+          operationId: "changeWorkItemStatus",
+          summary:
+            "Complete or reopen a task against its expected current state",
+          parameters: [idParameter],
+          requestBody: {
+            required: true,
+            content: jsonContent("ChangeWorkItemStatusRequest"),
+          },
+          responses: {
+            "200": {
+              description: "Updated work item",
+              content: jsonContent("WorkItem"),
+            },
+            "409": {
+              description: "Status changed concurrently",
+              content: jsonContent("ErrorResponse"),
+            },
+          },
+        },
+      },
+      "/api/v1/work-items/{id}/status-events": {
+        get: {
+          operationId: "listWorkItemStatusEvents",
+          summary:
+            "List immutable task status changes with cursor continuation",
+          parameters: [idParameter, ...pageParameters],
+          responses: {
+            "200": {
+              description: "Status history page",
+              content: jsonContent("ListWorkItemStatusEventsResponse"),
             },
             "404": {
               description: "Work item not found",
@@ -1159,7 +1259,22 @@ export function generateOpenApi(): string {
         ListCapturesResponse: component(listCapturesResponseSchema),
         FileCaptureRequest: component(fileCaptureRequestSchema),
         FileCaptureResponse: component(fileCaptureResponseSchema),
+        CaptureTriageSuggestion: component(captureTriageSuggestionSchema),
+        CaptureTriageDecision: component(captureTriageDecisionSchema),
+        CaptureTriageReview: component(captureTriageReviewSchema),
+        ReviewCaptureTriageRequest: component(reviewCaptureTriageRequestSchema),
+        ReviewCaptureTriageResponse: component(
+          reviewCaptureTriageResponseSchema,
+        ),
+        CaptureTriageJobV1: component(captureTriageJobV1Schema),
         WorkItem: component(workItemSchema),
+        ChangeWorkItemStatusRequest: component(
+          changeWorkItemStatusRequestSchema,
+        ),
+        WorkItemStatusEvent: component(workItemStatusEventSchema),
+        ListWorkItemStatusEventsResponse: component(
+          listWorkItemStatusEventsResponseSchema,
+        ),
         KnowledgeItem: component(knowledgeItemSchema),
         ListWorkItemsResponse: component(listWorkItemsResponseSchema),
         ListKnowledgeItemsResponse: component(listKnowledgeItemsResponseSchema),

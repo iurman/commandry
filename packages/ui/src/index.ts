@@ -13,6 +13,8 @@ export { SyntheticAttentionCard } from "./components/SyntheticAttentionCard";
 export type { SyntheticAttentionCardProps } from "./components/SyntheticAttentionCard";
 export { CaptureOriginal } from "./components/CaptureOriginal";
 export type { CaptureOriginalRecord } from "./components/CaptureOriginal";
+export { CaptureTriageSummary } from "./components/CaptureTriageSummary";
+export type { CaptureTriageSummaryView } from "./components/CaptureTriageSummary";
 export { ProjectBrief } from "./components/ProjectBrief";
 export type {
   ProjectBriefView,

@@ -1,6 +1,7 @@
 import { randomUUID } from "node:crypto";
 import {
   createAgentContextService,
+  createCaptureTriageProcessor,
   createLocalAgentRunProcessor,
   createSimulatedApprovalProcessor,
   createProjectBriefService,
@@ -9,6 +10,7 @@ import {
 } from "@commandry/application";
 import { loadRuntimeConfig } from "@commandry/config";
 import {
+  captureTriageJobV1Schema,
   localAgentRunJobV1Schema,
   simulatedApprovalJobV1Schema,
   syntheticEventImportJobV1Schema,
@@ -16,6 +18,7 @@ import {
 } from "@commandry/contracts";
 import {
   createBriefRepository,
+  createCaptureTriageRepository,
   createDatabase,
   createLocalAgentRunRepository,
   createSimulatedApprovalRepository,
@@ -24,6 +27,7 @@ import {
   createWorkerHeartbeatRepository,
 } from "@commandry/db";
 import {
+  CAPTURE_TRIAGE_QUEUE,
   createPgBossProducer,
   LOCAL_AGENT_RUN_QUEUE,
   SIMULATED_APPROVAL_QUEUE,
@@ -66,6 +70,9 @@ const simulatedApprovalRepository = createSimulatedApprovalRepository(
 );
 const processSimulatedApproval = createSimulatedApprovalProcessor(
   simulatedApprovalRepository,
+);
+const processCaptureTriage = createCaptureTriageProcessor(
+  createCaptureTriageRepository(database.db),
 );
 const workerId = randomUUID();
 
@@ -187,6 +194,25 @@ await transport.boss.work(SIMULATED_APPROVAL_QUEUE, async ([job]) => {
   } catch (error) {
     log("error", "simulated_approval.failed_attempt", {
       approvalId: input.approvalId,
+      jobId: job.id,
+      error: error instanceof Error ? error.name : "unknown",
+    });
+    throw error;
+  }
+});
+await transport.boss.work(CAPTURE_TRIAGE_QUEUE, async ([job]) => {
+  if (!job)
+    throw new Error("pg-boss delivered an empty capture triage job batch");
+  const input = captureTriageJobV1Schema.parse(job.data);
+  try {
+    await processCaptureTriage(input.captureId);
+    log("info", "capture_triage.suggestion_processed", {
+      captureId: input.captureId,
+      jobId: job.id,
+    });
+  } catch (error) {
+    log("error", "capture_triage.failed_attempt", {
+      captureId: input.captureId,
       jobId: job.id,
       error: error instanceof Error ? error.name : "unknown",
     });

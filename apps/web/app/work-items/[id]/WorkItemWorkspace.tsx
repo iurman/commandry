@@ -21,6 +21,15 @@ interface WorkItemRecord {
   updatedAt: string;
 }
 
+interface WorkItemStatusEvent {
+  id: string;
+  workItemId: string;
+  previousStatus: "open" | "done";
+  nextStatus: "open" | "done";
+  actor: "local-user:unattributed";
+  createdAt: string;
+}
+
 interface KnowledgeChoice {
   id: string;
   projectId: string;
@@ -46,6 +55,16 @@ export default function WorkItemWorkspace({
   const [item, setItem] = useState<WorkItemRecord | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [statusUpdating, setStatusUpdating] = useState(false);
+  const [statusError, setStatusError] = useState<string | null>(null);
+  const [statusHistory, setStatusHistory] = useState<WorkItemStatusEvent[]>([]);
+  const [statusHistoryCursor, setStatusHistoryCursor] = useState<string | null>(
+    null,
+  );
+  const [statusHistoryLoading, setStatusHistoryLoading] = useState(false);
+  const [statusHistoryError, setStatusHistoryError] = useState<string | null>(
+    null,
+  );
   const [knowledge, setKnowledge] = useState<KnowledgeChoice[]>([]);
   const [resources, setResources] = useState<ProjectResourceLink[]>([]);
   const [knowledgeCursor, setKnowledgeCursor] = useState<string | null>(null);
@@ -68,6 +87,9 @@ export default function WorkItemWorkspace({
     null,
   );
   const packetPath = `/api/v1/work-items/${encodeURIComponent(workItemId)}/execution-packets`;
+  const statusPath = `/api/v1/work-items/${encodeURIComponent(workItemId)}/status`;
+  const statusHistoryPath = `/api/v1/work-items/${encodeURIComponent(workItemId)}/status-events`;
+  const currentItemId = item?.id;
 
   useEffect(() => {
     let active = true;
@@ -87,6 +109,90 @@ export default function WorkItemWorkspace({
       active = false;
     };
   }, [workItemId]);
+
+  useEffect(() => {
+    if (!currentItemId) return;
+    let active = true;
+    apiJson<PageResponse<WorkItemStatusEvent>>(pagePath(statusHistoryPath))
+      .then((page) => {
+        if (!active) return;
+        setStatusHistory(page.items);
+        setStatusHistoryCursor(page.nextCursor);
+        setStatusHistoryError(null);
+      })
+      .catch((cause: unknown) => {
+        if (active)
+          setStatusHistoryError(
+            errorMessage(cause, "Status history is unavailable."),
+          );
+      });
+    return () => {
+      active = false;
+    };
+  }, [currentItemId, statusHistoryPath]);
+
+  async function changeStatus() {
+    if (!item || statusUpdating) return;
+    const nextStatus = item.status === "open" ? "done" : "open";
+    setStatusUpdating(true);
+    setStatusError(null);
+    try {
+      const updated = await apiJson<WorkItemRecord>(statusPath, {
+        method: "POST",
+        body: JSON.stringify({
+          status: nextStatus,
+          expectedStatus: item.status,
+        }),
+      });
+      setItem(updated);
+    } catch (cause) {
+      setStatusError(errorMessage(cause, "Could not change task status."));
+      try {
+        setItem(
+          await apiJson<WorkItemRecord>(
+            `/api/v1/work-items/${encodeURIComponent(workItemId)}`,
+          ),
+        );
+      } catch {
+        // Keep the last displayed record while the user can refresh.
+      }
+      setStatusUpdating(false);
+      return;
+    }
+    try {
+      const page = await apiJson<PageResponse<WorkItemStatusEvent>>(
+        pagePath(statusHistoryPath),
+      );
+      setStatusHistory(page.items);
+      setStatusHistoryCursor(page.nextCursor);
+      setStatusHistoryError(null);
+    } catch (cause) {
+      setStatusHistoryError(
+        errorMessage(cause, "Could not refresh task status history."),
+      );
+    } finally {
+      setStatusUpdating(false);
+    }
+  }
+
+  async function loadMoreStatusHistory() {
+    if (!statusHistoryCursor || statusHistoryLoading) return;
+    setStatusHistoryLoading(true);
+    setStatusHistoryError(null);
+    try {
+      const page = await apiJson<PageResponse<WorkItemStatusEvent>>(
+        pagePath(statusHistoryPath, statusHistoryCursor),
+      );
+      setStatusHistory((current) => [...current, ...page.items]);
+      setStatusHistoryCursor(page.nextCursor);
+    } catch (cause) {
+      setStatusHistoryError(
+        errorMessage(cause, "Could not load older status changes."),
+      );
+    } finally {
+      setStatusHistoryLoading(false);
+    }
+  }
 
   useEffect(() => {
     if (!item) return;
@@ -318,6 +424,61 @@ export default function WorkItemWorkspace({
               </dl>
             </aside>
           </div>
+
+          <section
+            className="cmd-detail-document"
+            aria-labelledby="work-status-heading"
+          >
+            <p className="cmd-eyebrow">Local work state / Audited</p>
+            <h2 id="work-status-heading">Task status</h2>
+            <p>
+              Current status: <strong>{item.status}</strong>. Changing it
+              updates the live project brief; existing execution packets keep
+              their saved snapshot.
+            </p>
+            <Button disabled={statusUpdating} onClick={changeStatus}>
+              {statusUpdating
+                ? "Saving status..."
+                : item.status === "open"
+                  ? "Mark done"
+                  : "Reopen task"}
+            </Button>
+            {statusError && (
+              <p className="cmd-inline-state cmd-error" role="alert">
+                {statusError}
+              </p>
+            )}
+            <h3>Status history</h3>
+            {statusHistory.length === 0 && !statusHistoryError && (
+              <p>No status changes have been recorded.</p>
+            )}
+            {statusHistory.length > 0 && (
+              <ol>
+                {statusHistory.map((event) => (
+                  <li key={event.id}>
+                    {event.previousStatus} to {event.nextStatus} by{" "}
+                    {event.actor} at{" "}
+                    <time dateTime={event.createdAt}>{event.createdAt}</time>
+                  </li>
+                ))}
+              </ol>
+            )}
+            {statusHistoryError && (
+              <p className="cmd-inline-state cmd-error" role="alert">
+                {statusHistoryError}
+              </p>
+            )}
+            {statusHistoryCursor && (
+              <Button
+                disabled={statusHistoryLoading}
+                onClick={loadMoreStatusHistory}
+              >
+                {statusHistoryLoading
+                  ? "Loading..."
+                  : "Load more status changes"}
+              </Button>
+            )}
+          </section>
 
           <section
             className="cmd-packet-builder"
