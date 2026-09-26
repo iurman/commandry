@@ -14,6 +14,7 @@ import { createSyntheticEventImportRepository } from "./synthetic-event-reposito
 import {
   alertCondition,
   normalizedEvent,
+  metricSample,
   project,
   resource,
   sourceEnvelope,
@@ -145,6 +146,63 @@ test("synthetic evidence projects replay-safe activity and one time-ordered moni
     const stale = await projectOne(
       "operations.monitor-down",
       "2026-09-25T09:00:00.000Z",
+    );
+    const latestMetrics = await repository.listMetrics({
+      limit: 10,
+      projectId,
+    });
+    assert.deepEqual(
+      latestMetrics.items.map((sample) => [sample.sampledAt, sample.value]),
+      [
+        ["2026-09-25T12:00:00.000Z", 100],
+        ["2026-09-25T11:00:00.000Z", 0],
+        ["2026-09-25T10:00:00.000Z", 0],
+        ["2026-09-25T09:00:00.000Z", 0],
+      ],
+    );
+    assert.equal(
+      latestMetrics.items[0]?.sourceLabel,
+      "Synthetic operational fixture",
+    );
+    assert.equal(
+      latestMetrics.items[0]?.evidenceHref,
+      `/api/v1/source-envelopes/${recovered.envelopeId}`,
+    );
+    assert.equal(
+      (await repository.listMetrics({ limit: 10, projectId: otherProjectId }))
+        .items.length,
+      0,
+    );
+    const pagedMetrics: string[] = [];
+    let metricCursor: string | null = null;
+    do {
+      const page = await repository.listMetrics({
+        limit: 1,
+        projectId,
+        ...(metricCursor ? { cursor: metricCursor } : {}),
+      });
+      pagedMetrics.push(...page.items.map((sample) => sample.id));
+      metricCursor = page.nextCursor;
+    } while (metricCursor);
+    assert.equal(pagedMetrics.length, 4);
+    assert.equal(new Set(pagedMetrics).size, 4);
+    assert.equal(await repository.beginAttempt(down.importId), null);
+    assert.equal(
+      (
+        await database.db
+          .select()
+          .from(metricSample)
+          .where(eq(metricSample.eventId, down.eventId!))
+      ).length,
+      1,
+    );
+    await assert.rejects(
+      database.pool.query(
+        "update metric_sample set value = 100 where event_id = $1",
+        [down.eventId],
+      ),
+      (error: unknown) =>
+        error instanceof Error && "code" in error && error.code === "23514",
     );
     const resolved = (await repository.listAlerts({ limit: 10, projectId }))
       .items[0];

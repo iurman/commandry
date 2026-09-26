@@ -35,6 +35,20 @@ export type SyntheticScenarioId = keyof typeof syntheticScenarioRegistry;
 export type SyntheticEventType =
   (typeof syntheticScenarioRegistry)[SyntheticScenarioId]["eventType"];
 
+export const SYNTHETIC_AVAILABILITY_METRIC = {
+  name: "external_availability",
+  unit: "percent",
+  source: "Synthetic operational fixture",
+} as const;
+
+export function syntheticAvailabilitySample(type: SyntheticEventType) {
+  if (type === "monitor.down")
+    return { ...SYNTHETIC_AVAILABILITY_METRIC, value: 0 } as const;
+  if (type === "monitor.recovered")
+    return { ...SYNTHETIC_AVAILABILITY_METRIC, value: 100 } as const;
+  return null;
+}
+
 export function syntheticScenario(scenarioId: string) {
   if (!Object.hasOwn(syntheticScenarioRegistry, scenarioId)) {
     throw new Error(`Unknown synthetic scenario: ${scenarioId}`);

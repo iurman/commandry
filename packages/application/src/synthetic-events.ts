@@ -7,6 +7,7 @@ import {
   type SyntheticAlert,
   type SyntheticEventImportJobV1,
   type SyntheticEventImportRecord,
+  type SyntheticMetricSample,
 } from "@commandry/contracts";
 import {
   decideSyntheticMonitorAlert,
@@ -274,6 +275,9 @@ export interface SyntheticEventReadPort {
   listEvents(
     input: EventPageQuery,
   ): Promise<SyntheticEventPage<NormalizedSyntheticEvent>>;
+  listMetrics(
+    input: EventPageQuery,
+  ): Promise<SyntheticEventPage<SyntheticMetricSample>>;
   getAlertById(id: string): Promise<SyntheticAlert | null>;
   listAlerts(
     input: EventPageQuery & { state?: "open" | "resolved" | undefined },
@@ -287,6 +291,7 @@ export function createSyntheticEventReadService(port: SyntheticEventReadPort) {
     listImports: port.list,
     getEventById: port.getEventById,
     listEvents: port.listEvents,
+    listMetrics: port.listMetrics,
     getAlertById: port.getAlertById,
     listAlerts: port.listAlerts,
     getSourceEnvelopeById: port.getSourceEnvelopeById,

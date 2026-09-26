@@ -18,6 +18,7 @@ import {
   type ResourceRecord,
 } from "../../projects/api";
 import ResourceTopologyPanel from "./ResourceTopologyPanel";
+import SyntheticMetricsPanel from "../../SyntheticMetricsPanel";
 import styles from "./resource.module.css";
 
 export default function ResourceDetail({ resourceId }: { resourceId: string }) {
@@ -180,6 +181,7 @@ export default function ResourceDetail({ resourceId }: { resourceId: string }) {
             onResourceChange={setResource}
             resource={resource}
           />
+          <SyntheticMetricsPanel resourceId={resource.id} />
           <section
             className="cmd-workspace-section"
             aria-labelledby="resource-synthetic-heading"

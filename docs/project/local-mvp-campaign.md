@@ -22,6 +22,13 @@ local experience lab.
 - Manually entered resources will have unknown operational state until an
   observation with a named source and time exists. Cached or synthetic health
   will always identify its source and freshness.
+- The synthetic monitor fixture will also project an immutable
+  `external_availability` percentage sample (0 for down, 100 for recovered)
+  onto its linked resource and project. Earlier fixture events are backfilled
+  from their preserved envelopes. Sample times are source occurrence times;
+  later ingestion cannot rewrite history or real resource health. The UI will
+  label every value historical and synthetic, and the unit/name are a local
+  adapter choice rather than a live telemetry contract.
 - Local resource containment will use one cycle-safe primary parent for
   navigation. Manual `depends_on` links will be separate typed edges with a
   `required_by` inverse; neither containment nor dependency will manufacture

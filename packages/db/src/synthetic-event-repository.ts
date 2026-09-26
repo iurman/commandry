@@ -3,6 +3,7 @@ import {
   decideSyntheticMonitorAlert,
   SYNTHETIC_MONITOR_RULE_ID,
   syntheticMonitorReason,
+  syntheticAvailabilitySample,
   type SyntheticEventType,
 } from "@commandry/domain";
 import type { CommandryDatabase } from "./client";
@@ -11,6 +12,7 @@ import {
   alertEvidence,
   auditEvent,
   normalizedEvent,
+  metricSample,
   project,
   projectResourceLink,
   resource,
@@ -335,6 +337,27 @@ export function createSyntheticEventImportRepository(db: CommandryDatabase) {
           )[0];
         if (!event) throw new Error("Normalized event could not be stored");
 
+        const syntheticMetric = syntheticAvailabilitySample(projection.type);
+        if (inserted && projection.resourceId && syntheticMetric) {
+          await tx
+            .insert(metricSample)
+            .values({
+              id: crypto.randomUUID(),
+              eventId: event.id,
+              sourceEnvelopeId: envelope.id,
+              projectId: run.projectId,
+              resourceId: projection.resourceId,
+              name: syntheticMetric.name,
+              unit: syntheticMetric.unit,
+              value: syntheticMetric.value,
+              sampledAt: event.occurredAt,
+              sourceKind: "synthetic-operations",
+              sourceLabel: syntheticMetric.source,
+              isSynthetic: true,
+            })
+            .onConflictDoNothing({ target: metricSample.eventId });
+        }
+
         if (
           inserted &&
           projection.resourceId &&
@@ -550,6 +573,61 @@ export function createSyntheticEventImportRepository(db: CommandryDatabase) {
         ),
         nextCursor:
           rows.length > input.limit ? (page.at(-1)?.event.id ?? null) : null,
+      };
+    },
+    async listMetrics(input: EventPageQuery) {
+      const [anchor] = input.cursor
+        ? await db
+            .select({ sampledAt: metricSample.sampledAt })
+            .from(metricSample)
+            .where(eq(metricSample.id, input.cursor))
+            .limit(1)
+        : [];
+      if (input.cursor && !anchor) return { items: [], nextCursor: null };
+      const rows = await db
+        .select({ sample: metricSample, resourceName: resource.name })
+        .from(metricSample)
+        .innerJoin(resource, eq(resource.id, metricSample.resourceId))
+        .where(
+          and(
+            eq(metricSample.sourceKind, "synthetic-operations"),
+            eq(metricSample.sourceLabel, "Synthetic operational fixture"),
+            eq(metricSample.isSynthetic, true),
+            eq(metricSample.name, "external_availability"),
+            eq(metricSample.unit, "percent"),
+            input.projectId
+              ? eq(metricSample.projectId, input.projectId)
+              : undefined,
+            input.resourceId
+              ? eq(metricSample.resourceId, input.resourceId)
+              : undefined,
+            anchor
+              ? sql`(${metricSample.sampledAt}, ${metricSample.id}) < (${anchor.sampledAt}, ${input.cursor}::uuid)`
+              : undefined,
+          ),
+        )
+        .orderBy(desc(metricSample.sampledAt), desc(metricSample.id))
+        .limit(input.limit + 1);
+      const page = rows.slice(0, input.limit);
+      return {
+        items: page.map(({ sample, resourceName }) => ({
+          id: sample.id,
+          eventId: sample.eventId,
+          projectId: sample.projectId,
+          resourceId: sample.resourceId,
+          resourceName,
+          name: "external_availability" as const,
+          unit: "percent" as const,
+          value: sample.value,
+          sampledAt: sample.sampledAt.toISOString(),
+          recordedAt: sample.recordedAt.toISOString(),
+          sourceEnvelopeId: sample.sourceEnvelopeId,
+          evidenceHref: `/api/v1/source-envelopes/${sample.sourceEnvelopeId}`,
+          sourceLabel: "Synthetic operational fixture" as const,
+          isSynthetic: true as const,
+        })),
+        nextCursor:
+          rows.length > input.limit ? (page.at(-1)?.sample.id ?? null) : null,
       };
     },
     async getAlertById(id: string) {

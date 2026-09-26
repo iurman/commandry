@@ -2,6 +2,7 @@ import { expect, test } from "vitest";
 import {
   decideSyntheticMonitorAlert,
   syntheticScenario,
+  syntheticAvailabilitySample,
 } from "./synthetic-events";
 
 test("fixed synthetic scenarios normalize to stable facts and labeled sources", () => {
@@ -16,6 +17,16 @@ test("fixed synthetic scenarios normalize to stable facts and labeled sources", 
     requiresResource: true,
   });
   expect(() => syntheticScenario("production.monitor-down")).toThrow();
+});
+
+test("only synthetic monitor facts yield availability samples", () => {
+  expect(syntheticAvailabilitySample("monitor.down")).toMatchObject({
+    name: "external_availability",
+    unit: "percent",
+    value: 0,
+  });
+  expect(syntheticAvailabilitySample("monitor.recovered")?.value).toBe(100);
+  expect(syntheticAvailabilitySample("git.pull_request.merged")).toBeNull();
 });
 
 test("monitor attention stays open on repeat and ignores stale transitions", () => {

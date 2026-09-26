@@ -111,6 +111,8 @@ import {
   listResourcesResponseSchema,
   listWorkItemsResponseSchema,
   normalizedEventSchema,
+  syntheticMetricSampleSchema,
+  listSyntheticMetricsResponseSchema,
   projectResourceLinkSchema,
   projectResourceLinkDetailSchema,
   projectSummarySchema,
@@ -1618,6 +1620,27 @@ export function generateOpenApi(): string {
           },
         },
       },
+      "/api/v1/metrics": {
+        get: {
+          operationId: "listSyntheticMetricSamples",
+          summary: "Page through source-labeled synthetic operational samples",
+          parameters: [
+            ...pageParameters,
+            projectFilterParameter,
+            resourceFilterParameter,
+          ],
+          responses: {
+            "200": {
+              description: "An immutable synthetic metric sample page",
+              content: jsonContent("ListSyntheticMetricsResponse"),
+            },
+            "400": {
+              description: "Invalid metric query",
+              content: jsonContent("ErrorResponse"),
+            },
+          },
+        },
+      },
       "/api/v1/events/{id}": {
         get: {
           operationId: "getNormalizedEvent",
@@ -1948,6 +1971,10 @@ export function generateOpenApi(): string {
         ),
         SourceEnvelope: component(sourceEnvelopeSchema),
         NormalizedEvent: component(normalizedEventSchema),
+        SyntheticMetricSample: component(syntheticMetricSampleSchema),
+        ListSyntheticMetricsResponse: component(
+          listSyntheticMetricsResponseSchema,
+        ),
         ListNormalizedEventsResponse: component(
           listNormalizedEventsResponseSchema,
         ),

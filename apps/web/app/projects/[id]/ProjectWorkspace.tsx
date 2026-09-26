@@ -19,6 +19,7 @@ import {
 import ProjectContent from "./ProjectContent";
 import ProjectBriefPanel from "./ProjectBriefPanel";
 import ProjectDecisions from "./ProjectDecisions";
+import SyntheticMetricsPanel from "../../SyntheticMetricsPanel";
 
 type RelationshipType = "supports" | "relates_to";
 
@@ -294,6 +295,7 @@ export default function ProjectWorkspace({ projectId }: { projectId: string }) {
           </header>
 
           <ProjectBriefPanel projectId={projectId} />
+          <SyntheticMetricsPanel projectId={projectId} />
 
           <div className="cmd-workspace-grid">
             <section

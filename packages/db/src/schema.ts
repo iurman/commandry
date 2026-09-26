@@ -1365,6 +1365,54 @@ export const normalizedEvent = pgTable(
   ],
 );
 
+export const metricSample = pgTable(
+  "metric_sample",
+  {
+    id: uuid("id").primaryKey(),
+    eventId: uuid("event_id")
+      .notNull()
+      .references(() => normalizedEvent.id, { onDelete: "restrict" }),
+    sourceEnvelopeId: uuid("source_envelope_id")
+      .notNull()
+      .references(() => sourceEnvelope.id, { onDelete: "restrict" }),
+    projectId: uuid("project_id")
+      .notNull()
+      .references(() => project.id, { onDelete: "restrict" }),
+    resourceId: uuid("resource_id")
+      .notNull()
+      .references(() => resource.id, { onDelete: "restrict" }),
+    name: text("name").notNull(),
+    unit: text("unit").notNull(),
+    value: integer("value").notNull(),
+    sampledAt: timestamp("sampled_at", { withTimezone: true }).notNull(),
+    recordedAt: timestamp("recorded_at", { withTimezone: true })
+      .notNull()
+      .defaultNow(),
+    sourceKind: text("source_kind").notNull(),
+    sourceLabel: text("source_label").notNull(),
+    isSynthetic: boolean("is_synthetic").notNull(),
+  },
+  (table) => [
+    uniqueIndex("metric_sample_event_idx").on(table.eventId),
+    index("metric_sample_resource_time_idx").on(
+      table.resourceId,
+      table.sampledAt,
+      table.id,
+    ),
+    index("metric_sample_project_time_idx").on(
+      table.projectId,
+      table.sampledAt,
+      table.id,
+    ),
+    check("metric_sample_name_nonempty", sql`length(trim(${table.name})) > 0`),
+    check("metric_sample_unit_nonempty", sql`length(trim(${table.unit})) > 0`),
+    check(
+      "metric_sample_source_nonempty",
+      sql`length(trim(${table.sourceLabel})) > 0`,
+    ),
+  ],
+);
+
 export const alertCondition = pgTable(
   "alert_condition",
   {

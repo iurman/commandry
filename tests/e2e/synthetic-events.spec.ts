@@ -143,6 +143,48 @@ test("synthetic operations import shows source-backed attention without changing
   const realResource = await realResourceResponse.json();
   expect(realResource.state).toBeNull();
   expect(realResource.lastObservedAt).toBeNull();
+  const metricResponse = await request.get(
+    `/api/v1/metrics?resourceId=${resource.id}&limit=1`,
+  );
+  expect(metricResponse.status()).toBe(200);
+  const firstMetricPage = await metricResponse.json();
+  expect(firstMetricPage.items).toHaveLength(1);
+  expect(firstMetricPage.items[0]).toMatchObject({
+    projectId: project.id,
+    resourceId: resource.id,
+    value: 100,
+    unit: "percent",
+    sourceLabel: "Synthetic operational fixture",
+    isSynthetic: true,
+  });
+  expect(firstMetricPage.nextCursor).toBeTruthy();
+  const nextMetricPage = await request.get(
+    `/api/v1/metrics?resourceId=${resource.id}&limit=1&cursor=${firstMetricPage.nextCursor}`,
+  );
+  expect((await nextMetricPage.json()).items[0]).toMatchObject({
+    value: 0,
+    evidenceHref: `/api/v1/source-envelopes/${down.sourceEnvelopeId}`,
+  });
+  await page.goto(`/resources/${resource.id}`);
+  await expect(
+    page.getByRole("heading", { name: "Synthetic availability" }),
+  ).toBeVisible();
+  await expect(
+    page.getByRole("heading", { name: "External availability: 100%" }),
+  ).toBeVisible();
+  await expect(
+    page.getByText(/Change from the previous synthetic sample: \+100/),
+  ).toBeVisible();
+  await expect(
+    page.getByRole("link", { name: "Inspect original synthetic source" }),
+  ).toHaveAttribute("href", firstMetricPage.items[0].evidenceHref);
+  await page.goto(`/projects/${project.id}`);
+  await expect(
+    page.getByRole("heading", { name: "Synthetic availability" }),
+  ).toBeVisible();
+  await expect(
+    page.getByRole("heading", { name: "External availability: 100%" }),
+  ).toBeVisible();
   expect(
     await page.evaluate(
       () => document.documentElement.scrollWidth <= window.innerWidth,

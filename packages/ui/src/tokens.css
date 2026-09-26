@@ -1343,6 +1343,39 @@ textarea {
   text-underline-offset: 0.16em;
 }
 
+.cmd-metric-card progress {
+  display: block;
+  width: min(100%, 28rem);
+  height: 0.65rem;
+  accent-color: var(--cmd-accent);
+}
+
+.cmd-metric-card p,
+.cmd-metric-card a {
+  overflow-wrap: anywhere;
+}
+
+.cmd-metric-card a {
+  color: var(--cmd-accent);
+  font-weight: 700;
+}
+
+.cmd-metric-history {
+  display: grid;
+  gap: var(--cmd-space-2);
+  margin: var(--cmd-space-4) 0;
+  padding-left: var(--cmd-space-5);
+}
+
+.cmd-metric-history li {
+  min-width: 0;
+  overflow-wrap: anywhere;
+}
+
+.cmd-metric-history a {
+  color: var(--cmd-accent);
+}
+
 @media (max-width: 34rem) {
   .cmd-synthetic-timeline {
     grid-template-columns: minmax(0, 1fr);

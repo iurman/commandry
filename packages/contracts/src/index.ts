@@ -555,6 +555,33 @@ export const listNormalizedEventsResponseSchema = z.object({
   nextCursor: z.uuid().nullable(),
 });
 
+export const syntheticMetricSampleSchema = z.object({
+  id: z.uuid(),
+  eventId: z.uuid(),
+  projectId: z.uuid(),
+  resourceId: z.uuid(),
+  resourceName: z.string().min(1),
+  name: z.literal("external_availability"),
+  unit: z.literal("percent"),
+  value: z.number().int().min(0).max(100),
+  sampledAt: z.iso.datetime({ offset: true }),
+  recordedAt: z.iso.datetime({ offset: true }),
+  sourceEnvelopeId: z.uuid(),
+  evidenceHref: z.string().startsWith("/api/v1/source-envelopes/"),
+  sourceLabel: z.literal("Synthetic operational fixture"),
+  isSynthetic: z.literal(true),
+});
+
+export const listSyntheticMetricsQuerySchema = listResourcesQuerySchema.extend({
+  projectId: z.uuid().optional(),
+  resourceId: z.uuid().optional(),
+});
+
+export const listSyntheticMetricsResponseSchema = z.object({
+  items: z.array(syntheticMetricSampleSchema),
+  nextCursor: z.uuid().nullable(),
+});
+
 export const syntheticAlertSchema = z.object({
   id: z.uuid(),
   state: z.enum(["open", "resolved"]),
@@ -1319,6 +1346,7 @@ export type SyntheticEventImportRecord = z.infer<
 >;
 export type SourceEnvelopeRecord = z.infer<typeof sourceEnvelopeSchema>;
 export type NormalizedSyntheticEvent = z.infer<typeof normalizedEventSchema>;
+export type SyntheticMetricSample = z.infer<typeof syntheticMetricSampleSchema>;
 export type SyntheticAlert = z.infer<typeof syntheticAlertSchema>;
 export type AttentionItem = z.infer<typeof attentionItemSchema>;
 export type EvidenceReference = z.infer<typeof evidenceReferenceSchema>;

@@ -6,6 +6,8 @@ export { RecordCard } from "./components/RecordCard";
 export { RelationshipCard } from "./components/RelationshipCard";
 export { RecordEmptyState } from "./components/RecordEmptyState";
 export { SyntheticEventCard } from "./components/SyntheticEventCard";
+export { SyntheticMetricCard } from "./components/SyntheticMetricCard";
+export type { SyntheticMetricCardView } from "./components/SyntheticMetricCard";
 export type { SyntheticEventCardProps } from "./components/SyntheticEventCard";
 export { SyntheticAlertCard } from "./components/SyntheticAlertCard";
 export type { SyntheticAlertCardProps } from "./components/SyntheticAlertCard";
