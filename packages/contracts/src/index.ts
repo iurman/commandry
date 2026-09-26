@@ -260,8 +260,32 @@ export const knowledgeItemSchema = z.object({
   kind: z.literal("note"),
   title: z.string(),
   content: z.string(),
+  version: z.number().int().positive().optional(),
   createdAt: z.iso.datetime({ offset: true }),
   updatedAt: z.iso.datetime({ offset: true }),
+});
+
+export const reviseKnowledgeItemRequestSchema = z.strictObject({
+  expectedVersion: z.number().int().positive(),
+  title: z.string().trim().min(1).max(200),
+  content: z.string().max(20_000),
+});
+
+export const knowledgeItemRevisionSchema = z.object({
+  id: z.uuid(),
+  knowledgeItemId: z.uuid(),
+  version: z.number().int().positive(),
+  previousTitle: z.string(),
+  previousContent: z.string(),
+  title: z.string(),
+  content: z.string(),
+  actor: z.literal("local-user:unattributed"),
+  createdAt: z.iso.datetime({ offset: true }),
+});
+
+export const listKnowledgeItemRevisionsResponseSchema = z.object({
+  items: z.array(knowledgeItemRevisionSchema),
+  nextCursor: z.uuid().nullable(),
 });
 
 export const fileCaptureResponseSchema = z.object({
@@ -1227,6 +1251,10 @@ export type ChangeWorkItemStatusRequest = z.infer<
 >;
 export type WorkItemStatusEvent = z.infer<typeof workItemStatusEventSchema>;
 export type KnowledgeItem = z.infer<typeof knowledgeItemSchema>;
+export type ReviseKnowledgeItemRequest = z.infer<
+  typeof reviseKnowledgeItemRequestSchema
+>;
+export type KnowledgeItemRevision = z.infer<typeof knowledgeItemRevisionSchema>;
 export type ProjectDecision = z.infer<typeof projectDecisionSchema>;
 export type ProjectDecisionRevision = z.infer<
   typeof projectDecisionRevisionSchema

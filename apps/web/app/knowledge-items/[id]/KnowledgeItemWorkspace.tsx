@@ -1,8 +1,8 @@
 "use client";
 
-import { useEffect, useState } from "react";
-import { AppShell } from "@commandry/ui";
-import { apiJson } from "../../projects/api";
+import { useEffect, useState, type FormEvent } from "react";
+import { AppShell, Button, KnowledgeRevisionCard } from "@commandry/ui";
+import { apiJson, pagePath, type PageResponse } from "../../projects/api";
 
 export interface KnowledgeItemRecord {
   id: string;
@@ -11,8 +11,19 @@ export interface KnowledgeItemRecord {
   kind: "note";
   title: string;
   content: string;
+  version?: number;
   createdAt: string;
   updatedAt: string;
+}
+
+interface KnowledgeRevisionRecord {
+  id: string;
+  version: number;
+  previousTitle: string;
+  previousContent: string;
+  title: string;
+  content: string;
+  createdAt: string;
 }
 
 export default function KnowledgeItemWorkspace({
@@ -23,6 +34,17 @@ export default function KnowledgeItemWorkspace({
   const [item, setItem] = useState<KnowledgeItemRecord | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [titleDraft, setTitleDraft] = useState("");
+  const [contentDraft, setContentDraft] = useState("");
+  const [saving, setSaving] = useState(false);
+  const [saveError, setSaveError] = useState<string | null>(null);
+  const [saveFeedback, setSaveFeedback] = useState<string | null>(null);
+  const [revisions, setRevisions] = useState<KnowledgeRevisionRecord[]>([]);
+  const [revisionCursor, setRevisionCursor] = useState<string | null>(null);
+  const [revisionsLoading, setRevisionsLoading] = useState(false);
+  const [revisionError, setRevisionError] = useState<string | null>(null);
+  const revisionsPath = `/api/v1/knowledge-items/${encodeURIComponent(knowledgeItemId)}/revisions`;
+  const currentItemId = item?.id;
 
   useEffect(() => {
     let active = true;
@@ -30,7 +52,11 @@ export default function KnowledgeItemWorkspace({
       `/api/v1/knowledge-items/${encodeURIComponent(knowledgeItemId)}`,
     )
       .then((record) => {
-        if (active) setItem(record);
+        if (active) {
+          setItem(record);
+          setTitleDraft(record.title);
+          setContentDraft(record.content);
+        }
       })
       .catch((cause: unknown) => {
         if (active)
@@ -47,6 +73,97 @@ export default function KnowledgeItemWorkspace({
       active = false;
     };
   }, [knowledgeItemId]);
+
+  useEffect(() => {
+    if (!currentItemId) return;
+    let active = true;
+    apiJson<PageResponse<KnowledgeRevisionRecord>>(pagePath(revisionsPath))
+      .then((page) => {
+        if (!active) return;
+        setRevisions(page.items);
+        setRevisionCursor(page.nextCursor);
+        setRevisionError(null);
+      })
+      .catch((cause: unknown) => {
+        if (active)
+          setRevisionError(
+            cause instanceof Error
+              ? cause.message
+              : "Revision history is unavailable.",
+          );
+      });
+    return () => {
+      active = false;
+    };
+  }, [currentItemId, revisionsPath]);
+
+  async function saveRevision(event: FormEvent<HTMLFormElement>) {
+    event.preventDefault();
+    if (!item || saving) return;
+    setSaving(true);
+    setSaveError(null);
+    setSaveFeedback(null);
+    try {
+      const updated = await apiJson<KnowledgeItemRecord>(revisionsPath, {
+        method: "POST",
+        body: JSON.stringify({
+          expectedVersion: item.version ?? 1,
+          title: titleDraft.trim(),
+          content: contentDraft,
+        }),
+      });
+      setItem(updated);
+      setTitleDraft(updated.title);
+      setContentDraft(updated.content);
+      setSaveFeedback(
+        "Knowledge note saved. The exact original capture is unchanged.",
+      );
+    } catch (cause) {
+      setSaveError(
+        cause instanceof Error
+          ? cause.message
+          : "Could not save note revision.",
+      );
+      return;
+    } finally {
+      setSaving(false);
+    }
+    try {
+      const page = await apiJson<PageResponse<KnowledgeRevisionRecord>>(
+        pagePath(revisionsPath),
+      );
+      setRevisions(page.items);
+      setRevisionCursor(page.nextCursor);
+      setRevisionError(null);
+    } catch (cause) {
+      setRevisionError(
+        cause instanceof Error
+          ? cause.message
+          : "Could not refresh revision history.",
+      );
+    }
+  }
+
+  async function loadMoreRevisions() {
+    if (!revisionCursor || revisionsLoading) return;
+    setRevisionsLoading(true);
+    setRevisionError(null);
+    try {
+      const page = await apiJson<PageResponse<KnowledgeRevisionRecord>>(
+        pagePath(revisionsPath, revisionCursor),
+      );
+      setRevisions((current) => [...current, ...page.items]);
+      setRevisionCursor(page.nextCursor);
+    } catch (cause) {
+      setRevisionError(
+        cause instanceof Error
+          ? cause.message
+          : "Could not load older revisions.",
+      );
+    } finally {
+      setRevisionsLoading(false);
+    }
+  }
 
   return (
     <AppShell current="Projects">
@@ -117,6 +234,10 @@ export default function KnowledgeItemWorkspace({
                   <dd>Knowledge note</dd>
                 </div>
                 <div>
+                  <dt>Version</dt>
+                  <dd>{item.version ?? 1}</dd>
+                </div>
+                <div>
                   <dt>Record ID</dt>
                   <dd>
                     <code>{item.id}</code>
@@ -143,6 +264,80 @@ export default function KnowledgeItemWorkspace({
               </dl>
             </aside>
           </div>
+          <section
+            className="cmd-detail-document"
+            aria-labelledby="knowledge-edit-heading"
+          >
+            <p className="cmd-eyebrow">Local knowledge / Audited</p>
+            <h2 id="knowledge-edit-heading">Revise this note</h2>
+            <p>
+              Edits update the current project note, search, and live brief. The
+              original capture and previously saved execution packets stay as
+              recorded.
+            </p>
+            <form className="cmd-form" onSubmit={saveRevision}>
+              <label htmlFor="knowledge-title">Title</label>
+              <input
+                id="knowledge-title"
+                maxLength={200}
+                required
+                value={titleDraft}
+                onChange={(event) => setTitleDraft(event.target.value)}
+              />
+              <label htmlFor="knowledge-content">Content</label>
+              <textarea
+                id="knowledge-content"
+                maxLength={20_000}
+                rows={8}
+                value={contentDraft}
+                onChange={(event) => setContentDraft(event.target.value)}
+              />
+              <Button
+                type="submit"
+                disabled={
+                  saving ||
+                  !titleDraft.trim() ||
+                  (titleDraft.trim() === item.title &&
+                    contentDraft === item.content)
+                }
+              >
+                {saving ? "Saving note..." : "Save note revision"}
+              </Button>
+            </form>
+            {saveFeedback && (
+              <p className="cmd-form-success" role="status">
+                {saveFeedback}
+              </p>
+            )}
+            {saveError && (
+              <p className="cmd-inline-state cmd-error" role="alert">
+                {saveError}
+              </p>
+            )}
+            <h3>Revision history</h3>
+            {revisionError && (
+              <p className="cmd-inline-state cmd-error" role="alert">
+                {revisionError}
+              </p>
+            )}
+            {revisions.length === 0 && !revisionError && (
+              <p>No note revisions yet.</p>
+            )}
+            {revisions.length > 0 && (
+              <ol className="cmd-record-list" aria-label="Note revisions">
+                {revisions.map((revision) => (
+                  <li key={revision.id}>
+                    <KnowledgeRevisionCard revision={revision} />
+                  </li>
+                ))}
+              </ol>
+            )}
+            {revisionCursor && (
+              <Button disabled={revisionsLoading} onClick={loadMoreRevisions}>
+                {revisionsLoading ? "Loading..." : "Load older revisions"}
+              </Button>
+            )}
+          </section>
         </>
       )}
     </AppShell>

@@ -127,6 +127,41 @@ const snapshot: ProjectBriefSnapshot = {
 };
 
 describe("project brief application", () => {
+  it("identifies a revised note as current local knowledge rather than original capture text", () => {
+    const noteId = "1503fef8-7a72-45dc-b47b-717e2b0aba53";
+    const brief = assembleProjectBrief(
+      {
+        ...snapshot,
+        knowledge: {
+          items: [
+            {
+              id: noteId,
+              projectId,
+              sourceCaptureId: "f03427b8-37aa-44eb-9c81-5d120e5bff9b",
+              kind: "note",
+              title: "Current garden note",
+              content: "Revised observation",
+              version: 2,
+              createdAt: asOf,
+              updatedAt: asOf,
+            },
+          ],
+          nextCursor: null,
+        },
+      },
+      asOf,
+    );
+    expect(brief.sections.knowledge.items[0]).toMatchObject({
+      sourceLabel: "Locally revised knowledge note",
+      evidence: [
+        {
+          href: `/api/v1/knowledge-items/${noteId}`,
+          sourceLabel: "Locally revised knowledge note",
+        },
+      ],
+    });
+  });
+
   it("cites every factual statement and preserves event source, timing, and unknown health", () => {
     const brief = assembleProjectBrief(snapshot, asOf);
     expect(brief.method).toBe("deterministic-local-v1");

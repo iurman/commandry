@@ -189,6 +189,7 @@ export function createBriefRepository(db: CommandryDatabase) {
                 kind: "note" as const,
                 title: row.title,
                 content: row.content,
+                version: row.version,
                 createdAt: row.createdAt.toISOString(),
                 updatedAt: row.updatedAt.toISOString(),
               }),

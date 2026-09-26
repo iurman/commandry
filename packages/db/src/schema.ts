@@ -484,6 +484,7 @@ export const knowledgeItem = pgTable(
       .default("note"),
     title: text("title").notNull(),
     content: text("content").notNull(),
+    version: integer("version").notNull().default(1),
     createdAt: createdAt(),
     updatedAt: updatedAt(),
   },
@@ -501,6 +502,47 @@ export const knowledgeItem = pgTable(
       sql`length(trim(${table.title})) > 0`,
     ),
     check("knowledge_item_kind_valid", sql`${table.kind} = 'note'`),
+    check("knowledge_item_version_positive", sql`${table.version} > 0`),
+  ],
+);
+
+export const knowledgeItemRevision = pgTable(
+  "knowledge_item_revision",
+  {
+    id: uuid("id").primaryKey(),
+    knowledgeItemId: uuid("knowledge_item_id")
+      .notNull()
+      .references(() => knowledgeItem.id, { onDelete: "restrict" }),
+    version: integer("version").notNull(),
+    previousTitle: text("previous_title").notNull(),
+    previousContent: text("previous_content").notNull(),
+    title: text("title").notNull(),
+    content: text("content").notNull(),
+    actor: text("actor").notNull(),
+    createdAt: createdAt(),
+  },
+  (table) => [
+    uniqueIndex("knowledge_item_revision_version_unique_idx").on(
+      table.knowledgeItemId,
+      table.version,
+    ),
+    index("knowledge_item_revision_page_idx").on(
+      table.knowledgeItemId,
+      table.createdAt,
+      table.id,
+    ),
+    check(
+      "knowledge_item_revision_version_positive",
+      sql`${table.version} > 1`,
+    ),
+    check(
+      "knowledge_item_revision_changed",
+      sql`(${table.previousTitle} <> ${table.title}) or (${table.previousContent} <> ${table.content})`,
+    ),
+    check(
+      "knowledge_item_revision_actor_local",
+      sql`${table.actor} = 'local-user:unattributed'`,
+    ),
   ],
 );
 

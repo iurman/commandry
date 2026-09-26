@@ -106,8 +106,12 @@ export function assembleProjectBrief(
       isSynthetic: false,
     }),
   );
-  const knowledge = snapshot.knowledge.items.map((item) =>
-    fact({
+  const knowledge = snapshot.knowledge.items.map((item) => {
+    const sourceLabel =
+      (item.version ?? 1) > 1
+        ? "Locally revised knowledge note"
+        : "Manual local capture";
+    return fact({
       id: item.id,
       kind: "knowledge_item",
       title: item.title,
@@ -118,14 +122,14 @@ export function assembleProjectBrief(
           item.id,
           `/api/v1/knowledge-items/${item.id}`,
           item.updatedAt,
-          "Manual local capture",
+          sourceLabel,
           false,
         ),
       ],
-      sourceLabel: "Manual local capture",
+      sourceLabel,
       isSynthetic: false,
-    }),
-  );
+    });
+  });
   const decisions = snapshot.decisions.items.map((item) =>
     fact({
       id: item.id,

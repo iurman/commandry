@@ -19,18 +19,23 @@ describe("Knowledge note detail", () => {
     vi.stubGlobal(
       "fetch",
       vi.fn(
-        async () =>
+        async (path: string) =>
           new Response(
-            JSON.stringify({
-              id: noteId,
-              projectId,
-              sourceCaptureId: captureId,
-              kind: "note",
-              title: "Venue note",
-              content: "West door access.\nKeep the original note.",
-              createdAt: at,
-              updatedAt: at,
-            }),
+            JSON.stringify(
+              path.includes("/revisions")
+                ? { items: [], nextCursor: null }
+                : {
+                    id: noteId,
+                    projectId,
+                    sourceCaptureId: captureId,
+                    kind: "note",
+                    title: "Venue note",
+                    content: "West door access.\nKeep the original note.",
+                    version: 1,
+                    createdAt: at,
+                    updatedAt: at,
+                  },
+            ),
             { status: 200 },
           ),
       ),
@@ -39,9 +44,10 @@ describe("Knowledge note detail", () => {
     expect(
       await screen.findByRole("heading", { name: "Venue note" }),
     ).toBeTruthy();
-    expect(screen.getByText(/West door access/).textContent).toBe(
-      "West door access.\nKeep the original note.",
-    );
+    expect(
+      screen.getByText(/West door access/, { selector: ".cmd-detail-body" })
+        .textContent,
+    ).toBe("West door access.\nKeep the original note.");
     expect(
       screen
         .getByRole("link", { name: "View exact original capture" })
@@ -56,18 +62,23 @@ describe("Knowledge note detail", () => {
     vi.stubGlobal(
       "fetch",
       vi.fn(
-        async () =>
+        async (path: string) =>
           new Response(
-            JSON.stringify({
-              id: noteId,
-              projectId,
-              sourceCaptureId: captureId,
-              kind: "note",
-              title: "Venue note",
-              content: "",
-              createdAt: at,
-              updatedAt: at,
-            }),
+            JSON.stringify(
+              path.includes("/revisions")
+                ? { items: [], nextCursor: null }
+                : {
+                    id: noteId,
+                    projectId,
+                    sourceCaptureId: captureId,
+                    kind: "note",
+                    title: "Venue note",
+                    content: "",
+                    version: 1,
+                    createdAt: at,
+                    updatedAt: at,
+                  },
+            ),
             { status: 200 },
           ),
       ),

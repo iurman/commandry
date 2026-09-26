@@ -72,6 +72,9 @@ import {
   fileCaptureResponseSchema,
   healthResponseSchema,
   knowledgeItemSchema,
+  reviseKnowledgeItemRequestSchema,
+  knowledgeItemRevisionSchema,
+  listKnowledgeItemRevisionsResponseSchema,
   createProjectDecisionRequestSchema,
   reviseProjectDecisionRequestSchema,
   projectDecisionSchema,
@@ -737,6 +740,38 @@ export function generateOpenApi(): string {
             },
             "404": {
               description: "Knowledge item not found",
+              content: jsonContent("ErrorResponse"),
+            },
+          },
+        },
+      },
+      "/api/v1/knowledge-items/{id}/revisions": {
+        get: {
+          operationId: "listKnowledgeItemRevisions",
+          summary: "List immutable local note edits with cursor continuation",
+          parameters: [idParameter, ...pageParameters],
+          responses: {
+            "200": {
+              description: "Knowledge note revision history",
+              content: jsonContent("ListKnowledgeItemRevisionsResponse"),
+            },
+          },
+        },
+        post: {
+          operationId: "reviseKnowledgeItem",
+          summary: "Edit a filed note without changing its original capture",
+          parameters: [idParameter],
+          requestBody: {
+            required: true,
+            content: jsonContent("ReviseKnowledgeItemRequest"),
+          },
+          responses: {
+            "200": {
+              description: "Current note after the revision",
+              content: jsonContent("KnowledgeItem"),
+            },
+            "409": {
+              description: "Stale or unchanged note revision",
               content: jsonContent("ErrorResponse"),
             },
           },
@@ -1783,6 +1818,11 @@ export function generateOpenApi(): string {
           listWorkItemStatusEventsResponseSchema,
         ),
         KnowledgeItem: component(knowledgeItemSchema),
+        ReviseKnowledgeItemRequest: component(reviseKnowledgeItemRequestSchema),
+        KnowledgeItemRevision: component(knowledgeItemRevisionSchema),
+        ListKnowledgeItemRevisionsResponse: component(
+          listKnowledgeItemRevisionsResponseSchema,
+        ),
         CreateProjectDecisionRequest: component(
           createProjectDecisionRequestSchema,
         ),

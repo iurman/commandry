@@ -8,6 +8,7 @@ export * from "./local-agent-policy";
 export * from "./simulated-approval";
 export * from "./work-item-status";
 export * from "./work-planning";
+export * from "./knowledge-revision";
 export * from "./resource-topology";
 export * from "./project-decision";
 export * from "./local-automation";

@@ -48,6 +48,7 @@ function knowledgeRecord(row: typeof knowledgeItem.$inferSelect) {
     kind: "note" as const,
     title: row.title,
     content: row.content,
+    version: row.version,
     createdAt: row.createdAt.toISOString(),
     updatedAt: row.updatedAt.toISOString(),
   };

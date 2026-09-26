@@ -258,6 +258,7 @@ export function createCaptureTriageRepository(db: CommandryDatabase) {
               kind: "note",
               title: item.title,
               content: item.content,
+              version: item.version,
               createdAt: item.createdAt.toISOString(),
               updatedAt: item.updatedAt.toISOString(),
             };

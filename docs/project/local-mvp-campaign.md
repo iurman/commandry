@@ -43,6 +43,13 @@ local experience lab.
   records and the project/resource catalog with a project filter and cursor
   continuation. This local search is not a semantic answer or an access-control
   substitute while OQ-003 remains open.
+- A filed knowledge note may be revised locally by supplying its displayed
+  version. Each accepted edit stores the previous and new title/content in an
+  immutable revision row, while the exact original capture remains separate.
+  Current search and live briefs use the latest note; saved execution packets
+  retain their original snapshot. The `local-user:unattributed` edit label is
+  provisional until OQ-003 establishes human identity. Deletion, merge, and
+  retention policy remain open under OQ-013.
 - A local task may be completed and reopened. Each change will use the displayed
   status as an expected value and append an immutable event. Live briefs will
   select currently open tasks, while already generated execution packets will

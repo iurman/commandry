@@ -22,6 +22,8 @@ export type { DecisionCardProps } from "./components/DecisionCard";
 export { AutomationCard } from "./components/AutomationCard";
 export { UpcomingWorkCard } from "./components/UpcomingWorkCard";
 export type { UpcomingWorkCardView } from "./components/UpcomingWorkCard";
+export { KnowledgeRevisionCard } from "./components/KnowledgeRevisionCard";
+export type { KnowledgeRevisionCardView } from "./components/KnowledgeRevisionCard";
 export type { AutomationCardView } from "./components/AutomationCard";
 export { NotificationCard } from "./components/NotificationCard";
 export type { NotificationCardView } from "./components/NotificationCard";

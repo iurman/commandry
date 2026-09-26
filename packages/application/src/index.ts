@@ -10,6 +10,7 @@ export * from "./agent-context";
 export * from "./simulated-approvals";
 export * from "./work-item-status";
 export * from "./work-planning";
+export * from "./knowledge-revisions";
 export * from "./resource-topology";
 export * from "./project-decisions";
 export * from "./local-automations";
