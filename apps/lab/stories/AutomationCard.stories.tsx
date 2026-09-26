@@ -13,6 +13,7 @@ const meta = {
       enabled: true,
       latestRunState: "succeeded",
       latestRunAt: "2026-09-26T12:00:00.000Z",
+      nextRunAt: null,
     },
   },
 } satisfies Meta<typeof AutomationCard>;
@@ -28,6 +29,17 @@ export const Disabled: Story = {
       enabled: false,
       latestRunState: null,
       latestRunAt: null,
+      nextRunAt: null,
+    },
+  },
+};
+
+export const Scheduled: Story = {
+  args: {
+    automation: {
+      ...meta.args.automation,
+      latestRunState: "queued",
+      nextRunAt: "2026-09-27T09:00:00.000Z",
     },
   },
 };

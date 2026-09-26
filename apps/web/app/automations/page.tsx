@@ -198,8 +198,9 @@ export default function AutomationsPage() {
           <h1>Automations</h1>
           <p className="cmd-lead">
             Review definitions and worker runs. This first routine reads a
-            project brief once at creation, produces a synthetic unverified
-            summary, and performs no external action.
+            project brief at creation or a manually scheduled one-time run,
+            produces a synthetic unverified summary, and performs no external
+            action.
           </p>
         </div>
       </header>
@@ -242,6 +243,7 @@ export default function AutomationsPage() {
                     enabled: item.enabled,
                     latestRunState: latestRuns[item.id]?.state ?? null,
                     latestRunAt: latestRuns[item.id]?.createdAt ?? null,
+                    nextRunAt: item.nextRunAt,
                   }}
                 />
               </li>
@@ -260,8 +262,9 @@ export default function AutomationsPage() {
           <p className="cmd-eyebrow">Create / Read-only</p>
           <h2 id="automation-create-heading">New local routine</h2>
           <p className="cmd-form-intro">
-            An enabled definition queues one summary at creation. There is no
-            recurring scheduler or connection to an external system.
+            An enabled definition queues one summary at creation. Open its
+            detail page to schedule another one-time local run. There is no
+            recurring schedule or connection to an external system.
           </p>
           <form className="cmd-form" onSubmit={create}>
             <label htmlFor="automation-name">Name</label>

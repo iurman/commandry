@@ -1,6 +1,7 @@
 export const LOCAL_PROJECT_SUMMARY_POLICY = {
   routine: "local_project_summary_v1",
   triggerType: "on_creation_once",
+  optionalManualSchedule: "one_time_utc",
   sourceOfTruth: "local-only",
   risk: "read_only",
   requiredCapability: "project.brief.read",
@@ -24,7 +25,8 @@ export type LocalAutomationErrorCode =
   | "AUTOMATION_DISABLED"
   | "AUTOMATION_STALE"
   | "AUTOMATION_OCCURRENCE_CONFLICT"
-  | "AUTOMATION_RUN_NOT_FOUND";
+  | "AUTOMATION_RUN_NOT_FOUND"
+  | "AUTOMATION_INVALID_SCHEDULE";
 
 export class LocalAutomationError extends Error {
   constructor(
@@ -41,6 +43,36 @@ export function requireAutomationEnabled(enabled: boolean) {
     throw new LocalAutomationError(
       "AUTOMATION_DISABLED",
       "Enable this local automation before running it",
+    );
+}
+
+export function scheduledAutomationTime(
+  scheduledFor: string | undefined,
+  now: Date,
+): Date | null {
+  if (!scheduledFor) return null;
+  const scheduled = new Date(scheduledFor);
+  if (!Number.isFinite(scheduled.getTime()) || scheduled <= now)
+    throw new LocalAutomationError(
+      "AUTOMATION_INVALID_SCHEDULE",
+      "Schedule must be a future time with an explicit UTC offset",
+    );
+  return scheduled;
+}
+
+export function requireSameAutomationOccurrence(
+  existing: { definitionId: string; scheduledFor: Date | null },
+  definitionId: string,
+  scheduledFor: string | undefined,
+) {
+  const requestedTime = scheduledFor ? Date.parse(scheduledFor) : null;
+  if (
+    existing.definitionId !== definitionId ||
+    (existing.scheduledFor?.getTime() ?? null) !== requestedTime
+  )
+    throw new LocalAutomationError(
+      "AUTOMATION_OCCURRENCE_CONFLICT",
+      "Occurrence was already used for a different automation or due time",
     );
 }
 

@@ -1,4 +1,4 @@
-import { and, eq, sql } from "drizzle-orm";
+import { and, asc, eq, isNotNull, sql } from "drizzle-orm";
 import { PgBoss, fromDrizzle } from "pg-boss";
 import { Pool } from "pg";
 import type {
@@ -24,6 +24,8 @@ import {
   LocalAutomationError,
   requireAutomationEnabled,
   requireExpectedAutomationEnabled,
+  requireSameAutomationOccurrence,
+  scheduledAutomationTime,
   LocalAgentError,
   SimulatedApprovalError,
   SyntheticEventImportConflictError,
@@ -259,7 +261,22 @@ export function createLocalAutomationSubmission(
           details: { previousEnabled: current.enabled, enabled: input.enabled },
           createdAt: now,
         });
-        return automationDefinitionRecord(updated);
+        const [pending] = await tx
+          .select({ scheduledFor: schema.automationRun.scheduledFor })
+          .from(schema.automationRun)
+          .where(
+            and(
+              eq(schema.automationRun.definitionId, id),
+              eq(schema.automationRun.state, "queued"),
+              isNotNull(schema.automationRun.scheduledFor),
+            ),
+          )
+          .orderBy(asc(schema.automationRun.scheduledFor))
+          .limit(1);
+        return automationDefinitionRecord(
+          updated,
+          pending?.scheduledFor ?? null,
+        );
       });
     },
     async triggerRun(id: string, input: TriggerAutomationRunRequest) {
@@ -281,15 +298,12 @@ export function createLocalAutomationSubmission(
           .where(eq(schema.automationRun.occurrenceId, input.occurrenceId))
           .limit(1);
         if (prior) {
-          if (prior.definitionId !== id)
-            throw new LocalAutomationError(
-              "AUTOMATION_OCCURRENCE_CONFLICT",
-              "Occurrence belongs to another automation",
-            );
+          requireSameAutomationOccurrence(prior, id, input.scheduledFor);
           return automationRunRecord(prior);
         }
         requireAutomationEnabled(definition.enabled);
         const now = new Date();
+        const scheduledFor = scheduledAutomationTime(input.scheduledFor, now);
         const [inserted] = await tx
           .insert(schema.automationRun)
           .values({
@@ -297,7 +311,8 @@ export function createLocalAutomationSubmission(
             definitionId: id,
             projectId: definition.projectId,
             occurrenceId: input.occurrenceId,
-            trigger: "manual",
+            trigger: scheduledFor ? "scheduled" : "manual",
+            scheduledFor,
             createdAt: now,
           })
           .onConflictDoNothing({ target: schema.automationRun.occurrenceId })
@@ -310,7 +325,10 @@ export function createLocalAutomationSubmission(
               runId: inserted.id,
               definitionId: id,
             },
-            { db: fromDrizzle(tx, sql) },
+            {
+              db: fromDrizzle(tx, sql),
+              ...(scheduledFor ? { startAfter: scheduledFor } : {}),
+            },
           );
           if (!jobId) throw new Error("Local automation job was not enqueued");
           await tx.insert(schema.automationAuditEvent).values({
@@ -319,7 +337,11 @@ export function createLocalAutomationSubmission(
             runId: inserted.id,
             actor: "local-user:unattributed",
             operation: "automation.run_queued",
-            details: { trigger: "manual", jobId },
+            details: {
+              trigger: scheduledFor ? "scheduled" : "manual",
+              scheduledFor: scheduledFor?.toISOString() ?? null,
+              jobId,
+            },
             createdAt: now,
           });
           return automationRunRecord(inserted);
@@ -329,11 +351,12 @@ export function createLocalAutomationSubmission(
           .from(schema.automationRun)
           .where(eq(schema.automationRun.occurrenceId, input.occurrenceId))
           .limit(1);
-        if (!existing || existing.definitionId !== id)
+        if (!existing)
           throw new LocalAutomationError(
             "AUTOMATION_OCCURRENCE_CONFLICT",
-            "Occurrence belongs to another automation",
+            "Occurrence was not found after a concurrent submission",
           );
+        requireSameAutomationOccurrence(existing, id, input.scheduledFor);
         return automationRunRecord(existing);
       });
     },

@@ -179,3 +179,78 @@ test(
     }
   },
 );
+
+test("scheduled local runs expose a queued due time and skip while disabled", async () => {
+  await migrateDatabase({
+    connectionString,
+    migrationsDir: resolve(process.cwd(), "packages/db/migrations"),
+  });
+  const database = createDatabase({ connectionString, max: 3 });
+  try {
+    const project = await createCatalogRepository(database.db).createProject({
+      id: crypto.randomUUID(),
+      name: "Scheduled summary test project",
+    });
+    const definitionId = crypto.randomUUID();
+    await database.db.insert(automationDefinition).values({
+      id: definitionId,
+      projectId: project.id,
+      name: "Deferred local summary",
+      enabled: false,
+    });
+    const scheduledFor = new Date(Date.now() + 60_000);
+    const runId = crypto.randomUUID();
+    await database.db.insert(automationRun).values({
+      id: runId,
+      definitionId,
+      projectId: project.id,
+      occurrenceId: crypto.randomUUID(),
+      trigger: "scheduled",
+      scheduledFor,
+    });
+    await assert.rejects(
+      database.db.insert(automationRun).values({
+        id: crypto.randomUUID(),
+        definitionId,
+        projectId: project.id,
+        occurrenceId: crypto.randomUUID(),
+        trigger: "scheduled",
+      }),
+      (error: unknown) =>
+        (error as { cause?: { constraint?: string } }).cause?.constraint ===
+        "automation_run_schedule_matches_trigger",
+    );
+    const repository = createLocalAutomationRepository(database.db);
+    assert.equal(
+      (await repository.getDefinition(definitionId))?.nextRunAt,
+      scheduledFor.toISOString(),
+    );
+    assert.equal(
+      (await repository.listDefinitions({ limit: 10, projectId: project.id }))
+        .items[0]?.nextRunAt,
+      scheduledFor.toISOString(),
+    );
+    assert.equal(
+      (await repository.getRun(runId))?.scheduledFor,
+      scheduledFor.toISOString(),
+    );
+    const skipped = await createLocalAutomationProcessor(repository, {
+      getBrief: async () => {
+        throw new Error("Disabled scheduled run must not read context");
+      },
+    })({ version: 1, runId, definitionId });
+    assert.equal(skipped.state, "skipped");
+    assert.equal(skipped.attempts, 0);
+    assert.equal(
+      (await repository.getDefinition(definitionId))?.nextRunAt,
+      null,
+    );
+    assert.ok(
+      (await repository.listAudit(definitionId, { limit: 10 })).items.some(
+        (event) => event.operation === "automation.run_skipped",
+      ),
+    );
+  } finally {
+    await database.close();
+  }
+});

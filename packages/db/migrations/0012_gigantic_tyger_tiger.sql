@@ -1,0 +1,5 @@
+ALTER TABLE "automation_run" DROP CONSTRAINT "automation_run_trigger_valid";--> statement-breakpoint
+ALTER TABLE "automation_run" ADD COLUMN "scheduled_for" timestamp with time zone;--> statement-breakpoint
+CREATE INDEX "automation_run_next_scheduled_idx" ON "automation_run" USING btree ("definition_id","state","scheduled_for");--> statement-breakpoint
+ALTER TABLE "automation_run" ADD CONSTRAINT "automation_run_schedule_matches_trigger" CHECK (("automation_run"."trigger" = 'scheduled' and "automation_run"."scheduled_for" is not null) or ("automation_run"."trigger" <> 'scheduled' and "automation_run"."scheduled_for" is null));--> statement-breakpoint
+ALTER TABLE "automation_run" ADD CONSTRAINT "automation_run_trigger_valid" CHECK ("automation_run"."trigger" in ('on_creation', 'manual', 'scheduled'));

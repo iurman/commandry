@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useState, type FormEvent } from "react";
 import type {
   AutomationAuditEvent,
   AutomationDefinition,
@@ -36,6 +36,7 @@ export default function AutomationDetail({
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [feedback, setFeedback] = useState<string | null>(null);
+  const [scheduleLocalTime, setScheduleLocalTime] = useState("");
 
   useEffect(() => {
     let active = true;
@@ -76,10 +77,28 @@ export default function AutomationDetail({
     if (!runs.some((run) => run.state === "queued" || run.state === "running"))
       return;
     let active = true;
+    const nextDue = Math.min(
+      ...runs
+        .filter((run) => run.state === "queued" && run.scheduledFor)
+        .map((run) => Date.parse(run.scheduledFor!)),
+    );
+    const hasReadyRun = runs.some(
+      (run) =>
+        run.state === "running" ||
+        (run.state === "queued" && !run.scheduledFor),
+    );
+    const delay =
+      hasReadyRun || !Number.isFinite(nextDue)
+        ? 1500
+        : Math.max(1500, Math.min(30_000, nextDue - Date.now()));
     const timer = window.setInterval(() => {
-      void apiJson<PageResponse<AutomationRun>>(pagePath(`${path}/runs`))
-        .then((page) => {
+      void Promise.all([
+        apiJson<PageResponse<AutomationRun>>(pagePath(`${path}/runs`)),
+        apiJson<AutomationDefinition>(path),
+      ])
+        .then(([page, savedDefinition]) => {
           if (!active) return;
+          setDefinition(savedDefinition);
           setRuns((current) => [
             ...page.items,
             ...current.filter(
@@ -91,7 +110,7 @@ export default function AutomationDetail({
         .catch(() => {
           /* Keep the last truthful state and allow manual refresh. */
         });
-    }, 1500);
+    }, delay);
     return () => {
       active = false;
       window.clearInterval(timer);
@@ -114,7 +133,7 @@ export default function AutomationDetail({
       setDefinition(updated);
       setFeedback(
         updated.enabled
-          ? "Enabled. The on-creation trigger does not replay; use Run now for a new local summary."
+          ? "Enabled. The on-creation trigger does not replay; queued scheduled runs can proceed, and Run now remains available."
           : "Disabled. Pending work will be skipped if it has not started.",
       );
     } catch (cause) {
@@ -128,7 +147,7 @@ export default function AutomationDetail({
     }
   }
 
-  async function trigger() {
+  async function trigger(scheduledFor?: string) {
     if (!definition?.enabled || busy) return;
     setBusy(true);
     setError(null);
@@ -136,11 +155,26 @@ export default function AutomationDetail({
     try {
       const run = await apiJson<AutomationRun>(`${path}/runs`, {
         method: "POST",
-        body: JSON.stringify({ occurrenceId: crypto.randomUUID() }),
+        body: JSON.stringify({
+          occurrenceId: crypto.randomUUID(),
+          ...(scheduledFor ? { scheduledFor } : {}),
+        }),
       });
       setRuns((current) => [run, ...current]);
+      if (scheduledFor) {
+        try {
+          setDefinition(await apiJson<AutomationDefinition>(path));
+        } catch {
+          setError(
+            "The run was scheduled, but the next-run summary could not refresh. Reload to see its current state.",
+          );
+        }
+        setScheduleLocalTime("");
+      }
       setFeedback(
-        "A synthetic local summary was queued. No external action was requested.",
+        scheduledFor
+          ? "One synthetic local summary was scheduled. The worker will read the project brief at the due time; no external action was requested."
+          : "A synthetic local summary was queued. No external action was requested.",
       );
     } catch (cause) {
       setError(
@@ -149,6 +183,18 @@ export default function AutomationDetail({
     } finally {
       setBusy(false);
     }
+  }
+
+  function schedule(event: FormEvent<HTMLFormElement>) {
+    event.preventDefault();
+    if (!scheduleLocalTime) return;
+    const localDate = new Date(scheduleLocalTime);
+    if (!Number.isFinite(localDate.getTime()) || localDate <= new Date()) {
+      setError("Choose a future device time for this local run.");
+      return;
+    }
+    const scheduledFor = localDate.toISOString();
+    void trigger(scheduledFor);
   }
 
   async function loadMoreRuns() {
@@ -244,9 +290,9 @@ export default function AutomationDetail({
               <p className="cmd-eyebrow">Automation / Local-only</p>
               <h1>{definition.name}</h1>
               <p className="cmd-lead">
-                A bounded project brief read. The one-time trigger runs only
-                when an enabled definition is created. Manual reruns are
-                explicit.
+                A bounded project brief read. An enabled definition runs once at
+                creation; you can also run now or schedule one local run for
+                later. Every result is synthetic and unverified.
               </p>
               <p className="cmd-record-identity">
                 Definition ID <code>{definition.id}</code>
@@ -281,7 +327,15 @@ export default function AutomationDetail({
                 </div>
                 <div>
                   <dt>Next run</dt>
-                  <dd>None scheduled</dd>
+                  <dd>
+                    {definition.nextRunAt ? (
+                      <time dateTime={definition.nextRunAt}>
+                        {definition.nextRunAt} UTC
+                      </time>
+                    ) : (
+                      "None queued"
+                    )}
+                  </dd>
                 </div>
                 <div>
                   <dt>Actor</dt>
@@ -315,12 +369,36 @@ export default function AutomationDetail({
                 </Button>
                 <Button
                   disabled={busy || !definition.enabled}
-                  onClick={trigger}
+                  onClick={() => void trigger()}
                   variant="primary"
                 >
                   Run now locally
                 </Button>
               </div>
+              <form className="cmd-form" onSubmit={schedule}>
+                <label htmlFor="automation-schedule-local">
+                  Schedule one local run (device time)
+                </label>
+                <input
+                  id="automation-schedule-local"
+                  onChange={(event) => setScheduleLocalTime(event.target.value)}
+                  required
+                  step="1"
+                  type="datetime-local"
+                  value={scheduleLocalTime}
+                />
+                <p className="cmd-form-hint">
+                  Stored and displayed as UTC. The enabled state is checked
+                  again when the worker starts. This is one run, not a recurring
+                  schedule.
+                </p>
+                <Button
+                  disabled={busy || !definition.enabled || !scheduleLocalTime}
+                  type="submit"
+                >
+                  Schedule local run
+                </Button>
+              </form>
               {feedback && (
                 <p className="cmd-form-success" role="status">
                   {feedback}
@@ -378,7 +456,7 @@ export default function AutomationDetail({
             {runs.length === 0 && (
               <RecordEmptyState
                 title="No runs yet"
-                description="Disabled definitions wait for a manual run after enabling."
+                description="Enable this definition, then run it now or schedule one local run."
               />
             )}
             <ul
@@ -391,7 +469,9 @@ export default function AutomationDetail({
                     <strong>
                       {run.trigger === "on_creation"
                         ? "On-creation run"
-                        : "Manual local run"}
+                        : run.trigger === "scheduled"
+                          ? "Scheduled local run"
+                          : "Manual local run"}
                     </strong>
                     <span className="cmd-count">{run.state}</span>
                   </div>
@@ -399,6 +479,14 @@ export default function AutomationDetail({
                     Queued <time dateTime={run.createdAt}>{run.createdAt}</time>{" "}
                     · {run.attempts} attempt(s)
                   </p>
+                  {run.scheduledFor && (
+                    <p>
+                      Due{" "}
+                      <time dateTime={run.scheduledFor}>
+                        {run.scheduledFor} UTC
+                      </time>
+                    </p>
+                  )}
                   {run.error && (
                     <p className="cmd-inline-state cmd-error">{run.error}</p>
                   )}

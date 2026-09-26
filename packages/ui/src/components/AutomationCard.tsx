@@ -6,6 +6,7 @@ export interface AutomationCardView {
   latestRunState:
     "queued" | "running" | "succeeded" | "failed" | "skipped" | null;
   latestRunAt: string | null;
+  nextRunAt: string | null;
 }
 
 export function AutomationCard({
@@ -40,8 +41,20 @@ export function AutomationCard({
           <dd>Local project summary</dd>
         </div>
         <div>
-          <dt>Last outcome</dt>
+          <dt>Latest run state</dt>
           <dd>{automation.latestRunState ?? "No run"}</dd>
+        </div>
+        <div>
+          <dt>Next queued run</dt>
+          <dd>
+            {automation.nextRunAt ? (
+              <time dateTime={automation.nextRunAt}>
+                {automation.nextRunAt} UTC
+              </time>
+            ) : (
+              "None"
+            )}
+          </dd>
         </div>
       </dl>
       {automation.latestRunAt && (
@@ -53,8 +66,8 @@ export function AutomationCard({
         </p>
       )}
       <p className="cmd-form-hint">
-        Synthetic local output. No external actions, live scheduler, or verified
-        result.
+        Synthetic local output. No external actions, recurring schedule, or
+        verified result.
       </p>
     </article>
   );

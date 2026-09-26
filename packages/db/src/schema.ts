@@ -596,7 +596,10 @@ export const automationRun = pgTable(
       .notNull()
       .references(() => project.id, { onDelete: "restrict" }),
     occurrenceId: uuid("occurrence_id").notNull(),
-    trigger: text("trigger", { enum: ["on_creation", "manual"] }).notNull(),
+    trigger: text("trigger", {
+      enum: ["on_creation", "manual", "scheduled"],
+    }).notNull(),
+    scheduledFor: timestamp("scheduled_for", { withTimezone: true }),
     state: text("state", {
       enum: ["queued", "running", "succeeded", "failed", "skipped"],
     })
@@ -615,10 +618,19 @@ export const automationRun = pgTable(
       table.definitionId,
       table.id,
     ),
+    index("automation_run_next_scheduled_idx").on(
+      table.definitionId,
+      table.state,
+      table.scheduledFor,
+    ),
     check("automation_run_attempts_nonnegative", sql`${table.attempts} >= 0`),
     check(
       "automation_run_trigger_valid",
-      sql`${table.trigger} in ('on_creation', 'manual')`,
+      sql`${table.trigger} in ('on_creation', 'manual', 'scheduled')`,
+    ),
+    check(
+      "automation_run_schedule_matches_trigger",
+      sql`(${table.trigger} = 'scheduled' and ${table.scheduledFor} is not null) or (${table.trigger} <> 'scheduled' and ${table.scheduledFor} is null)`,
     ),
     check(
       "automation_run_state_valid",

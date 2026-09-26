@@ -355,6 +355,7 @@ export const setAutomationEnabledRequestSchema = z.strictObject({
 });
 export const triggerAutomationRunRequestSchema = z.strictObject({
   occurrenceId: z.uuid(),
+  scheduledFor: z.iso.datetime({ offset: true }).optional(),
 });
 export const automationDefinitionSchema = z.object({
   id: z.uuid(),
@@ -364,6 +365,7 @@ export const automationDefinitionSchema = z.object({
   triggerType: z.literal("on_creation_once"),
   enabled: z.boolean(),
   sourceOfTruth: z.literal("local-only"),
+  nextRunAt: z.iso.datetime({ offset: true }).nullable(),
   createdAt: z.iso.datetime({ offset: true }),
   updatedAt: z.iso.datetime({ offset: true }),
 });
@@ -585,7 +587,8 @@ export const automationRunSchema = z.object({
   definitionId: z.uuid(),
   projectId: z.uuid(),
   occurrenceId: z.uuid(),
-  trigger: z.enum(["on_creation", "manual"]),
+  trigger: z.enum(["on_creation", "manual", "scheduled"]),
+  scheduledFor: z.iso.datetime({ offset: true }).nullable(),
   state: z.enum(["queued", "running", "succeeded", "failed", "skipped"]),
   attempts: z.number().int().min(0),
   result: automationRunResultSchema.nullable(),

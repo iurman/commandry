@@ -98,6 +98,15 @@ local experience lab.
   attempts and audit events, and returns a synthetic, unverified preview with
   no external action. This is a local scheduler/source-of-truth assumption,
   not a choice of live integration scheduler or an Overnight Queue policy.
+- A local reviewer may also request one future run of that same read-only
+  summary. The requested device time is converted to a stored UTC instant;
+  the run row, occurrence ID, queue job, and audit commit together. pg-boss
+  defers worker pickup until the due time. A disabled definition is rejected
+  when scheduling and is checked again by the worker before reading. If the
+  run is skipped while disabled, enabling later does not replay that one-time
+  occurrence; another explicit run is required. This is a provisional local
+  schedule, not a recurring policy, overnight readiness decision, or external
+  scheduler integration.
 - The local notification center will derive current items from synthetic
   monitor conditions, pending simulated approvals, and failed local summary
   attempts. A continuing monitor condition yields one item per open cycle and

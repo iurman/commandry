@@ -1,4 +1,4 @@
-import { and, desc, eq, gt, sql } from "drizzle-orm";
+import { and, asc, desc, eq, gt, inArray, isNotNull, sql } from "drizzle-orm";
 import {
   automationRunResultSchema,
   type AutomationRunResult,
@@ -14,6 +14,7 @@ import {
 
 export function automationDefinitionRecord(
   row: typeof automationDefinition.$inferSelect,
+  nextRunAt: Date | null = null,
 ) {
   return {
     id: row.id,
@@ -23,6 +24,7 @@ export function automationDefinitionRecord(
     triggerType: "on_creation_once" as const,
     enabled: row.enabled,
     sourceOfTruth: "local-only" as const,
+    nextRunAt: nextRunAt?.toISOString() ?? null,
     createdAt: row.createdAt.toISOString(),
     updatedAt: row.updatedAt.toISOString(),
   };
@@ -35,6 +37,7 @@ export function automationRunRecord(row: typeof automationRun.$inferSelect) {
     projectId: row.projectId,
     occurrenceId: row.occurrenceId,
     trigger: row.trigger,
+    scheduledFor: row.scheduledFor?.toISOString() ?? null,
     state: row.state,
     attempts: row.attempts,
     result: row.result ? automationRunResultSchema.parse(row.result) : null,
@@ -79,7 +82,20 @@ export function createLocalAutomationRepository(db: CommandryDatabase) {
         .from(automationDefinition)
         .where(eq(automationDefinition.id, id))
         .limit(1);
-      return row ? automationDefinitionRecord(row) : null;
+      if (!row) return null;
+      const [pending] = await db
+        .select({ scheduledFor: automationRun.scheduledFor })
+        .from(automationRun)
+        .where(
+          and(
+            eq(automationRun.definitionId, id),
+            eq(automationRun.state, "queued"),
+            isNotNull(automationRun.scheduledFor),
+          ),
+        )
+        .orderBy(asc(automationRun.scheduledFor))
+        .limit(1);
+      return automationDefinitionRecord(row, pending?.scheduledFor ?? null);
     },
     async listDefinitions(
       query: PageQuery & { projectId?: string | undefined },
@@ -100,8 +116,37 @@ export function createLocalAutomationRepository(db: CommandryDatabase) {
         .orderBy(automationDefinition.id)
         .limit(query.limit + 1);
       const visible = rows.slice(0, query.limit);
+      const scheduled = visible.length
+        ? await db
+            .select({
+              definitionId: automationRun.definitionId,
+              nextRunAt: sql<string>`min(${automationRun.scheduledFor})`,
+            })
+            .from(automationRun)
+            .where(
+              and(
+                inArray(
+                  automationRun.definitionId,
+                  visible.map((row) => row.id),
+                ),
+                eq(automationRun.state, "queued"),
+                isNotNull(automationRun.scheduledFor),
+              ),
+            )
+            .groupBy(automationRun.definitionId)
+        : [];
+      const dueByDefinition = new Map(
+        scheduled.map((row) => [row.definitionId, row.nextRunAt]),
+      );
       return {
-        items: visible.map(automationDefinitionRecord),
+        items: visible.map((row) =>
+          automationDefinitionRecord(
+            row,
+            dueByDefinition.get(row.id)
+              ? new Date(dueByDefinition.get(row.id)!)
+              : null,
+          ),
+        ),
         nextCursor:
           rows.length > query.limit ? (visible.at(-1)?.id ?? null) : null,
       };

@@ -36,7 +36,11 @@ export function localAutomationFailure(
     return jsonResponse(
       request,
       { code: error.code, message: error.message },
-      error.code.endsWith("NOT_FOUND") ? 404 : 409,
+      error.code.endsWith("NOT_FOUND")
+        ? 404
+        : error.code === "AUTOMATION_INVALID_SCHEDULE"
+          ? 400
+          : 409,
       `${operation}.rejected`,
     );
   }
