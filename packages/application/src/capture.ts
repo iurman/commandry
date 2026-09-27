@@ -30,6 +30,10 @@ export type WorkspaceRecordQuery = CapturePageQuery & {
 };
 export type WorkspaceWorkQuery = WorkspaceRecordQuery & {
   status?: "open" | "done" | undefined;
+  priority?: "low" | "normal" | "high" | "unset" | undefined;
+  assignee?: "unassigned" | "local_user" | "agent" | undefined;
+  due?: "overdue" | "today" | "upcoming" | "undated" | undefined;
+  asOf?: string | undefined;
 };
 
 export interface CaptureRepository {

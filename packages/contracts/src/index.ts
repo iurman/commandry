@@ -315,6 +315,10 @@ export const listWorkspaceRecordsQuerySchema = listResourcesQuerySchema.extend({
 export const listWorkspaceWorkQuerySchema =
   listWorkspaceRecordsQuerySchema.extend({
     status: z.enum(["open", "done"]).optional(),
+    priority: z.enum(["low", "normal", "high", "unset"]).optional(),
+    assignee: z.enum(["unassigned", "local_user", "agent"]).optional(),
+    due: z.enum(["overdue", "today", "upcoming", "undated"]).optional(),
+    asOf: z.iso.date().optional(),
   });
 
 export const listResourcesResponseSchema = z.object({

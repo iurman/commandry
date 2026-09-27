@@ -11,29 +11,25 @@ import {
   WorkTypeBadge,
 } from "@commandry/ui";
 import { apiJson, pagePath, type PageResponse } from "../projects/api";
+import WorkBoard from "./WorkBoard";
+import {
+  initialWorkFocus,
+  workPagePath,
+  type WorkFocus,
+  type WorkStatusFilter,
+} from "./work-query";
 
 const upcomingPath = "/api/v1/work-items/upcoming";
-const workPath = "/api/v1/work-items";
-type WorkFilter = "open" | "done" | "all";
-
-function workPagePath(
-  filter: WorkFilter,
-  projectId: string | null,
-  cursor?: string | null,
-) {
-  const params = new URLSearchParams({ limit: "20" });
-  if (filter !== "all") params.set("status", filter);
-  if (projectId) params.set("projectId", projectId);
-  if (cursor) params.set("cursor", cursor);
-  return `${workPath}?${params}`;
-}
 
 export default function WorkWorkspace({
   projectId,
 }: {
   projectId: string | null;
 }) {
-  const [filter, setFilter] = useState<WorkFilter>("open");
+  const [view, setView] = useState<"list" | "board">("list");
+  const [filter, setFilter] = useState<WorkStatusFilter>("open");
+  const [focus, setFocus] = useState<WorkFocus>(initialWorkFocus);
+  const [asOf] = useState(() => new Date().toISOString().slice(0, 10));
   const [work, setWork] = useState<WorkspaceWorkItem[]>([]);
   const [workCursor, setWorkCursor] = useState<string | null>(null);
   const [workLoading, setWorkLoading] = useState(true);
@@ -48,8 +44,11 @@ export default function WorkWorkspace({
   const utcToday = new Date().toISOString().slice(0, 10);
 
   useEffect(() => {
+    if (view === "board") return;
     let active = true;
-    apiJson<PageResponse<WorkspaceWorkItem>>(workPagePath(filter, projectId))
+    apiJson<PageResponse<WorkspaceWorkItem>>(
+      workPagePath({ status: filter, projectId, focus, asOf }),
+    )
       .then((page) => {
         if (!active) return;
         setWork(page.items);
@@ -68,7 +67,7 @@ export default function WorkWorkspace({
     return () => {
       active = false;
     };
-  }, [filter, projectId]);
+  }, [filter, projectId, focus, asOf, view]);
 
   useEffect(() => {
     if (projectId) return;
@@ -121,7 +120,13 @@ export default function WorkWorkspace({
     setWorkError(null);
     try {
       const page = await apiJson<PageResponse<WorkspaceWorkItem>>(
-        workPagePath(filter, projectId, workCursor),
+        workPagePath({
+          status: filter,
+          projectId,
+          focus,
+          asOf,
+          cursor: workCursor,
+        }),
       );
       setWork((current) => [...current, ...page.items]);
       setWorkCursor(page.nextCursor);
@@ -149,13 +154,11 @@ export default function WorkWorkspace({
           }),
         },
       );
-      setWork((current) =>
-        filter === "all"
-          ? current.map((record) =>
-              record.id === updated.id ? { ...record, ...updated } : record,
-            )
-          : current.filter((record) => record.id !== updated.id),
+      const page = await apiJson<PageResponse<WorkspaceWorkItem>>(
+        workPagePath({ status: filter, projectId, focus, asOf }),
       );
+      setWork(page.items);
+      setWorkCursor(page.nextCursor);
       if (updated.status === "done")
         setItems((current) =>
           current.filter((record) => record.id !== item.id),
@@ -167,6 +170,14 @@ export default function WorkWorkspace({
     } finally {
       setBusyTaskId(null);
     }
+  }
+
+  function updateFocus<K extends keyof WorkFocus>(key: K, value: WorkFocus[K]) {
+    if (focus[key] === value) return;
+    setWorkLoading(true);
+    setWork([]);
+    setWorkCursor(null);
+    setFocus((current) => ({ ...current, [key]: value }));
   }
 
   return (
@@ -207,130 +218,235 @@ export default function WorkWorkspace({
             <p className="cmd-eyebrow">One task / Many views</p>
             <h2 id="all-work-heading">All work</h2>
           </div>
-          <span className="cmd-count">{work.length} shown</span>
+          <span className="cmd-count">
+            {view === "list" ? `${work.length} shown` : "Two status columns"}
+          </span>
         </div>
         <div
           role="group"
-          aria-label="Task status"
+          aria-label="Work view"
           className="cmd-workspace-filters"
         >
-          {(["open", "done", "all"] as const).map((choice) => (
-            <Button
-              aria-pressed={filter === choice}
-              disabled={workLoadingMore || busyTaskId !== null}
-              key={choice}
-              onClick={() => {
-                setWorkLoading(true);
-                setWork([]);
-                setWorkCursor(null);
-                setFilter(choice);
-              }}
-            >
-              {choice === "all"
-                ? "All tasks"
-                : choice === "open"
-                  ? "Open"
-                  : "Done"}
-            </Button>
-          ))}
-        </div>
-        {workLoading && (
-          <p className="cmd-inline-state" role="status">
-            Loading work...
-          </p>
-        )}
-        {workError && (
-          <p className="cmd-inline-state cmd-error" role="alert">
-            {workError}
-          </p>
-        )}
-        {!workLoading && work.length === 0 && !workError && (
-          <RecordEmptyState
-            title="No tasks in this view"
-            description="Capture a thought in the Inbox and file it as a task. Its original remains available."
-          />
-        )}
-        {!workLoading && work.length > 0 && (
-          <ul className="cmd-record-list" aria-label="All work">
-            {work.map((item) => (
-              <li key={item.id}>
-                <article className="cmd-record-card">
-                  <div className="cmd-record-topline">
-                    <WorkTypeBadge
-                      type={item.workType ?? "task"}
-                      status={item.status}
-                    />
-                    <span className="cmd-count">
-                      {item.priority
-                        ? `${item.priority} priority`
-                        : "Priority unset"}
-                    </span>
-                  </div>
-                  <h3 className="cmd-record-title">
-                    <a href={`/work-items/${encodeURIComponent(item.id)}`}>
-                      {item.title}
-                    </a>
-                  </h3>
-                  {item.description && (
-                    <p className="cmd-record-description">{item.description}</p>
-                  )}
-                  {item.contextLink && (
-                    <p className="cmd-record-identity">
-                      Shared into this project through a{" "}
-                      <a
-                        href={`/api/v1/work-project-links/${item.contextLink.id}`}
-                      >
-                        typed relationship
-                      </a>
-                      .
-                    </p>
-                  )}
-                  {item.generatedFromWorkItemId && (
-                    <p className="cmd-record-identity">
-                      Local worker-created task from{" "}
-                      <a
-                        href={`/work-items/${encodeURIComponent(item.generatedFromWorkItemId)}`}
-                      >
-                        its recurring source
-                      </a>
-                      .
-                    </p>
-                  )}
-                  {item.dueOn && (
-                    <p>
-                      Due <time dateTime={item.dueOn}>{item.dueOn}</time> UTC
-                    </p>
-                  )}
-                  <p>Assigned: {item.assigneeLabel ?? "Unassigned"}</p>
-                  <p className="cmd-record-identity">
-                    <a href={`/projects/${encodeURIComponent(item.projectId)}`}>
-                      {item.projectName}
-                    </a>
-                    <a
-                      href={`/inbox?captureId=${encodeURIComponent(item.sourceCaptureId)}`}
-                    >
-                      Original capture
-                    </a>
-                    <Button
-                      disabled={busyTaskId !== null}
-                      onClick={() => changeStatus(item)}
-                    >
-                      {busyTaskId === item.id
-                        ? "Saving..."
-                        : item.status === "open"
-                          ? "Mark done"
-                          : "Reopen"}
-                    </Button>
-                  </p>
-                </article>
-              </li>
-            ))}
-          </ul>
-        )}
-        {workCursor && (
-          <Button disabled={workLoadingMore} onClick={loadMoreWork}>
-            {workLoadingMore ? "Loading..." : "Load more tasks"}
+          <Button
+            aria-pressed={view === "list"}
+            onClick={() => {
+              if (view === "list") return;
+              setWorkLoading(true);
+              setWork([]);
+              setWorkCursor(null);
+              setView("list");
+            }}
+          >
+            List
           </Button>
+          <Button
+            aria-pressed={view === "board"}
+            onClick={() => setView("board")}
+          >
+            Board
+          </Button>
+        </div>
+        <div
+          className="cmd-work-focus"
+          role="group"
+          aria-label="Focused Work query"
+        >
+          <label>
+            Priority
+            <select
+              value={focus.priority}
+              onChange={(event) =>
+                updateFocus(
+                  "priority",
+                  event.target.value as WorkFocus["priority"],
+                )
+              }
+            >
+              <option value="all">Any priority</option>
+              <option value="high">High</option>
+              <option value="normal">Normal</option>
+              <option value="low">Low</option>
+              <option value="unset">Unset</option>
+            </select>
+          </label>
+          <label>
+            Assignment
+            <select
+              value={focus.assignee}
+              onChange={(event) =>
+                updateFocus(
+                  "assignee",
+                  event.target.value as WorkFocus["assignee"],
+                )
+              }
+            >
+              <option value="all">Anyone</option>
+              <option value="unassigned">Unassigned</option>
+              <option value="local_user">Local user</option>
+              <option value="agent">Synthetic local agent</option>
+            </select>
+          </label>
+          <label>
+            Due
+            <select
+              value={focus.due}
+              onChange={(event) =>
+                updateFocus("due", event.target.value as WorkFocus["due"])
+              }
+            >
+              <option value="all">Any date</option>
+              <option value="overdue">Overdue</option>
+              <option value="today">Today</option>
+              <option value="upcoming">After today</option>
+              <option value="undated">No due date</option>
+            </select>
+          </label>
+        </div>
+        {focus.due !== "all" && (
+          <p className="cmd-section-intro">
+            Due buckets use {asOf} UTC. Overdue, today, and after today include
+            open tasks only.
+          </p>
+        )}
+        {view === "board" ? (
+          <WorkBoard
+            key={`${projectId ?? "all"}:${focus.priority}:${focus.assignee}:${focus.due}`}
+            projectId={projectId}
+            focus={focus}
+            asOf={asOf}
+          />
+        ) : (
+          <>
+            <div
+              role="group"
+              aria-label="Task status"
+              className="cmd-workspace-filters"
+            >
+              {(["open", "done", "all"] as const).map((choice) => (
+                <Button
+                  aria-pressed={filter === choice}
+                  disabled={workLoadingMore || busyTaskId !== null}
+                  key={choice}
+                  onClick={() => {
+                    if (filter === choice) return;
+                    setWorkLoading(true);
+                    setWork([]);
+                    setWorkCursor(null);
+                    setFilter(choice);
+                  }}
+                >
+                  {choice === "all"
+                    ? "All tasks"
+                    : choice === "open"
+                      ? "Open"
+                      : "Done"}
+                </Button>
+              ))}
+            </div>
+            {workLoading && (
+              <p className="cmd-inline-state" role="status">
+                Loading work...
+              </p>
+            )}
+            {workError && (
+              <p className="cmd-inline-state cmd-error" role="alert">
+                {workError}
+              </p>
+            )}
+            {!workLoading && work.length === 0 && !workError && (
+              <RecordEmptyState
+                title="No tasks in this view"
+                description="Capture a thought in the Inbox and file it as a task. Its original remains available."
+              />
+            )}
+            {!workLoading && work.length > 0 && (
+              <ul className="cmd-record-list" aria-label="All work">
+                {work.map((item) => (
+                  <li key={item.id}>
+                    <article className="cmd-record-card">
+                      <div className="cmd-record-topline">
+                        <WorkTypeBadge
+                          type={item.workType ?? "task"}
+                          status={item.status}
+                        />
+                        <span className="cmd-count">
+                          {item.priority
+                            ? `${item.priority} priority`
+                            : "Priority unset"}
+                        </span>
+                      </div>
+                      <h3 className="cmd-record-title">
+                        <a href={`/work-items/${encodeURIComponent(item.id)}`}>
+                          {item.title}
+                        </a>
+                      </h3>
+                      {item.description && (
+                        <p className="cmd-record-description">
+                          {item.description}
+                        </p>
+                      )}
+                      {item.contextLink && (
+                        <p className="cmd-record-identity">
+                          Shared into this project through a{" "}
+                          <a
+                            href={`/api/v1/work-project-links/${item.contextLink.id}`}
+                          >
+                            typed relationship
+                          </a>
+                          .
+                        </p>
+                      )}
+                      {item.generatedFromWorkItemId && (
+                        <p className="cmd-record-identity">
+                          Local worker-created task from{" "}
+                          <a
+                            href={`/work-items/${encodeURIComponent(item.generatedFromWorkItemId)}`}
+                          >
+                            its recurring source
+                          </a>
+                          .
+                        </p>
+                      )}
+                      {item.dueOn && (
+                        <p>
+                          Due <time dateTime={item.dueOn}>{item.dueOn}</time>{" "}
+                          UTC
+                        </p>
+                      )}
+                      <p>Assigned: {item.assigneeLabel ?? "Unassigned"}</p>
+                      <p className="cmd-record-identity">
+                        <a
+                          href={`/projects/${encodeURIComponent(item.projectId)}`}
+                        >
+                          {item.projectName}
+                        </a>
+                        <a
+                          href={`/inbox?captureId=${encodeURIComponent(item.sourceCaptureId)}`}
+                        >
+                          Original capture
+                        </a>
+                        <Button
+                          disabled={busyTaskId !== null}
+                          onClick={() => changeStatus(item)}
+                        >
+                          {busyTaskId === item.id
+                            ? "Saving..."
+                            : item.status === "open"
+                              ? "Mark done"
+                              : "Reopen"}
+                        </Button>
+                      </p>
+                    </article>
+                  </li>
+                ))}
+              </ul>
+            )}
+            {workCursor && (
+              <Button disabled={workLoadingMore} onClick={loadMoreWork}>
+                {workLoadingMore ? "Loading..." : "Load more tasks"}
+              </Button>
+            )}
+          </>
         )}
       </section>
       {!projectId && (

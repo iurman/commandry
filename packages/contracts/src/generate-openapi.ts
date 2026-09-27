@@ -1616,6 +1616,40 @@ export function generateOpenApi(): string {
               required: false,
               schema: { type: "string", enum: ["open", "done"] },
             },
+            {
+              in: "query",
+              name: "priority",
+              required: false,
+              schema: {
+                type: "string",
+                enum: ["low", "normal", "high", "unset"],
+              },
+            },
+            {
+              in: "query",
+              name: "assignee",
+              required: false,
+              schema: {
+                type: "string",
+                enum: ["unassigned", "local_user", "agent"],
+              },
+            },
+            {
+              in: "query",
+              name: "due",
+              required: false,
+              schema: {
+                type: "string",
+                enum: ["overdue", "today", "upcoming", "undated"],
+              },
+            },
+            {
+              in: "query",
+              name: "asOf",
+              required: false,
+              description: "UTC date anchoring the due bucket across pages",
+              schema: { type: "string", format: "date" },
+            },
           ],
           responses: {
             "200": {

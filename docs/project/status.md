@@ -13,9 +13,14 @@ schema and migrations, a separate pg-boss worker, shared contracts, and the
 local experience lab. The autonomous local MVP campaign now exercises the
 interconnected project, capture, Work, Knowledge, infrastructure, activity,
 agent, approval, automation, integration fixture, and morning review paths.
-The accepted architecture and local code do not establish
-that the VPS is ready, that backups and restores work, or that human
+The accepted architecture and local code do not establish that the VPS is
+ready, that offsite backups and VPS restores work, or that human
 authentication is complete. There is no production deployment.
+
+The user expanded the local campaign target to MVP-depth coverage of every
+roadmap workstream. Planned phases now guide implementation order without
+deferring a locally feasible module. Open product choices remain provisional
+and production prerequisites remain gates.
 
 ## Established direction
 
@@ -171,6 +176,12 @@ authentication is complete. There is no production deployment.
   with exact event evidence in live project briefs and new execution packet
   snapshots. Assignment does not authorize a run or external action; identity,
   multiplicity, and the assignment-to-run policy remain open under OQ-026.
+- Work has list and two-column board projections over the same PostgreSQL
+  tasks. Each board column pages independently, and completing or reopening a
+  card uses the existing audited status transition. Priority, assignment, and
+  UTC due buckets filter in the versioned API and across both views without
+  replacing project scope, typed context links, or original captures. The UI
+  keeps every matching task reachable through cursor continuation.
 - Semantic CSS tokens, accessible responsive components, and representative
   Storybook states exist in the local-only lab. The lab is excluded from the
   production image.
@@ -202,6 +213,8 @@ Storybook scaffold is implemented. The full design language, sensory-feedback
 vocabulary, and flow-visualization details remain proposed or exploratory.
 
 See [Open questions](open-questions.md) for the decision queue.
+The [interconnected MVP campaign ledger](mvp-campaign.md) tracks local coverage
+and remaining work across every roadmap area.
 
 The prior implementation ADRs
 [0005](../decisions/0005-use-cloudflare-workers-and-neon.md) through

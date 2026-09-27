@@ -1,4 +1,4 @@
-import { and, desc, eq, isNotNull, or, sql } from "drizzle-orm";
+import { and, desc, eq, gt, isNotNull, isNull, lt, or, sql } from "drizzle-orm";
 import {
   CaptureError,
   MANUAL_CAPTURE_AUTHOR,
@@ -110,6 +110,34 @@ function knowledgeRecord(
 }
 
 type PageQuery = { limit: number; cursor?: string | undefined };
+
+type WorkFocus = {
+  status?: "open" | "done" | undefined;
+  priority?: "low" | "normal" | "high" | "unset" | undefined;
+  assignee?: "unassigned" | "local_user" | "agent" | undefined;
+  due?: "overdue" | "today" | "upcoming" | "undated" | undefined;
+  asOf?: string | undefined;
+};
+
+function workFocusPredicate(input: WorkFocus) {
+  const asOf = input.asOf ?? new Date().toISOString().slice(0, 10);
+  return and(
+    input.status ? eq(workItem.status, input.status) : undefined,
+    input.priority === "unset"
+      ? isNull(workItem.priority)
+      : input.priority
+        ? eq(workItem.priority, input.priority)
+        : undefined,
+    input.assignee ? eq(workItem.assigneeKind, input.assignee) : undefined,
+    input.due && input.due !== "undated"
+      ? eq(workItem.status, "open")
+      : undefined,
+    input.due === "overdue" ? lt(workItem.dueOn, asOf) : undefined,
+    input.due === "today" ? eq(workItem.dueOn, asOf) : undefined,
+    input.due === "upcoming" ? gt(workItem.dueOn, asOf) : undefined,
+    input.due === "undated" ? isNull(workItem.dueOn) : undefined,
+  );
+}
 
 async function captureCursor(db: CommandryDatabase, cursor: string) {
   const [anchor] = await db
@@ -503,8 +531,7 @@ export function createCaptureRepository(db: CommandryDatabase) {
     async listWork(
       input: PageQuery & {
         projectId?: string | undefined;
-        status?: "open" | "done" | undefined;
-      },
+      } & WorkFocus,
     ) {
       const [anchor] = input.cursor
         ? await db
@@ -519,7 +546,7 @@ export function createCaptureRepository(db: CommandryDatabase) {
                       sql`exists (select 1 from work_project_link context where context.work_item_id = ${workItem.id} and context.project_id = ${input.projectId}::uuid and context.lifecycle = 'active')`,
                     )
                   : undefined,
-                input.status ? eq(workItem.status, input.status) : undefined,
+                workFocusPredicate(input),
               ),
             )
             .limit(1)
@@ -551,7 +578,7 @@ export function createCaptureRepository(db: CommandryDatabase) {
                   isNotNull(workProjectLink.id),
                 )
               : undefined,
-            input.status ? eq(workItem.status, input.status) : undefined,
+            workFocusPredicate(input),
             anchor
               ? sql`(${workItem.createdAt}, ${workItem.id}) < (${anchor.createdAt}, ${input.cursor}::uuid)`
               : undefined,

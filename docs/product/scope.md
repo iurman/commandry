@@ -85,3 +85,27 @@ The smallest experience that proves the thesis should let a user:
 
 Breadth should be proven with a narrow vertical slice, not dozens of shallow
 connectors.
+
+## Expanded MVP campaign
+
+The current local campaign includes every planned module and cross-cutting
+capability at the smallest useful depth, rather than treating roadmap phases as
+release deferrals. Work and Knowledge should be usable persistent project
+surfaces with list, board, focused query, original source, relationship, and
+evidence paths. Infrastructure, activity, attention, notifications,
+automations, and agents should connect through the same projects, resources,
+events, and audit records.
+
+Locally feasible adapters and fixtures may stand in for unavailable external
+systems, but their provenance must remain visible in every view. A fake run or
+simulated action never counts as live execution. Real development and
+operational source connections, privileged actions, offsite recovery, and
+production sign-in remain separate validation work when the required
+credentials, VPS facts, and product decisions exist.
+
+The campaign also attempts MVP-depth versions of later roadmap ideas such as
+proactive rules, saved views, accessible responsive feedback, and a truthful
+agent/system timeline where they can be driven by local persisted evidence.
+Open product questions remain configurable or explicitly unresolved. This
+expanded target does not override the initial non-goals or the accepted
+deployment and security gates.

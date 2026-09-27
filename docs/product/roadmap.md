@@ -5,6 +5,13 @@
 The roadmap is outcome-based. It intentionally avoids dates; framework and
 platform commitments are recorded separately as accepted ADRs.
 
+For the current Commandry MVP campaign, all phases below are capability
+workstreams to attempt at minimum useful depth. They are not gates that defer
+Work, Knowledge, infrastructure, automation, agents, or proactive local
+features to a later release. Exit signals that require real external systems
+or a VPS remain validation targets after the relevant integration and
+deployment prerequisites exist. Local simulations must stay visibly labeled.
+
 ## Phase 0 — Foundation
 
 **Outcome:** a validated product model and implementation plan.
