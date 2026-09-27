@@ -48,6 +48,8 @@ export default function AgentRunWorkspace({ runId }: { runId: string }) {
   const [proposing, setProposing] = useState(false);
   const [proposalError, setProposalError] = useState<string | null>(null);
   const [proposal, setProposal] = useState<SimulatedApprovalView | null>(null);
+  const [cancelling, setCancelling] = useState(false);
+  const [cancelFeedback, setCancelFeedback] = useState<string | null>(null);
 
   const loadAudit = useCallback(
     async (cursor?: string | null) => {
@@ -217,6 +219,29 @@ export default function AgentRunWorkspace({ runId }: { runId: string }) {
     }
   }
 
+  async function cancelRun() {
+    if (!run || cancelling) return;
+    setCancelling(true);
+    setCancelFeedback(null);
+    try {
+      const current = await apiJson<LocalAgentRunView>(
+        `/api/v1/agent-runs/${encodeURIComponent(run.id)}/cancel`,
+        { method: "POST" },
+      );
+      setRun(current);
+      setCancelFeedback(
+        current.state === "canceled"
+          ? "Synthetic run canceled. No result or external action was produced."
+          : `Run already ${current.state}; its recorded outcome was preserved.`,
+      );
+      await loadAudit();
+    } catch (cause) {
+      setCancelFeedback(message(cause, "Could not cancel the local run."));
+    } finally {
+      setCancelling(false);
+    }
+  }
+
   return (
     <AppShell current="Agents">
       <nav className="cmd-breadcrumb" aria-label="Breadcrumb">
@@ -240,6 +265,24 @@ export default function AgentRunWorkspace({ runId }: { runId: string }) {
             run={run}
             {...(agent ? { agentName: agent.name } : {})}
           />
+          <section className="cmd-local-run-audit" aria-label="Run control">
+            <h2>Local run control</h2>
+            <p>
+              Cancellation closes the synthetic run and its read grant. A worker
+              already finishing may complete first; the recorded state is
+              returned without changing its result.
+            </p>
+            {(run.state === "queued" || run.state === "running") && (
+              <Button
+                type="button"
+                disabled={cancelling}
+                onClick={() => void cancelRun()}
+              >
+                {cancelling ? "Canceling..." : "Cancel synthetic run"}
+              </Button>
+            )}
+            {cancelFeedback && <p role="status">{cancelFeedback}</p>}
+          </section>
           <section
             className="cmd-approval-proposal"
             aria-labelledby="proposal-heading"

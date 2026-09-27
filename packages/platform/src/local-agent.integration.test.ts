@@ -306,6 +306,14 @@ test(
           assert.equal(completed.result?.contextReadIds.length, 2);
           assert.ok(completed.result?.evidence.length);
           const audits = await runs.listAudit(run.id, { limit: 100 });
+          assert.deepEqual(
+            new Set(
+              audits.items
+                .filter((item) => item.operation === "local_agent_run.progress")
+                .map((item) => item.stage),
+            ),
+            new Set(["brief_read", "work_read", "result_prepared"]),
+          );
           assert.equal(
             audits.items.filter(
               (item) => item.operation === "local_agent_run.succeeded",
@@ -327,6 +335,74 @@ test(
           assert.equal(repeated.id, run.id);
           assert.equal(repeated.attempts, 2);
           assert.deepEqual(repeated.result, completed.result);
+        },
+      );
+
+      await t.test(
+        "queued and running cancellation prevent a synthetic result",
+        async () => {
+          const queuedPrepared = prepare(
+            `local-agent-cancel:${crypto.randomUUID()}`,
+          );
+          const queued = await submission.submitOnce(queuedPrepared);
+          const canceledQueued = await runs.cancel(queued.id);
+          assert.equal(canceledQueued?.state, "canceled");
+          const queuedReplay = await processor(
+            localAgentRunJobV1Schema.parse({
+              version: 1,
+              runId: queued.id,
+              occurrenceId: queuedPrepared.occurrenceId,
+            }),
+          );
+          assert.equal(queuedReplay.state, "canceled");
+          assert.equal(queuedReplay.attempts, 0);
+          assert.equal(queuedReplay.result, null);
+          assert.equal((await runs.cancel(queued.id))?.state, "canceled");
+
+          const runningPrepared = prepare(
+            `local-agent-cancel:${crypto.randomUUID()}`,
+          );
+          const running = await submission.submitOnce(runningPrepared);
+          let started!: () => void;
+          let resume!: () => void;
+          const atBoundary = new Promise<void>((resolve) => {
+            started = resolve;
+          });
+          const blocked = new Promise<void>((resolve) => {
+            resume = resolve;
+          });
+          const pausedProcessor = createLocalAgentRunProcessor(runs, context, {
+            beforeContextReads: async () => {
+              started();
+              await blocked;
+            },
+          });
+          const processing = pausedProcessor(
+            localAgentRunJobV1Schema.parse({
+              version: 1,
+              runId: running.id,
+              occurrenceId: runningPrepared.occurrenceId,
+            }),
+          );
+          await atBoundary;
+          assert.equal((await runs.cancel(running.id))?.state, "canceled");
+          resume();
+          const canceledRunning = await processing;
+          assert.equal(canceledRunning.state, "canceled");
+          assert.equal(canceledRunning.attemptHistory[0]?.state, "canceled");
+          assert.equal(canceledRunning.result, null);
+          const timeline = await runs.listAudit(running.id, { limit: 20 });
+          assert.ok(
+            timeline.items.some(
+              (item) => item.operation === "local_agent_run.canceled",
+            ),
+          );
+          assert.equal(
+            timeline.items.some(
+              (item) => item.operation === "project.brief.read",
+            ),
+            false,
+          );
         },
       );
 

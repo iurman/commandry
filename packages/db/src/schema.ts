@@ -2097,7 +2097,7 @@ export const localAgentRun = pgTable(
     occurrenceId: text("occurrence_id").notNull(),
     requestFingerprint: text("request_fingerprint").notNull(),
     state: text("state", {
-      enum: ["queued", "running", "succeeded", "failed"],
+      enum: ["queued", "running", "succeeded", "failed", "canceled"],
     })
       .notNull()
       .default("queued"),
@@ -2129,7 +2129,7 @@ export const localAgentRun = pgTable(
     check("local_agent_run_attempts_nonnegative", sql`${table.attempts} >= 0`),
     check(
       "local_agent_run_state_valid",
-      sql`${table.state} in ('queued', 'running', 'succeeded', 'failed')`,
+      sql`${table.state} in ('queued', 'running', 'succeeded', 'failed', 'canceled')`,
     ),
     check("local_agent_run_synthetic_only", sql`${table.isSynthetic} = true`),
     check(
@@ -2548,7 +2548,7 @@ export const localAgentRunAttempt = pgTable(
       .references(() => localAgentRun.id, { onDelete: "restrict" }),
     number: integer("number").notNull(),
     state: text("state", {
-      enum: ["running", "succeeded", "failed"],
+      enum: ["running", "succeeded", "failed", "canceled"],
     }).notNull(),
     error: text("error"),
     startedAt: timestamp("started_at", { withTimezone: true })
@@ -2569,7 +2569,7 @@ export const localAgentRunAttempt = pgTable(
     check("local_agent_run_attempt_number_positive", sql`${table.number} > 0`),
     check(
       "local_agent_run_attempt_state_valid",
-      sql`${table.state} in ('running', 'succeeded', 'failed')`,
+      sql`${table.state} in ('running', 'succeeded', 'failed', 'canceled')`,
     ),
   ],
 );

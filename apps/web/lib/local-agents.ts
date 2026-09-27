@@ -1,5 +1,6 @@
 import {
   createAgentContextService,
+  createLocalAgentRunControlService,
   createLocalAgentRunService,
   createLocalAgentService,
   createProjectBriefService,
@@ -68,6 +69,14 @@ export function getLocalAgentRunService() {
     });
   }
   return runServicePromise;
+}
+
+export function getLocalAgentRunControlService() {
+  const runs = createLocalAgentRunRepository(getDatabase().db);
+  return createLocalAgentRunControlService({
+    getById: runs.getById,
+    cancel: runs.cancel,
+  });
 }
 
 export function getAgentContextService() {

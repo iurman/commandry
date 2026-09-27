@@ -181,6 +181,7 @@ test("a synthetic local agent reads only its run scope and reports an unverified
     decision: string;
     operation: string;
     reason: string | null;
+    stage: string | null;
   }[] = [];
   const seenCursors = new Set<string>();
   let cursor: string | null = null;
@@ -203,6 +204,13 @@ test("a synthetic local agent reads only its run scope and reports an unverified
     cursor = auditPage.nextCursor;
   } while (cursor);
   expect(auditIds.size).toBeGreaterThanOrEqual(4);
+  expect(
+    new Set(
+      auditItems
+        .filter((item) => item.operation === "local_agent_run.progress")
+        .map((item) => item.stage),
+    ),
+  ).toEqual(new Set(["brief_read", "work_read", "result_prepared"]));
   expect(
     auditItems.some(
       (item) =>
@@ -297,6 +305,17 @@ test("a synthetic local agent reads only its run scope and reports an unverified
   await expect(
     page.getByText(/This is a synthetic, unverified result/),
   ).toBeVisible();
+  await expect(
+    page.getByRole("heading", { name: "Run timeline and audit" }),
+  ).toBeVisible();
+  await expect(
+    page.getByText("Synthetic worker: result prepared"),
+  ).toBeVisible();
+  const terminalCancel = await request.post(
+    `/api/v1/agent-runs/${started.id}/cancel`,
+  );
+  expect(terminalCancel.status()).toBe(200);
+  expect((await terminalCancel.json()).state).toBe("succeeded");
   await expect(page.getByText("Unverified").first()).toBeVisible();
   expect(
     await page.evaluate(

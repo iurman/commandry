@@ -102,6 +102,8 @@ function port(): AgentContextPort {
       decision: input.decision,
       code: input.code,
       reason: input.reason,
+      stage: null,
+      attemptId: null,
       createdAt: input.createdAt,
     })),
     listAudit: vi.fn(async () => ({ items: [], nextCursor: null })),

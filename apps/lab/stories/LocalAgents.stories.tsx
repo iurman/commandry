@@ -138,6 +138,7 @@ function LocalAgents({
     | "scoped"
     | "unassigned"
     | "queued"
+    | "canceled"
     | "completed"
     | "denied"
     | "read"
@@ -222,11 +223,55 @@ function LocalAgents({
                 startedAt: null,
                 completedAt: null,
               }
-            : run
+            : mode === "canceled"
+              ? {
+                  ...run,
+                  state: "canceled",
+                  attemptHistory: [
+                    { ...run.attemptHistory[0]!, state: "canceled" },
+                  ],
+                  result: null,
+                }
+              : run
         }
         agentName={profile.name}
       />
-      <LocalAgentAuditList items={mode === "queued" ? [] : audit} />
+      <LocalAgentAuditList
+        items={
+          mode === "queued"
+            ? []
+            : mode === "canceled"
+              ? [
+                  {
+                    id: "ba22e772-2caa-4cda-8195-004577ed4e3b",
+                    runId,
+                    actor: "local-reviewer:unattributed",
+                    operation: "local_agent_run.canceled",
+                    projectId,
+                    decision: null,
+                    code: null,
+                    reason: null,
+                    stage: null,
+                    attemptId: null,
+                    createdAt: "2026-09-25T10:01:03.000Z",
+                  },
+                  {
+                    id: "562f2ab4-5104-42ae-895d-3ed94215c6bc",
+                    runId,
+                    actor: "system:local-agent-worker",
+                    operation: "local_agent_run.progress",
+                    projectId,
+                    decision: null,
+                    code: null,
+                    reason: null,
+                    stage: "brief_read",
+                    attemptId: run.attemptHistory[0]!.id,
+                    createdAt: "2026-09-25T10:01:02.000Z",
+                  },
+                ]
+              : audit
+        }
+      />
     </div>
   );
 }
@@ -243,6 +288,7 @@ type Story = StoryObj<typeof meta>;
 export const ScopedProfile: Story = {};
 export const UnassignedProfile: Story = { args: { mode: "unassigned" } };
 export const QueuedRun: Story = { args: { mode: "queued" } };
+export const CanceledRun: Story = { args: { mode: "canceled" } };
 export const CompletedRun: Story = { args: { mode: "completed" } };
 export const AllowedRead: Story = { args: { mode: "read" } };
 export const DeniedRead: Story = { args: { mode: "denied" } };

@@ -19,12 +19,12 @@ export interface LocalAgentRunView {
   packetDigest: string;
   workItemId: string;
   projectId: string;
-  state: "queued" | "running" | "succeeded" | "failed";
+  state: "queued" | "running" | "succeeded" | "failed" | "canceled";
   attempts: number;
   attemptHistory: {
     id: string;
     number: number;
-    state: "running" | "succeeded" | "failed";
+    state: "running" | "succeeded" | "failed" | "canceled";
     error: string | null;
     startedAt: string;
     completedAt: string | null;
@@ -63,6 +63,8 @@ export interface LocalAgentAuditView {
   decision: "allowed" | "denied" | null;
   code: string | null;
   reason: string | null;
+  stage?: "brief_read" | "work_read" | "result_prepared" | null;
+  attemptId?: string | null;
   createdAt: string;
 }
 
@@ -262,6 +264,8 @@ export function LocalAgentRunPanel({
               </ul>
             )}
           </>
+        ) : run.state === "canceled" ? (
+          <p>This synthetic run was canceled before a result was recorded.</p>
         ) : !run.error ? (
           <p>Worker result pending. Refresh to see its cited outcome.</p>
         ) : null}
@@ -335,8 +339,8 @@ export function LocalAgentAuditList({
     >
       <div className="cmd-section-heading">
         <div>
-          <p className="cmd-eyebrow">Decision trail</p>
-          <h2 id="run-audit-heading">Audit history</h2>
+          <p className="cmd-eyebrow">Persisted worker events</p>
+          <h2 id="run-audit-heading">Run timeline and audit</h2>
         </div>
         <span className="cmd-count">{items.length} shown</span>
       </div>
@@ -353,15 +357,24 @@ export function LocalAgentAuditList({
                 {item.decision ?? "system"}
               </span>
               <div>
-                <strong>{item.operation}</strong>
+                <strong>
+                  {item.operation === "local_agent_run.progress" && item.stage
+                    ? `Synthetic worker: ${item.stage.replaceAll("_", " ")}`
+                    : item.operation}
+                </strong>
                 <p>
                   {item.actor} / {item.projectId ?? "No project"}
                 </p>
+                {item.attemptId && (
+                  <p>
+                    Attempt <code>{item.attemptId}</code>
+                  </p>
+                )}
                 <p>
                   {item.reason ??
                     (item.code
                       ? `Policy code: ${item.code}`
-                      : "Local worker lifecycle event")}
+                      : "Recorded local run event; no external effect")}
                 </p>
               </div>
               <time dateTime={item.createdAt}>{item.createdAt}</time>

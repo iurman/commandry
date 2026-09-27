@@ -166,7 +166,9 @@ describe("fake local run workspace", () => {
         .getAttribute("href"),
     ).toBe(`/api/v1/projects/${projectId}`);
     expect(screen.getByText(/its manual read grant is closed/)).toBeTruthy();
-    const audit = screen.getByRole("region", { name: "Audit history" });
+    const audit = screen.getByRole("region", {
+      name: "Run timeline and audit",
+    });
     expect(await within(audit).findByText("project.brief.read")).toBeTruthy();
     fireEvent.change(screen.getByLabelText("Operation"), {
       target: { value: "resource.write" },
@@ -214,7 +216,9 @@ describe("fake local run workspace", () => {
       name: "Load more audit events",
     });
     fireEvent.click(more);
-    const audit = screen.getByRole("region", { name: "Audit history" });
+    const audit = screen.getByRole("region", {
+      name: "Run timeline and audit",
+    });
     await waitFor(() =>
       expect(within(audit).getByText("resource.write")).toBeTruthy(),
     );
@@ -280,5 +284,53 @@ describe("fake local run workspace", () => {
     expect(
       screen.getByText(/run.s read grant does not become a write/),
     ).toBeTruthy();
+  });
+
+  it("cancels an active synthetic run and shows its persisted state", async () => {
+    const queued = {
+      ...run,
+      state: "queued",
+      attempts: 0,
+      attemptHistory: [],
+      result: null,
+      startedAt: null,
+      completedAt: null,
+    };
+    const canceled = { ...queued, state: "canceled", completedAt: at };
+    const fetchMock = vi.fn(async (path: string, init?: RequestInit) => {
+      if (path === `/api/v1/agent-runs/${runId}`) return json(queued);
+      if (path === `/api/v1/agents/${agentId}`)
+        return json({ id: agentId, name: "Harbor reader" });
+      if (path.startsWith(`/api/v1/agent-runs/${runId}/audit`))
+        return json({ items: [], nextCursor: null });
+      if (
+        path === `/api/v1/agent-runs/${runId}/cancel` &&
+        init?.method === "POST"
+      )
+        return json(canceled);
+      return json({ message: "Unexpected request" }, 404);
+    });
+    vi.stubGlobal("fetch", fetchMock);
+    render(<AgentRunWorkspace runId={runId} />);
+    fireEvent.click(
+      await screen.findByRole("button", { name: "Cancel synthetic run" }),
+    );
+    expect(
+      await screen.findByText(
+        "Synthetic run canceled. No result or external action was produced.",
+      ),
+    ).toBeTruthy();
+    expect(
+      screen.getByText(
+        "This synthetic run was canceled before a result was recorded.",
+      ),
+    ).toBeTruthy();
+    expect(
+      fetchMock.mock.calls.some(
+        (call) =>
+          call[0] === `/api/v1/agent-runs/${runId}/cancel` &&
+          call[1]?.method === "POST",
+      ),
+    ).toBe(true);
   });
 });

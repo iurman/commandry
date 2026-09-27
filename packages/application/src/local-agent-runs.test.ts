@@ -5,6 +5,7 @@ import type {
 } from "@commandry/contracts";
 import {
   buildFakeLocalAgentRunResult,
+  createLocalAgentRunControlService,
   createLocalAgentRunProcessor,
   createLocalAgentRunService,
   prepareLocalAgentRun,
@@ -191,6 +192,7 @@ describe("packet-bound local fake runs", () => {
         result,
       })),
       failAttempt: vi.fn(async () => undefined),
+      reportProgress: vi.fn(async () => true),
     };
     const process = createLocalAgentRunProcessor(port, context);
     const succeeded = await process({
@@ -200,6 +202,7 @@ describe("packet-bound local fake runs", () => {
     });
     expect(succeeded.result?.contextReadIds).toHaveLength(2);
     expect(context.read).toHaveBeenCalledTimes(2);
+    expect(port.reportProgress).toHaveBeenCalledTimes(3);
     expect(port.failAttempt).not.toHaveBeenCalled();
     port.getById = vi.fn(async () => succeeded);
     expect(await process({ version: 1, runId, occurrenceId: "once" })).toEqual(
@@ -220,6 +223,7 @@ describe("packet-bound local fake runs", () => {
       beginAttempt: vi.fn(async () => "5de9b241-27b3-4d57-bda1-26c774a498a5"),
       complete: vi.fn(async () => run),
       failAttempt: vi.fn(async () => undefined),
+      reportProgress: vi.fn(async () => true),
     };
     const process = createLocalAgentRunProcessor(port, context);
     await expect(
@@ -231,5 +235,15 @@ describe("packet-bound local fake runs", () => {
       "Scoped brief unavailable",
     );
     expect(port.complete).not.toHaveBeenCalled();
+  });
+
+  it("returns the recorded state from a local cancel callback", async () => {
+    const cancel = vi.fn(async () => ({ ...run, state: "canceled" as const }));
+    const control = createLocalAgentRunControlService({
+      getById: vi.fn(async () => run),
+      cancel,
+    });
+    expect((await control.cancel(runId)).state).toBe("canceled");
+    expect(cancel).toHaveBeenCalledWith(runId);
   });
 });

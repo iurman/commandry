@@ -16,6 +16,7 @@ import {
   LOCAL_AGENT_GRANT_TTL_SECONDS,
   LOCAL_AGENT_READ_OPERATIONS,
   LocalAgentError,
+  type LocalAgentProgressStage,
 } from "@commandry/domain";
 
 export type LocalAgentRunPacket = Pick<
@@ -107,6 +108,20 @@ export function createLocalAgentRunService(port: LocalAgentRunSubmissionPort) {
   };
 }
 
+export function createLocalAgentRunControlService(port: {
+  getById(id: string): Promise<StoredLocalAgentRun | null>;
+  cancel(id: string): Promise<StoredLocalAgentRun | null>;
+}) {
+  return {
+    async cancel(id: string): Promise<LocalAgentRun> {
+      const run = await port.cancel(id);
+      if (!run)
+        throw new LocalAgentError("RUN_NOT_FOUND", "Local agent run not found");
+      return localAgentRunSchema.parse(run);
+    },
+  };
+}
+
 export interface LocalAgentRunProcessingPort {
   getById(id: string): Promise<StoredLocalAgentRun | null>;
   beginAttempt(runId: string): Promise<string | null>;
@@ -116,6 +131,11 @@ export interface LocalAgentRunProcessingPort {
     result: FakeLocalAgentRunResult,
   ): Promise<StoredLocalAgentRun>;
   failAttempt(runId: string, attemptId: string, error: string): Promise<void>;
+  reportProgress(
+    runId: string,
+    attemptId: string,
+    stage: LocalAgentProgressStage,
+  ): Promise<boolean>;
 }
 
 export type AgentContextReader = {
@@ -161,7 +181,7 @@ export function createLocalAgentRunProcessor(
         "Run occurrence does not match its queued job",
       );
     }
-    if (existing.state === "succeeded")
+    if (existing.state === "succeeded" || existing.state === "canceled")
       return localAgentRunSchema.parse(existing);
     const attemptId = await port.beginAttempt(existing.id);
     if (!attemptId) {
@@ -172,21 +192,56 @@ export function createLocalAgentRunProcessor(
     }
     try {
       await options.beforeContextReads?.();
+      const currentBeforeRead = await port.getById(existing.id);
+      if (currentBeforeRead?.state === "canceled")
+        return localAgentRunSchema.parse(currentBeforeRead);
       const brief = await context.read(existing.id, {
         projectId: existing.projectId,
         operation: "project.brief.read",
         reason: "Synthetic local run needs project state and evidence",
       });
+      if (!(await port.reportProgress(existing.id, attemptId, "brief_read"))) {
+        const current = await port.getById(existing.id);
+        if (!current)
+          throw new LocalAgentError(
+            "RUN_NOT_FOUND",
+            "Local agent run not found",
+          );
+        return localAgentRunSchema.parse(current);
+      }
       const work = await context.read(existing.id, {
         projectId: existing.projectId,
         operation: "work.read",
         reason: "Synthetic local run needs the selected work item",
       });
+      if (!(await port.reportProgress(existing.id, attemptId, "work_read"))) {
+        const current = await port.getById(existing.id);
+        if (!current)
+          throw new LocalAgentError(
+            "RUN_NOT_FOUND",
+            "Local agent run not found",
+          );
+        return localAgentRunSchema.parse(current);
+      }
       const result = buildFakeLocalAgentRunResult(brief, work);
+      if (
+        !(await port.reportProgress(existing.id, attemptId, "result_prepared"))
+      ) {
+        const current = await port.getById(existing.id);
+        if (!current)
+          throw new LocalAgentError(
+            "RUN_NOT_FOUND",
+            "Local agent run not found",
+          );
+        return localAgentRunSchema.parse(current);
+      }
       return localAgentRunSchema.parse(
         await port.complete(existing.id, attemptId, result),
       );
     } catch (error) {
+      const current = await port.getById(existing.id);
+      if (current?.state === "canceled")
+        return localAgentRunSchema.parse(current);
       await port.failAttempt(
         existing.id,
         attemptId,

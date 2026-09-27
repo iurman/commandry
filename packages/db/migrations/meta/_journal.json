@@ -302,6 +302,13 @@
       "when": 1790499627010,
       "tag": "0042_yielding_the_anarchist",
       "breakpoints": true
+    },
+    {
+      "idx": 43,
+      "version": "7",
+      "when": 1790500780543,
+      "tag": "0043_amazing_crystal",
+      "breakpoints": true
     }
   ]
 }

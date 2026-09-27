@@ -2283,6 +2283,23 @@ export function generateOpenApi(): string {
           },
         },
       },
+      "/api/v1/agent-runs/{id}/cancel": {
+        post: {
+          operationId: "cancelLocalAgentRun",
+          summary: "Cancel a queued or running synthetic local run",
+          parameters: [idParameter],
+          responses: {
+            "200": {
+              description: "Current run, canceled if it was still active",
+              content: jsonContent("LocalAgentRun"),
+            },
+            "404": {
+              description: "Run not found",
+              content: jsonContent("ErrorResponse"),
+            },
+          },
+        },
+      },
       "/api/v1/overnight": {
         get: {
           operationId: "listOvernightQueue",

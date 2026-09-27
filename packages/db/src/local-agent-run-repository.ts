@@ -1,5 +1,9 @@
 import { and, asc, desc, eq, sql } from "drizzle-orm";
-import { sanitizeLocalAgentAuditReason } from "@commandry/domain";
+import type { AgentRunAuditEvent } from "@commandry/contracts";
+import {
+  sanitizeLocalAgentAuditReason,
+  type LocalAgentProgressStage,
+} from "@commandry/domain";
 import type { CommandryDatabase } from "./client";
 import {
   auditEvent,
@@ -29,7 +33,7 @@ function workRecord(row: typeof workItem.$inferSelect) {
   };
 }
 
-function auditRecord(row: typeof auditEvent.$inferSelect) {
+function auditRecord(row: typeof auditEvent.$inferSelect): AgentRunAuditEvent {
   const details = row.details;
   const decision: "allowed" | "denied" | null =
     details.decision === "allowed" || details.decision === "denied"
@@ -43,6 +47,13 @@ function auditRecord(row: typeof auditEvent.$inferSelect) {
     decision,
     code: typeof details.code === "string" ? details.code : null,
     reason: typeof details.reason === "string" ? details.reason : null,
+    stage:
+      details.stage === "brief_read" ||
+      details.stage === "work_read" ||
+      details.stage === "result_prepared"
+        ? details.stage
+        : null,
+    attemptId: typeof details.attemptId === "string" ? details.attemptId : null,
     projectId: typeof details.projectId === "string" ? details.projectId : null,
     createdAt: row.createdAt.toISOString(),
   };
@@ -125,6 +136,77 @@ export function createLocalAgentRunRepository(db: CommandryDatabase) {
 
   return {
     getById,
+    async cancel(runId: string) {
+      await db.transaction(async (tx) => {
+        const [run] = await tx
+          .select()
+          .from(localAgentRun)
+          .where(eq(localAgentRun.id, runId))
+          .for("update")
+          .limit(1);
+        if (!run) return;
+        if (run.state !== "queued" && run.state !== "running") return;
+        const now = new Date();
+        await tx
+          .update(localAgentRunAttempt)
+          .set({ state: "canceled", completedAt: now })
+          .where(
+            and(
+              eq(localAgentRunAttempt.runId, runId),
+              eq(localAgentRunAttempt.state, "running"),
+            ),
+          );
+        await tx
+          .update(localAgentRun)
+          .set({ state: "canceled", completedAt: now })
+          .where(eq(localAgentRun.id, runId));
+        await tx.insert(auditEvent).values({
+          id: crypto.randomUUID(),
+          actor: "local-reviewer:unattributed",
+          operation: "local_agent_run.canceled",
+          targetAgentRunId: runId,
+          details: { projectId: run.projectId },
+        });
+      });
+      return getById(runId);
+    },
+    async reportProgress(
+      runId: string,
+      attemptId: string,
+      stage: LocalAgentProgressStage,
+    ) {
+      return db.transaction(async (tx) => {
+        const [run] = await tx
+          .select({
+            state: localAgentRun.state,
+            projectId: localAgentRun.projectId,
+          })
+          .from(localAgentRun)
+          .where(eq(localAgentRun.id, runId))
+          .for("update")
+          .limit(1);
+        if (run?.state !== "running") return false;
+        const [attempt] = await tx
+          .select({ state: localAgentRunAttempt.state })
+          .from(localAgentRunAttempt)
+          .where(
+            and(
+              eq(localAgentRunAttempt.id, attemptId),
+              eq(localAgentRunAttempt.runId, runId),
+            ),
+          )
+          .limit(1);
+        if (attempt?.state !== "running") return false;
+        await tx.insert(auditEvent).values({
+          id: crypto.randomUUID(),
+          actor: "system:local-agent-worker",
+          operation: "local_agent_run.progress",
+          targetAgentRunId: runId,
+          details: { projectId: run.projectId, attemptId, stage },
+        });
+        return true;
+      });
+    },
     async getAuthorization(runId: string) {
       const [row] = await db
         .select()
@@ -227,7 +309,7 @@ export function createLocalAgentRunRepository(db: CommandryDatabase) {
           .for("update")
           .limit(1);
         if (!run) throw new Error("Local agent run not found");
-        if (run.state === "succeeded") return null;
+        if (run.state === "succeeded" || run.state === "canceled") return null;
         const now = new Date();
         await tx
           .update(localAgentRunAttempt)
@@ -284,7 +366,7 @@ export function createLocalAgentRunRepository(db: CommandryDatabase) {
           .for("update")
           .limit(1);
         if (!run) throw new Error("Local agent run not found");
-        if (run.state === "succeeded") return;
+        if (run.state === "succeeded" || run.state === "canceled") return;
         const [attempt] = await tx
           .select()
           .from(localAgentRunAttempt)

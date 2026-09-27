@@ -5993,6 +5993,45 @@
         }
       }
     },
+    "/api/v1/agent-runs/{id}/cancel": {
+      "post": {
+        "operationId": "cancelLocalAgentRun",
+        "summary": "Cancel a queued or running synthetic local run",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "id",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Current run, canceled if it was still active",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/LocalAgentRun"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Run not found",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/api/v1/overnight": {
       "get": {
         "operationId": "listOvernightQueue",
@@ -31407,7 +31446,8 @@
             "enum": [
               "running",
               "succeeded",
-              "failed"
+              "failed",
+              "canceled"
             ]
           },
           "error": {
@@ -31618,7 +31658,8 @@
               "queued",
               "running",
               "succeeded",
-              "failed"
+              "failed",
+              "canceled"
             ]
           },
           "attempts": {
@@ -31646,7 +31687,8 @@
                   "enum": [
                     "running",
                     "succeeded",
-                    "failed"
+                    "failed",
+                    "canceled"
                   ]
                 },
                 "error": {
@@ -32047,7 +32089,8 @@
                   "queued",
                   "running",
                   "succeeded",
-                  "failed"
+                  "failed",
+                  "canceled"
                 ]
               },
               {
@@ -32192,7 +32235,8 @@
                         "queued",
                         "running",
                         "succeeded",
-                        "failed"
+                        "failed",
+                        "canceled"
                       ]
                     },
                     {
@@ -38324,6 +38368,33 @@
               "null"
             ]
           },
+          "stage": {
+            "anyOf": [
+              {
+                "type": "string",
+                "enum": [
+                  "brief_read",
+                  "work_read",
+                  "result_prepared"
+                ]
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "attemptId": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "uuid",
+                "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
           "createdAt": {
             "type": "string",
             "format": "date-time",
@@ -38339,6 +38410,8 @@
           "decision",
           "code",
           "reason",
+          "stage",
+          "attemptId",
           "createdAt"
         ],
         "additionalProperties": false
@@ -38407,6 +38480,33 @@
                     "null"
                   ]
                 },
+                "stage": {
+                  "anyOf": [
+                    {
+                      "type": "string",
+                      "enum": [
+                        "brief_read",
+                        "work_read",
+                        "result_prepared"
+                      ]
+                    },
+                    {
+                      "type": "null"
+                    }
+                  ]
+                },
+                "attemptId": {
+                  "anyOf": [
+                    {
+                      "type": "string",
+                      "format": "uuid",
+                      "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$"
+                    },
+                    {
+                      "type": "null"
+                    }
+                  ]
+                },
                 "createdAt": {
                   "type": "string",
                   "format": "date-time",
@@ -38422,6 +38522,8 @@
                 "decision",
                 "code",
                 "reason",
+                "stage",
+                "attemptId",
                 "createdAt"
               ],
               "additionalProperties": false

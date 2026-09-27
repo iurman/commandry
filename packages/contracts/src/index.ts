@@ -2113,7 +2113,9 @@ export const overnightQueueEntrySchema = z.object({
     "canceled",
   ]),
   runId: z.uuid().nullable(),
-  runState: z.enum(["queued", "running", "succeeded", "failed"]).nullable(),
+  runState: z
+    .enum(["queued", "running", "succeeded", "failed", "canceled"])
+    .nullable(),
   blockedReason: z.string().nullable(),
   sourceLabel: z.literal("Synthetic local overnight queue"),
   isSynthetic: z.literal(true),
@@ -2187,7 +2189,7 @@ export const fakeLocalAgentRunResultSchema = z.object({
 export const localAgentRunAttemptSchema = z.object({
   id: z.uuid(),
   number: z.number().int().min(1),
-  state: z.enum(["running", "succeeded", "failed"]),
+  state: z.enum(["running", "succeeded", "failed", "canceled"]),
   error: z.string().nullable(),
   startedAt: z.iso.datetime({ offset: true }),
   completedAt: z.iso.datetime({ offset: true }).nullable(),
@@ -2202,7 +2204,7 @@ export const localAgentRunSchema = z.object({
   packetDigest: z.string().regex(/^[a-f0-9]{64}$/),
   workItemId: z.uuid(),
   projectId: z.uuid(),
-  state: z.enum(["queued", "running", "succeeded", "failed"]),
+  state: z.enum(["queued", "running", "succeeded", "failed", "canceled"]),
   attempts: z.number().int().min(0),
   attemptHistory: z.array(localAgentRunAttemptSchema),
   grant: localAgentRunGrantSchema,
@@ -2332,6 +2334,8 @@ export const agentRunAuditEventSchema = z.object({
   decision: z.enum(["allowed", "denied"]).nullable(),
   code: z.string().nullable(),
   reason: z.string().nullable(),
+  stage: z.enum(["brief_read", "work_read", "result_prepared"]).nullable(),
+  attemptId: z.uuid().nullable(),
   createdAt: z.iso.datetime({ offset: true }),
 });
 

@@ -39,6 +39,12 @@ Paperclip as an execution backend, or a minimal generic run protocol, then
 specify dispatch, workspace, heartbeat, cancellation, log, artifact, retry, and
 callback ownership.
 
+The local fake worker now reports fixed progress milestones through an
+application callback port, and queued or running fake runs can be canceled with
+an audited state transition. This is a provisional protocol rehearsal. It does
+not select an external runtime, callback authentication, workspace ownership,
+artifact transfer, or retry policy for a real runner.
+
 ### OQ-007: What is the first capability and policy representation?
 
 Define operations, scopes, environments, expiry, delegation, and approval

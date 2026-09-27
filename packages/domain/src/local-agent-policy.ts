@@ -5,6 +5,13 @@ export const LOCAL_AGENT_READ_OPERATIONS = [
   "work.read",
 ] as const;
 export const LOCAL_AGENT_GRANT_TTL_SECONDS = 1800;
+export const LOCAL_AGENT_PROGRESS_STAGES = [
+  "brief_read",
+  "work_read",
+  "result_prepared",
+] as const;
+export type LocalAgentProgressStage =
+  (typeof LOCAL_AGENT_PROGRESS_STAGES)[number];
 
 export type LocalAgentReadOperation =
   (typeof LOCAL_AGENT_READ_OPERATIONS)[number];
@@ -19,7 +26,7 @@ export type LocalAgentAuthorization = {
   packetId: string;
   workItemId: string;
   projectId: string;
-  state: "queued" | "running" | "succeeded" | "failed";
+  state: "queued" | "running" | "succeeded" | "failed" | "canceled";
   grants: LocalAgentGrant[];
 };
 
