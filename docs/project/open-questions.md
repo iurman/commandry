@@ -317,3 +317,18 @@ reuse of the local application key, capture-sample check, file location, and
 manual retention are local-only choices. Decide dedicated key custody and
 rotation, backup role, size and streaming, schedule, retention, encrypted offsite
 storage, restore target, recovery point, and recovery time before production.
+
+### OQ-035: What project lifecycle and overview configuration should be canonical?
+
+The local MVP lets the owner edit a project's name, summary, free-text type,
+and one of the core model's five lifecycle states. It accepts any transition,
+requires the current version to prevent silent overwrites, and retains an
+immutable per-version before/after record. This is an editable local context
+model, not a settled transition policy. Validate lifecycle rules, archived
+project behavior, project dates, default cards by type, custom overview layout,
+and how external health and attention should appear beside manual state.
+The local metadata edit is classified reversible, has no external effect, and
+records `project_metadata_event` as its audit event. Its intended production
+capability is `commandry.project.update`; the current local UI does not issue
+or enforce that grant, and no approval is requested for this local action.
+Human attribution and production grants remain open under OQ-003 and OQ-007.

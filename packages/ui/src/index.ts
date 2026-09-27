@@ -94,6 +94,7 @@ export type {
 } from "./components/ExecutionPacket";
 export { LocalAgentCard } from "./components/LocalAgent";
 export { LocalAgentCallbackTimeline } from "./components/LocalAgentCallbackTimeline";
+export { ProjectChangeCard } from "./components/ProjectChangeCard";
 export type {
   LocalAgentProfileView,
   LocalAgentAssignmentView,

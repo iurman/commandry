@@ -1,5 +1,6 @@
 import { relations, sql } from "drizzle-orm";
 import type { SavedViewDefinition } from "@commandry/contracts";
+import type { ProjectMetadata } from "@commandry/domain";
 import {
   type AnyPgColumn,
   boolean,
@@ -159,16 +160,57 @@ export const project = pgTable(
     })
       .notNull()
       .default("active"),
+    version: integer("version").notNull().default(1),
     createdAt: createdAt(),
     updatedAt: updatedAt(),
   },
   (table) => [
     index("project_name_id_idx").on(table.name, table.id),
     check("project_name_nonempty", sql`length(trim(${table.name})) > 0`),
+    check("project_name_bounded", sql`length(${table.name}) <= 200`),
     check("project_type_nonempty", sql`length(trim(${table.type})) > 0`),
+    check("project_type_bounded", sql`length(${table.type}) <= 100`),
+    check(
+      "project_summary_bounded",
+      sql`${table.summary} is null or length(${table.summary}) <= 4000`,
+    ),
+    check("project_version_positive", sql`${table.version} >= 1`),
     check(
       "project_lifecycle_valid",
       sql`${table.lifecycle} in ('proposed', 'active', 'paused', 'completed', 'archived')`,
+    ),
+  ],
+);
+
+export const projectMetadataEvent = pgTable(
+  "project_metadata_event",
+  {
+    id: uuid("id").primaryKey(),
+    projectId: uuid("project_id")
+      .notNull()
+      .references(() => project.id, { onDelete: "restrict" }),
+    version: integer("version").notNull(),
+    actor: text("actor").notNull().default("local-user:unattributed"),
+    previous: jsonb("previous").$type<ProjectMetadata>().notNull(),
+    current: jsonb("current").$type<ProjectMetadata>().notNull(),
+    changedFields: jsonb("changed_fields")
+      .$type<Array<keyof Omit<ProjectMetadata, "version">>>()
+      .notNull(),
+    createdAt: createdAt(),
+  },
+  (table) => [
+    uniqueIndex("project_metadata_event_version_idx").on(
+      table.projectId,
+      table.version,
+    ),
+    check("project_metadata_event_version_valid", sql`${table.version} >= 2`),
+    check(
+      "project_metadata_event_snapshots_object",
+      sql`jsonb_typeof(${table.previous}) = 'object' and jsonb_typeof(${table.current}) = 'object'`,
+    ),
+    check(
+      "project_metadata_event_fields_array",
+      sql`jsonb_typeof(${table.changedFields}) = 'array' and jsonb_array_length(${table.changedFields}) > 0`,
     ),
   ],
 );

@@ -1,10 +1,16 @@
-import { and, eq, gt } from "drizzle-orm";
-import { projectResourceRelationship } from "@commandry/domain";
+import { and, desc, eq, gt, lt } from "drizzle-orm";
+import {
+  prepareProjectMetadataRevision,
+  projectResourceRelationship,
+  type ProjectMetadata,
+  type ProjectMetadataRevision,
+} from "@commandry/domain";
 import type { CommandryDatabase } from "./client";
 import {
   domain,
   project,
   projectDomainLink,
+  projectMetadataEvent,
   projectResourceLink,
   resource,
 } from "./schema";
@@ -19,9 +25,37 @@ function projectSummary(
     summary: row.summary,
     type: row.type,
     lifecycle: row.lifecycle,
+    version: row.version,
     domain: owner,
     createdAt: row.createdAt.toISOString(),
     updatedAt: row.updatedAt.toISOString(),
+  };
+}
+
+function projectMetadataSnapshot(
+  row: typeof project.$inferSelect,
+): ProjectMetadata {
+  return {
+    name: row.name,
+    summary: row.summary,
+    type: row.type,
+    lifecycle: row.lifecycle,
+    version: row.version,
+  };
+}
+
+function projectMetadataEventRecord(
+  row: typeof projectMetadataEvent.$inferSelect,
+) {
+  return {
+    id: row.id,
+    projectId: row.projectId,
+    version: row.version,
+    actor: row.actor,
+    previous: row.previous,
+    current: row.current,
+    changedFields: row.changedFields,
+    createdAt: row.createdAt.toISOString(),
   };
 }
 
@@ -107,6 +141,96 @@ export function createCatalogRepository(db: CommandryDatabase) {
         nextCursor:
           rows.length > input.limit ? (page.at(-1)?.record.id ?? null) : null,
       };
+    },
+    async updateProject(id: string, input: ProjectMetadataRevision) {
+      return db.transaction(async (tx) => {
+        const [before] = await tx
+          .select()
+          .from(project)
+          .where(eq(project.id, id))
+          .for("update")
+          .limit(1);
+        if (!before) return null;
+        const previous = projectMetadataSnapshot(before);
+        const { next, changedFields } = prepareProjectMetadataRevision(
+          previous,
+          input,
+        );
+        let saved = before;
+        if (changedFields.length > 0) {
+          const [updated] = await tx
+            .update(project)
+            .set({
+              name: next.name,
+              summary: next.summary,
+              type: next.type,
+              lifecycle: next.lifecycle,
+              version: next.version,
+              updatedAt: new Date(),
+            })
+            .where(eq(project.id, id))
+            .returning();
+          if (!updated) throw new Error("Project update returned no row");
+          saved = updated;
+          await tx.insert(projectMetadataEvent).values({
+            id: crypto.randomUUID(),
+            projectId: id,
+            version: updated.version,
+            previous,
+            current: projectMetadataSnapshot(updated),
+            changedFields,
+          });
+        }
+        const [owner] = await tx
+          .select({ id: domain.id, name: domain.name })
+          .from(projectDomainLink)
+          .innerJoin(domain, eq(domain.id, projectDomainLink.domainId))
+          .where(
+            and(
+              eq(projectDomainLink.projectId, id),
+              eq(projectDomainLink.lifecycle, "active"),
+            ),
+          )
+          .limit(1);
+        return projectSummary(saved, owner ?? null);
+      });
+    },
+    async listProjectMetadataEvents(
+      projectId: string,
+      input: { limit: number; beforeVersion?: number },
+    ) {
+      const rows = await db
+        .select()
+        .from(projectMetadataEvent)
+        .where(
+          and(
+            eq(projectMetadataEvent.projectId, projectId),
+            input.beforeVersion
+              ? lt(projectMetadataEvent.version, input.beforeVersion)
+              : undefined,
+          ),
+        )
+        .orderBy(desc(projectMetadataEvent.version))
+        .limit(input.limit + 1);
+      const page = rows.slice(0, input.limit);
+      return {
+        items: page.map(projectMetadataEventRecord),
+        nextCursor:
+          rows.length > input.limit ? (page.at(-1)?.version ?? null) : null,
+      };
+    },
+    async getProjectMetadataEvent(projectId: string, version: number) {
+      const [row] = await db
+        .select()
+        .from(projectMetadataEvent)
+        .where(
+          and(
+            eq(projectMetadataEvent.projectId, projectId),
+            eq(projectMetadataEvent.version, version),
+          ),
+        )
+        .limit(1);
+      return row ? projectMetadataEventRecord(row) : null;
     },
     async createResource(input: {
       id: string;

@@ -21,6 +21,7 @@ import ProjectBriefPanel from "./ProjectBriefPanel";
 import ProjectDomainPanel from "./ProjectDomainPanel";
 import ProjectSystemsPanel from "./ProjectSystemsPanel";
 import ProjectDecisions from "./ProjectDecisions";
+import ProjectDetailsEditor from "./ProjectDetailsEditor";
 import SyntheticMetricsPanel from "../../SyntheticMetricsPanel";
 
 type RelationshipType = "supports" | "relates_to";
@@ -310,6 +311,13 @@ export default function ProjectWorkspace({ projectId }: { projectId: string }) {
           <ProjectDomainPanel
             projectId={projectId}
             onMembershipChange={() => setBriefVersion((current) => current + 1)}
+          />
+          <ProjectDetailsEditor
+            project={project}
+            onProjectChange={(updated) => {
+              setProject(updated);
+              setBriefVersion((current) => current + 1);
+            }}
           />
           <ProjectSystemsPanel
             projectId={projectId}

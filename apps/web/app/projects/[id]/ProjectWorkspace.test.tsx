@@ -56,6 +56,8 @@ describe("Project workspace", () => {
     vi.stubGlobal(
       "fetch",
       vi.fn(async (path: string) => {
+        if (path.includes(`/projects/${project.id}/changes`))
+          return json({ items: [], nextCursor: null });
         if (path.includes(`/projects/${project.id}/work`))
           return json({
             items: [
@@ -126,6 +128,8 @@ describe("Project workspace", () => {
     vi.stubGlobal(
       "fetch",
       vi.fn(async (path: string, init?: RequestInit) => {
+        if (path.includes(`/projects/${project.id}/changes`))
+          return json({ items: [], nextCursor: null });
         if (
           path.includes(`/projects/${project.id}/work`) ||
           path.includes(`/projects/${project.id}/knowledge`)
@@ -188,6 +192,8 @@ describe("Project workspace", () => {
   it("links an existing record without creating another resource", async () => {
     const relations: ProjectResourceLink[] = [];
     const fetchMock = vi.fn(async (path: string, init?: RequestInit) => {
+      if (path.includes(`/projects/${project.id}/changes`))
+        return json({ items: [], nextCursor: null });
       if (
         path.includes(`/projects/${project.id}/work`) ||
         path.includes(`/projects/${project.id}/knowledge`)

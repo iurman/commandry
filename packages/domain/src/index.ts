@@ -37,3 +37,4 @@ export * from "./saved-view";
 export * from "./knowledge-link";
 export * from "./domain-portfolio";
 export * from "./system-context";
+export * from "./project-metadata";

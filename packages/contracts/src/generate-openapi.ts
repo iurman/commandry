@@ -130,6 +130,9 @@ import {
   listLocalIntegrationsResponseSchema,
   createCaptureRequestSchema,
   createProjectRequestSchema,
+  updateProjectRequestSchema,
+  projectMetadataEventSchema,
+  listProjectMetadataEventsResponseSchema,
   createDomainRequestSchema,
   updateDomainRequestSchema,
   archiveDomainRequestSchema,
@@ -1233,6 +1236,102 @@ export function generateOpenApi(): string {
             },
             "404": {
               description: "Project not found",
+              content: jsonContent("ErrorResponse"),
+            },
+          },
+        },
+        patch: {
+          operationId: "updateProject",
+          summary: "Revise project metadata with optimistic version and audit",
+          parameters: [idParameter],
+          requestBody: {
+            required: true,
+            content: jsonContent("UpdateProjectRequest"),
+          },
+          responses: {
+            "200": {
+              description: "Updated project or unchanged current version",
+              content: jsonContent("ProjectSummary"),
+            },
+            "400": {
+              description: "Invalid project revision",
+              content: jsonContent("ErrorResponse"),
+            },
+            "404": {
+              description: "Project not found",
+              content: jsonContent("ErrorResponse"),
+            },
+            "409": {
+              description: "Project version changed",
+              content: jsonContent("ErrorResponse"),
+            },
+          },
+        },
+      },
+      "/api/v1/projects/{id}/changes": {
+        get: {
+          operationId: "listProjectMetadataEvents",
+          summary: "Page through immutable project metadata revisions",
+          parameters: [
+            idParameter,
+            {
+              in: "query",
+              name: "limit",
+              required: false,
+              schema: {
+                type: "integer",
+                minimum: 1,
+                maximum: 100,
+                default: 25,
+              },
+            },
+            {
+              in: "query",
+              name: "beforeVersion",
+              required: false,
+              schema: { type: "integer", minimum: 2 },
+            },
+          ],
+          responses: {
+            "200": {
+              description: "Project change history, newest version first",
+              content: jsonContent("ListProjectMetadataEventsResponse"),
+            },
+            "400": {
+              description: "Invalid page query",
+              content: jsonContent("ErrorResponse"),
+            },
+            "404": {
+              description: "Project not found",
+              content: jsonContent("ErrorResponse"),
+            },
+          },
+        },
+      },
+      "/api/v1/projects/{id}/changes/{version}": {
+        get: {
+          operationId: "getProjectMetadataEvent",
+          summary: "Read one immutable project revision by version",
+          parameters: [
+            idParameter,
+            {
+              in: "path",
+              name: "version",
+              required: true,
+              schema: { type: "integer", minimum: 2 },
+            },
+          ],
+          responses: {
+            "200": {
+              description: "Exact project revision",
+              content: jsonContent("ProjectMetadataEvent"),
+            },
+            "400": {
+              description: "Invalid project or version",
+              content: jsonContent("ErrorResponse"),
+            },
+            "404": {
+              description: "Project revision not found",
               content: jsonContent("ErrorResponse"),
             },
           },
@@ -4013,6 +4112,10 @@ export function generateOpenApi(): string {
           listResourceDependenciesResponseSchema,
         ),
         ProjectSummary: component(projectSummarySchema),
+        ProjectMetadataEvent: component(projectMetadataEventSchema),
+        ListProjectMetadataEventsResponse: component(
+          listProjectMetadataEventsResponseSchema,
+        ),
         DomainSummary: component(domainSummarySchema),
         DomainAuditEvent: component(domainAuditEventSchema),
         ProjectDomainLink: component(projectDomainLinkSchema),
@@ -4046,6 +4149,7 @@ export function generateOpenApi(): string {
         ),
         ListSystemAuditResponse: component(listSystemAuditResponseSchema),
         CreateProjectRequest: component(createProjectRequestSchema),
+        UpdateProjectRequest: component(updateProjectRequestSchema),
         ListProjectsResponse: component(listProjectsResponseSchema),
         ProjectResourceLink: component(projectResourceLinkSchema),
         ProjectResourceLinkDetail: component(projectResourceLinkDetailSchema),

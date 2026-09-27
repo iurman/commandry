@@ -2,11 +2,16 @@ import type {
   CreateProjectRequest,
   CreateProjectResourceLinkRequest,
   CreateResourceRequest,
+  ProjectMetadataEvent,
   ProjectResourceLink,
   ProjectSummary,
   ResourceSummary,
+  UpdateProjectRequest,
 } from "@commandry/contracts";
-import { projectResourceRelationship } from "@commandry/domain";
+import {
+  ProjectMetadataConflictError,
+  projectResourceRelationship,
+} from "@commandry/domain";
 
 export type CatalogPage<T> = { items: T[]; nextCursor: string | null };
 export type CatalogPageQuery = { limit: number; cursor?: string | undefined };
@@ -17,6 +22,18 @@ export interface CatalogRepository {
   ): Promise<ProjectSummary>;
   getProject(id: string): Promise<ProjectSummary | null>;
   listProjects(query: CatalogPageQuery): Promise<CatalogPage<ProjectSummary>>;
+  updateProject(
+    id: string,
+    input: UpdateProjectRequest,
+  ): Promise<ProjectSummary | null>;
+  listProjectMetadataEvents(
+    id: string,
+    query: { limit: number; beforeVersion?: number },
+  ): Promise<{ items: ProjectMetadataEvent[]; nextCursor: number | null }>;
+  getProjectMetadataEvent(
+    id: string,
+    version: number,
+  ): Promise<ProjectMetadataEvent | null>;
   createResource(
     input: CreateResourceRequest & { id: string },
   ): Promise<ResourceSummary>;
@@ -39,7 +56,10 @@ export interface CatalogRepository {
 export class CatalogError extends Error {
   constructor(
     public readonly code:
-      "PROJECT_NOT_FOUND" | "RESOURCE_NOT_FOUND" | "LINK_EXISTS",
+      | "PROJECT_NOT_FOUND"
+      | "PROJECT_VERSION_CONFLICT"
+      | "RESOURCE_NOT_FOUND"
+      | "LINK_EXISTS",
     message: string,
   ) {
     super(message);
@@ -56,6 +76,32 @@ export function createCatalogService(repository: CatalogRepository) {
     },
     listProjects(query: CatalogPageQuery) {
       return repository.listProjects(query);
+    },
+    async updateProject(id: string, input: UpdateProjectRequest) {
+      try {
+        const updated = await repository.updateProject(id, input);
+        if (!updated) {
+          throw new CatalogError("PROJECT_NOT_FOUND", "Project not found");
+        }
+        return updated;
+      } catch (error) {
+        if (error instanceof ProjectMetadataConflictError) {
+          throw new CatalogError("PROJECT_VERSION_CONFLICT", error.message);
+        }
+        throw error;
+      }
+    },
+    async listProjectMetadataEvents(
+      id: string,
+      query: { limit: number; beforeVersion?: number },
+    ) {
+      if (!(await repository.getProject(id))) {
+        throw new CatalogError("PROJECT_NOT_FOUND", "Project not found");
+      }
+      return repository.listProjectMetadataEvents(id, query);
+    },
+    getProjectMetadataEvent(id: string, version: number) {
+      return repository.getProjectMetadataEvent(id, version);
     },
     createResource(input: CreateResourceRequest) {
       return repository.createResource({ ...input, id: crypto.randomUUID() });

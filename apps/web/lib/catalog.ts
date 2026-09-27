@@ -16,7 +16,9 @@ export function catalogFailure(
     return jsonResponse(
       request,
       { code: error.code, message: error.message },
-      error.code === "LINK_EXISTS" ? 409 : 404,
+      error.code === "LINK_EXISTS" || error.code === "PROJECT_VERSION_CONFLICT"
+        ? 409
+        : 404,
       `${operation}.rejected`,
     );
   }

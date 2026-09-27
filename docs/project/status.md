@@ -63,6 +63,11 @@ and production prerequisites remain gates.
   it is local organization metadata and does not authorize access. The single
   owning domain rule is provisional while broader context relationships remain
   open.
+- Project name, summary, type, and lifecycle can be revised from the workspace
+  with an expected version. Each material change writes an append-only
+  before/after record with a direct versioned API link. The current portfolio
+  and live brief read the updated project; existing packet snapshots remain
+  unchanged. The local transition policy remains provisional under OQ-035.
 - Systems are distinct local records for continuing operated capabilities. A
   system may have one owning Domain, relate to multiple Projects, and receive
   support from multiple canonical Resources through typed, auditable links.

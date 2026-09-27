@@ -25,6 +25,46 @@
   --cmd-motion-duration: 140ms;
 }
 
+.cmd-project-change-card {
+  min-width: 0;
+  padding: var(--cmd-space-4);
+  border: 1px solid var(--cmd-border);
+  border-radius: var(--cmd-radius);
+  background: var(--cmd-surface);
+  overflow-wrap: anywhere;
+}
+
+.cmd-project-change-heading {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: space-between;
+  gap: var(--cmd-space-2);
+}
+
+.cmd-project-change-card p {
+  margin: var(--cmd-space-2) 0;
+}
+
+.cmd-project-change-card details {
+  margin: var(--cmd-space-3) 0;
+}
+
+.cmd-project-change-card dl {
+  display: grid;
+  gap: var(--cmd-space-3);
+  margin: var(--cmd-space-3) 0;
+}
+
+.cmd-project-change-card dt {
+  font-weight: 700;
+}
+
+.cmd-project-change-card dd {
+  display: grid;
+  gap: var(--cmd-space-1);
+  margin: var(--cmd-space-1) 0 0;
+}
+
 .cmd-local-connector {
   width: 100%;
   min-width: 0;
