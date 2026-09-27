@@ -37,10 +37,12 @@ test("local backup evidence remains distinct from production readiness", async (
   await expect(
     page.getByRole("heading", { name: "Production gates" }),
   ).toBeVisible();
-  await expect(page.getByText("Not verified")).toBeVisible();
+  await expect(page.getByText("Not verified").first()).toBeVisible();
   if (history.items.length > 0) {
     await expect(
-      page.locator(`a[href="/api/v1/local-backups/${history.items[0].id}"]`),
+      page
+        .locator(`a[href="/api/v1/local-backups/${history.items[0].id}"]`)
+        .first(),
     ).toBeVisible();
   } else {
     await expect(

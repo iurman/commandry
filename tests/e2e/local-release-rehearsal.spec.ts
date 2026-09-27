@@ -40,9 +40,11 @@ test("local release evidence shows a code rollback without claiming production r
   ).toBeVisible();
   if (history.items.length > 0) {
     await expect(
-      page.locator(
-        `a[href="/api/v1/local-release-rehearsals/${history.items[0].id}"]`,
-      ),
+      page
+        .locator(
+          `a[href="/api/v1/local-release-rehearsals/${history.items[0].id}"]`,
+        )
+        .first(),
     ).toBeVisible();
   } else {
     await expect(

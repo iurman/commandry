@@ -21,6 +21,8 @@ The user expanded the local campaign target to MVP-depth coverage of every
 roadmap workstream. Planned phases now guide implementation order without
 deferring a locally feasible module. Open product choices remain provisional
 and production prerequisites remain gates.
+The [local MVP and VPS handoff](mvp-readiness.md) separates the running local
+paths from real-source and production activation evidence.
 
 ## Established direction
 

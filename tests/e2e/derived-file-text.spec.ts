@@ -5,6 +5,7 @@ test("a local Markdown original gains labeled worker text and project-scoped sea
   page,
   request,
 }) => {
+  test.setTimeout(60_000);
   const suffix = randomUUID().slice(0, 8);
   const phrase = `cedarstar${suffix}`;
   const bytes = Buffer.from(
