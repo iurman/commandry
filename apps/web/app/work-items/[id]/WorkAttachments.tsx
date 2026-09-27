@@ -9,6 +9,7 @@ interface DocumentChoice {
   id: string;
   kind: "note" | "link" | "document";
   title: string;
+  contextLink?: { id: string; projectId: string } | null;
 }
 
 function errorMessage(cause: unknown, fallback: string) {
@@ -181,9 +182,10 @@ export default function WorkAttachments({
       <p className="cmd-eyebrow">Project Knowledge / Original files</p>
       <h2 id="work-attachments-heading">Task attachments</h2>
       <p>
-        Link a document already filed in this project. The relation can be
-        archived; its original file and Knowledge context stay separate. New
-        execution packets include only the Knowledge records you select below.
+        Link a document filed in or explicitly shared with this project. A
+        shared project relationship remains active while its task attachment
+        exists. New execution packets include only the Knowledge records you
+        select below.
       </p>
       {attachmentLoading && <p role="status">Loading task attachments...</p>}
       {attachmentError && (
@@ -233,6 +235,7 @@ export default function WorkAttachments({
           {available.map((choice) => (
             <option key={choice.id} value={choice.id}>
               {choice.title}
+              {choice.contextLink ? " (shared)" : ""}
             </option>
           ))}
         </select>
@@ -245,7 +248,7 @@ export default function WorkAttachments({
         {!choicesLoading && choices.length === 0 && !choiceCursor && (
           <p className="cmd-form-hint">
             No project documents yet. <a href="/inbox">Capture a file</a> and
-            file it to this project first.
+            file it to this project or share an existing document with it.
           </p>
         )}
         {choiceCursor && (

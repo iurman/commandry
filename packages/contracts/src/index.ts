@@ -594,6 +594,7 @@ export const workItemAttachmentSchema = z.object({
   workItemId: z.uuid(),
   workTitle: z.string(),
   knowledgeItemId: z.uuid(),
+  contextLinkId: z.uuid().nullable(),
   documentTitle: z.string(),
   sourceCaptureId: z.uuid(),
   originalName: z.string(),

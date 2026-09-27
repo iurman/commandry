@@ -9,6 +9,7 @@ import {
   knowledgeProjectAuditEvent,
   knowledgeProjectLink,
   project,
+  workItemAttachment,
 } from "./schema";
 
 type Page = { limit: number; cursor?: string | undefined };
@@ -187,6 +188,21 @@ export function createKnowledgeProjectRepository(db: CommandryDatabase) {
             "Knowledge project link not found",
           );
         if (current.lifecycle === "archived") return linkRecord(current);
+        const [attachment] = await tx
+          .select({ id: workItemAttachment.id })
+          .from(workItemAttachment)
+          .where(
+            and(
+              eq(workItemAttachment.contextLinkId, id),
+              eq(workItemAttachment.state, "active"),
+            ),
+          )
+          .limit(1);
+        if (attachment)
+          throw new KnowledgeProjectContextError(
+            "KNOWLEDGE_PROJECT_HAS_ATTACHMENTS",
+            "Archive task attachments before unlinking this project",
+          );
         const [saved] = await tx
           .update(knowledgeProjectLink)
           .set({ lifecycle: "archived", archivedAt: new Date() })

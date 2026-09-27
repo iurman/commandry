@@ -26,3 +26,11 @@ const meta = {
 export default meta;
 type Story = StoryObj<typeof meta>;
 export const TaskDocument: Story = {};
+export const SharedDocument: Story = {
+  args: {
+    attachment: {
+      ...meta.args.attachment,
+      contextLinkId: "30f3a0ae-f1fc-4e6e-a180-65e6b3d82f5a",
+    },
+  },
+};

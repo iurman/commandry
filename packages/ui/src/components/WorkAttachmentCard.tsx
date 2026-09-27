@@ -5,6 +5,7 @@ export interface WorkAttachmentCardView {
   workItemId: string;
   workTitle: string;
   knowledgeItemId: string;
+  contextLinkId?: string | null;
   documentTitle: string;
   sourceCaptureId: string;
   originalName: string;
@@ -53,6 +54,13 @@ export function WorkAttachmentCard({
       </p>
       <p className="cmd-record-identity">
         <a href={attachment.downloadHref}>Download exact original file</a>
+        {attachment.contextLinkId && (
+          <a
+            href={`/api/v1/knowledge-project-links/${attachment.contextLinkId}`}
+          >
+            Shared project relationship
+          </a>
+        )}
         <a href={`/inbox?captureId=${attachment.sourceCaptureId}`}>
           Source and checksum
         </a>

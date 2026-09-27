@@ -5,6 +5,7 @@ import {
   auditEvent,
   captureFile,
   knowledgeItem,
+  knowledgeProjectLink,
   workItem,
   workItemAttachment,
 } from "./schema";
@@ -26,6 +27,7 @@ function record(
     workItemId: attachment.workItemId,
     workTitle: work.title,
     knowledgeItemId: attachment.knowledgeItemId,
+    contextLinkId: attachment.contextLinkId,
     documentTitle: document.title,
     sourceCaptureId: document.sourceCaptureId,
     originalName: file.originalName,
@@ -143,6 +145,7 @@ export function createWorkAttachmentRepository(db: CommandryDatabase) {
           .select()
           .from(knowledgeItem)
           .where(eq(knowledgeItem.id, knowledgeItemId))
+          .for("share")
           .limit(1);
         if (!document)
           throw new WorkAttachmentError(
@@ -154,10 +157,24 @@ export function createWorkAttachmentRepository(db: CommandryDatabase) {
             "DOCUMENT_REQUIRED",
             "Only original file documents can be attached to work",
           );
-        if (document.projectId !== work.projectId)
+        const [context] =
+          document.projectId !== work.projectId
+            ? await tx
+                .select()
+                .from(knowledgeProjectLink)
+                .where(
+                  and(
+                    eq(knowledgeProjectLink.knowledgeItemId, document.id),
+                    eq(knowledgeProjectLink.projectId, work.projectId),
+                    eq(knowledgeProjectLink.lifecycle, "active"),
+                  ),
+                )
+                .limit(1)
+            : [];
+        if (document.projectId !== work.projectId && !context)
           throw new WorkAttachmentError(
             "CROSS_PROJECT",
-            "Task attachments must belong to the same project",
+            "Document must have active context in the task project",
           );
         const [file] = await tx
           .select()
@@ -176,6 +193,7 @@ export function createWorkAttachmentRepository(db: CommandryDatabase) {
             projectId: work.projectId,
             workItemId,
             knowledgeItemId,
+            contextLinkId: context?.id ?? null,
           })
           .onConflictDoNothing()
           .returning();
@@ -193,6 +211,7 @@ export function createWorkAttachmentRepository(db: CommandryDatabase) {
             projectId: work.projectId,
             workItemId,
             knowledgeItemId,
+            contextLinkId: context?.id ?? null,
             sourceCaptureId: document.sourceCaptureId,
           },
         });

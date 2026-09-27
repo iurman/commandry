@@ -14,6 +14,7 @@ import { createCatalogRepository } from "./catalog-repository";
 import { createDatabase } from "./client";
 import { createExecutionPacketRepository } from "./execution-packet-repository";
 import { createFileCaptureRepository } from "./file-capture-repository";
+import { createKnowledgeProjectRepository } from "./knowledge-project-repository";
 import { migrateDatabase } from "./migrate";
 import { auditEvent, workItemAttachment } from "./schema";
 import { createWorkAttachmentRepository } from "./work-attachment-repository";
@@ -39,6 +40,7 @@ test(
         createFileCaptureRepository(database.db),
       );
       const attachments = createWorkAttachmentRepository(database.db);
+      const contexts = createKnowledgeProjectRepository(database.db);
       const project = await catalog.createProject({
         id: crypto.randomUUID(),
         name: "Attachment project",
@@ -133,6 +135,29 @@ test(
             error instanceof Error && "code" in error && error.code === code,
         );
       }
+      const sharedContext = await contexts.link(
+        foreign.document.id,
+        project.id,
+      );
+      const sharedAttachment = await attachments.create(
+        task.record.id,
+        foreign.document.id,
+      );
+      assert.equal(sharedAttachment.contextLinkId, sharedContext.link.id);
+      assert.equal(
+        (await attachments.getById(sharedAttachment.id))?.contextLinkId,
+        sharedContext.link.id,
+      );
+      await assert.rejects(contexts.archiveLink(sharedContext.link.id), {
+        code: "KNOWLEDGE_PROJECT_HAS_ATTACHMENTS",
+      });
+      await assert.rejects(
+        database.pool.query(
+          "update knowledge_project_link set lifecycle = 'archived', archived_at = now() where id = $1",
+          [sharedContext.link.id],
+        ),
+        /active task attachments/,
+      );
       await assert.rejects(
         database.db.insert(workItemAttachment).values({
           id: crypto.randomUUID(),
@@ -209,6 +234,18 @@ test(
         first.document.id,
       );
       assert.notEqual(relinked.id, firstLink.id);
+      assert.equal(
+        (await attachments.archive(sharedAttachment.id)).state,
+        "archived",
+      );
+      assert.equal(
+        (await contexts.archiveLink(sharedContext.link.id)).lifecycle,
+        "archived",
+      );
+      await assert.rejects(
+        attachments.create(task.record.id, foreign.document.id),
+        { code: "CROSS_PROJECT" },
+      );
       const operations = await database.db
         .select({ operation: auditEvent.operation })
         .from(auditEvent);

@@ -129,4 +129,6 @@ allowing explicit, auditable secondary project context. Validate whether this
 relationship vocabulary and cardinality fit notes, links, and documents; whether
 project-specific annotations or a different ownership model are needed; and how
 attachments and access policy should behave when secondary context is removed.
-These manual links are not authorization grants.
+The local implementation currently requires archiving active task attachments
+before unlinking their secondary Knowledge context; validate that policy for
+real integrations. These manual links are not authorization grants.

@@ -1060,6 +1060,10 @@ export const workItemAttachment = pgTable(
     knowledgeItemId: uuid("knowledge_item_id")
       .notNull()
       .references(() => knowledgeItem.id, { onDelete: "restrict" }),
+    contextLinkId: uuid("context_link_id").references(
+      () => knowledgeProjectLink.id,
+      { onDelete: "restrict" },
+    ),
     type: text("type", { enum: ["attached_document"] })
       .notNull()
       .default("attached_document"),
@@ -1084,6 +1088,7 @@ export const workItemAttachment = pgTable(
       table.createdAt,
       table.id,
     ),
+    index("work_item_attachment_context_link_idx").on(table.contextLinkId),
     check(
       "work_item_attachment_type_valid",
       sql`${table.type} = 'attached_document'`,

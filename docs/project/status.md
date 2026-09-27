@@ -100,8 +100,10 @@ authentication is complete. There is no production deployment.
   project Knowledge document; its editable context remains separate from the
   immutable file. Downloads are forced attachments. File extraction, larger
   storage and production blob access remain open.
-- Project Knowledge documents can be linked to tasks through same-project
-  attachment relations. Task and document screens show both directions, exact
+- Project Knowledge documents can be linked to tasks through primary or active
+  secondary project context. Shared attachments cite the exact Knowledge
+  project relation, which cannot be unlinked while an active task attachment
+  depends on it. Task and document screens show both directions, exact
   original downloads, and source context. Link creation and archive are
   audited; live briefs cite active links and packet selection remains explicit.
   The local API has no product human sign-in or production capability grant.

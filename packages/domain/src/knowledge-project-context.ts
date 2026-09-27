@@ -10,6 +10,7 @@ export type KnowledgeProjectContextErrorCode =
   | "KNOWLEDGE_NOT_FOUND"
   | "PROJECT_NOT_FOUND"
   | "KNOWLEDGE_PROJECT_IS_PRIMARY"
+  | "KNOWLEDGE_PROJECT_HAS_ATTACHMENTS"
   | "KNOWLEDGE_PROJECT_LINK_NOT_FOUND";
 
 export class KnowledgeProjectContextError extends Error {
