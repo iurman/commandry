@@ -1,4 +1,4 @@
-import { and, asc, desc, eq, inArray, sql } from "drizzle-orm";
+import { and, asc, desc, eq, inArray, isNotNull, or, sql } from "drizzle-orm";
 import {
   projectResourceRelationship,
   SYNTHETIC_MONITOR_RULE_ID,
@@ -9,6 +9,7 @@ import {
   alertEvidence,
   domain,
   knowledgeItem,
+  knowledgeProjectLink,
   normalizedEvent,
   project,
   projectDecision,
@@ -215,9 +216,22 @@ export function createBriefRepository(db: CommandryDatabase) {
             verificationRows.map((review) => [review.workItemId, review]),
           );
           const noteRows = await tx
-            .select()
+            .select({ item: knowledgeItem, context: knowledgeProjectLink })
             .from(knowledgeItem)
-            .where(eq(knowledgeItem.projectId, projectId))
+            .leftJoin(
+              knowledgeProjectLink,
+              and(
+                eq(knowledgeProjectLink.knowledgeItemId, knowledgeItem.id),
+                eq(knowledgeProjectLink.projectId, projectId),
+                eq(knowledgeProjectLink.lifecycle, "active"),
+              ),
+            )
+            .where(
+              or(
+                eq(knowledgeItem.projectId, projectId),
+                isNotNull(knowledgeProjectLink.id),
+              ),
+            )
             .orderBy(desc(knowledgeItem.createdAt), desc(knowledgeItem.id))
             .limit(query.limit + 1);
           const decisionRows = await tx
@@ -371,19 +385,26 @@ export function createBriefRepository(db: CommandryDatabase) {
             knowledge: page(
               noteRows,
               query.limit,
-              (row) => ({
-                id: row.id,
-                projectId: row.projectId,
-                sourceCaptureId: row.sourceCaptureId,
-                kind: row.kind,
-                title: row.title,
-                content: row.content,
-                url: row.url,
-                version: row.version,
-                createdAt: row.createdAt.toISOString(),
-                updatedAt: row.updatedAt.toISOString(),
+              ({ item, context }) => ({
+                id: item.id,
+                projectId: item.projectId,
+                sourceCaptureId: item.sourceCaptureId,
+                kind: item.kind,
+                title: item.title,
+                content: item.content,
+                url: item.url,
+                version: item.version,
+                contextLink: context
+                  ? {
+                      id: context.id,
+                      projectId: context.projectId,
+                      createdAt: context.createdAt.toISOString(),
+                    }
+                  : null,
+                createdAt: item.createdAt.toISOString(),
+                updatedAt: item.updatedAt.toISOString(),
               }),
-              (row) => row.id,
+              ({ item }) => item.id,
             ),
             decisions: page(
               decisionRows,

@@ -26,6 +26,7 @@ interface KnowledgeItem {
   title: string;
   content: string;
   url?: string | null;
+  contextLink?: { id: string; projectId: string; createdAt: string } | null;
   createdAt: string;
 }
 
@@ -310,6 +311,17 @@ export default function ProjectContent({ projectId }: { projectId: string }) {
                     <strong>{item.title}</strong>
                     <span className={styles.meta}>{item.kind}</span>
                   </div>
+                  {item.contextLink && (
+                    <p className="cmd-record-identity">
+                      Shared from its primary project through a{" "}
+                      <a
+                        href={`/api/v1/knowledge-project-links/${item.contextLink.id}`}
+                      >
+                        typed relationship
+                      </a>
+                      .
+                    </p>
+                  )}
                   {item.content && <p>{item.content}</p>}
                   {item.kind === "link" && item.url && (
                     <p>

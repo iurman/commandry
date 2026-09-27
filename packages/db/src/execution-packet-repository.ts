@@ -12,6 +12,7 @@ import {
   capture,
   executionPacket,
   knowledgeItem,
+  knowledgeProjectLink,
   project,
   projectResourceLink,
   workItem,
@@ -161,17 +162,34 @@ export function createExecutionPacketRepository(db: CommandryDatabase) {
           ? await tx
               .select()
               .from(knowledgeItem)
+              .where(inArray(knowledgeItem.id, input.selectedKnowledgeIds))
+              .for("share")
+          : [];
+        const secondaryIds = noteRows
+          .filter((note) => note.projectId !== task.projectId)
+          .map((note) => note.id);
+        const contextRows = secondaryIds.length
+          ? await tx
+              .select()
+              .from(knowledgeProjectLink)
               .where(
                 and(
-                  eq(knowledgeItem.projectId, task.projectId),
-                  inArray(knowledgeItem.id, input.selectedKnowledgeIds),
+                  inArray(knowledgeProjectLink.knowledgeItemId, secondaryIds),
+                  eq(knowledgeProjectLink.projectId, task.projectId),
+                  eq(knowledgeProjectLink.lifecycle, "active"),
                 ),
               )
           : [];
-        if (noteRows.length !== input.selectedKnowledgeIds.length) {
+        const contextById = new Map(
+          contextRows.map((link) => [link.knowledgeItemId, link]),
+        );
+        if (
+          noteRows.length !== input.selectedKnowledgeIds.length ||
+          secondaryIds.some((id) => !contextById.has(id))
+        ) {
           throw new ExecutionPacketError(
             "KNOWLEDGE_NOT_IN_PROJECT",
-            "Selected knowledge must belong to the task project",
+            "Selected knowledge must have active task-project context",
           );
         }
         const noteById = new Map(noteRows.map((note) => [note.id, note]));
@@ -291,9 +309,22 @@ export function createExecutionPacketRepository(db: CommandryDatabase) {
             source: "manual-local",
             createdAt: originalCapture.createdAt.toISOString(),
           },
-          knowledge: input.selectedKnowledgeIds.map((noteId) =>
-            knowledgeRecord(noteById.get(noteId)!),
-          ),
+          knowledge: input.selectedKnowledgeIds.map((noteId) => {
+            const note = noteById.get(noteId)!;
+            const context = contextById.get(noteId);
+            return {
+              ...knowledgeRecord(note),
+              ...(context
+                ? {
+                    contextLink: {
+                      id: context.id,
+                      projectId: context.projectId,
+                      createdAt: context.createdAt.toISOString(),
+                    },
+                  }
+                : {}),
+            };
+          }),
           resources: input.selectedResourceIds.map((resourceId) => {
             const link = firstLinkByResourceId.get(resourceId)!;
             return {

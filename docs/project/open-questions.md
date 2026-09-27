@@ -121,3 +121,12 @@ manually authored local context. Validate additional cross-domain
 relationships, the exact system/project/resource vocabulary and cardinality,
 and whether domain navigation should use manual ordering or another
 presentation. Domains are not access boundaries.
+
+### OQ-022: How should one Knowledge record serve multiple projects?
+
+The local MVP keeps the original capture and one immutable primary project while
+allowing explicit, auditable secondary project context. Validate whether this
+relationship vocabulary and cardinality fit notes, links, and documents; whether
+project-specific annotations or a different ownership model are needed; and how
+attachments and access policy should behave when secondary context is removed.
+These manual links are not authorization grants.

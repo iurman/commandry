@@ -38,6 +38,16 @@ export const systemRelationshipRegistry = {
   },
 } as const;
 
+export const knowledgeProjectRelationshipRegistry = {
+  relates_to: {
+    sourceKind: "knowledge_item",
+    targetKind: "project",
+    inverseType: "relates_to",
+    maxActiveTargets: null,
+    traversal: "none",
+  },
+} as const;
+
 export type ProjectResourceRelationshipType =
   keyof typeof projectResourceRelationshipRegistry;
 

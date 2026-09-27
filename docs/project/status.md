@@ -64,6 +64,13 @@ authentication is complete. There is no production deployment.
   Project briefs cite the exact system and project relationship. These manual
   links do not change resource hierarchy, grant access, or assert live health.
   The cardinalities and vocabulary remain provisional under OQ-021.
+- Knowledge records can retain one original capture and primary Project while
+  receiving active, typed secondary Project context. The additional relation
+  appears in project and global Knowledge lists, scoped search, live briefs,
+  and newly generated packet evidence. Unlinking archives the exact relation
+  and removes current context without rewriting existing packets or the
+  original capture. The local relationship policy remains provisional under
+  OQ-022 and does not grant access.
 - Shared Zod contracts generate a checked OpenAPI document. PostgreSQL has
   reviewed, repeatable Drizzle migrations and separate local migration and
   application roles. The pg-boss worker records attempts, audits, and heartbeat

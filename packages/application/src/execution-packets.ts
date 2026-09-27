@@ -102,7 +102,11 @@ export function buildExecutionPacketContents(
   if (
     task.projectId !== bundle.project.id ||
     task.sourceCaptureId !== bundle.sourceCapture.id ||
-    bundle.knowledge.some((note) => note.projectId !== bundle.project.id)
+    bundle.knowledge.some(
+      (note) =>
+        note.projectId !== bundle.project.id &&
+        note.contextLink?.projectId !== bundle.project.id,
+    )
   ) {
     throw new ExecutionPacketError(
       "INVALID_SELECTION",
@@ -161,6 +165,17 @@ export function buildExecutionPacketContents(
               ? "Manual local knowledge link"
               : "Manual local capture",
         ),
+        ...(note.contextLink
+          ? {
+              contextEvidence: evidence(
+                "knowledge_project_link",
+                note.contextLink.id,
+                `/api/v1/knowledge-project-links/${note.contextLink.id}`,
+                note.contextLink.createdAt,
+                "Manual local knowledge-project relationship",
+              ),
+            }
+          : {}),
       })),
     selectedResources: [...bundle.resources]
       .sort((left, right) => left.resourceId.localeCompare(right.resourceId))

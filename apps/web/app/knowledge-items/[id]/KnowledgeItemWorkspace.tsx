@@ -4,6 +4,7 @@ import { useEffect, useState, type FormEvent } from "react";
 import { AppShell, Button, KnowledgeRevisionCard } from "@commandry/ui";
 import { apiJson, pagePath, type PageResponse } from "../../projects/api";
 import DocumentWorkLinks from "./DocumentWorkLinks";
+import KnowledgeProjectPanel from "./KnowledgeProjectPanel";
 
 export interface KnowledgeItemRecord {
   id: string;
@@ -304,6 +305,10 @@ export default function KnowledgeItemWorkspace({
               </dl>
             </aside>
           </div>
+          <KnowledgeProjectPanel
+            knowledgeItemId={item.id}
+            primaryProjectId={item.projectId}
+          />
           {item.kind === "document" && (
             <DocumentWorkLinks knowledgeItemId={item.id} />
           )}

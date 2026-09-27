@@ -49,6 +49,8 @@ interface WorkItemPlanningEvent {
 interface KnowledgeChoice {
   id: string;
   projectId: string;
+  kind: "note" | "link" | "document";
+  contextLink?: { id: string; projectId: string; createdAt: string } | null;
   title: string;
   content: string;
   sourceCaptureId: string;
@@ -751,7 +753,13 @@ export default function WorkItemWorkspace({
                               />
                               <span>
                                 <strong>{choice.title}</strong>
-                                <small>Saved note · {choice.id}</small>
+                                <small>
+                                  Saved {choice.kind}
+                                  {choice.contextLink
+                                    ? " · Shared project context"
+                                    : ""}{" "}
+                                  · {choice.id}
+                                </small>
                               </span>
                             </label>
                           </li>

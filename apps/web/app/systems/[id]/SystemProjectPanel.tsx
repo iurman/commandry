@@ -8,7 +8,7 @@ import type {
 } from "@commandry/contracts";
 import { Button, RecordEmptyState } from "@commandry/ui";
 import { apiJson, pagePath, type PageResponse } from "../../projects/api";
-import { searchNamedChoices } from "./searchChoices";
+import { searchNamedChoices } from "../../projects/searchChoices";
 
 export default function SystemProjectPanel({
   systemId,

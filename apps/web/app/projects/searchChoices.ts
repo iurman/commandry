@@ -1,5 +1,5 @@
 import type { SearchResult } from "@commandry/contracts";
-import { apiJson, pagePath, type PageResponse } from "../../projects/api";
+import { apiJson, pagePath, type PageResponse } from "./api";
 
 export async function searchNamedChoices(
   kind: "project" | "resource",

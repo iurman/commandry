@@ -949,6 +949,104 @@ export const knowledgeItem = pgTable(
   ],
 );
 
+export const knowledgeProjectLink = pgTable(
+  "knowledge_project_link",
+  {
+    id: uuid("id").primaryKey(),
+    knowledgeItemId: uuid("knowledge_item_id")
+      .notNull()
+      .references(() => knowledgeItem.id, { onDelete: "restrict" }),
+    projectId: uuid("project_id")
+      .notNull()
+      .references(() => project.id, { onDelete: "restrict" }),
+    type: text("type", { enum: ["relates_to"] })
+      .notNull()
+      .default("relates_to"),
+    sourceKind: text("source_kind", { enum: ["knowledge_item"] })
+      .notNull()
+      .default("knowledge_item"),
+    targetKind: text("target_kind", { enum: ["project"] })
+      .notNull()
+      .default("project"),
+    lifecycle: text("lifecycle", { enum: ["active", "archived"] })
+      .notNull()
+      .default("active"),
+    provenance: text("provenance").notNull().default("manual"),
+    actor: text("actor").notNull().default("local-user:unattributed"),
+    createdAt: createdAt(),
+    archivedAt: timestamp("archived_at", { withTimezone: true }),
+  },
+  (table) => [
+    uniqueIndex("knowledge_project_link_one_active_idx")
+      .on(table.knowledgeItemId, table.projectId)
+      .where(sql`${table.lifecycle} = 'active'`),
+    index("knowledge_project_link_project_page_idx").on(
+      table.projectId,
+      table.id,
+    ),
+    index("knowledge_project_link_knowledge_page_idx").on(
+      table.knowledgeItemId,
+      table.id,
+    ),
+    check(
+      "knowledge_project_link_type_valid",
+      sql`${table.type} = 'relates_to'`,
+    ),
+    check(
+      "knowledge_project_link_direction_valid",
+      sql`${table.sourceKind} = 'knowledge_item' and ${table.targetKind} = 'project'`,
+    ),
+    check(
+      "knowledge_project_link_lifecycle_valid",
+      sql`(${table.lifecycle} = 'active' and ${table.archivedAt} is null) or (${table.lifecycle} = 'archived' and ${table.archivedAt} is not null)`,
+    ),
+    check(
+      "knowledge_project_link_provenance_manual",
+      sql`${table.provenance} = 'manual'`,
+    ),
+    check(
+      "knowledge_project_link_actor_local",
+      sql`${table.actor} = 'local-user:unattributed'`,
+    ),
+  ],
+);
+
+export const knowledgeProjectAuditEvent = pgTable(
+  "knowledge_project_audit_event",
+  {
+    id: uuid("id").primaryKey(),
+    knowledgeItemId: uuid("knowledge_item_id")
+      .notNull()
+      .references(() => knowledgeItem.id, { onDelete: "restrict" }),
+    projectId: uuid("project_id")
+      .notNull()
+      .references(() => project.id, { onDelete: "restrict" }),
+    linkId: uuid("link_id")
+      .notNull()
+      .references(() => knowledgeProjectLink.id, { onDelete: "restrict" }),
+    operation: text("operation", {
+      enum: ["knowledge.project_linked", "knowledge.project_unlinked"],
+    }).notNull(),
+    actor: text("actor").notNull().default("local-user:unattributed"),
+    createdAt: createdAt(),
+  },
+  (table) => [
+    index("knowledge_project_audit_knowledge_page_idx").on(
+      table.knowledgeItemId,
+      table.createdAt,
+      table.id,
+    ),
+    check(
+      "knowledge_project_audit_operation_valid",
+      sql`${table.operation} in ('knowledge.project_linked', 'knowledge.project_unlinked')`,
+    ),
+    check(
+      "knowledge_project_audit_actor_local",
+      sql`${table.actor} = 'local-user:unattributed'`,
+    ),
+  ],
+);
+
 export const workItemAttachment = pgTable(
   "work_item_attachment",
   {

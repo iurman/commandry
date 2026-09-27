@@ -27,3 +27,4 @@ export * from "./work-acceptance";
 export * from "./file-capture";
 export * from "./domain-portfolio";
 export * from "./system-context";
+export * from "./knowledge-project-context";

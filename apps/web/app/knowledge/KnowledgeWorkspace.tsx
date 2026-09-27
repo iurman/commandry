@@ -184,6 +184,18 @@ export default function KnowledgeWorkspace({
             >
               {notes.map((note) => (
                 <li key={note.id}>
+                  {note.contextLink && (
+                    <p className="cmd-record-identity">
+                      Shared into this project from {note.projectName} through
+                      an{" "}
+                      <a
+                        href={`/api/v1/knowledge-project-links/${note.contextLink.id}`}
+                      >
+                        exact typed relationship
+                      </a>
+                      .
+                    </p>
+                  )}
                   {note.kind === "link" && note.url ? (
                     <KnowledgeLinkCard
                       link={{

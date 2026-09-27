@@ -230,6 +230,18 @@ export function assembleProjectBrief(
             : "Manual local capture",
           false,
         ),
+        ...(item.contextLink
+          ? [
+              evidence(
+                "knowledge_project_link",
+                item.contextLink.id,
+                `/api/v1/knowledge-project-links/${item.contextLink.id}`,
+                item.contextLink.createdAt,
+                "Manual local knowledge-project relationship",
+                false,
+              ),
+            ]
+          : []),
       ],
       sourceLabel,
       isSynthetic: false,

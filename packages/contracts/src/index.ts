@@ -681,8 +681,60 @@ export const knowledgeItemSchema = z.object({
   content: z.string(),
   url: z.url().nullable().optional(),
   version: z.number().int().positive().optional(),
+  contextLink: z
+    .object({
+      id: z.uuid(),
+      projectId: z.uuid(),
+      createdAt: z.iso.datetime({ offset: true }),
+    })
+    .nullable()
+    .optional(),
   createdAt: z.iso.datetime({ offset: true }),
   updatedAt: z.iso.datetime({ offset: true }),
+});
+
+export const createKnowledgeProjectLinkRequestSchema = z.strictObject({
+  projectId: z.uuid(),
+});
+
+export const knowledgeProjectLinkSchema = z.object({
+  id: z.uuid(),
+  knowledgeItemId: z.uuid(),
+  projectId: z.uuid(),
+  type: z.literal("relates_to"),
+  inverseType: z.literal("relates_to"),
+  sourceKind: z.literal("knowledge_item"),
+  targetKind: z.literal("project"),
+  lifecycle: z.enum(["active", "archived"]),
+  provenance: z.literal("manual"),
+  actor: z.literal("local-user:unattributed"),
+  createdAt: z.iso.datetime({ offset: true }),
+  archivedAt: z.iso.datetime({ offset: true }).nullable(),
+});
+
+export const knowledgeProjectConnectionSchema = z.object({
+  link: knowledgeProjectLinkSchema,
+  project: projectSummarySchema,
+});
+
+export const listKnowledgeProjectConnectionsResponseSchema = z.object({
+  items: z.array(knowledgeProjectConnectionSchema),
+  nextCursor: z.uuid().nullable(),
+});
+
+export const knowledgeProjectAuditEventSchema = z.object({
+  id: z.uuid(),
+  knowledgeItemId: z.uuid(),
+  projectId: z.uuid(),
+  linkId: z.uuid(),
+  operation: z.enum(["knowledge.project_linked", "knowledge.project_unlinked"]),
+  actor: z.literal("local-user:unattributed"),
+  createdAt: z.iso.datetime({ offset: true }),
+});
+
+export const listKnowledgeProjectAuditResponseSchema = z.object({
+  items: z.array(knowledgeProjectAuditEventSchema),
+  nextCursor: z.uuid().nullable(),
 });
 
 export const reviseKnowledgeItemRequestSchema = z.strictObject({
@@ -1196,6 +1248,7 @@ export const evidenceReferenceSchema = z.object({
     "work_item_verification",
     "metric_sample",
     "knowledge_item",
+    "knowledge_project_link",
     "decision",
     "resource",
     "project_resource_link",
@@ -1492,6 +1545,7 @@ export const executionPacketSnapshotSchema = z.object({
       id: z.uuid(),
       title: z.string().min(1),
       evidence: evidenceReferenceSchema,
+      contextEvidence: evidenceReferenceSchema.optional(),
     }),
   ),
   selectedResources: z.array(
@@ -2109,6 +2163,16 @@ export type WorkItemAcceptanceRevision = z.infer<
 >;
 export type WorkItemVerification = z.infer<typeof workItemVerificationSchema>;
 export type KnowledgeItem = z.infer<typeof knowledgeItemSchema>;
+export type CreateKnowledgeProjectLinkRequest = z.infer<
+  typeof createKnowledgeProjectLinkRequestSchema
+>;
+export type KnowledgeProjectLink = z.infer<typeof knowledgeProjectLinkSchema>;
+export type KnowledgeProjectConnection = z.infer<
+  typeof knowledgeProjectConnectionSchema
+>;
+export type KnowledgeProjectAuditEvent = z.infer<
+  typeof knowledgeProjectAuditEventSchema
+>;
 export type WorkspaceKnowledgeItem = z.infer<
   typeof workspaceKnowledgeItemSchema
 >;

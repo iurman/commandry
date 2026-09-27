@@ -77,7 +77,9 @@ test("packet readiness schedules a scoped fake overnight run and links its morni
   ).toBeVisible();
   const due = new Date(Date.now() + 8000);
   const localDue = `${due.getFullYear()}-${String(due.getMonth() + 1).padStart(2, "0")}-${String(due.getDate()).padStart(2, "0")}T${String(due.getHours()).padStart(2, "0")}:${String(due.getMinutes()).padStart(2, "0")}:${String(due.getSeconds()).padStart(2, "0")}`;
-  await page.getByLabel("Run after (your local time)").fill(localDue);
+  await page
+    .getByLabel("Run after (your local time)")
+    .fill(localDue.endsWith(":00") ? localDue.slice(0, -3) : localDue);
   const scheduleResponsePromise = page.waitForResponse(
     (response) =>
       response.url().endsWith("/api/v1/overnight") &&

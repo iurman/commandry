@@ -16,6 +16,7 @@ test("a domain groups a project through a typed link and appears in the evidence
 
   await page.goto("/projects");
   await page.getByRole("link", { name: "Browse portfolio domains" }).click();
+  await expect(page.getByText("Loading domains...")).toHaveCount(0);
   await page.getByLabel("Name").fill(`Home ${suffix}`);
   await page.getByLabel("Description").fill("Local home responsibility area");
   const createResponsePromise = page.waitForResponse(

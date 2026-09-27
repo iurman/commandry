@@ -9,6 +9,36 @@ const projectId = "0ef5d360-5d30-4863-a148-b4e4ba020101";
 const captureId = "7cb8f86e-a063-4658-8d5e-0cc3678ca2a7";
 const at = "2026-09-25T10:00:00.000Z";
 
+function responseFor(path: string, content: string) {
+  const body =
+    path.includes("/revisions") ||
+    path.includes("/projects?") ||
+    path.includes("/project-audit?")
+      ? { items: [], nextCursor: null }
+      : path === `/api/v1/projects/${projectId}`
+        ? {
+            id: projectId,
+            name: "Venue project",
+            summary: null,
+            type: "general",
+            lifecycle: "active",
+            createdAt: at,
+            updatedAt: at,
+          }
+        : {
+            id: noteId,
+            projectId,
+            sourceCaptureId: captureId,
+            kind: "note",
+            title: "Venue note",
+            content,
+            version: 1,
+            createdAt: at,
+            updatedAt: at,
+          };
+  return new Response(JSON.stringify(body), { status: 200 });
+}
+
 afterEach(() => {
   cleanup();
   vi.unstubAllGlobals();
@@ -18,26 +48,8 @@ describe("Knowledge note detail", () => {
   it("shows the saved note and exact original capture link", async () => {
     vi.stubGlobal(
       "fetch",
-      vi.fn(
-        async (path: string) =>
-          new Response(
-            JSON.stringify(
-              path.includes("/revisions")
-                ? { items: [], nextCursor: null }
-                : {
-                    id: noteId,
-                    projectId,
-                    sourceCaptureId: captureId,
-                    kind: "note",
-                    title: "Venue note",
-                    content: "West door access.\nKeep the original note.",
-                    version: 1,
-                    createdAt: at,
-                    updatedAt: at,
-                  },
-            ),
-            { status: 200 },
-          ),
+      vi.fn(async (path: string) =>
+        responseFor(path, "West door access.\nKeep the original note."),
       ),
     );
     render(<KnowledgeItemWorkspace knowledgeItemId={noteId} />);
@@ -56,32 +68,13 @@ describe("Knowledge note detail", () => {
     expect(
       screen.getByRole("link", { name: "Project" }).getAttribute("href"),
     ).toBe(`/projects/${projectId}`);
+    expect(await screen.findByText(/Primary project:/)).toBeTruthy();
   });
 
   it("shows an empty saved body explicitly", async () => {
     vi.stubGlobal(
       "fetch",
-      vi.fn(
-        async (path: string) =>
-          new Response(
-            JSON.stringify(
-              path.includes("/revisions")
-                ? { items: [], nextCursor: null }
-                : {
-                    id: noteId,
-                    projectId,
-                    sourceCaptureId: captureId,
-                    kind: "note",
-                    title: "Venue note",
-                    content: "",
-                    version: 1,
-                    createdAt: at,
-                    updatedAt: at,
-                  },
-            ),
-            { status: 200 },
-          ),
-      ),
+      vi.fn(async (path: string) => responseFor(path, "")),
     );
     render(<KnowledgeItemWorkspace knowledgeItemId={noteId} />);
     expect(await screen.findByText("No note body was recorded.")).toBeTruthy();
