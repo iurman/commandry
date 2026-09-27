@@ -36,6 +36,16 @@ export function localComposeSourceVariables(source) {
   };
 }
 
+export function imageLabelsMatchSource(labels, source) {
+  return (
+    labels !== null &&
+    typeof labels === "object" &&
+    labels["org.opencontainers.image.revision"] === source.revision &&
+    labels["org.commandry.source.clean"] === "true" &&
+    source.clean
+  );
+}
+
 export function runtimeWithLocalSource(runtime, variables) {
   if (runtime.command !== "flatpak-spawn") return runtime;
   return {

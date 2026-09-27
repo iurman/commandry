@@ -156,6 +156,12 @@ Local Docker Compose plus Playwright is the default preview because it exercises
 the actual production image and worker. A remote preview is optional, not a
 prerequisite for every change.
 
+For a clean committed checkout, `pnpm compose:up` verifies the shared local
+image's revision and clean-state labels after the build. If the local container
+builder reuses a stale label layer, the wrapper rebuilds that image without
+cache, restarts the local services, and checks the labels again. The release
+preflight separately verifies the running version and stores immutable evidence.
+
 Two remote preview shapes are permitted after automation exists:
 
 1. a separate, resource-limited Compose project with a generated hostname and

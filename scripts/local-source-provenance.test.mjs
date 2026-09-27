@@ -1,6 +1,7 @@
 import assert from "node:assert/strict";
 import { test } from "node:test";
 import {
+  imageLabelsMatchSource,
   localComposeSourceVariables,
   parseGitSourceState,
   runtimeWithLocalSource,
@@ -16,6 +17,30 @@ test("a clean Git checkout has a verifiable source revision", () => {
     ),
     { revision, clean: true },
   );
+});
+
+test("a cached image must carry the exact clean source labels", () => {
+  const labels = {
+    "org.opencontainers.image.revision": revision,
+    "org.commandry.source.clean": "true",
+  };
+  assert.equal(imageLabelsMatchSource(labels, { revision, clean: true }), true);
+  assert.equal(
+    imageLabelsMatchSource(labels, { revision, clean: false }),
+    false,
+  );
+  assert.equal(
+    imageLabelsMatchSource(
+      { ...labels, "org.commandry.source.clean": "false" },
+      { revision, clean: true },
+    ),
+    false,
+  );
+  assert.equal(
+    imageLabelsMatchSource(labels, { revision: "b".repeat(40), clean: true }),
+    false,
+  );
+  assert.equal(imageLabelsMatchSource(null, { revision, clean: true }), false);
 });
 
 test("tracked and untracked changes mark a local build as dirty", () => {

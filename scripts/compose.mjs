@@ -2,6 +2,7 @@ import { existsSync } from "node:fs";
 import { detectContainerRuntime, runContainer } from "./container-runtime.mjs";
 import {
   getLocalSourceState,
+  imageLabelsMatchSource,
   localComposeSourceVariables,
   runtimeWithLocalSource,
 } from "./local-source-provenance.mjs";
@@ -26,7 +27,6 @@ if (!runtime) {
 }
 
 const args = ["compose", "--env-file", ".env.local", "-f", "compose.yaml"];
-args.push(...(action === "up" ? ["up", "--build", "-d", "--wait"] : ["down"]));
 let source = null;
 try {
   if (action === "up") source = getLocalSourceState();
@@ -40,9 +40,63 @@ const overrides = source ? localComposeSourceVariables(source) : {};
 const hostRuntime = source
   ? runtimeWithLocalSource(runtime, overrides)
   : runtime;
-const result = runContainer(hostRuntime, args, {
-  stdio: "inherit",
-  env: { ...process.env, ...overrides },
-});
-if (result.error) console.error(`Compose failed: ${result.error.message}`);
-process.exit(result.status ?? 1);
+const hostEnvironment = { ...process.env, ...overrides };
+
+function runCompose(operation) {
+  const result = runContainer(hostRuntime, [...args, ...operation], {
+    stdio: "inherit",
+    env: hostEnvironment,
+  });
+  if (result.error) console.error(`Compose failed: ${result.error.message}`);
+  if (result.status !== 0) process.exit(result.status ?? 1);
+}
+
+function imageMatchesCleanSource() {
+  if (!source?.clean) return false;
+  const result = runContainer(
+    hostRuntime,
+    [
+      "image",
+      "inspect",
+      `commandry-local:${source.revision}`,
+      "--format",
+      "{{json .Labels}}",
+    ],
+    { encoding: "utf8", timeout: 15_000 },
+  );
+  if (result.error || result.status !== 0) return false;
+  try {
+    return imageLabelsMatchSource(JSON.parse(result.stdout), source);
+  } catch {
+    return false;
+  }
+}
+
+function requireUnchangedCleanSource() {
+  const current = getLocalSourceState();
+  if (!current.clean || current.revision !== source?.revision) {
+    console.error("The committed source changed during the Compose build.");
+    process.exit(1);
+  }
+}
+
+if (action === "down") {
+  runCompose(["down"]);
+} else if (source?.clean) {
+  runCompose(["build", "web"]);
+  requireUnchangedCleanSource();
+  if (!imageMatchesCleanSource()) {
+    console.error(
+      "The cached image has different source labels. Rebuilding the shared local image without cache.",
+    );
+    runCompose(["build", "--no-cache", "web"]);
+    requireUnchangedCleanSource();
+    if (!imageMatchesCleanSource()) {
+      console.error("The rebuilt image still lacks clean source labels.");
+      process.exit(1);
+    }
+  }
+  runCompose(["up", "--no-build", "-d", "--wait"]);
+} else {
+  runCompose(["up", "--build", "-d", "--wait"]);
+}
