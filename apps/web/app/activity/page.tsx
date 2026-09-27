@@ -711,6 +711,9 @@ export default function ActivityPage() {
                 <p>
                   Occurrence ID: <code>{activeImport.occurrenceId}</code>
                 </p>
+                <a href={`/flow-replay/${activeImport.id}`}>
+                  Replay persisted synthetic flow
+                </a>
                 <a
                   href={`/api/v1/source-envelopes/${encodeURIComponent(activeImport.sourceEnvelopeId)}`}
                 >

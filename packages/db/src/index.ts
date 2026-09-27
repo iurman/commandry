@@ -6,6 +6,7 @@ export * from "./repositories";
 export * from "./catalog-repository";
 export * from "./capture-repository";
 export * from "./synthetic-event-repository";
+export * from "./synthetic-flow-replay-repository";
 export * from "./record-detail-repository";
 export * from "./brief-repository";
 export * from "./execution-packet-repository";

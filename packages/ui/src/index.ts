@@ -25,6 +25,8 @@ export { AutomationCard } from "./components/AutomationCard";
 export { AutomationEvidenceCheckCard } from "./components/AutomationEvidenceCheckCard";
 export { LocalAttentionSignalCard } from "./components/LocalAttentionSignalCard";
 export type { LocalAttentionSignalView } from "./components/LocalAttentionSignalCard";
+export { SyntheticFlowTimeline } from "./components/SyntheticFlowTimeline";
+export type { SyntheticFlowStageView } from "./components/SyntheticFlowTimeline";
 export { DomainCard } from "./components/DomainCard";
 export { SystemCard } from "./components/SystemCard";
 export { OvernightQueueCard } from "./components/OvernightQueueCard";

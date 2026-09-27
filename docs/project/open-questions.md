@@ -128,6 +128,13 @@ run's messages and handoffs or one correlation chain—before building a univers
 live graph. Define aggregation, replay, freshness, privacy, and list/timeline
 fallback behavior.
 
+The local MVP now uses one synthetic fixture import as a bounded historical
+replay. Its ordered list cites the stored envelope, worker attempts, normalized
+event, metric, alert evidence, and directly linked automation runs. It shows
+source occurrence separately from Commandry recording time and never claims a
+live flow. This is a provisional accessible timeline, not a choice of live
+transport, aggregation policy, universal graph, or cross-system correlation.
+
 ### OQ-020: Which conditional automation rules belong in the first release?
 
 The local fixture rule uses a per-definition availability threshold, fires on

@@ -2947,3 +2947,57 @@ textarea {
     grid-template-columns: minmax(0, 1fr);
   }
 }
+
+.cmd-flow-timeline {
+  list-style: none;
+  margin: var(--cmd-space-4) 0;
+  padding: 0 0 0 var(--cmd-space-4);
+  border-left: 2px solid var(--cmd-border);
+  display: grid;
+  gap: var(--cmd-space-4);
+}
+
+.cmd-flow-stage {
+  min-width: 0;
+  position: relative;
+}
+
+.cmd-flow-stage::before {
+  content: "";
+  position: absolute;
+  left: calc(-1 * var(--cmd-space-4) - 0.37rem);
+  top: var(--cmd-space-4);
+  width: 0.65rem;
+  height: 0.65rem;
+  border-radius: 50%;
+  background: var(--cmd-accent);
+}
+
+.cmd-flow-stage article {
+  min-width: 0;
+  padding: var(--cmd-space-4);
+  border: 1px solid var(--cmd-border);
+  border-radius: var(--cmd-radius);
+  background: var(--cmd-surface);
+  overflow-wrap: anywhere;
+}
+
+.cmd-flow-stage h3 {
+  margin: var(--cmd-space-2) 0;
+}
+
+.cmd-flow-stage-times {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--cmd-space-4);
+}
+
+.cmd-flow-stage-times dt {
+  color: var(--cmd-text-muted);
+  font-size: 0.75rem;
+}
+
+.cmd-flow-stage-times dd {
+  margin: var(--cmd-space-1) 0 0;
+  overflow-wrap: anywhere;
+}

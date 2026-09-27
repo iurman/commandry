@@ -250,6 +250,8 @@ import {
   syntheticAlertSchema,
   syntheticEventImportJobV1Schema,
   syntheticEventImportSchema,
+  syntheticFlowReplaySchema,
+  syntheticFlowReplayStageSchema,
   syntheticRunSchema,
   versionResponseSchema,
   workItemSchema,
@@ -3556,6 +3558,31 @@ export function generateOpenApi(): string {
           },
         },
       },
+      "/api/v1/synthetic-event-imports/{id}/replay": {
+        get: {
+          operationId: "getSyntheticFlowReplay",
+          summary: "Replay one persisted synthetic import correlation chain",
+          parameters: [idParameter, ...pageParameters],
+          responses: {
+            "200": {
+              description: "Historical replay with exact linked records",
+              content: jsonContent("SyntheticFlowReplay"),
+            },
+            "400": {
+              description: "Invalid query or replay cursor",
+              content: jsonContent("ErrorResponse"),
+            },
+            "403": {
+              description: "Replay is local and test only",
+              content: jsonContent("ErrorResponse"),
+            },
+            "404": {
+              description: "Import not found",
+              content: jsonContent("ErrorResponse"),
+            },
+          },
+        },
+      },
       "/api/v1/events": {
         get: {
           operationId: "listNormalizedEvents",
@@ -4208,6 +4235,8 @@ export function generateOpenApi(): string {
         ),
         SyntheticEventImportJobV1: component(syntheticEventImportJobV1Schema),
         SyntheticEventImport: component(syntheticEventImportSchema),
+        SyntheticFlowReplay: component(syntheticFlowReplaySchema),
+        SyntheticFlowReplayStage: component(syntheticFlowReplayStageSchema),
         ListSyntheticEventImportsResponse: component(
           listSyntheticEventImportsResponseSchema,
         ),

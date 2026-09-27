@@ -4,6 +4,7 @@ export * from "./knowledge-project-context";
 export * from "./work-project-context";
 export * from "./capture";
 export * from "./synthetic-events";
+export * from "./synthetic-flow-replay";
 export * from "./project-brief";
 export * from "./execution-packet";
 export * from "./local-agent-policy";

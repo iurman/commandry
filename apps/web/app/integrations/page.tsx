@@ -472,6 +472,9 @@ export default function IntegrationsPage() {
             <p className="cmd-inline-state cmd-error">{receipt.error}</p>
           )}
           <p className="cmd-record-identity">
+            <a href={`/flow-replay/${receipt.id}`}>
+              Replay persisted synthetic flow
+            </a>
             <a href={`/api/v1/source-envelopes/${receipt.sourceEnvelopeId}`}>
               Original synthetic envelope
             </a>
@@ -759,6 +762,10 @@ export default function IntegrationsPage() {
                         {entry.scenarioId} / {entry.state} / observed{" "}
                         {new Date(entry.occurredAt).toLocaleString()} / received{" "}
                         {new Date(entry.receivedAt).toLocaleString()}
+                        {" · "}
+                        <a href={`/flow-replay/${entry.id}`}>
+                          Replay synthetic flow
+                        </a>
                         {" · "}
                         <a
                           href={`/api/v1/source-envelopes/${entry.sourceEnvelopeId}`}

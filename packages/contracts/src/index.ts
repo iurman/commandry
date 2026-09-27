@@ -1508,6 +1508,40 @@ export const listSyntheticEventImportsQuerySchema =
     integrationInstanceId: z.uuid().optional(),
   });
 
+export const syntheticFlowReplayStageSchema = z.object({
+  id: z.string().min(1),
+  kind: z.enum([
+    "import_queued",
+    "source_received",
+    "attempt_started",
+    "attempt_completed",
+    "event_projected",
+    "metric_projected",
+    "alert_evidence",
+    "import_completed",
+    "automation_queued",
+  ]),
+  title: z.string().min(1),
+  detail: z.string().min(1),
+  recordedAt: z.iso.datetime({ offset: true }),
+  occurredAt: z.iso.datetime({ offset: true }).nullable(),
+  href: z.string().startsWith("/").nullable(),
+  isSynthetic: z.literal(true),
+});
+export const syntheticFlowReplayQuerySchema = listResourcesQuerySchema;
+export const syntheticFlowReplaySchema = z.object({
+  mode: z.literal("historical_replay"),
+  importId: z.uuid(),
+  projectId: z.uuid(),
+  scenarioId: syntheticScenarioIdSchema,
+  importState: z.enum(["queued", "running", "succeeded", "failed"]),
+  sourceLabel: syntheticSourceLabelSchema,
+  generatedAt: z.iso.datetime({ offset: true }),
+  stages: z.array(syntheticFlowReplayStageSchema),
+  nextCursor: z.uuid().nullable(),
+  isSynthetic: z.literal(true),
+});
+
 export const sourceEnvelopeSchema = z.object({
   id: z.uuid(),
   importId: z.uuid(),
@@ -2820,6 +2854,10 @@ export type SyntheticEventImportJobV1 = z.infer<
 >;
 export type SyntheticEventImportRecord = z.infer<
   typeof syntheticEventImportSchema
+>;
+export type SyntheticFlowReplay = z.infer<typeof syntheticFlowReplaySchema>;
+export type SyntheticFlowReplayStage = z.infer<
+  typeof syntheticFlowReplayStageSchema
 >;
 export type SourceEnvelopeRecord = z.infer<typeof sourceEnvelopeSchema>;
 export type NormalizedSyntheticEvent = z.infer<typeof normalizedEventSchema>;
