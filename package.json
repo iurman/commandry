@@ -23,6 +23,8 @@
     "build": "pnpm --filter @commandry/worker build && pnpm --filter @commandry/web build",
     "compose:up": "node scripts/compose.mjs up",
     "compose:down": "node scripts/compose.mjs down",
+    "recovery:rehearse": "node scripts/rehearse-recovery.mjs",
+    "production:config:check": "node scripts/check-production-config.mjs",
     "lab": "pnpm --filter @commandry/lab dev",
     "lab:check": "pnpm --filter @commandry/lab typecheck && node scripts/check-lab.mjs",
     "preview:lan": "node scripts/lan-preview.mjs",

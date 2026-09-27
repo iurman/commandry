@@ -1,0 +1,7 @@
+# Only reachable from the private Compose network through the named Tunnel.
+:80 {
+    encode zstd gzip
+    reverse_proxy web:3000 {
+        header_up X-Forwarded-Proto https
+    }
+}

@@ -1,0 +1,133 @@
+# Unactivated production topology. See deploy/README.md and OQ-003 before use.
+name: commandry
+
+x-app: &app
+  image: ${COMMANDRY_IMAGE:?Set an approved immutable Commandry image digest}
+  init: true
+  restart: unless-stopped
+
+x-runtime-env: &runtime-env
+  APP_ENV: production
+  APP_ORIGIN: ${APP_ORIGIN:?Set the canonical HTTPS origin}
+  DATABASE_URL: ${DATABASE_URL:?Set the application database URL}
+  BETTER_AUTH_SECRET: ${BETTER_AUTH_SECRET:?Set the auth secret}
+  APP_ENCRYPTION_KEY: ${APP_ENCRYPTION_KEY:?Set the encryption key}
+  INITIAL_ADMIN_EMAIL: ${INITIAL_ADMIN_EMAIL:?Set the approved admin identity}
+  RELEASE_SHA: ${RELEASE_SHA:?Set the approved revision}
+  RELEASE_IMAGE_DIGEST: ${COMMANDRY_IMAGE:?Set the approved image digest}
+  RELEASE_BUILD_TIME: ${RELEASE_BUILD_TIME:?Set the release build time}
+  DB_POOL_MAX: ${DB_POOL_MAX:-5}
+  BOSS_POOL_MAX: ${BOSS_POOL_MAX:-5}
+
+services:
+  postgres:
+    image: pgvector/pgvector:0.8.6-pg18-trixie@sha256:78bf48b801e792f99e3ac62b5036fd3876e9be48afda16c1e331af1c75ceb2ff
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: postgres
+      POSTGRES_DB: ${DB_NAME:?Set the PostgreSQL database name}
+      POSTGRES_PASSWORD: ${DB_ROOT_PASSWORD:?Set the PostgreSQL root password}
+      POSTGRES_INITDB_ARGS: --auth-host=scram-sha-256
+      DB_NAME: ${DB_NAME:?Set the PostgreSQL database name}
+      DB_APP_PASSWORD: ${DB_APP_PASSWORD:?Set the application role password}
+      DB_MIGRATION_PASSWORD: ${DB_MIGRATION_PASSWORD:?Set the migration role password}
+    volumes:
+      - postgres_data:/var/lib/postgresql
+      - ./docker/postgres/initdb:/docker-entrypoint-initdb.d:ro
+    healthcheck:
+      test:
+        [
+          "CMD-SHELL",
+          'pg_isready -h 127.0.0.1 -U postgres -d "$${POSTGRES_DB}"',
+        ]
+      interval: 10s
+      timeout: 5s
+      retries: 12
+      start_period: 30s
+
+  migrate:
+    <<: *app
+    command: ["node", "apps/worker/dist/migrate.js"]
+    restart: "no"
+    environment:
+      <<: *runtime-env
+      DATABASE_MIGRATION_URL: ${DATABASE_MIGRATION_URL:?Set the migration database URL}
+    depends_on:
+      postgres:
+        condition: service_healthy
+
+  web:
+    <<: *app
+    command: ["node", "apps/web/server.js"]
+    environment:
+      <<: *runtime-env
+    depends_on:
+      migrate:
+        condition: service_completed_successfully
+    healthcheck:
+      test:
+        [
+          "CMD",
+          "node",
+          "-e",
+          "fetch('http://127.0.0.1:3000/health/ready').then(r => process.exit(r.ok ? 0 : 1)).catch(() => process.exit(1))",
+        ]
+      interval: 10s
+      timeout: 5s
+      retries: 12
+      start_period: 30s
+
+  worker:
+    <<: *app
+    command: ["node", "apps/worker/dist/index.js"]
+    environment:
+      <<: *runtime-env
+    depends_on:
+      migrate:
+        condition: service_completed_successfully
+    healthcheck:
+      test:
+        - CMD
+        - node
+        - -e
+        - >-
+          const { Client } = require('./apps/worker/node_modules/pg');
+          (async () => {
+            const client = new Client({ connectionString: process.env.DATABASE_URL, connectionTimeoutMillis: 2000 });
+            try {
+              await client.connect();
+              const result = await client.query("SELECT EXISTS (SELECT 1 FROM worker_heartbeat WHERE seen_at > now() - interval '30 seconds') AS healthy");
+              process.exitCode = result.rows[0]?.healthy ? 0 : 1;
+            } catch {
+              process.exitCode = 1;
+            } finally {
+              await client.end().catch(() => {});
+            }
+          })();
+      interval: 10s
+      timeout: 5s
+      retries: 6
+      start_period: 30s
+
+  caddy:
+    image: ${CADDY_IMAGE:?Set an approved immutable Caddy image digest}
+    restart: unless-stopped
+    volumes:
+      - ./deploy/Caddyfile:/etc/caddy/Caddyfile:ro
+    depends_on:
+      web:
+        condition: service_healthy
+
+  cloudflared:
+    image: ${CLOUDFLARED_IMAGE:?Set an approved immutable cloudflared image digest}
+    restart: unless-stopped
+    command: ["tunnel", "--config", "/etc/cloudflared/config.yml", "run"]
+    volumes:
+      - /etc/commandry/cloudflared:/etc/cloudflared:ro
+    depends_on:
+      caddy:
+        condition: service_started
+
+volumes:
+  postgres_data:
+    name: ${PRODUCTION_DB_VOLUME_NAME:?Set a durable VPS volume name}

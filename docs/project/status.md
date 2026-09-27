@@ -143,6 +143,16 @@ authentication is complete. There is no production deployment.
   disabled or overlapping crossing is audited as skipped. This condition uses
   only fixture imports and cannot operate on live monitoring data or take an
   external action.
+- A local PostgreSQL recovery command now restores the application schema into
+  disposable databases, seeds an original capture fixture, creates a logical
+  backup, restores it, and compares public table counts and capture bytes. An
+  immutable, cursor-paged record exposes the result and exact digests in the
+  Infrastructure UI and versioned API. The local rehearsal does not verify
+  offsite storage, a VPS restore, or production readiness. An unactivated
+  production Compose template describes web, worker, migrate, PostgreSQL,
+  Caddy, and outbound Tunnel services with one required app image digest and
+  no published application or database port; production startup remains gated
+  by OQ-003 and the deployment prerequisites.
 - Work items have project-scoped, typed parent/subtask and blocking links with
   cycle prevention, audit-preserving archive, cursor-paged inverse views, and
   a responsive editor. Open blockers appear with exact relationship evidence

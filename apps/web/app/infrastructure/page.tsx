@@ -247,6 +247,11 @@ export default function InfrastructurePage() {
               Browse operated systems and their supporting resources
             </a>
           </p>
+          <p className="cmd-record-identity">
+            <a href="/infrastructure/recovery">
+              Review local recovery evidence and production gates
+            </a>
+          </p>
         </div>
         <span className="cmd-headline-mark" aria-hidden="true">
           03 / Connect

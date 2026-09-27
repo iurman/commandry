@@ -26,6 +26,9 @@ import {
   workRecurrenceAuditEventSchema,
   listWorkRecurrenceAuditResponseSchema,
   workRecurrenceJobV1Schema,
+  localRecoveryDrillSchema,
+  listLocalRecoveryDrillsResponseSchema,
+  localRecoveryStatusSchema,
   workItemPlanningEventSchema,
   listWorkItemPlanningEventsResponseSchema,
   listUpcomingWorkResponseSchema,
@@ -721,6 +724,48 @@ export function generateOpenApi(): string {
                   schema: { $ref: "#/components/schemas/VersionResponse" },
                 },
               },
+            },
+          },
+        },
+      },
+      "/api/v1/local-recovery-status": {
+        get: {
+          operationId: "getLocalRecoveryStatus",
+          summary:
+            "Read local restore rehearsal status and unverified production gates",
+          responses: {
+            "200": {
+              description: "Local evidence and production gate status",
+              content: jsonContent("LocalRecoveryStatus"),
+            },
+          },
+        },
+      },
+      "/api/v1/local-recovery-drills": {
+        get: {
+          operationId: "listLocalRecoveryDrills",
+          summary: "Page immutable local restore rehearsal records",
+          parameters: pageParameters,
+          responses: {
+            "200": {
+              description: "Local restore rehearsal history",
+              content: jsonContent("ListLocalRecoveryDrillsResponse"),
+            },
+          },
+        },
+      },
+      "/api/v1/local-recovery-drills/{id}": {
+        get: {
+          operationId: "getLocalRecoveryDrill",
+          parameters: [idParameter],
+          responses: {
+            "200": {
+              description: "An immutable local restore rehearsal record",
+              content: jsonContent("LocalRecoveryDrill"),
+            },
+            "404": {
+              description: "Record not found",
+              content: jsonContent("ErrorResponse"),
             },
           },
         },
@@ -3450,6 +3495,11 @@ export function generateOpenApi(): string {
           listWorkRecurrenceAuditResponseSchema,
         ),
         WorkRecurrenceJobV1: component(workRecurrenceJobV1Schema),
+        LocalRecoveryDrill: component(localRecoveryDrillSchema),
+        ListLocalRecoveryDrillsResponse: component(
+          listLocalRecoveryDrillsResponseSchema,
+        ),
+        LocalRecoveryStatus: component(localRecoveryStatusSchema),
         WorkItemPlanningEvent: component(workItemPlanningEventSchema),
         ListWorkItemPlanningEventsResponse: component(
           listWorkItemPlanningEventsResponseSchema,

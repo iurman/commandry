@@ -2930,6 +2930,53 @@ export const workerHeartbeat = pgTable("worker_heartbeat", {
   seenAt: timestamp("seen_at", { withTimezone: true }).notNull(),
 });
 
+export const localRecoveryDrill = pgTable(
+  "local_recovery_drill",
+  {
+    id: uuid("id").primaryKey(),
+    environment: text("environment").notNull().default("local"),
+    sourceLabel: text("source_label")
+      .notNull()
+      .default("Local disposable PostgreSQL restore rehearsal"),
+    outcome: text("outcome", { enum: ["passed", "failed"] }).notNull(),
+    sourceSchemaTableCount: integer("source_schema_table_count")
+      .notNull()
+      .default(0),
+    restoredSchemaTableCount: integer("restored_schema_table_count")
+      .notNull()
+      .default(0),
+    sourceCaptureSha256: text("source_capture_sha256"),
+    restoredCaptureSha256: text("restored_capture_sha256"),
+    backupSha256: text("backup_sha256"),
+    errorCode: text("error_code"),
+    startedAt: timestamp("started_at", { withTimezone: true }).notNull(),
+    completedAt: timestamp("completed_at", { withTimezone: true }).notNull(),
+  },
+  (table) => [
+    index("local_recovery_drill_page_idx").on(table.completedAt, table.id),
+    check(
+      "local_recovery_drill_local_only",
+      sql`${table.environment} = 'local'`,
+    ),
+    check(
+      "local_recovery_drill_source_label_valid",
+      sql`${table.sourceLabel} = 'Local disposable PostgreSQL restore rehearsal'`,
+    ),
+    check(
+      "local_recovery_drill_outcome_valid",
+      sql`${table.outcome} in ('passed', 'failed')`,
+    ),
+    check(
+      "local_recovery_drill_counts_valid",
+      sql`${table.sourceSchemaTableCount} >= 0 and ${table.restoredSchemaTableCount} >= 0`,
+    ),
+    check(
+      "local_recovery_drill_result_valid",
+      sql`${table.outcome} <> 'passed' or (${table.sourceSchemaTableCount} > 0 and ${table.sourceSchemaTableCount} = ${table.restoredSchemaTableCount} and ${table.sourceCaptureSha256} ~ '^[0-9a-f]{64}$' and ${table.sourceCaptureSha256} = ${table.restoredCaptureSha256} and ${table.backupSha256} ~ '^[0-9a-f]{64}$' and ${table.errorCode} is null)`,
+    ),
+  ],
+);
+
 export const syntheticRunRelations = relations(
   syntheticRun,
   ({ many, one }) => ({

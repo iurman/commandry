@@ -667,6 +667,58 @@ export const workRecurrenceJobV1Schema = z.strictObject({
   definitionId: z.uuid(),
 });
 
+export const localRecoveryDrillSchema = z.object({
+  id: z.uuid(),
+  environment: z.literal("local"),
+  sourceLabel: z.literal("Local disposable PostgreSQL restore rehearsal"),
+  outcome: z.enum(["passed", "failed"]),
+  sourceSchemaTableCount: z.number().int().nonnegative(),
+  restoredSchemaTableCount: z.number().int().nonnegative(),
+  sourceCaptureSha256: z
+    .string()
+    .regex(/^[0-9a-f]{64}$/)
+    .nullable(),
+  restoredCaptureSha256: z
+    .string()
+    .regex(/^[0-9a-f]{64}$/)
+    .nullable(),
+  backupSha256: z
+    .string()
+    .regex(/^[0-9a-f]{64}$/)
+    .nullable(),
+  errorCode: z.string().nullable(),
+  startedAt: z.iso.datetime({ offset: true }),
+  completedAt: z.iso.datetime({ offset: true }),
+});
+
+export const listLocalRecoveryDrillsResponseSchema = z.object({
+  items: z.array(localRecoveryDrillSchema),
+  nextCursor: z.uuid().nullable(),
+});
+
+export const listLocalRecoveryDrillsQuerySchema = z.object({
+  limit: z.coerce.number().int().min(1).max(100).default(20),
+  cursor: z.uuid().optional(),
+});
+
+export const localRecoveryStatusSchema = z.object({
+  environment: z.literal("local"),
+  localRehearsal: z.enum(["not_run", "passed", "failed"]),
+  latestDrill: localRecoveryDrillSchema.nullable(),
+  productionReady: z.literal(false),
+  productionGates: z.array(
+    z.object({
+      code: z.enum([
+        "vps_inventory",
+        "offsite_backup_restore",
+        "deployment_control",
+        "human_sign_in_recovery",
+      ]),
+      status: z.literal("unverified"),
+    }),
+  ),
+});
+
 export const workItemPlanningEventSchema = z.object({
   id: z.uuid(),
   workItemId: z.uuid(),
@@ -2380,6 +2432,8 @@ export type WorkRecurrenceAuditEvent = z.infer<
   typeof workRecurrenceAuditEventSchema
 >;
 export type WorkRecurrenceJobV1 = z.infer<typeof workRecurrenceJobV1Schema>;
+export type LocalRecoveryDrill = z.infer<typeof localRecoveryDrillSchema>;
+export type LocalRecoveryStatus = z.infer<typeof localRecoveryStatusSchema>;
 export type ChangeWorkItemStatusRequest = z.infer<
   typeof changeWorkItemStatusRequestSchema
 >;

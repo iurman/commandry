@@ -260,6 +260,13 @@
       "when": 1790490009680,
       "tag": "0036_wandering_justice",
       "breakpoints": true
+    },
+    {
+      "idx": 37,
+      "version": "7",
+      "when": 1790492218783,
+      "tag": "0037_square_boom_boom",
+      "breakpoints": true
     }
   ]
 }

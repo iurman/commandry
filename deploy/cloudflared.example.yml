@@ -1,0 +1,7 @@
+# Copy to the root-owned /etc/commandry/cloudflared/config.yml after the gates pass.
+tunnel: REPLACE_WITH_NAMED_TUNNEL_ID
+credentials-file: /etc/cloudflared/credentials.json
+ingress:
+  - hostname: commandry.site
+    service: http://caddy:80
+  - service: http_status:404
