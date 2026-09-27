@@ -685,6 +685,98 @@ export const workItemAttachment = pgTable(
   ],
 );
 
+export const workItemAcceptance = pgTable(
+  "work_item_acceptance",
+  {
+    workItemId: uuid("work_item_id")
+      .primaryKey()
+      .references(() => workItem.id, { onDelete: "restrict" }),
+    criteria: text("criteria").notNull(),
+    version: integer("version").notNull(),
+    updatedAt: updatedAt(),
+  },
+  (table) => [
+    check("work_item_acceptance_version_positive", sql`${table.version} > 0`),
+    check(
+      "work_item_acceptance_criteria_length",
+      sql`length(${table.criteria}) <= 10000`,
+    ),
+  ],
+);
+
+export const workItemAcceptanceRevision = pgTable(
+  "work_item_acceptance_revision",
+  {
+    id: uuid("id").primaryKey(),
+    workItemId: uuid("work_item_id")
+      .notNull()
+      .references(() => workItem.id, { onDelete: "restrict" }),
+    version: integer("version").notNull(),
+    criteria: text("criteria").notNull(),
+    actor: text("actor").notNull(),
+    createdAt: createdAt(),
+  },
+  (table) => [
+    uniqueIndex("work_item_acceptance_revision_version_idx").on(
+      table.workItemId,
+      table.version,
+    ),
+    check(
+      "work_item_acceptance_revision_version_positive",
+      sql`${table.version} > 0`,
+    ),
+    check(
+      "work_item_acceptance_revision_actor_local",
+      sql`${table.actor} = 'local-user:unattributed'`,
+    ),
+  ],
+);
+
+export const workItemVerification = pgTable(
+  "work_item_verification",
+  {
+    id: uuid("id").primaryKey(),
+    workItemId: uuid("work_item_id")
+      .notNull()
+      .references(() => workItem.id, { onDelete: "restrict" }),
+    acceptanceVersion: integer("acceptance_version").notNull(),
+    attachmentId: uuid("attachment_id")
+      .notNull()
+      .references(() => workItemAttachment.id, { onDelete: "restrict" }),
+    documentTitle: text("document_title").notNull(),
+    sourceCaptureId: uuid("source_capture_id")
+      .notNull()
+      .references(() => capture.id, { onDelete: "restrict" }),
+    result: text("result", { enum: ["met", "not_met"] }).notNull(),
+    note: text("note").notNull(),
+    actor: text("actor").notNull(),
+    createdAt: createdAt(),
+  },
+  (table) => [
+    index("work_item_verification_page_idx").on(
+      table.workItemId,
+      table.createdAt,
+      table.id,
+    ),
+    check(
+      "work_item_verification_result_valid",
+      sql`${table.result} in ('met', 'not_met')`,
+    ),
+    check(
+      "work_item_verification_note_length",
+      sql`length(${table.note}) <= 5000`,
+    ),
+    check(
+      "work_item_verification_acceptance_version_positive",
+      sql`${table.acceptanceVersion} > 0`,
+    ),
+    check(
+      "work_item_verification_actor_local",
+      sql`${table.actor} = 'local-user:unattributed'`,
+    ),
+  ],
+);
+
 export const knowledgeItemRevision = pgTable(
   "knowledge_item_revision",
   {

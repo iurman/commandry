@@ -12,6 +12,7 @@ import {
 } from "../../projects/api";
 import WorkDiscussion from "./WorkDiscussion";
 import WorkAttachments from "./WorkAttachments";
+import WorkAcceptance from "./WorkAcceptance";
 import WorkRelationships from "./WorkRelationships";
 
 interface WorkItemRecord {
@@ -536,6 +537,7 @@ export default function WorkItemWorkspace({
 
           <WorkRelationships workItemId={item.id} projectId={item.projectId} />
           <WorkAttachments workItemId={item.id} projectId={item.projectId} />
+          <WorkAcceptance workItemId={item.id} status={item.status} />
           <WorkDiscussion workItemId={item.id} />
 
           <section

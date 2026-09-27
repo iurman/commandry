@@ -25,6 +25,20 @@ import {
 
 export type BriefPage<T> = { items: T[]; nextCursor: string | null };
 export type BriefWorkItem = WorkItem & {
+  acceptance?: {
+    criteria: string;
+    version: number;
+    revisionId: string;
+    recordedAt: string;
+    latestReview: {
+      id: string;
+      result: "met" | "not_met";
+      note: string;
+      attachmentId: string;
+      documentTitle: string;
+      recordedAt: string;
+    } | null;
+  } | null;
   attachedDocuments?: {
     attachmentId: string;
     knowledgeItemId: string;
@@ -105,7 +119,7 @@ export function assembleProjectBrief(
       id: item.id,
       kind: "work_item",
       title: item.title,
-      detail: `${workFactText(item.status)}. ${briefExcerpt(item.description)}${item.openBlockers?.length ? ` Blocked by ${item.openBlockers.map((blocker) => blocker.title).join(", ")}.` : ""}${item.attachedDocuments?.length ? ` Attached documents: ${item.attachedDocuments.map((document) => document.title).join(", ")}.` : ""}`,
+      detail: `${workFactText(item.status)}. ${briefExcerpt(item.description)}${item.openBlockers?.length ? ` Blocked by ${item.openBlockers.map((blocker) => blocker.title).join(", ")}.` : ""}${item.attachedDocuments?.length ? ` Attached documents: ${item.attachedDocuments.map((document) => document.title).join(", ")}.` : ""}${item.acceptance ? ` Acceptance criteria v${item.acceptance.version}: ${briefExcerpt(item.acceptance.criteria)}. ${item.acceptance.latestReview ? `Manual local review ${item.acceptance.latestReview.result} with ${item.acceptance.latestReview.documentTitle}.` : "No current review recorded."}` : ""}`,
       evidence: [
         evidence(
           "work_item",
@@ -135,6 +149,30 @@ export function assembleProjectBrief(
             false,
           ),
         ),
+        ...(item.acceptance
+          ? [
+              evidence(
+                "work_item_acceptance_revision",
+                item.acceptance.revisionId,
+                `/api/v1/work-item-acceptance-revisions/${item.acceptance.revisionId}`,
+                item.acceptance.recordedAt,
+                "Manual local task acceptance",
+                false,
+              ),
+            ]
+          : []),
+        ...(item.acceptance?.latestReview
+          ? [
+              evidence(
+                "work_item_verification",
+                item.acceptance.latestReview.id,
+                `/api/v1/work-item-verifications/${item.acceptance.latestReview.id}`,
+                item.acceptance.latestReview.recordedAt,
+                "Manual local acceptance review",
+                false,
+              ),
+            ]
+          : []),
       ],
       sourceLabel: "Manual local capture",
       isSynthetic: false,
@@ -339,9 +377,17 @@ export function assembleProjectBrief(
       blockers: briefMissing(
         "Open blockers for previewed tasks are shown in Work facts; the full project work graph is available from each task.",
       ),
-      acceptanceCriteria: briefMissing(
-        "Task acceptance criteria are not recorded in the local model.",
-      ),
+      acceptanceCriteria:
+        snapshot.work.items.length > 0 &&
+        snapshot.work.items.every((item) => item.acceptance)
+          ? {
+              status: "recorded" as const,
+              message:
+                "Every open task in this brief preview has recorded acceptance criteria. Review each Work source for the full history.",
+            }
+          : briefMissing(
+              "Some open tasks in this brief preview have no recorded acceptance criteria. See each Work source for details.",
+            ),
     },
     nextActions: {
       items: nextActions,

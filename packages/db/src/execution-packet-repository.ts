@@ -15,6 +15,9 @@ import {
   project,
   projectResourceLink,
   workItem,
+  workItemAcceptance,
+  workItemAcceptanceRevision,
+  workItemVerification,
 } from "./schema";
 
 type PacketSelection = {
@@ -89,6 +92,20 @@ export function createExecutionPacketRepository(db: CommandryDatabase) {
         generatedAt: string;
         project: ReturnType<typeof projectRecord>;
         workItem: ReturnType<typeof workRecord>;
+        acceptance: {
+          criteria: string;
+          version: number;
+          revisionId: string;
+          recordedAt: string;
+          latestReview: {
+            id: string;
+            result: "met" | "not_met";
+            note: string;
+            attachmentId: string;
+            documentTitle: string;
+            recordedAt: string;
+          } | null;
+        } | null;
         sourceCapture: {
           id: string;
           inputType: "text" | "url";
@@ -194,6 +211,47 @@ export function createExecutionPacketRepository(db: CommandryDatabase) {
           );
         }
 
+        const [acceptanceRow] = await tx
+          .select({
+            acceptance: workItemAcceptance,
+            revision: workItemAcceptanceRevision,
+          })
+          .from(workItemAcceptance)
+          .innerJoin(
+            workItemAcceptanceRevision,
+            and(
+              eq(
+                workItemAcceptanceRevision.workItemId,
+                workItemAcceptance.workItemId,
+              ),
+              eq(
+                workItemAcceptanceRevision.version,
+                workItemAcceptance.version,
+              ),
+            ),
+          )
+          .where(eq(workItemAcceptance.workItemId, task.id))
+          .limit(1);
+        const [review] = acceptanceRow?.acceptance.criteria.trim()
+          ? await tx
+              .select()
+              .from(workItemVerification)
+              .where(
+                and(
+                  eq(workItemVerification.workItemId, task.id),
+                  eq(
+                    workItemVerification.acceptanceVersion,
+                    acceptanceRow.acceptance.version,
+                  ),
+                ),
+              )
+              .orderBy(
+                desc(workItemVerification.createdAt),
+                desc(workItemVerification.id),
+              )
+              .limit(1)
+          : [];
+
         const [versionResult] = await tx
           .select({
             latest: sql<number>`coalesce(max(${executionPacket.packetVersion}), 0)`,
@@ -209,6 +267,24 @@ export function createExecutionPacketRepository(db: CommandryDatabase) {
           generatedAt: generatedAt.toISOString(),
           project: projectRecord(currentProject),
           workItem: workRecord(task),
+          acceptance: acceptanceRow?.acceptance.criteria.trim()
+            ? {
+                criteria: acceptanceRow.acceptance.criteria,
+                version: acceptanceRow.acceptance.version,
+                revisionId: acceptanceRow.revision.id,
+                recordedAt: acceptanceRow.revision.createdAt.toISOString(),
+                latestReview: review
+                  ? {
+                      id: review.id,
+                      result: review.result,
+                      note: review.note,
+                      attachmentId: review.attachmentId,
+                      documentTitle: review.documentTitle,
+                      recordedAt: review.createdAt.toISOString(),
+                    }
+                  : null,
+              }
+            : null,
           sourceCapture: {
             id: originalCapture.id,
             inputType: originalCapture.inputType,

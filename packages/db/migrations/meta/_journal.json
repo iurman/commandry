@@ -183,6 +183,13 @@
       "when": 1790471112071,
       "tag": "0025_mixed_vanisher",
       "breakpoints": true
+    },
+    {
+      "idx": 26,
+      "version": "7",
+      "when": 1790472572986,
+      "tag": "0026_salty_invaders",
+      "breakpoints": true
     }
   ]
 }

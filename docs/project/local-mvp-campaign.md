@@ -83,6 +83,19 @@ local experience lab.
   `work_item_attachment.archived` audit events retain the exact IDs. An archived
   link remains readable as history; live briefs use active links. Packets only
   include an attached document when explicitly selected at creation.
+- Task acceptance criteria are editable local text with immutable, paged
+  revisions. A manual local review may claim that the current criteria are met
+  or not met only while the task is open and only by citing an active attached
+  original Knowledge document. Reviews preserve their document title, original
+  source ID, criteria version, reviewer label, note, and audit event. The claim
+  is not independent verification. Live briefs cite current criteria and
+  reviews; new packets snapshot them, while old packets stay unchanged.
+  `LOCAL_WORK_ACCEPTANCE_REQUIRED` defaults to true and gates marking a task
+  with criteria done until its latest current-version review claims met. This
+  is a reversible local policy choice, not a settled production capability
+  rule. The conceptual write capability is `work.acceptance.write`, with local
+  low risk, no local approval, and audit events
+  `work_item_acceptance.revised` and `work_item_verification.recorded`.
 - A local task may be completed and reopened. Each change will use the displayed
   status as an expected value and append an immutable event. Live briefs will
   select currently open tasks, while already generated execution packets will

@@ -22,6 +22,20 @@ export type ExecutionPacketSourceBundle = {
   generatedAt: string;
   project: ProjectSummary;
   workItem: WorkItem;
+  acceptance?: {
+    criteria: string;
+    version: number;
+    revisionId: string;
+    recordedAt: string;
+    latestReview: {
+      id: string;
+      result: "met" | "not_met";
+      note: string;
+      attachmentId: string;
+      documentTitle: string;
+      recordedAt: string;
+    } | null;
+  } | null;
   sourceCapture: {
     id: string;
     inputType: "text" | "url";
@@ -162,12 +176,54 @@ export function buildExecutionPacketContents(
           "Manual project resource link",
         ),
       })),
+    acceptance: bundle.acceptance
+      ? {
+          criteria: bundle.acceptance.criteria,
+          version: bundle.acceptance.version,
+          evidence: evidence(
+            "work_item_acceptance_revision",
+            bundle.acceptance.revisionId,
+            `/api/v1/work-item-acceptance-revisions/${bundle.acceptance.revisionId}`,
+            bundle.acceptance.recordedAt,
+            "Manual local task acceptance",
+          ),
+          latestReview: bundle.acceptance.latestReview
+            ? {
+                result: bundle.acceptance.latestReview.result,
+                note: bundle.acceptance.latestReview.note,
+                documentTitle: bundle.acceptance.latestReview.documentTitle,
+                evidence: [
+                  evidence(
+                    "work_item_verification",
+                    bundle.acceptance.latestReview.id,
+                    `/api/v1/work-item-verifications/${bundle.acceptance.latestReview.id}`,
+                    bundle.acceptance.latestReview.recordedAt,
+                    "Manual local acceptance review",
+                  ),
+                  evidence(
+                    "work_item_attachment",
+                    bundle.acceptance.latestReview.attachmentId,
+                    `/api/v1/work-item-attachments/${bundle.acceptance.latestReview.attachmentId}`,
+                    bundle.acceptance.latestReview.recordedAt,
+                    "Manual local work attachment",
+                  ),
+                ],
+              }
+            : null,
+        }
+      : null,
     missing: {
-      acceptanceCriteria: {
-        status: "not_recorded",
-        message:
-          "Task acceptance criteria are not recorded in the local model.",
-      },
+      acceptanceCriteria: bundle.acceptance
+        ? {
+            status: "recorded",
+            message:
+              "Task acceptance criteria are included in this immutable packet snapshot.",
+          }
+        : {
+            status: "not_recorded",
+            message:
+              "No task acceptance criteria were recorded when this packet was created.",
+          },
       verificationExpectations: {
         status: "not_recorded",
         message:

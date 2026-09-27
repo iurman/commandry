@@ -33,6 +33,13 @@ import {
   createWorkItemAttachmentRequestSchema,
   workItemAttachmentSchema,
   listWorkItemAttachmentsResponseSchema,
+  workItemAcceptanceSchema,
+  saveWorkItemAcceptanceRequestSchema,
+  workItemAcceptanceRevisionSchema,
+  listWorkItemAcceptanceRevisionsResponseSchema,
+  createWorkItemVerificationRequestSchema,
+  workItemVerificationSchema,
+  listWorkItemVerificationsResponseSchema,
   createLocalAgentRequestSchema,
   localAgentProfileSchema,
   listLocalAgentsResponseSchema,
@@ -1015,6 +1022,111 @@ export function generateOpenApi(): string {
             "409": {
               description: "Link is already archived",
               content: jsonContent("ErrorResponse"),
+            },
+          },
+        },
+      },
+      "/api/v1/work-items/{id}/acceptance": {
+        get: {
+          operationId: "getWorkItemAcceptance",
+          summary: "Read current task acceptance criteria and revision number",
+          parameters: [idParameter],
+          responses: {
+            "200": {
+              description: "Current acceptance criteria",
+              content: jsonContent("WorkItemAcceptance"),
+            },
+          },
+        },
+        put: {
+          operationId: "saveWorkItemAcceptance",
+          summary:
+            "Revise task acceptance criteria with optimistic concurrency and audit",
+          parameters: [idParameter],
+          requestBody: {
+            required: true,
+            content: jsonContent("SaveWorkItemAcceptanceRequest"),
+          },
+          responses: {
+            "200": {
+              description: "Saved acceptance criteria",
+              content: jsonContent("WorkItemAcceptance"),
+            },
+            "409": {
+              description: "Task or revision conflict",
+              content: jsonContent("ErrorResponse"),
+            },
+          },
+        },
+      },
+      "/api/v1/work-items/{id}/acceptance-revisions": {
+        get: {
+          operationId: "listWorkItemAcceptanceRevisions",
+          summary: "Page immutable task acceptance revisions",
+          parameters: [idParameter, ...pageParameters],
+          responses: {
+            "200": {
+              description: "Acceptance revision page",
+              content: jsonContent("ListWorkItemAcceptanceRevisionsResponse"),
+            },
+          },
+        },
+      },
+      "/api/v1/work-item-acceptance-revisions/{id}": {
+        get: {
+          operationId: "getWorkItemAcceptanceRevision",
+          summary: "Read one exact acceptance revision",
+          parameters: [idParameter],
+          responses: {
+            "200": {
+              description: "Exact acceptance revision",
+              content: jsonContent("WorkItemAcceptanceRevision"),
+            },
+          },
+        },
+      },
+      "/api/v1/work-items/{id}/verifications": {
+        get: {
+          operationId: "listWorkItemVerifications",
+          summary: "Page manual task acceptance review claims",
+          parameters: [idParameter, ...pageParameters],
+          responses: {
+            "200": {
+              description: "Manual review page",
+              content: jsonContent("ListWorkItemVerificationsResponse"),
+            },
+          },
+        },
+        post: {
+          operationId: "recordWorkItemVerification",
+          summary:
+            "Record an audited manual acceptance review against an attached original document",
+          parameters: [idParameter],
+          requestBody: {
+            required: true,
+            content: jsonContent("CreateWorkItemVerificationRequest"),
+          },
+          responses: {
+            "201": {
+              description: "Manual review record",
+              content: jsonContent("WorkItemVerification"),
+            },
+            "409": {
+              description: "Task, revision, or document scope conflict",
+              content: jsonContent("ErrorResponse"),
+            },
+          },
+        },
+      },
+      "/api/v1/work-item-verifications/{id}": {
+        get: {
+          operationId: "getWorkItemVerification",
+          summary: "Read one exact manual review and source document link",
+          parameters: [idParameter],
+          responses: {
+            "200": {
+              description: "Exact manual review record",
+              content: jsonContent("WorkItemVerification"),
             },
           },
         },
@@ -2507,6 +2619,21 @@ export function generateOpenApi(): string {
         WorkItemAttachment: component(workItemAttachmentSchema),
         ListWorkItemAttachmentsResponse: component(
           listWorkItemAttachmentsResponseSchema,
+        ),
+        WorkItemAcceptance: component(workItemAcceptanceSchema),
+        SaveWorkItemAcceptanceRequest: component(
+          saveWorkItemAcceptanceRequestSchema,
+        ),
+        WorkItemAcceptanceRevision: component(workItemAcceptanceRevisionSchema),
+        ListWorkItemAcceptanceRevisionsResponse: component(
+          listWorkItemAcceptanceRevisionsResponseSchema,
+        ),
+        CreateWorkItemVerificationRequest: component(
+          createWorkItemVerificationRequestSchema,
+        ),
+        WorkItemVerification: component(workItemVerificationSchema),
+        ListWorkItemVerificationsResponse: component(
+          listWorkItemVerificationsResponseSchema,
         ),
         KnowledgeItem: component(knowledgeItemSchema),
         WorkspaceKnowledgeItem: component(workspaceKnowledgeItemSchema),

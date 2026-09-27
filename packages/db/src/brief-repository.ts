@@ -1,4 +1,4 @@
-import { and, desc, eq, inArray, sql } from "drizzle-orm";
+import { and, asc, desc, eq, inArray, sql } from "drizzle-orm";
 import {
   projectResourceRelationship,
   SYNTHETIC_MONITOR_RULE_ID,
@@ -15,7 +15,10 @@ import {
   resource,
   workItem,
   workItemAttachment,
+  workItemAcceptance,
+  workItemAcceptanceRevision,
   workItemRelation,
+  workItemVerification,
 } from "./schema";
 
 type SourceLabel =
@@ -149,6 +152,53 @@ export function createBriefRepository(db: CommandryDatabase) {
             });
             attachmentsByWork.set(attachment.workItemId, items);
           }
+          const acceptanceRows = visibleWorkIds.length
+            ? await tx
+                .select({
+                  acceptance: workItemAcceptance,
+                  revision: workItemAcceptanceRevision,
+                })
+                .from(workItemAcceptance)
+                .innerJoin(
+                  workItemAcceptanceRevision,
+                  and(
+                    eq(
+                      workItemAcceptanceRevision.workItemId,
+                      workItemAcceptance.workItemId,
+                    ),
+                    eq(
+                      workItemAcceptanceRevision.version,
+                      workItemAcceptance.version,
+                    ),
+                  ),
+                )
+                .where(inArray(workItemAcceptance.workItemId, visibleWorkIds))
+            : [];
+          const acceptanceByWork = new Map(
+            acceptanceRows.map(({ acceptance, revision }) => [
+              acceptance.workItemId,
+              {
+                criteria: acceptance.criteria,
+                version: acceptance.version,
+                revisionId: revision.id,
+                recordedAt: revision.createdAt.toISOString(),
+              },
+            ]),
+          );
+          const verificationRows = visibleWorkIds.length
+            ? await tx
+                .selectDistinctOn([workItemVerification.workItemId])
+                .from(workItemVerification)
+                .where(inArray(workItemVerification.workItemId, visibleWorkIds))
+                .orderBy(
+                  asc(workItemVerification.workItemId),
+                  desc(workItemVerification.createdAt),
+                  desc(workItemVerification.id),
+                )
+            : [];
+          const verificationByWork = new Map(
+            verificationRows.map((review) => [review.workItemId, review]),
+          );
           const noteRows = await tx
             .select()
             .from(knowledgeItem)
@@ -256,6 +306,25 @@ export function createBriefRepository(db: CommandryDatabase) {
                 dueOn: row.dueOn,
                 openBlockers: blockersByWork.get(row.id) ?? [],
                 attachedDocuments: attachmentsByWork.get(row.id) ?? [],
+                acceptance: (() => {
+                  const acceptance = acceptanceByWork.get(row.id);
+                  if (!acceptance || !acceptance.criteria.trim()) return null;
+                  const review = verificationByWork.get(row.id);
+                  return {
+                    ...acceptance,
+                    latestReview:
+                      review?.acceptanceVersion === acceptance.version
+                        ? {
+                            id: review.id,
+                            result: review.result,
+                            note: review.note,
+                            attachmentId: review.attachmentId,
+                            documentTitle: review.documentTitle,
+                            recordedAt: review.createdAt.toISOString(),
+                          }
+                        : null,
+                  };
+                })(),
                 createdAt: row.createdAt.toISOString(),
                 updatedAt: row.updatedAt.toISOString(),
               }),

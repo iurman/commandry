@@ -361,6 +361,59 @@ export const listWorkItemAttachmentsResponseSchema = z.object({
   nextCursor: z.uuid().nullable(),
 });
 
+export const workItemAcceptanceSchema = z.object({
+  workItemId: z.uuid(),
+  criteria: z.string(),
+  version: z.number().int().min(0),
+  updatedAt: z.iso.datetime({ offset: true }).nullable(),
+});
+
+export const saveWorkItemAcceptanceRequestSchema = z.strictObject({
+  expectedVersion: z.number().int().min(0),
+  criteria: z.string().trim().max(10_000),
+});
+
+export const workItemAcceptanceRevisionSchema = z.object({
+  id: z.uuid(),
+  workItemId: z.uuid(),
+  version: z.number().int().positive(),
+  criteria: z.string(),
+  actor: z.literal("local-user:unattributed"),
+  createdAt: z.iso.datetime({ offset: true }),
+});
+
+export const listWorkItemAcceptanceRevisionsResponseSchema = z.object({
+  items: z.array(workItemAcceptanceRevisionSchema),
+  nextCursor: z.uuid().nullable(),
+});
+
+export const createWorkItemVerificationRequestSchema = z.strictObject({
+  expectedAcceptanceVersion: z.number().int().positive(),
+  attachmentId: z.uuid(),
+  result: z.enum(["met", "not_met"]),
+  note: z.string().trim().min(1).max(5_000),
+});
+
+export const workItemVerificationSchema = z.object({
+  id: z.uuid(),
+  workItemId: z.uuid(),
+  acceptanceVersion: z.number().int().positive(),
+  attachmentId: z.uuid(),
+  documentTitle: z.string(),
+  sourceCaptureId: z.uuid(),
+  downloadHref: z.string().startsWith("/api/v1/"),
+  result: z.enum(["met", "not_met"]),
+  note: z.string(),
+  actor: z.literal("local-user:unattributed"),
+  sourceLabel: z.literal("Manual local acceptance review"),
+  createdAt: z.iso.datetime({ offset: true }),
+});
+
+export const listWorkItemVerificationsResponseSchema = z.object({
+  items: z.array(workItemVerificationSchema),
+  nextCursor: z.uuid().nullable(),
+});
+
 export const knowledgeItemSchema = z.object({
   id: z.uuid(),
   projectId: z.uuid(),
@@ -855,6 +908,8 @@ export const evidenceReferenceSchema = z.object({
     "work_item",
     "work_item_relation",
     "work_item_attachment",
+    "work_item_acceptance_revision",
+    "work_item_verification",
     "knowledge_item",
     "decision",
     "resource",
@@ -1074,6 +1129,11 @@ export const notRecordedSchema = z.object({
   message: z.string().min(1),
 });
 
+export const recordingStatusSchema = z.object({
+  status: z.enum(["not_recorded", "recorded"]),
+  message: z.string().min(1),
+});
+
 export const briefInferenceSchema = z.object({
   kind: z.literal("inference"),
   ruleId: z.literal("open-work-review-v1"),
@@ -1101,7 +1161,7 @@ export const projectBriefSchema = z.object({
   missing: z.object({
     questions: notRecordedSchema,
     blockers: notRecordedSchema,
-    acceptanceCriteria: notRecordedSchema,
+    acceptanceCriteria: recordingStatusSchema,
   }),
   nextActions: z.object({
     items: z.array(briefInferenceSchema),
@@ -1155,8 +1215,24 @@ export const executionPacketSnapshotSchema = z.object({
       })
       .strict(),
   ),
+  acceptance: z
+    .object({
+      criteria: z.string().min(1),
+      version: z.number().int().positive(),
+      evidence: evidenceReferenceSchema,
+      latestReview: z
+        .object({
+          result: z.enum(["met", "not_met"]),
+          note: z.string(),
+          documentTitle: z.string(),
+          evidence: z.array(evidenceReferenceSchema).min(2),
+        })
+        .nullable(),
+    })
+    .nullable()
+    .optional(),
   missing: z.object({
-    acceptanceCriteria: notRecordedSchema,
+    acceptanceCriteria: recordingStatusSchema,
     verificationExpectations: notRecordedSchema,
     taskConstraints: notRecordedSchema,
   }),
@@ -1706,6 +1782,11 @@ export type CreateWorkItemAttachmentRequest = z.infer<
   typeof createWorkItemAttachmentRequestSchema
 >;
 export type WorkItemAttachment = z.infer<typeof workItemAttachmentSchema>;
+export type WorkItemAcceptance = z.infer<typeof workItemAcceptanceSchema>;
+export type WorkItemAcceptanceRevision = z.infer<
+  typeof workItemAcceptanceRevisionSchema
+>;
+export type WorkItemVerification = z.infer<typeof workItemVerificationSchema>;
 export type KnowledgeItem = z.infer<typeof knowledgeItemSchema>;
 export type WorkspaceKnowledgeItem = z.infer<
   typeof workspaceKnowledgeItemSchema

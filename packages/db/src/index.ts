@@ -27,5 +27,6 @@ export * from "./local-mcp-repository";
 export * from "./work-discussion-repository";
 export * from "./work-relations-repository";
 export * from "./work-attachment-repository";
+export * from "./work-acceptance-repository";
 export * from "./file-capture-repository";
 export * as schema from "./schema";

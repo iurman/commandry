@@ -16,6 +16,19 @@ describe("runtime configuration", () => {
     expect(config.dbPoolMax).toBe(3);
     expect(config.bossPoolMax).toBe(5);
     expect(config.localApprovalAutoCeiling).toBe("reversible");
+    expect(config.localWorkAcceptanceRequired).toBe(true);
+    expect(
+      loadRuntimeConfig({
+        ...valid,
+        LOCAL_WORK_ACCEPTANCE_REQUIRED: "false",
+      }).localWorkAcceptanceRequired,
+    ).toBe(false);
+    expect(() =>
+      loadRuntimeConfig({
+        ...valid,
+        LOCAL_WORK_ACCEPTANCE_REQUIRED: "sometimes",
+      }),
+    ).toThrow(ConfigurationError);
     expect(config.localApprovalTtlSeconds).toBe(3_600);
     expect(config.localOvernightMaxDays).toBe(7);
   });

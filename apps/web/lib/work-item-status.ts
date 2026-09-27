@@ -1,4 +1,5 @@
 import { createWorkItemStatusService } from "@commandry/application";
+import { loadRuntimeConfig } from "@commandry/config";
 import { createWorkItemStatusRepository } from "@commandry/db";
 import { WorkItemStatusError } from "@commandry/domain";
 import { getDatabase } from "./database";
@@ -6,7 +7,10 @@ import { jsonResponse } from "./http";
 
 export function getWorkItemStatusService() {
   return createWorkItemStatusService(
-    createWorkItemStatusRepository(getDatabase().db),
+    createWorkItemStatusRepository(getDatabase().db, {
+      requireAcceptanceEvidence:
+        loadRuntimeConfig().localWorkAcceptanceRequired,
+    }),
   );
 }
 

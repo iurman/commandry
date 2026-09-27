@@ -85,11 +85,17 @@ authentication is complete. There is no production deployment.
   original downloads, and source context. Link creation and archive are
   audited; live briefs cite active links and packet selection remains explicit.
   The local API has no product human sign-in or production capability grant.
+- Work tasks now have versioned acceptance criteria and source-linked manual
+  completion reviews. Current reviews cite attached original documents and
+  appear in live briefs and new packet snapshots; older packets retain their
+  original context. A configurable local completion gate requires a current
+  met review when criteria exist. Claims remain manually recorded and
+  unverified by any external system.
 - Work items have project-scoped, typed parent/subtask and blocking links with
   cycle prevention, audit-preserving archive, cursor-paged inverse views, and
   a responsive editor. Open blockers appear with exact relationship evidence
   in live briefs and pause local overnight readiness. Cross-project work links,
-  initiatives, acceptance criteria, and larger file handling remain open.
+  initiatives and larger file handling remain open.
 - Semantic CSS tokens, accessible responsive components, and representative
   Storybook states exist in the local-only lab. The lab is excluded from the
   production image.

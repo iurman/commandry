@@ -45,6 +45,13 @@ describe("Work item workspace", () => {
           createdAt: at,
           updatedAt: at,
         });
+      if (path === `/api/v1/work-items/${workId}/acceptance`)
+        return json({
+          workItemId: workId,
+          criteria: "",
+          version: 0,
+          updatedAt: null,
+        });
       if (path.startsWith(`/api/v1/projects/${projectId}/knowledge`)) {
         if (path.includes(`cursor=${noteOneId}`))
           return json({
@@ -170,6 +177,13 @@ describe("Work item workspace", () => {
             status: "open",
             createdAt: at,
             updatedAt: at,
+          });
+        if (path === `/api/v1/work-items/${workId}/acceptance`)
+          return json({
+            workItemId: workId,
+            criteria: "",
+            version: 0,
+            updatedAt: null,
           });
         return json({ items: [], nextCursor: null });
       }),

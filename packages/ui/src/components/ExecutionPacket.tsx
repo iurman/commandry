@@ -35,8 +35,25 @@ export interface ExecutionPacketView {
       linkType: string;
       evidence: BriefEvidenceLink;
     }[];
+    acceptance?:
+      | {
+          criteria: string;
+          version: number;
+          evidence: BriefEvidenceLink;
+          latestReview: {
+            result: "met" | "not_met";
+            note: string;
+            documentTitle: string;
+            evidence: BriefEvidenceLink[];
+          } | null;
+        }
+      | null
+      | undefined;
     missing: {
-      acceptanceCriteria: { status: "not_recorded"; message: string };
+      acceptanceCriteria: {
+        status: "not_recorded" | "recorded";
+        message: string;
+      };
       verificationExpectations: { status: "not_recorded"; message: string };
       taskConstraints: { status: "not_recorded"; message: string };
     };
@@ -230,12 +247,43 @@ export function ExecutionPacket({ packet }: ExecutionPacketProps) {
       </div>
 
       <div className="cmd-packet-grid">
+        {snapshot.acceptance && (
+          <section
+            className="cmd-packet-section"
+            aria-labelledby="packet-acceptance-heading"
+          >
+            <p className="cmd-eyebrow">Saved task requirements</p>
+            <h2 id="packet-acceptance-heading">Acceptance criteria</h2>
+            <p>Version {snapshot.acceptance.version}</p>
+            <p className="cmd-packet-text">{snapshot.acceptance.criteria}</p>
+            <Source source={snapshot.acceptance.evidence} />
+            {snapshot.acceptance.latestReview ? (
+              <>
+                <h3>Latest manual local review</h3>
+                <p>
+                  {snapshot.acceptance.latestReview.result.replaceAll("_", " ")}
+                  : {snapshot.acceptance.latestReview.note}
+                </p>
+                <p>
+                  Cited original document:{" "}
+                  {snapshot.acceptance.latestReview.documentTitle}. This is a
+                  local review claim, not independent verification.
+                </p>
+                {snapshot.acceptance.latestReview.evidence.map((source) => (
+                  <Source key={`${source.kind}:${source.id}`} source={source} />
+                ))}
+              </>
+            ) : (
+              <p>No manual review was recorded for these criteria.</p>
+            )}
+          </section>
+        )}
         <section
           className="cmd-packet-section"
           aria-labelledby="packet-gaps-heading"
         >
           <p className="cmd-eyebrow">Explicit gaps</p>
-          <h2 id="packet-gaps-heading">Not recorded</h2>
+          <h2 id="packet-gaps-heading">Recorded context and gaps</h2>
           <dl className="cmd-brief-gaps">
             <div>
               <dt>Acceptance criteria</dt>

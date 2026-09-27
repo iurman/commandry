@@ -42,7 +42,10 @@ export interface ProjectBriefView {
   missing: {
     questions: { status: "not_recorded"; message: string };
     blockers: { status: "not_recorded"; message: string };
-    acceptanceCriteria: { status: "not_recorded"; message: string };
+    acceptanceCriteria: {
+      status: "not_recorded" | "recorded";
+      message: string;
+    };
   };
   nextActions: {
     items: {

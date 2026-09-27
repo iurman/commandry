@@ -5,7 +5,12 @@ import {
   WorkItemStatusError,
 } from "@commandry/domain";
 import type { CommandryDatabase } from "./client";
-import { workItem, workItemStatusEvent } from "./schema";
+import {
+  workItem,
+  workItemAcceptance,
+  workItemStatusEvent,
+  workItemVerification,
+} from "./schema";
 
 function workRecord(row: typeof workItem.$inferSelect) {
   return {
@@ -33,7 +38,10 @@ function eventRecord(row: typeof workItemStatusEvent.$inferSelect) {
   };
 }
 
-export function createWorkItemStatusRepository(db: CommandryDatabase) {
+export function createWorkItemStatusRepository(
+  db: CommandryDatabase,
+  options: { requireAcceptanceEvidence?: boolean } = {},
+) {
   return {
     async changeStatus(id: string, input: ChangeWorkItemStatusRequest) {
       return db.transaction(async (tx) => {
@@ -54,6 +62,40 @@ export function createWorkItemStatusRepository(db: CommandryDatabase) {
           input.expectedStatus,
           input.status,
         );
+        if (
+          input.status === "done" &&
+          (options.requireAcceptanceEvidence ?? true)
+        ) {
+          const [acceptance] = await tx
+            .select()
+            .from(workItemAcceptance)
+            .where(eq(workItemAcceptance.workItemId, id))
+            .limit(1);
+          if (acceptance?.criteria.trim()) {
+            const [latestReview] = await tx
+              .select()
+              .from(workItemVerification)
+              .where(
+                and(
+                  eq(workItemVerification.workItemId, id),
+                  eq(
+                    workItemVerification.acceptanceVersion,
+                    acceptance.version,
+                  ),
+                ),
+              )
+              .orderBy(
+                desc(workItemVerification.createdAt),
+                desc(workItemVerification.id),
+              )
+              .limit(1);
+            if (latestReview?.result !== "met")
+              throw new WorkItemStatusError(
+                "ACCEPTANCE_UNMET",
+                "Record a current 'met' review with an attached document before marking this task done",
+              );
+          }
+        }
         const now = new Date();
         const [updated] = await tx
           .update(workItem)
