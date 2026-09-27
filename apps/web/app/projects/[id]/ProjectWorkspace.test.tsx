@@ -91,6 +91,8 @@ describe("Project workspace", () => {
           return json({ items: [], nextCursor: null });
         if (path.includes(`/projects/${project.id}/decisions`))
           return json({ items: [], nextCursor: null });
+        if (path.includes(`/projects/${project.id}/systems`))
+          return json({ items: [], nextCursor: null });
         if (path.includes(`/projects/${project.id}`)) return json(project);
         return json({ items: [], nextCursor: null });
       }),
@@ -143,6 +145,8 @@ describe("Project workspace", () => {
           return json({ items: relations, nextCursor: null });
         }
         if (path.includes(`/projects/${project.id}/decisions`))
+          return json({ items: [], nextCursor: null });
+        if (path.includes(`/projects/${project.id}/systems`))
           return json({ items: [], nextCursor: null });
         if (path.includes(`/projects/${project.id}`)) return json(project);
         if (path === "/api/v1/resources" && init?.method === "POST")
@@ -204,7 +208,11 @@ describe("Project workspace", () => {
       }
       if (path.includes(`/projects/${project.id}/decisions`))
         return json({ items: [], nextCursor: null });
+      if (path.includes(`/projects/${project.id}/systems`))
+        return json({ items: [], nextCursor: null });
       if (path.includes(`/projects/${project.id}`)) return json(project);
+      if (path.startsWith("/api/v1/systems"))
+        return json({ items: [], nextCursor: null });
       return json({ items: [existingResource], nextCursor: null });
     });
     vi.stubGlobal("fetch", fetchMock);

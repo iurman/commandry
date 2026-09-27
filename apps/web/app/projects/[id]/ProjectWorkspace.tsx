@@ -19,6 +19,7 @@ import {
 import ProjectContent from "./ProjectContent";
 import ProjectBriefPanel from "./ProjectBriefPanel";
 import ProjectDomainPanel from "./ProjectDomainPanel";
+import ProjectSystemsPanel from "./ProjectSystemsPanel";
 import ProjectDecisions from "./ProjectDecisions";
 import SyntheticMetricsPanel from "../../SyntheticMetricsPanel";
 
@@ -304,6 +305,10 @@ export default function ProjectWorkspace({ projectId }: { projectId: string }) {
           <ProjectDomainPanel
             projectId={projectId}
             onMembershipChange={() => setBriefVersion((current) => current + 1)}
+          />
+          <ProjectSystemsPanel
+            projectId={projectId}
+            onChange={() => setBriefVersion((current) => current + 1)}
           />
           <ProjectBriefPanel key={briefVersion} projectId={projectId} />
           <SyntheticMetricsPanel projectId={projectId} />

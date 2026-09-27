@@ -15,6 +15,8 @@ import {
   projectDomainLink,
   projectResourceLink,
   resource,
+  system,
+  systemProjectLink,
   workItem,
   workItemAttachment,
   workItemAcceptance,
@@ -224,6 +226,18 @@ export function createBriefRepository(db: CommandryDatabase) {
             .where(eq(projectDecision.projectId, projectId))
             .orderBy(desc(projectDecision.updatedAt), desc(projectDecision.id))
             .limit(query.limit + 1);
+          const systemRows = await tx
+            .select({ link: systemProjectLink, record: system })
+            .from(systemProjectLink)
+            .innerJoin(system, eq(system.id, systemProjectLink.systemId))
+            .where(
+              and(
+                eq(systemProjectLink.projectId, projectId),
+                eq(systemProjectLink.lifecycle, "active"),
+              ),
+            )
+            .orderBy(systemProjectLink.id)
+            .limit(query.limit + 1);
           const linkRows = await tx
             .select({ link: projectResourceLink, linkedResource: resource })
             .from(projectResourceLink)
@@ -388,6 +402,24 @@ export function createBriefRepository(db: CommandryDatabase) {
                 updatedAt: row.updatedAt.toISOString(),
               }),
               (row) => row.id,
+            ),
+            systems: page(
+              systemRows,
+              query.limit,
+              ({ link, record }) => ({
+                system: {
+                  id: record.id,
+                  name: record.name,
+                  summary: record.summary,
+                  lifecycle: record.lifecycle,
+                  version: record.version,
+                  createdAt: record.createdAt.toISOString(),
+                  updatedAt: record.updatedAt.toISOString(),
+                },
+                linkId: link.id,
+                linkedAt: link.createdAt.toISOString(),
+              }),
+              ({ link }) => link.id,
             ),
             resources: page(
               linkRows,

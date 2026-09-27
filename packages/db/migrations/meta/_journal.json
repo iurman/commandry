@@ -204,6 +204,13 @@
       "when": 1790476288892,
       "tag": "0028_clean_silk_fever",
       "breakpoints": true
+    },
+    {
+      "idx": 29,
+      "version": "7",
+      "when": 1790477735032,
+      "tag": "0029_wooden_black_knight",
+      "breakpoints": true
     }
   ]
 }

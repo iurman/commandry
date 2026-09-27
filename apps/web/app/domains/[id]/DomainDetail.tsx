@@ -5,6 +5,7 @@ import type {
   DomainAuditEvent,
   DomainSummary,
   ProjectSummary,
+  SystemSummary,
 } from "@commandry/contracts";
 import { AppShell, Button, RecordEmptyState } from "@commandry/ui";
 import { apiJson, pagePath, type PageResponse } from "../../projects/api";
@@ -14,6 +15,8 @@ export default function DomainDetail({ domainId }: { domainId: string }) {
   const [domain, setDomain] = useState<DomainSummary | null>(null);
   const [projects, setProjects] = useState<ProjectSummary[]>([]);
   const [projectCursor, setProjectCursor] = useState<string | null>(null);
+  const [systems, setSystems] = useState<SystemSummary[]>([]);
+  const [systemCursor, setSystemCursor] = useState<string | null>(null);
   const [audit, setAudit] = useState<DomainAuditEvent[]>([]);
   const [auditCursor, setAuditCursor] = useState<string | null>(null);
   const [name, setName] = useState("");
@@ -28,15 +31,18 @@ export default function DomainDetail({ domainId }: { domainId: string }) {
     Promise.all([
       apiJson<DomainSummary>(path),
       apiJson<PageResponse<ProjectSummary>>(pagePath(`${path}/projects`)),
+      apiJson<PageResponse<SystemSummary>>(pagePath(`${path}/systems`)),
       apiJson<PageResponse<DomainAuditEvent>>(pagePath(`${path}/audit`)),
     ])
-      .then(([saved, projectPage, auditPage]) => {
+      .then(([saved, projectPage, systemPage, auditPage]) => {
         if (!active) return;
         setDomain(saved);
         setName(saved.name);
         setDescription(saved.description ?? "");
         setProjects(projectPage.items);
         setProjectCursor(projectPage.nextCursor);
+        setSystems(systemPage.items);
+        setSystemCursor(systemPage.nextCursor);
         setAudit(auditPage.items);
         setAuditCursor(auditPage.nextCursor);
       })
@@ -74,6 +80,30 @@ export default function DomainDetail({ domainId }: { domainId: string }) {
         cause instanceof Error
           ? cause.message
           : "Could not load more projects.",
+      );
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  async function loadMoreSystems() {
+    if (!systemCursor || busy) return;
+    setBusy(true);
+    setError(null);
+    try {
+      const page = await apiJson<PageResponse<SystemSummary>>(
+        pagePath(`${path}/systems`, systemCursor),
+      );
+      setSystems((current) => [
+        ...current,
+        ...page.items.filter(
+          (item) => !current.some((saved) => saved.id === item.id),
+        ),
+      ]);
+      setSystemCursor(page.nextCursor);
+    } catch (cause) {
+      setError(
+        cause instanceof Error ? cause.message : "Could not load more systems.",
       );
     } finally {
       setBusy(false);
@@ -233,6 +263,41 @@ export default function DomainDetail({ domainId }: { domainId: string }) {
             </section>
             <section
               className="cmd-workspace-section"
+              aria-labelledby="domain-systems-heading"
+            >
+              <div className="cmd-section-heading">
+                <h2 id="domain-systems-heading">Owned systems</h2>
+                <span className="cmd-count">{systems.length} shown</span>
+              </div>
+              <p className="cmd-section-intro">
+                Systems are continuing operated capabilities, separate from the
+                projects that change them and resources that support them.
+              </p>
+              {systems.length === 0 && (
+                <RecordEmptyState
+                  title="No owned systems"
+                  description="Open a system and choose this domain in its portfolio panel."
+                />
+              )}
+              <ul className="cmd-record-list" aria-label="Domain systems">
+                {systems.map((item) => (
+                  <li key={item.id}>
+                    <a href={`/systems/${item.id}`}>{item.name}</a>
+                    <p>{item.summary || "No system summary recorded."}</p>
+                  </li>
+                ))}
+              </ul>
+              {systemCursor && (
+                <Button disabled={busy} onClick={loadMoreSystems}>
+                  Load more systems
+                </Button>
+              )}
+              <p>
+                <a href="/systems">Open the system portfolio</a>
+              </p>
+            </section>
+            <section
+              className="cmd-workspace-section"
               aria-labelledby="domain-edit-heading"
             >
               <p className="cmd-eyebrow">Record / Local source of truth</p>
@@ -273,12 +338,16 @@ export default function DomainDetail({ domainId }: { domainId: string }) {
                     </Button>
                   </form>
                   <p className="cmd-form-hint">
-                    Archiving is available after every project has been moved or
-                    unlinked. Audit history is kept.
+                    Archiving is available after every project and system has
+                    been moved or unlinked. Audit history is kept.
                   </p>
                   <Button
                     disabled={
-                      busy || projects.length > 0 || Boolean(projectCursor)
+                      busy ||
+                      projects.length > 0 ||
+                      Boolean(projectCursor) ||
+                      systems.length > 0 ||
+                      Boolean(systemCursor)
                     }
                     onClick={archive}
                   >
@@ -287,7 +356,7 @@ export default function DomainDetail({ domainId }: { domainId: string }) {
                 </>
               ) : (
                 <p>
-                  Archived domains are read-only. Their project links and audit
+                  Archived domains are read-only. Their context links and audit
                   remain inspectable.
                 </p>
               )}

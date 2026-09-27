@@ -242,6 +242,11 @@ export default function InfrastructurePage() {
             Browse one primary containment tree. Dependency links and project
             relationships stay separate, so a resource keeps one canonical ID.
           </p>
+          <p className="cmd-record-identity">
+            <a href="/systems">
+              Browse operated systems and their supporting resources
+            </a>
+          </p>
         </div>
         <span className="cmd-headline-mark" aria-hidden="true">
           03 / Connect

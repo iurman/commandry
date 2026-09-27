@@ -35,6 +35,7 @@ export interface ProjectBriefView {
     work: BriefSectionView;
     knowledge: BriefSectionView;
     decisions: BriefSectionView;
+    systems?: BriefSectionView | undefined;
     resources: BriefSectionView;
     activity: BriefSectionView;
     attention: BriefSectionView;
@@ -61,7 +62,10 @@ export interface ProjectBriefView {
 
 export interface ProjectBriefProps {
   brief: ProjectBriefView;
-  sectionHrefs: Record<keyof ProjectBriefView["sections"], string>;
+  sectionHrefs: Record<
+    Exclude<keyof ProjectBriefView["sections"], "systems">,
+    string
+  > & { systems?: string };
 }
 
 function EvidenceLinks({ links }: { links: BriefEvidenceLink[] }) {
@@ -90,6 +94,7 @@ const sectionNames = [
   ["work", "Open work", "work"],
   ["knowledge", "Knowledge", "knowledge"],
   ["decisions", "Decisions", "decisions"],
+  ["systems", "Systems", "systems"],
   ["resources", "Resources", "resources"],
   ["activity", "Recent change", "activity"],
   ["attention", "Attention", "attention"],
@@ -137,6 +142,7 @@ export function ProjectBrief({ brief, sectionHrefs }: ProjectBriefProps) {
       <div className="cmd-brief-grid">
         {sectionNames.map(([key, label, fullListLabel]) => {
           const section = brief.sections[key];
+          if (!section) return null;
           return (
             <section
               className="cmd-brief-section"
@@ -169,7 +175,9 @@ export function ProjectBrief({ brief, sectionHrefs }: ProjectBriefProps) {
                 </ul>
               )}
               <div className="cmd-brief-section-links">
-                <a href={sectionHrefs[key]}>View all {fullListLabel}</a>
+                <a href={sectionHrefs[key] ?? section.fullListHref}>
+                  View all {fullListLabel}
+                </a>
                 <a href={section.fullListHref}>Open source list</a>
                 {section.nextCursor && (
                   <span>More records available in the full list.</span>

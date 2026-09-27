@@ -95,6 +95,7 @@ type SearchRow = {
     | "comment"
     | "decision"
     | "domain"
+    | "system"
     | "project"
     | "resource";
   project_id: string | null;
@@ -523,6 +524,14 @@ export function createCaptureRepository(db: CommandryDatabase) {
               and link.lifecycle = 'active'
           )`
         : sql`true`;
+      const systemScope = input.projectId
+        ? sql`exists (
+            select 1 from system_project_link link
+            where link.system_id = modeled_system.id
+              and link.project_id = ${input.projectId}::uuid
+              and link.lifecycle = 'active'
+          )`
+        : sql`true`;
       const resourceProjectId = input.projectId
         ? sql`${input.projectId}::uuid`
         : sql`null::uuid`;
@@ -574,6 +583,13 @@ export function createCaptureRepository(db: CommandryDatabase) {
           where to_tsvector('simple', domain.name || ' ' || coalesce(domain.description, '')) @@ websearch_to_tsquery('simple', ${input.q})
             and ${domainScope}
           union all
+          select modeled_system.id, 'system'::text as kind, ${resourceProjectId} as project_id,
+            modeled_system.name as title, left(coalesce(modeled_system.summary, ''), 220) as excerpt,
+            null::uuid as source_capture_id, null::uuid as target_id, modeled_system.created_at
+          from "system" as modeled_system
+          where to_tsvector('simple', modeled_system.name || ' ' || coalesce(modeled_system.summary, '')) @@ websearch_to_tsquery('simple', ${input.q})
+            and ${systemScope}
+          union all
           select id, 'project'::text as kind, id as project_id, name as title,
             left(coalesce(summary, ''), 220) as excerpt,
             null::uuid as source_capture_id, null::uuid as target_id, created_at
@@ -608,15 +624,17 @@ export function createCaptureRepository(db: CommandryDatabase) {
                 ? `/resources/${row.id}`
                 : row.kind === "domain"
                   ? `/domains/${row.id}`
-                  : row.kind === "project"
-                    ? `/projects/${row.id}`
-                    : row.kind === "task"
-                      ? `/work-items/${row.id}`
-                      : row.kind === "comment"
-                        ? `/work-items/${row.target_id}#discussion`
-                        : row.kind === "decision"
-                          ? `/projects/${row.project_id}#decisions-heading`
-                          : `/knowledge-items/${row.id}`,
+                  : row.kind === "system"
+                    ? `/systems/${row.id}`
+                    : row.kind === "project"
+                      ? `/projects/${row.id}`
+                      : row.kind === "task"
+                        ? `/work-items/${row.id}`
+                        : row.kind === "comment"
+                          ? `/work-items/${row.target_id}#discussion`
+                          : row.kind === "decision"
+                            ? `/projects/${row.project_id}#decisions-heading`
+                            : `/knowledge-items/${row.id}`,
           projectId: row.project_id,
           sourceCaptureId: row.source_capture_id,
           createdAt: new Date(row.created_at).toISOString(),

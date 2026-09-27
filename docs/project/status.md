@@ -58,6 +58,12 @@ authentication is complete. There is no production deployment.
   it is local organization metadata and does not authorize access. The single
   owning domain rule is provisional while broader context relationships remain
   open.
+- Systems are distinct local records for continuing operated capabilities. A
+  system may have one owning Domain, relate to multiple Projects, and receive
+  support from multiple canonical Resources through typed, auditable links.
+  Project briefs cite the exact system and project relationship. These manual
+  links do not change resource hierarchy, grant access, or assert live health.
+  The cardinalities and vocabulary remain provisional under OQ-021.
 - Shared Zod contracts generate a checked OpenAPI document. PostgreSQL has
   reviewed, repeatable Drizzle migrations and separate local migration and
   application roles. The pg-boss worker records attempts, audits, and heartbeat

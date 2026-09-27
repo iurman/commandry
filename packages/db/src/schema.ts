@@ -116,6 +116,35 @@ export const domain = pgTable(
   ],
 );
 
+export const system = pgTable(
+  "system",
+  {
+    id: uuid("id").primaryKey(),
+    name: text("name").notNull(),
+    summary: text("summary"),
+    lifecycle: text("lifecycle", { enum: ["active", "archived"] })
+      .notNull()
+      .default("active"),
+    version: integer("version").notNull().default(1),
+    createdAt: createdAt(),
+    updatedAt: updatedAt(),
+  },
+  (table) => [
+    index("system_name_id_idx").on(table.name, table.id),
+    check("system_name_nonempty", sql`length(trim(${table.name})) > 0`),
+    check("system_name_bounded", sql`length(${table.name}) <= 200`),
+    check(
+      "system_summary_bounded",
+      sql`${table.summary} is null or length(${table.summary}) <= 4000`,
+    ),
+    check(
+      "system_lifecycle_valid",
+      sql`${table.lifecycle} in ('active', 'archived')`,
+    ),
+    check("system_version_positive", sql`${table.version} >= 1`),
+  ],
+);
+
 export const project = pgTable(
   "project",
   {
@@ -328,6 +357,186 @@ export const projectResourceLink = pgTable(
     check(
       "project_resource_link_provenance_nonempty",
       sql`length(trim(${table.provenance})) > 0`,
+    ),
+  ],
+);
+
+export const systemDomainLink = pgTable(
+  "system_domain_link",
+  {
+    id: uuid("id").primaryKey(),
+    systemId: uuid("system_id")
+      .notNull()
+      .references(() => system.id, { onDelete: "restrict" }),
+    domainId: uuid("domain_id")
+      .notNull()
+      .references(() => domain.id, { onDelete: "restrict" }),
+    type: text("type", { enum: ["owned_by"] })
+      .notNull()
+      .default("owned_by"),
+    sourceKind: text("source_kind", { enum: ["system"] })
+      .notNull()
+      .default("system"),
+    targetKind: text("target_kind", { enum: ["domain"] })
+      .notNull()
+      .default("domain"),
+    lifecycle: text("lifecycle", { enum: ["active", "archived"] })
+      .notNull()
+      .default("active"),
+    provenance: text("provenance").notNull().default("manual"),
+    createdAt: createdAt(),
+    archivedAt: timestamp("archived_at", { withTimezone: true }),
+  },
+  (table) => [
+    uniqueIndex("system_domain_link_one_active_idx")
+      .on(table.systemId)
+      .where(sql`${table.lifecycle} = 'active'`),
+    index("system_domain_link_domain_page_idx").on(table.domainId, table.id),
+    check("system_domain_link_type_valid", sql`${table.type} = 'owned_by'`),
+    check(
+      "system_domain_link_direction_valid",
+      sql`${table.sourceKind} = 'system' and ${table.targetKind} = 'domain'`,
+    ),
+    check(
+      "system_domain_link_lifecycle_valid",
+      sql`${table.lifecycle} in ('active', 'archived')`,
+    ),
+    check(
+      "system_domain_link_archive_consistent",
+      sql`(${table.lifecycle} = 'active' and ${table.archivedAt} is null) or (${table.lifecycle} = 'archived' and ${table.archivedAt} is not null)`,
+    ),
+    check(
+      "system_domain_link_provenance_manual",
+      sql`${table.provenance} = 'manual'`,
+    ),
+  ],
+);
+
+export const systemProjectLink = pgTable(
+  "system_project_link",
+  {
+    id: uuid("id").primaryKey(),
+    systemId: uuid("system_id")
+      .notNull()
+      .references(() => system.id, { onDelete: "restrict" }),
+    projectId: uuid("project_id")
+      .notNull()
+      .references(() => project.id, { onDelete: "restrict" }),
+    type: text("type", { enum: ["relates_to"] })
+      .notNull()
+      .default("relates_to"),
+    sourceKind: text("source_kind", { enum: ["system"] })
+      .notNull()
+      .default("system"),
+    targetKind: text("target_kind", { enum: ["project"] })
+      .notNull()
+      .default("project"),
+    lifecycle: text("lifecycle", { enum: ["active", "archived"] })
+      .notNull()
+      .default("active"),
+    provenance: text("provenance").notNull().default("manual"),
+    createdAt: createdAt(),
+    archivedAt: timestamp("archived_at", { withTimezone: true }),
+  },
+  (table) => [
+    uniqueIndex("system_project_link_one_active_idx")
+      .on(table.systemId, table.projectId)
+      .where(sql`${table.lifecycle} = 'active'`),
+    index("system_project_link_project_page_idx").on(table.projectId, table.id),
+    check("system_project_link_type_valid", sql`${table.type} = 'relates_to'`),
+    check(
+      "system_project_link_direction_valid",
+      sql`${table.sourceKind} = 'system' and ${table.targetKind} = 'project'`,
+    ),
+    check(
+      "system_project_link_lifecycle_valid",
+      sql`${table.lifecycle} in ('active', 'archived')`,
+    ),
+    check(
+      "system_project_link_archive_consistent",
+      sql`(${table.lifecycle} = 'active' and ${table.archivedAt} is null) or (${table.lifecycle} = 'archived' and ${table.archivedAt} is not null)`,
+    ),
+    check(
+      "system_project_link_provenance_manual",
+      sql`${table.provenance} = 'manual'`,
+    ),
+  ],
+);
+
+export const systemResourceLink = pgTable(
+  "system_resource_link",
+  {
+    id: uuid("id").primaryKey(),
+    systemId: uuid("system_id")
+      .notNull()
+      .references(() => system.id, { onDelete: "restrict" }),
+    resourceId: uuid("resource_id")
+      .notNull()
+      .references(() => resource.id, { onDelete: "restrict" }),
+    type: text("type", { enum: ["supports"] })
+      .notNull()
+      .default("supports"),
+    sourceKind: text("source_kind", { enum: ["resource"] })
+      .notNull()
+      .default("resource"),
+    targetKind: text("target_kind", { enum: ["system"] })
+      .notNull()
+      .default("system"),
+    lifecycle: text("lifecycle", { enum: ["active", "archived"] })
+      .notNull()
+      .default("active"),
+    provenance: text("provenance").notNull().default("manual"),
+    createdAt: createdAt(),
+    archivedAt: timestamp("archived_at", { withTimezone: true }),
+  },
+  (table) => [
+    uniqueIndex("system_resource_link_one_active_idx")
+      .on(table.systemId, table.resourceId)
+      .where(sql`${table.lifecycle} = 'active'`),
+    index("system_resource_link_resource_page_idx").on(
+      table.resourceId,
+      table.id,
+    ),
+    check("system_resource_link_type_valid", sql`${table.type} = 'supports'`),
+    check(
+      "system_resource_link_direction_valid",
+      sql`${table.sourceKind} = 'resource' and ${table.targetKind} = 'system'`,
+    ),
+    check(
+      "system_resource_link_lifecycle_valid",
+      sql`${table.lifecycle} in ('active', 'archived')`,
+    ),
+    check(
+      "system_resource_link_archive_consistent",
+      sql`(${table.lifecycle} = 'active' and ${table.archivedAt} is null) or (${table.lifecycle} = 'archived' and ${table.archivedAt} is not null)`,
+    ),
+    check(
+      "system_resource_link_provenance_manual",
+      sql`${table.provenance} = 'manual'`,
+    ),
+  ],
+);
+
+export const systemAuditEvent = pgTable(
+  "system_audit_event",
+  {
+    id: uuid("id").primaryKey(),
+    systemId: uuid("system_id")
+      .notNull()
+      .references(() => system.id, { onDelete: "restrict" }),
+    actor: text("actor").notNull().default("local-user:unattributed"),
+    operation: text("operation").notNull(),
+    details: jsonb("details")
+      .$type<Record<string, string | number | boolean | null>>()
+      .notNull()
+      .default({}),
+    createdAt: createdAt(),
+  },
+  (table) => [
+    index("system_audit_event_system_page_idx").on(table.systemId, table.id),
+    check(
+      "system_audit_event_operation_valid",
+      sql`${table.operation} in ('system.created', 'system.updated', 'system.archived', 'system.domain_linked', 'system.domain_unlinked', 'system.project_linked', 'system.project_unlinked', 'system.resource_linked', 'system.resource_unlinked')`,
     ),
   ],
 );

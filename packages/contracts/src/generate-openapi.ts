@@ -104,6 +104,25 @@ import {
   listDomainsResponseSchema,
   listDomainProjectsResponseSchema,
   listDomainAuditResponseSchema,
+  createSystemRequestSchema,
+  updateSystemRequestSchema,
+  archiveSystemRequestSchema,
+  setSystemDomainRequestSchema,
+  linkSystemProjectRequestSchema,
+  linkSystemResourceRequestSchema,
+  systemSummarySchema,
+  systemAuditEventSchema,
+  systemDomainLinkSchema,
+  systemProjectLinkSchema,
+  systemResourceLinkSchema,
+  systemDomainResponseSchema,
+  systemProjectConnectionSchema,
+  systemResourceConnectionSchema,
+  listSystemsResponseSchema,
+  listDomainSystemsResponseSchema,
+  listSystemProjectsResponseSchema,
+  listSystemResourcesResponseSchema,
+  listSystemAuditResponseSchema,
   createProjectResourceLinkRequestSchema,
   createResourceRequestSchema,
   setResourceParentRequestSchema,
@@ -218,6 +237,222 @@ const pageParameters = [
     schema: { type: "string", format: "uuid" },
   },
 ];
+
+function systemResponses(
+  status: "200" | "201",
+  schema: string,
+  description: string,
+) {
+  return {
+    [status]: { description, content: jsonContent(schema) },
+    "400": {
+      description: "Invalid identifier, query, or body",
+      content: jsonContent("ErrorResponse"),
+    },
+    "404": {
+      description: "System, related record, or link not found",
+      content: jsonContent("ErrorResponse"),
+    },
+    "409": {
+      description: "Stale, archived, or still-linked record",
+      content: jsonContent("ErrorResponse"),
+    },
+    "503": {
+      description: "Database unavailable",
+      content: jsonContent("ErrorResponse"),
+    },
+  };
+}
+
+function systemRead(operationId: string, schema: string, description: string) {
+  return {
+    get: {
+      operationId,
+      parameters: [idParameter],
+      responses: systemResponses("200", schema, description),
+    },
+  };
+}
+
+function systemPage(operationId: string, schema: string, description: string) {
+  return {
+    get: {
+      operationId,
+      parameters: [idParameter, ...pageParameters],
+      responses: systemResponses("200", schema, description),
+    },
+  };
+}
+
+const systemPaths = {
+  "/api/v1/systems": {
+    get: {
+      operationId: "listSystems",
+      parameters: [
+        ...pageParameters,
+        {
+          in: "query",
+          name: "lifecycle",
+          required: false,
+          schema: { type: "string", enum: ["active", "archived"] },
+        },
+      ],
+      responses: systemResponses("200", "ListSystemsResponse", "System page"),
+    },
+    post: {
+      operationId: "createSystem",
+      requestBody: {
+        required: true,
+        content: jsonContent("CreateSystemRequest"),
+      },
+      responses: systemResponses("201", "SystemSummary", "Created system"),
+    },
+  },
+  "/api/v1/systems/{id}": {
+    ...systemRead("getSystem", "SystemSummary", "System record"),
+    patch: {
+      operationId: "updateSystem",
+      parameters: [idParameter],
+      requestBody: {
+        required: true,
+        content: jsonContent("UpdateSystemRequest"),
+      },
+      responses: systemResponses("200", "SystemSummary", "Updated system"),
+    },
+  },
+  "/api/v1/systems/{id}/archive": {
+    put: {
+      operationId: "archiveSystem",
+      parameters: [idParameter],
+      requestBody: {
+        required: true,
+        content: jsonContent("ArchiveSystemRequest"),
+      },
+      responses: systemResponses(
+        "200",
+        "SystemSummary",
+        "Archived empty system",
+      ),
+    },
+  },
+  "/api/v1/systems/{id}/domain": {
+    ...systemRead(
+      "getSystemDomain",
+      "SystemDomainResponse",
+      "Current owning domain or null",
+    ),
+    put: {
+      operationId: "setSystemDomain",
+      parameters: [idParameter],
+      requestBody: {
+        required: true,
+        content: jsonContent("SetSystemDomainRequest"),
+      },
+      responses: systemResponses(
+        "200",
+        "SystemDomainResponse",
+        "Current owning domain or null",
+      ),
+    },
+  },
+  "/api/v1/systems/{id}/projects": {
+    ...systemPage(
+      "listSystemProjects",
+      "ListSystemProjectsResponse",
+      "Related project page",
+    ),
+    post: {
+      operationId: "linkSystemProject",
+      parameters: [idParameter],
+      requestBody: {
+        required: true,
+        content: jsonContent("LinkSystemProjectRequest"),
+      },
+      responses: systemResponses(
+        "200",
+        "SystemProjectConnection",
+        "Current typed system-project relationship",
+      ),
+    },
+  },
+  "/api/v1/systems/{id}/resources": {
+    ...systemPage(
+      "listSystemResources",
+      "ListSystemResourcesResponse",
+      "Supporting resource page",
+    ),
+    post: {
+      operationId: "linkSystemResource",
+      parameters: [idParameter],
+      requestBody: {
+        required: true,
+        content: jsonContent("LinkSystemResourceRequest"),
+      },
+      responses: systemResponses(
+        "200",
+        "SystemResourceConnection",
+        "Current typed resource-system relationship",
+      ),
+    },
+  },
+  "/api/v1/systems/{id}/audit": systemPage(
+    "listSystemAudit",
+    "ListSystemAuditResponse",
+    "Immutable system audit page",
+  ),
+  "/api/v1/domains/{id}/systems": systemPage(
+    "listDomainSystems",
+    "ListDomainSystemsResponse",
+    "Systems owned by this domain",
+  ),
+  "/api/v1/projects/{id}/systems": systemPage(
+    "listProjectSystems",
+    "ListSystemProjectsResponse",
+    "Systems related to this project",
+  ),
+  "/api/v1/resources/{id}/systems": systemPage(
+    "listResourceSystems",
+    "ListSystemResourcesResponse",
+    "Systems supported by this resource",
+  ),
+  "/api/v1/system-domain-links/{id}": systemRead(
+    "getSystemDomainLink",
+    "SystemDomainLink",
+    "Exact typed domain relationship, including archived history",
+  ),
+  "/api/v1/system-project-links/{id}": systemRead(
+    "getSystemProjectLink",
+    "SystemProjectLink",
+    "Exact typed project relationship, including archived history",
+  ),
+  "/api/v1/system-project-links/{id}/archive": {
+    put: {
+      operationId: "archiveSystemProjectLink",
+      parameters: [idParameter],
+      responses: systemResponses(
+        "200",
+        "SystemProjectLink",
+        "Archived system-project relationship",
+      ),
+    },
+  },
+  "/api/v1/system-resource-links/{id}": systemRead(
+    "getSystemResourceLink",
+    "SystemResourceLink",
+    "Exact typed resource relationship, including archived history",
+  ),
+  "/api/v1/system-resource-links/{id}/archive": {
+    put: {
+      operationId: "archiveSystemResourceLink",
+      parameters: [idParameter],
+      responses: systemResponses(
+        "200",
+        "SystemResourceLink",
+        "Archived resource-system relationship",
+      ),
+    },
+  },
+};
 
 const projectFilterParameter = {
   in: "query",
@@ -560,7 +795,7 @@ export function generateOpenApi(): string {
               content: jsonContent("DomainSummary"),
             },
             "409": {
-              description: "Domain has active projects or changed",
+              description: "Domain has active projects or systems, or changed",
               content: jsonContent("ErrorResponse"),
             },
           },
@@ -649,6 +884,7 @@ export function generateOpenApi(): string {
           },
         },
       },
+      ...systemPaths,
       "/api/v1/projects/{id}": {
         get: {
           operationId: "getProject",
@@ -2776,6 +3012,27 @@ export function generateOpenApi(): string {
         ListDomainsResponse: component(listDomainsResponseSchema),
         ListDomainProjectsResponse: component(listDomainProjectsResponseSchema),
         ListDomainAuditResponse: component(listDomainAuditResponseSchema),
+        SystemSummary: component(systemSummarySchema),
+        SystemAuditEvent: component(systemAuditEventSchema),
+        SystemDomainLink: component(systemDomainLinkSchema),
+        SystemProjectLink: component(systemProjectLinkSchema),
+        SystemResourceLink: component(systemResourceLinkSchema),
+        SystemDomainResponse: component(systemDomainResponseSchema),
+        SystemProjectConnection: component(systemProjectConnectionSchema),
+        SystemResourceConnection: component(systemResourceConnectionSchema),
+        CreateSystemRequest: component(createSystemRequestSchema),
+        UpdateSystemRequest: component(updateSystemRequestSchema),
+        ArchiveSystemRequest: component(archiveSystemRequestSchema),
+        SetSystemDomainRequest: component(setSystemDomainRequestSchema),
+        LinkSystemProjectRequest: component(linkSystemProjectRequestSchema),
+        LinkSystemResourceRequest: component(linkSystemResourceRequestSchema),
+        ListSystemsResponse: component(listSystemsResponseSchema),
+        ListDomainSystemsResponse: component(listDomainSystemsResponseSchema),
+        ListSystemProjectsResponse: component(listSystemProjectsResponseSchema),
+        ListSystemResourcesResponse: component(
+          listSystemResourcesResponseSchema,
+        ),
+        ListSystemAuditResponse: component(listSystemAuditResponseSchema),
         CreateProjectRequest: component(createProjectRequestSchema),
         ListProjectsResponse: component(listProjectsResponseSchema),
         ProjectResourceLink: component(projectResourceLinkSchema),

@@ -80,8 +80,8 @@ export function createAgentContextService(
       if (brief) {
         const citations = [
           ...brief.state.evidence,
-          ...Object.values(brief.sections).flatMap((section) =>
-            section.items.flatMap((item) => item.evidence),
+          ...Object.values(brief.sections).flatMap(
+            (section) => section?.items.flatMap((item) => item.evidence) ?? [],
           ),
           ...brief.nextActions.items.flatMap((item) => item.evidence),
         ];

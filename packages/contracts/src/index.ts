@@ -115,6 +115,132 @@ export const projectDomainResponseSchema = z.object({
   membership: projectDomainMembershipSchema.nullable(),
 });
 
+export const systemSummarySchema = z.object({
+  id: z.uuid(),
+  name: z.string().min(1),
+  summary: z.string().nullable(),
+  lifecycle: z.enum(["active", "archived"]),
+  version: z.number().int().min(1),
+  domain: domainSummarySchema
+    .pick({ id: true, name: true })
+    .nullable()
+    .optional(),
+  createdAt: z.iso.datetime({ offset: true }),
+  updatedAt: z.iso.datetime({ offset: true }),
+});
+
+export const createSystemRequestSchema = z.strictObject({
+  name: z.string().trim().min(1).max(200),
+  summary: z.string().trim().max(4000).optional(),
+});
+
+export const updateSystemRequestSchema = z
+  .strictObject({
+    expectedVersion: z.number().int().min(1),
+    name: z.string().trim().min(1).max(200).optional(),
+    summary: z.string().trim().max(4000).nullable().optional(),
+  })
+  .refine(
+    (input) => input.name !== undefined || input.summary !== undefined,
+    "Provide a name or summary to change",
+  );
+
+export const archiveSystemRequestSchema = z.strictObject({
+  expectedVersion: z.number().int().min(1),
+});
+
+export const setSystemDomainRequestSchema = z.strictObject({
+  domainId: z.uuid().nullable(),
+  expectedDomainId: z.uuid().nullable(),
+});
+
+export const linkSystemProjectRequestSchema = z.strictObject({
+  projectId: z.uuid(),
+});
+
+export const linkSystemResourceRequestSchema = z.strictObject({
+  resourceId: z.uuid(),
+});
+
+export const systemDomainLinkSchema = z.object({
+  id: z.uuid(),
+  systemId: z.uuid(),
+  domainId: z.uuid(),
+  type: z.literal("owned_by"),
+  inverseType: z.literal("owns"),
+  sourceKind: z.literal("system"),
+  targetKind: z.literal("domain"),
+  lifecycle: z.enum(["active", "archived"]),
+  provenance: z.literal("manual"),
+  createdAt: z.iso.datetime({ offset: true }),
+  archivedAt: z.iso.datetime({ offset: true }).nullable(),
+});
+
+export const systemProjectLinkSchema = z.object({
+  id: z.uuid(),
+  systemId: z.uuid(),
+  projectId: z.uuid(),
+  type: z.literal("relates_to"),
+  inverseType: z.literal("relates_to"),
+  sourceKind: z.literal("system"),
+  targetKind: z.literal("project"),
+  lifecycle: z.enum(["active", "archived"]),
+  provenance: z.literal("manual"),
+  createdAt: z.iso.datetime({ offset: true }),
+  archivedAt: z.iso.datetime({ offset: true }).nullable(),
+});
+
+export const systemResourceLinkSchema = z.object({
+  id: z.uuid(),
+  systemId: z.uuid(),
+  resourceId: z.uuid(),
+  type: z.literal("supports"),
+  inverseType: z.literal("supported_by"),
+  sourceKind: z.literal("resource"),
+  targetKind: z.literal("system"),
+  lifecycle: z.enum(["active", "archived"]),
+  provenance: z.literal("manual"),
+  createdAt: z.iso.datetime({ offset: true }),
+  archivedAt: z.iso.datetime({ offset: true }).nullable(),
+});
+
+export const systemDomainMembershipSchema = z.object({
+  domain: domainSummarySchema,
+  link: systemDomainLinkSchema,
+});
+
+export const systemDomainResponseSchema = z.object({
+  membership: systemDomainMembershipSchema.nullable(),
+});
+
+export const systemResourceConnectionSchema = z.object({
+  system: systemSummarySchema,
+  resource: resourceSummarySchema,
+  link: systemResourceLinkSchema,
+});
+
+export const systemAuditEventSchema = z.object({
+  id: z.uuid(),
+  systemId: z.uuid(),
+  actor: z.literal("local-user:unattributed"),
+  operation: z.enum([
+    "system.created",
+    "system.updated",
+    "system.archived",
+    "system.domain_linked",
+    "system.domain_unlinked",
+    "system.project_linked",
+    "system.project_unlinked",
+    "system.resource_linked",
+    "system.resource_unlinked",
+  ]),
+  details: z.record(
+    z.string(),
+    z.union([z.string(), z.number(), z.boolean(), z.null()]),
+  ),
+  createdAt: z.iso.datetime({ offset: true }),
+});
+
 export const createResourceRequestSchema = z.object({
   kind: z.string().trim().min(1).max(100),
   name: z.string().trim().min(1).max(200),
@@ -165,6 +291,12 @@ export const projectSummarySchema = z.object({
   updatedAt: z.iso.datetime({ offset: true }),
 });
 
+export const systemProjectConnectionSchema = z.object({
+  system: systemSummarySchema,
+  project: projectSummarySchema,
+  link: systemProjectLinkSchema,
+});
+
 export const createProjectRequestSchema = z.object({
   name: z.string().trim().min(1).max(200),
   summary: z.string().trim().max(4000).optional(),
@@ -213,6 +345,32 @@ export const listDomainProjectsResponseSchema = z.object({
 
 export const listDomainAuditResponseSchema = z.object({
   items: z.array(domainAuditEventSchema),
+  nextCursor: z.uuid().nullable(),
+});
+
+export const listSystemsQuerySchema = listResourcesQuerySchema.extend({
+  lifecycle: z.enum(["active", "archived"]).optional(),
+});
+
+export const listSystemsResponseSchema = z.object({
+  items: z.array(systemSummarySchema),
+  nextCursor: z.uuid().nullable(),
+});
+
+export const listDomainSystemsResponseSchema = listSystemsResponseSchema;
+
+export const listSystemProjectsResponseSchema = z.object({
+  items: z.array(systemProjectConnectionSchema),
+  nextCursor: z.uuid().nullable(),
+});
+
+export const listSystemResourcesResponseSchema = z.object({
+  items: z.array(systemResourceConnectionSchema),
+  nextCursor: z.uuid().nullable(),
+});
+
+export const listSystemAuditResponseSchema = z.object({
+  items: z.array(systemAuditEventSchema),
   nextCursor: z.uuid().nullable(),
 });
 
@@ -772,6 +930,7 @@ export const searchResultSchema = z.object({
     "comment",
     "decision",
     "domain",
+    "system",
     "project",
     "resource",
   ]),
@@ -1025,6 +1184,10 @@ export const evidenceReferenceSchema = z.object({
   kind: z.enum([
     "domain",
     "project_domain_link",
+    "system",
+    "system_project_link",
+    "system_domain_link",
+    "system_resource_link",
     "project",
     "work_item",
     "work_item_relation",
@@ -1230,6 +1393,7 @@ export const briefFactSchema = z.object({
     "work_item",
     "knowledge_item",
     "decision",
+    "system",
     "resource",
     "event",
     "alert",
@@ -1278,6 +1442,7 @@ export const projectBriefSchema = z.object({
     work: briefSectionSchema,
     knowledge: briefSectionSchema,
     decisions: briefSectionSchema,
+    systems: briefSectionSchema.optional(),
     resources: briefSectionSchema,
     activity: briefSectionSchema,
     attention: briefSectionSchema,
@@ -1877,6 +2042,26 @@ export type ProjectDomainLink = z.infer<typeof projectDomainLinkSchema>;
 export type ProjectDomainMembership = z.infer<
   typeof projectDomainMembershipSchema
 >;
+export type SystemSummary = z.infer<typeof systemSummarySchema>;
+export type CreateSystemRequest = z.infer<typeof createSystemRequestSchema>;
+export type UpdateSystemRequest = z.infer<typeof updateSystemRequestSchema>;
+export type ArchiveSystemRequest = z.infer<typeof archiveSystemRequestSchema>;
+export type SetSystemDomainRequest = z.infer<
+  typeof setSystemDomainRequestSchema
+>;
+export type SystemDomainLink = z.infer<typeof systemDomainLinkSchema>;
+export type SystemProjectLink = z.infer<typeof systemProjectLinkSchema>;
+export type SystemResourceLink = z.infer<typeof systemResourceLinkSchema>;
+export type SystemDomainMembership = z.infer<
+  typeof systemDomainMembershipSchema
+>;
+export type SystemProjectConnection = z.infer<
+  typeof systemProjectConnectionSchema
+>;
+export type SystemResourceConnection = z.infer<
+  typeof systemResourceConnectionSchema
+>;
+export type SystemAuditEvent = z.infer<typeof systemAuditEventSchema>;
 export type ProjectResourceLink = z.infer<typeof projectResourceLinkSchema>;
 export type ProjectResourceLinkDetail = z.infer<
   typeof projectResourceLinkDetailSchema

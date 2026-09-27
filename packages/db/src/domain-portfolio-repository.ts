@@ -6,7 +6,13 @@ import {
   requireEditableDomain,
 } from "@commandry/domain";
 import type { CommandryDatabase } from "./client";
-import { domain, domainAuditEvent, project, projectDomainLink } from "./schema";
+import {
+  domain,
+  domainAuditEvent,
+  project,
+  projectDomainLink,
+  systemDomainLink,
+} from "./schema";
 
 function domainRecord(row: typeof domain.$inferSelect) {
   return {
@@ -197,6 +203,20 @@ export function createDomainPortfolioRepository(db: CommandryDatabase) {
             ),
           );
         requireArchivableDomain(activeCount?.count ?? 0);
+        const [activeSystemCount] = await tx
+          .select({ count: sql<number>`count(*)::integer` })
+          .from(systemDomainLink)
+          .where(
+            and(
+              eq(systemDomainLink.domainId, id),
+              eq(systemDomainLink.lifecycle, "active"),
+            ),
+          );
+        if ((activeSystemCount?.count ?? 0) > 0)
+          throw new DomainPortfolioError(
+            "DOMAIN_HAS_SYSTEMS",
+            "Move or unlink active systems before archiving this domain",
+          );
         const [updated] = await tx
           .update(domain)
           .set({

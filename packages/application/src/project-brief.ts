@@ -7,6 +7,7 @@ import type {
   ProjectBrief,
   ProjectResourceLink,
   ProjectSummary,
+  SystemSummary,
   SyntheticAlert,
   WorkItem,
 } from "@commandry/contracts";
@@ -64,6 +65,11 @@ export type ProjectBriefSnapshot = {
   work: BriefPage<BriefWorkItem>;
   knowledge: BriefPage<KnowledgeItem>;
   decisions: BriefPage<ProjectDecision>;
+  systems?: BriefPage<{
+    system: SystemSummary;
+    linkId: string;
+    linkedAt: string;
+  }>;
   resources: BriefPage<{ link: ProjectResourceLink; linkedAt: string }>;
   events: BriefPage<NormalizedSyntheticEvent>;
   attention: BriefPage<SyntheticAlert & { recordedAt: string }>;
@@ -249,6 +255,35 @@ export function assembleProjectBrief(
       isSynthetic: false,
     }),
   );
+  const systems = (snapshot.systems?.items ?? []).map(
+    ({ system, linkId, linkedAt }) =>
+      fact({
+        id: system.id,
+        kind: "system",
+        title: system.name,
+        detail: `${briefExcerpt(system.summary ?? "No system summary recorded.")} Local context record; operational health is not inferred.`,
+        evidence: [
+          evidence(
+            "system",
+            system.id,
+            `/api/v1/systems/${system.id}`,
+            system.updatedAt,
+            "Manual local system record",
+            false,
+          ),
+          evidence(
+            "system_project_link",
+            linkId,
+            `/api/v1/system-project-links/${linkId}`,
+            linkedAt,
+            "Manual local system-project relationship",
+            false,
+          ),
+        ],
+        sourceLabel: "Manual local system context",
+        isSynthetic: false,
+      }),
+  );
   const resources = snapshot.resources.items.map(({ link, linkedAt }) =>
     fact({
       id: link.resource.id,
@@ -378,6 +413,12 @@ export function assembleProjectBrief(
         snapshot.decisions.nextCursor,
         `/api/v1/projects/${projectId}/decisions`,
         "No project decisions are recorded in this preview.",
+      ),
+      systems: section(
+        systems,
+        snapshot.systems?.nextCursor ?? null,
+        `/api/v1/projects/${projectId}/systems`,
+        "No related systems are recorded in this preview.",
       ),
       resources: section(
         resources,

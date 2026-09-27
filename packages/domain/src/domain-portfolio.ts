@@ -11,6 +11,7 @@ export type DomainPortfolioErrorCode =
   | "DOMAIN_ARCHIVED"
   | "DOMAIN_STALE"
   | "DOMAIN_HAS_PROJECTS"
+  | "DOMAIN_HAS_SYSTEMS"
   | "PROJECT_NOT_FOUND"
   | "PROJECT_DOMAIN_STALE";
 

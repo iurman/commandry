@@ -75,6 +75,7 @@ export default function ProjectBriefPanel({
               work: `${projectHref}#work-heading`,
               knowledge: `${projectHref}#knowledge-heading`,
               decisions: `${projectHref}#decisions-heading`,
+              systems: `${projectHref}#project-systems-heading`,
               resources: `${projectHref}#linked-resources-heading`,
               activity: `/activity?projectId=${encodeURIComponent(projectId)}`,
               attention: `/activity?projectId=${encodeURIComponent(projectId)}#attention`,
