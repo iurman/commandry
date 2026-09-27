@@ -63,7 +63,14 @@ function request(port, pathname, options = {}) {
         );
       },
     );
-    outgoing.on("error", reject);
+    outgoing.on("error", (error) =>
+      reject(
+        new Error(
+          `${method} ${pathname} (${Buffer.byteLength(body)} bytes): ${error.message}`,
+          { cause: error },
+        ),
+      ),
+    );
     outgoing.end(body);
   });
 }
@@ -166,11 +173,23 @@ test("full LAN gateway accepts same-origin API writes and rejects cross-origin r
     });
     assert.equal(valid.status, 201);
     assert.equal(valid.body, '{"id":"local"}');
+    const fileUpload = await request(port, "/api/v1/captures/files", {
+      method: "POST",
+      body: "x".repeat(1024 * 1024 + 1),
+      headers: { "content-type": "multipart/form-data; boundary=local" },
+    });
+    assert.equal(fileUpload.status, 201);
     assert.deepEqual(received, [
       {
         method: "POST",
         path: "/api/v1/projects",
         body: '{"name":"Phone review"}',
+        authorization: undefined,
+      },
+      {
+        method: "POST",
+        path: "/api/v1/captures/files",
+        body: "x".repeat(1024 * 1024 + 1),
         authorization: undefined,
       },
     ]);
@@ -222,7 +241,7 @@ test("full LAN gateway accepts same-origin API writes and rejects cross-origin r
       ).status,
       413,
     );
-    assert.equal(received.length, 1);
+    assert.equal(received.length, 2);
   } finally {
     await close(gateway);
     await close(upstream);

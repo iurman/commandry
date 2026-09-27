@@ -8,7 +8,7 @@ export interface KnowledgeItemRecord {
   id: string;
   projectId: string;
   sourceCaptureId: string;
-  kind: "note" | "link";
+  kind: "note" | "link" | "document";
   title: string;
   content: string;
   url?: string | null;
@@ -119,7 +119,9 @@ export default function KnowledgeItemWorkspace({
       setSaveFeedback(
         updated.kind === "link"
           ? "Knowledge link saved. The exact original capture and saved link target are unchanged."
-          : "Knowledge note saved. The exact original capture is unchanged.",
+          : updated.kind === "document"
+            ? "Knowledge document saved. The exact original file is unchanged."
+            : "Knowledge note saved. The exact original capture is unchanged.",
       );
     } catch (cause) {
       setSaveError(
@@ -179,9 +181,7 @@ export default function KnowledgeItemWorkspace({
           </a>
         )}
         {item && <span aria-hidden="true">/</span>}
-        <span>
-          {item?.kind === "link" ? "Knowledge link" : "Knowledge note"}
-        </span>
+        <span>{item ? `Knowledge ${item.kind}` : "Knowledge"}</span>
       </nav>
       {loading && (
         <p className="cmd-inline-state" role="status">
@@ -216,7 +216,11 @@ export default function KnowledgeItemWorkspace({
             >
               <p className="cmd-eyebrow">Saved knowledge</p>
               <h2 id="knowledge-body-heading">
-                {item.kind === "link" ? "Link context" : "Note body"}
+                {item.kind === "link"
+                  ? "Link context"
+                  : item.kind === "document"
+                    ? "Document context"
+                    : "Note body"}
               </h2>
               {item.kind === "link" && item.url && (
                 <p>
@@ -227,12 +231,26 @@ export default function KnowledgeItemWorkspace({
                   <code>{item.url}</code>
                 </p>
               )}
+              {item.kind === "document" && (
+                <p>
+                  <a
+                    href={`/api/v1/captures/${encodeURIComponent(item.sourceCaptureId)}/original-file`}
+                  >
+                    Download exact original file
+                  </a>
+                </p>
+              )}
               {item.content ? (
                 <div className="cmd-detail-body">{item.content}</div>
               ) : (
                 <p className="cmd-inline-state">
-                  No {item.kind === "link" ? "link context" : "note body"} was
-                  recorded.
+                  No{" "}
+                  {item.kind === "link"
+                    ? "link context"
+                    : item.kind === "document"
+                      ? "document context"
+                      : "note body"}{" "}
+                  was recorded.
                 </p>
               )}
             </article>
@@ -294,8 +312,12 @@ export default function KnowledgeItemWorkspace({
             <p>
               Edits update the current project knowledge, search, and live
               brief. The original capture
-              {item.kind === "link" ? ", saved link target" : ""}, and previous
-              execution packets stay as recorded.
+              {item.kind === "link"
+                ? ", saved link target"
+                : item.kind === "document"
+                  ? ", saved file bytes"
+                  : ""}
+              , and previous execution packets stay as recorded.
             </p>
             <form className="cmd-form" onSubmit={saveRevision}>
               <label htmlFor="knowledge-title">Title</label>
@@ -307,7 +329,11 @@ export default function KnowledgeItemWorkspace({
                 onChange={(event) => setTitleDraft(event.target.value)}
               />
               <label htmlFor="knowledge-content">
-                {item.kind === "link" ? "Link context" : "Content"}
+                {item.kind === "link"
+                  ? "Link context"
+                  : item.kind === "document"
+                    ? "Document context"
+                    : "Content"}
               </label>
               <textarea
                 id="knowledge-content"

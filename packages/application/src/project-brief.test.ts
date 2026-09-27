@@ -158,6 +158,10 @@ describe("project brief application", () => {
           href: `/api/v1/knowledge-items/${noteId}`,
           sourceLabel: "Locally revised knowledge note",
         },
+        {
+          href: "/api/v1/captures/f03427b8-37aa-44eb-9c81-5d120e5bff9b",
+          sourceLabel: "Manual local capture",
+        },
       ],
     });
   });

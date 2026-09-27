@@ -134,6 +134,11 @@ export function createExecutionPacketRepository(db: CommandryDatabase) {
         if (!currentProject || !originalCapture) {
           throw new Error("Packet source references are missing");
         }
+        if (originalCapture.inputType === "file")
+          throw new ExecutionPacketError(
+            "INVALID_SELECTION",
+            "A task packet must cite a text or URL task capture",
+          );
 
         const noteRows = input.selectedKnowledgeIds.length
           ? await tx

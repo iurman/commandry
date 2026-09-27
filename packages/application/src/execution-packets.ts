@@ -141,7 +141,11 @@ export function buildExecutionPacketContents(
           note.id,
           `/api/v1/knowledge-items/${note.id}`,
           note.updatedAt,
-          "Manual local capture",
+          note.kind === "document"
+            ? "Manual local knowledge document"
+            : note.kind === "link"
+              ? "Manual local knowledge link"
+              : "Manual local capture",
         ),
       })),
     selectedResources: [...bundle.resources]

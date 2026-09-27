@@ -9,6 +9,7 @@ import {
   AppShell,
   Button,
   DecisionCard,
+  KnowledgeDocumentCard,
   KnowledgeLinkCard,
   RecordEmptyState,
 } from "@commandry/ui";
@@ -119,13 +120,12 @@ export default function KnowledgeWorkspace({
           <p className="cmd-eyebrow">Knowledge / Across projects</p>
           <h1>Knowledge</h1>
           <p className="cmd-lead">
-            Read local notes, saved links, and decisions in project context.
-            Notes and links retain their exact original capture; decisions
-            retain their revisions.
+            Read local notes, saved links, documents, and decisions in project
+            context. Originals stay separate from editable Knowledge records.
           </p>
         </div>
         <a className="cmd-headline-mark" href="/inbox">
-          Capture a note or link
+          Capture knowledge
         </a>
       </header>
       {projectId && (
@@ -168,19 +168,19 @@ export default function KnowledgeWorkspace({
             <div className="cmd-section-heading">
               <div>
                 <p className="cmd-eyebrow">Source preserving</p>
-                <h2 id="notes-heading">Notes and links</h2>
+                <h2 id="notes-heading">Notes, links, and documents</h2>
               </div>
               <span className="cmd-count">{notes.length} shown</span>
             </div>
             {notes.length === 0 && !error && (
               <RecordEmptyState
-                title="No notes or links yet"
-                description="Capture text or a URL in the Inbox and file it as knowledge."
+                title="No knowledge records yet"
+                description="Capture text, a URL, or a file in the Inbox and file it as knowledge."
               />
             )}
             <ul
               className="cmd-record-list"
-              aria-label="Knowledge notes and links"
+              aria-label="Knowledge notes, links, and documents"
             >
               {notes.map((note) => (
                 <li key={note.id}>
@@ -194,6 +194,18 @@ export default function KnowledgeWorkspace({
                         title: note.title,
                         content: note.content,
                         url: note.url,
+                      }}
+                    />
+                  ) : note.kind === "document" ? (
+                    <KnowledgeDocumentCard
+                      document={{
+                        id: note.id,
+                        projectId: note.projectId,
+                        projectName: note.projectName,
+                        sourceCaptureId: note.sourceCaptureId,
+                        title: note.title,
+                        content: note.content,
+                        version: note.version ?? 1,
                       }}
                     />
                   ) : (

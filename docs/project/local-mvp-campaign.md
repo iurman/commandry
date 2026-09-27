@@ -63,8 +63,16 @@ local experience lab.
   be revised, while the target remains tied to its original. The local UI will
   not fetch the URL. Work comments will be append-only manual records with
   audit and search links to their task. This is a narrow reference and
-  discussion slice; file storage, external sync, multi-project ownership, and
-  richer work types remain open for later implementation.
+  discussion slice; task attachment links, external sync, multi-project
+  ownership, and richer work types remain open for later implementation.
+- A manual file capture will keep exact bytes, original name, media type,
+  byte count, and SHA-256 in a dedicated PostgreSQL row with an immutable
+  source pointer. This local path accepts 1 byte through 2 MiB and serves a
+  verified download only as an attachment. Filing it creates a Knowledge
+  document with separately revisioned title and context. No file is executed,
+  scanned, extracted, uploaded to a provider, or represented as live external
+  content. The PostgreSQL storage cap is a local adapter choice and does not
+  select production blob storage, retention, or access policy.
 - A local task may be completed and reopened. Each change will use the displayed
   status as an expected value and append an immutable event. Live briefs will
   select currently open tasks, while already generated execution packets will

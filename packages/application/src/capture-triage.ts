@@ -11,7 +11,7 @@ import { CaptureTriageError, suggestCaptureTriage } from "@commandry/domain";
 export interface CaptureTriagePort {
   getCapture(id: string): Promise<{
     id: string;
-    inputType: "text" | "url";
+    inputType: "text" | "url" | "file";
     originalContent: string;
     state: "unfiled" | "filed";
     projectId: string | null;
@@ -52,6 +52,11 @@ export function createCaptureTriageService(port: CaptureTriagePort) {
           "Capture is already filed",
         );
       }
+      if (capture.inputType === "file")
+        throw new CaptureTriageError(
+          "CAPTURE_UNSUPPORTED",
+          "Local file captures are filed manually as documents",
+        );
       await port.enqueueSuggestion(captureId);
     },
     review: port.review,
@@ -82,7 +87,11 @@ export function createCaptureTriageProcessor(
       throw new CaptureTriageError("CAPTURE_NOT_FOUND", "Capture not found");
     }
     if (capture.state === "filed") return null;
-    const proposal = suggestCaptureTriage(capture);
+    if (capture.inputType === "file") return null;
+    const proposal = suggestCaptureTriage({
+      inputType: capture.inputType,
+      originalContent: capture.originalContent,
+    });
     return port.createSuggestionOnce({
       captureId,
       proposedProjectId: capture.projectId,

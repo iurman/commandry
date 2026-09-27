@@ -42,6 +42,9 @@ function port(overrides: Partial<CaptureRepository> = {}): CaptureRepository {
     fileAsLink: async () => {
       throw new Error("unused");
     },
+    fileAsDocument: async () => {
+      throw new Error("unused");
+    },
     listProjectWork: async () => ({ items: [work], nextCursor: null }),
     listProjectKnowledge: async () => ({ items: [], nextCursor: null }),
     listWork: async () => ({

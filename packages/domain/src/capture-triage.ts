@@ -9,6 +9,7 @@ export class CaptureTriageError extends Error {
       | "CAPTURE_NOT_FOUND"
       | "SUGGESTION_NOT_READY"
       | "CAPTURE_ALREADY_FILED"
+      | "CAPTURE_UNSUPPORTED"
       | "TRIAGE_ALREADY_REVIEWED"
       | "PROJECT_NOT_FOUND",
     message: string,

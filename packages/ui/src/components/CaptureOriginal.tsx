@@ -1,6 +1,13 @@
 export interface CaptureOriginalRecord {
-  inputType: "text" | "url";
+  inputType: "text" | "url" | "file";
   originalContent: string;
+  file?: {
+    originalName: string;
+    mediaType: string;
+    byteSize: number;
+    sha256: string;
+    downloadHref: string;
+  } | null;
   source: string;
   author: string;
   createdAt: string;
@@ -27,11 +34,35 @@ export function CaptureOriginal({
         </div>
         <span className="cmd-capture-lock">Read only</span>
       </div>
-      <pre className="cmd-capture-content">{capture.originalContent}</pre>
+      {capture.inputType === "file" && capture.file ? (
+        <div className="cmd-capture-content">
+          <p>
+            <strong>{capture.file.originalName}</strong>
+          </p>
+          <p>
+            {capture.file.byteSize.toLocaleString()} bytes /{" "}
+            {capture.file.mediaType}
+          </p>
+          <p>
+            SHA-256: <code>{capture.file.sha256}</code>
+          </p>
+          <p>
+            <a href={capture.file.downloadHref}>Download exact original file</a>
+          </p>
+        </div>
+      ) : (
+        <pre className="cmd-capture-content">{capture.originalContent}</pre>
+      )}
       <dl className="cmd-capture-provenance">
         <div>
           <dt>Input</dt>
-          <dd>{capture.inputType === "url" ? "URL" : "Text"}</dd>
+          <dd>
+            {capture.inputType === "url"
+              ? "URL"
+              : capture.inputType === "file"
+                ? "File"
+                : "Text"}
+          </dd>
         </div>
         <div>
           <dt>Source</dt>

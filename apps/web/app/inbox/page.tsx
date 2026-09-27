@@ -21,7 +21,7 @@ import type {
   FiledCaptureResponse,
 } from "./api";
 
-type FilingKind = "task" | "note" | "link";
+type FilingKind = "task" | "note" | "link" | "document";
 
 function preview(content: string) {
   return content.replace(/\s+/g, " ").trim();
@@ -63,9 +63,11 @@ export default function InboxPage() {
   const [projectsLoading, setProjectsLoading] = useState(true);
   const [projectsLoadingMore, setProjectsLoadingMore] = useState(false);
   const [projectsError, setProjectsError] = useState<string | null>(null);
-  const [inputType, setInputType] = useState<"text" | "url">("text");
+  const [inputType, setInputType] = useState<"text" | "url" | "file">("text");
   const [textDraft, setTextDraft] = useState("");
   const [urlDraft, setUrlDraft] = useState("");
+  const [fileDraft, setFileDraft] = useState<File | null>(null);
+  const [fileInputKey, setFileInputKey] = useState(0);
   const [capturing, setCapturing] = useState(false);
   const [captureError, setCaptureError] = useState<string | null>(null);
   const [captureFeedback, setCaptureFeedback] = useState<string | null>(null);
@@ -145,6 +147,10 @@ export default function InboxPage() {
             : [record, ...current],
         );
         setProjectId(record.projectId ?? "");
+        if (record.inputType === "file") {
+          setKind("document");
+          setTitle(record.file?.originalName ?? "");
+        }
       })
       .catch((cause: unknown) => {
         if (active) setDetailError(message(cause, "Capture is unavailable."));
@@ -155,7 +161,7 @@ export default function InboxPage() {
   }, [selectedId, detailReload]);
 
   useEffect(() => {
-    if (!selectedId) return;
+    if (!selectedId || detail?.inputType === "file") return;
     let active = true;
     let timer: ReturnType<typeof setTimeout> | undefined;
     let attempts = 0;
@@ -200,7 +206,7 @@ export default function InboxPage() {
       active = false;
       if (timer) clearTimeout(timer);
     };
-  }, [selectedId, triageReload, detail?.state]);
+  }, [selectedId, triageReload, detail?.state, detail?.inputType]);
 
   function selectCapture(id: string) {
     detailRef.current?.scrollIntoView?.({ behavior: "smooth", block: "start" });
@@ -222,7 +228,13 @@ export default function InboxPage() {
   }
 
   async function queueSuggestion() {
-    if (!detail || detail.state === "filed" || triageLoading) return;
+    if (
+      !detail ||
+      detail.inputType === "file" ||
+      detail.state === "filed" ||
+      triageLoading
+    )
+      return;
     setTriageLoading(true);
     setTriageError(null);
     try {
@@ -342,19 +354,46 @@ export default function InboxPage() {
 
   async function captureInput(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
-    if (!originalContent.trim() || capturing) return;
+    if (
+      (inputType === "file" ? !fileDraft : !originalContent.trim()) ||
+      capturing
+    )
+      return;
     setCapturing(true);
     setCaptureError(null);
     setCaptureFeedback(null);
     try {
-      const saved = await apiJson<CaptureRecord>("/api/v1/captures", {
-        method: "POST",
-        body: JSON.stringify({ inputType, originalContent }),
-      });
+      let saved: CaptureRecord;
+      if (inputType === "file" && fileDraft) {
+        const form = new FormData();
+        form.set("file", fileDraft);
+        const response = await fetch("/api/v1/captures/files", {
+          method: "POST",
+          body: form,
+        });
+        if (!response.ok) {
+          const error = (await response.json().catch(() => null)) as {
+            message?: string;
+          } | null;
+          throw new Error(
+            error?.message ?? `File upload failed (${response.status})`,
+          );
+        }
+        saved = (await response.json()) as CaptureRecord;
+      } else {
+        saved = await apiJson<CaptureRecord>("/api/v1/captures", {
+          method: "POST",
+          body: JSON.stringify({ inputType, originalContent }),
+        });
+      }
       setCaptures((current) => [saved, ...current]);
       selectCapture(saved.id);
       if (inputType === "text") setTextDraft("");
-      else setUrlDraft("");
+      else if (inputType === "url") setUrlDraft("");
+      else {
+        setFileDraft(null);
+        setFileInputKey((value) => value + 1);
+      }
       setCaptureFeedback("Captured locally. The original is preserved below.");
     } catch (cause) {
       setCaptureError(message(cause, "Could not save capture."));
@@ -436,7 +475,8 @@ export default function InboxPage() {
             <span className="cmd-inbox-step">01</span>
           </div>
           <p className="cmd-form-intro">
-            Text and URLs are stored as entered. This local form does not open
+            Text and URLs are stored as entered. Files up to 2 MiB keep their
+            exact bytes and SHA-256 in local PostgreSQL. This form does not open
             or fetch a URL.
           </p>
           <div
@@ -458,10 +498,21 @@ export default function InboxPage() {
             >
               URL
             </Button>
+            <Button
+              aria-pressed={inputType === "file"}
+              className={inputType === "file" ? "cmd-capture-type-active" : ""}
+              onClick={() => setInputType("file")}
+            >
+              File
+            </Button>
           </div>
           <form className="cmd-form" onSubmit={captureInput}>
             <label htmlFor="capture-original">
-              {inputType === "text" ? "Original text" : "Original URL"}
+              {inputType === "text"
+                ? "Original text"
+                : inputType === "url"
+                  ? "Original URL"
+                  : "Original file"}
               <span aria-hidden="true"> *</span>
             </label>
             {inputType === "text" ? (
@@ -473,7 +524,7 @@ export default function InboxPage() {
                 rows={5}
                 value={originalContent}
               />
-            ) : (
+            ) : inputType === "url" ? (
               <input
                 id="capture-original"
                 onChange={(event) => setUrlDraft(event.target.value)}
@@ -481,6 +532,16 @@ export default function InboxPage() {
                 required
                 type="url"
                 value={originalContent}
+              />
+            ) : (
+              <input
+                id="capture-original"
+                key={fileInputKey}
+                type="file"
+                onChange={(event) =>
+                  setFileDraft(event.target.files?.[0] ?? null)
+                }
+                required
               />
             )}
             {captureError && (
@@ -494,7 +555,10 @@ export default function InboxPage() {
               </p>
             )}
             <Button
-              disabled={capturing || !originalContent.trim()}
+              disabled={
+                capturing ||
+                (inputType === "file" ? !fileDraft : !originalContent.trim())
+              }
               type="submit"
               variant="primary"
             >
@@ -531,7 +595,7 @@ export default function InboxPage() {
             captures.length === 0 &&
             !selectedId && (
               <RecordEmptyState
-                description="Capture text or a URL above. It will wait here until you file it."
+                description="Capture text, a URL, or a file above. It will wait here until you file it."
                 title="Inbox is clear"
               />
             )}
@@ -547,14 +611,20 @@ export default function InboxPage() {
                   >
                     <span className="cmd-inbox-item-top">
                       <span className="cmd-inbox-item-kind">
-                        {capture.inputType === "url" ? "URL" : "Text"}
+                        {capture.inputType === "url"
+                          ? "URL"
+                          : capture.inputType === "file"
+                            ? "File"
+                            : "Text"}
                       </span>
                       <span className="cmd-inbox-item-state">
                         {capture.state === "filed" ? "Filed" : "To file"}
                       </span>
                     </span>
                     <span className="cmd-inbox-item-preview">
-                      {preview(capture.originalContent)}
+                      {preview(
+                        capture.file?.originalName ?? capture.originalContent,
+                      )}
                     </span>
                     <span className="cmd-inbox-item-time">
                       {capture.createdAt}
@@ -620,55 +690,57 @@ export default function InboxPage() {
                 <span className="cmd-count">Capture ID {detail.id}</span>
               </div>
               <CaptureOriginal capture={detail} />
-              <section
-                className="cmd-inbox-file-form"
-                aria-labelledby="triage-suggestion-heading"
-              >
-                <p className="cmd-eyebrow">
-                  Reviewable local rule / No automatic filing
-                </p>
-                <h3 id="triage-suggestion-heading">Capture suggestion</h3>
-                {triageLoading && !triageReview?.suggestion && (
-                  <p className="cmd-inline-state" role="status">
-                    Checking for a suggestion...
+              {detail.inputType !== "file" && (
+                <section
+                  className="cmd-inbox-file-form"
+                  aria-labelledby="triage-suggestion-heading"
+                >
+                  <p className="cmd-eyebrow">
+                    Reviewable local rule / No automatic filing
                   </p>
-                )}
-                {!triageLoading &&
-                  !triageReview?.suggestion &&
-                  detail.state === "unfiled" && (
-                    <div>
-                      <p>
-                        No suggestion is ready yet. The local worker may still
-                        be processing; the original is safe in the Inbox, and
-                        manual filing remains available.
-                      </p>
-                      <Button onClick={queueSuggestion} type="button">
-                        Generate local suggestion
-                      </Button>
-                    </div>
+                  <h3 id="triage-suggestion-heading">Capture suggestion</h3>
+                  {triageLoading && !triageReview?.suggestion && (
+                    <p className="cmd-inline-state" role="status">
+                      Checking for a suggestion...
+                    </p>
                   )}
-                {triageReview?.suggestion && (
-                  <CaptureTriageSummary
-                    captureState={detail.state}
-                    onReject={() => reviewSuggestion("reject")}
-                    review={{
-                      suggestion: triageReview.suggestion,
-                      decision: triageReview.decision,
-                    }}
-                    saving={triageSaving}
-                  />
-                )}
-                {triageError && (
-                  <p className="cmd-form-error" role="alert">
-                    {triageError}
-                  </p>
-                )}
-                {triageFeedback && (
-                  <p className="cmd-form-success" role="status">
-                    {triageFeedback}
-                  </p>
-                )}
-              </section>
+                  {!triageLoading &&
+                    !triageReview?.suggestion &&
+                    detail.state === "unfiled" && (
+                      <div>
+                        <p>
+                          No suggestion is ready yet. The local worker may still
+                          be processing; the original is safe in the Inbox, and
+                          manual filing remains available.
+                        </p>
+                        <Button onClick={queueSuggestion} type="button">
+                          Generate local suggestion
+                        </Button>
+                      </div>
+                    )}
+                  {triageReview?.suggestion && (
+                    <CaptureTriageSummary
+                      captureState={detail.state}
+                      onReject={() => reviewSuggestion("reject")}
+                      review={{
+                        suggestion: triageReview.suggestion,
+                        decision: triageReview.decision,
+                      }}
+                      saving={triageSaving}
+                    />
+                  )}
+                  {triageError && (
+                    <p className="cmd-form-error" role="alert">
+                      {triageError}
+                    </p>
+                  )}
+                  {triageFeedback && (
+                    <p className="cmd-form-success" role="status">
+                      {triageFeedback}
+                    </p>
+                  )}
+                </section>
+              )}
               {detail.state === "filed" && detail.filedRecord ? (
                 <div className="cmd-inbox-filed">
                   <p className="cmd-eyebrow">Connected record</p>
@@ -689,11 +761,12 @@ export default function InboxPage() {
                       Open {selectedProject?.name ?? "project"}
                     </a>
                   )}
-                  {detail.filedRecord.kind === "link" && (
+                  {(detail.filedRecord.kind === "link" ||
+                    detail.filedRecord.kind === "document") && (
                     <a
                       href={`/knowledge-items/${encodeURIComponent(detail.filedRecord.id)}`}
                     >
-                      Open saved knowledge link
+                      Open saved knowledge {detail.filedRecord.kind}
                     </a>
                   )}
                   {filingFeedback && (
@@ -767,10 +840,16 @@ export default function InboxPage() {
                       }}
                       value={kind}
                     >
-                      <option value="task">Task</option>
-                      <option value="note">Knowledge note</option>
-                      {detail.inputType === "url" && (
-                        <option value="link">Knowledge link</option>
+                      {detail.inputType === "file" ? (
+                        <option value="document">Knowledge document</option>
+                      ) : (
+                        <>
+                          <option value="task">Task</option>
+                          <option value="note">Knowledge note</option>
+                          {detail.inputType === "url" && (
+                            <option value="link">Knowledge link</option>
+                          )}
+                        </>
                       )}
                     </select>
                     <label htmlFor="file-title">
@@ -791,7 +870,9 @@ export default function InboxPage() {
                         ? "Description"
                         : kind === "link"
                           ? "Link context"
-                          : "Note body"}
+                          : kind === "document"
+                            ? "Document context"
+                            : "Note body"}
                       <span className="cmd-optional"> Optional</span>
                     </label>
                     <textarea
@@ -810,6 +891,12 @@ export default function InboxPage() {
                         fetches the page.
                       </p>
                     )}
+                    {kind === "document" && (
+                      <p className="cmd-form-hint">
+                        The original file bytes and checksum remain read only.
+                        This context is a separate, editable Knowledge record.
+                      </p>
+                    )}
                     {filingError && (
                       <p className="cmd-form-error" role="alert">
                         {filingError}
@@ -824,7 +911,8 @@ export default function InboxPage() {
                     </Button>
                     {triageReview?.suggestion &&
                       !triageReview.decision &&
-                      kind !== "link" && (
+                      kind !== "link" &&
+                      kind !== "document" && (
                         <Button
                           disabled={triageSaving || !projectId || !title.trim()}
                           onClick={() => reviewSuggestion("approve")}

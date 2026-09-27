@@ -17,7 +17,11 @@ export function captureFailure(
     return jsonResponse(
       request,
       { code: error.code, message: error.message },
-      error.code === "CAPTURE_ALREADY_FILED" ? 409 : 404,
+      error.code === "CAPTURE_ALREADY_FILED"
+        ? 409
+        : error.code === "CAPTURE_KIND_INVALID"
+          ? 400
+          : 404,
       `${operation}.rejected`,
     );
   }

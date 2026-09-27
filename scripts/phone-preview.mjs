@@ -9,6 +9,7 @@ import {
 } from "./lan-preview.mjs";
 
 const maximumBodyBytes = 1024 * 1024;
+const maximumFileUploadBodyBytes = 2 * 1024 * 1024 + 65_536;
 const removedRequestHeaders = new Set([
   "authorization",
   "connection",
@@ -139,7 +140,12 @@ export function createPhonePreviewServer({
       const contentLength = request.headers["content-length"];
       if (contentLength === undefined || !/^\d+$/.test(contentLength))
         return sendPlain(response, 411, "Content length required.\n");
-      if (Number(contentLength) > maximumBodyBytes)
+      const bodyLimit =
+        request.method === "POST" &&
+        request.url?.split("?", 1)[0] === "/api/v1/captures/files"
+          ? maximumFileUploadBodyBytes
+          : maximumBodyBytes;
+      if (Number(contentLength) > bodyLimit)
         return sendPlain(response, 413, "Request too large.\n");
     }
 

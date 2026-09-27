@@ -176,16 +176,28 @@ export const createCaptureRequestSchema = z
     }
   });
 
+export const captureFileMetadataSchema = z.object({
+  originalName: z.string().min(1),
+  mediaType: z.string().min(1),
+  byteSize: z.number().int().min(1).max(2_097_152),
+  sha256: z.string().regex(/^[a-f0-9]{64}$/),
+  downloadHref: z.string().startsWith("/api/v1/captures/"),
+});
+
 export const captureSchema = z.object({
   id: z.uuid(),
-  inputType: z.enum(["text", "url"]),
+  inputType: z.enum(["text", "url", "file"]),
   originalContent: z.string(),
+  file: captureFileMetadataSchema.nullable().optional(),
   source: z.literal("manual-local"),
   author: z.literal("local-user"),
   state: z.enum(["unfiled", "filed"]),
   projectId: z.uuid().nullable(),
   filedRecord: z
-    .object({ kind: z.enum(["task", "note", "link"]), id: z.uuid() })
+    .object({
+      kind: z.enum(["task", "note", "link", "document"]),
+      id: z.uuid(),
+    })
     .nullable(),
   createdAt: z.iso.datetime({ offset: true }),
   filedAt: z.iso.datetime({ offset: true }).nullable(),
@@ -198,7 +210,7 @@ export const listCapturesResponseSchema = z.object({
 
 export const fileCaptureRequestSchema = z.object({
   projectId: z.uuid(),
-  kind: z.enum(["task", "note", "link"]),
+  kind: z.enum(["task", "note", "link", "document"]),
   title: z.string().trim().min(1).max(200),
   body: z.string().max(20_000).optional(),
 });
@@ -318,7 +330,7 @@ export const knowledgeItemSchema = z.object({
   id: z.uuid(),
   projectId: z.uuid(),
   sourceCaptureId: z.uuid(),
-  kind: z.enum(["note", "link"]),
+  kind: z.enum(["note", "link", "document"]),
   title: z.string(),
   content: z.string(),
   url: z.url().nullable().optional(),
@@ -550,6 +562,7 @@ export const searchResultSchema = z.object({
     "task",
     "note",
     "link",
+    "document",
     "comment",
     "decision",
     "project",

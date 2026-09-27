@@ -36,7 +36,10 @@ export function manualFilingContent(
 export class CaptureError extends Error {
   constructor(
     public readonly code:
-      "CAPTURE_NOT_FOUND" | "PROJECT_NOT_FOUND" | "CAPTURE_ALREADY_FILED",
+      | "CAPTURE_NOT_FOUND"
+      | "PROJECT_NOT_FOUND"
+      | "CAPTURE_ALREADY_FILED"
+      | "CAPTURE_KIND_INVALID",
     message: string,
   ) {
     super(message);

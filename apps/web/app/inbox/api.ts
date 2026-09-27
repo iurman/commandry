@@ -1,12 +1,22 @@
 export interface CaptureRecord {
   id: string;
-  inputType: "text" | "url";
+  inputType: "text" | "url" | "file";
   originalContent: string;
+  file?: {
+    originalName: string;
+    mediaType: string;
+    byteSize: number;
+    sha256: string;
+    downloadHref: string;
+  } | null;
   source: string;
   author: string;
   state: "unfiled" | "filed";
   projectId: string | null;
-  filedRecord: { kind: "task" | "note" | "link"; id: string } | null;
+  filedRecord: {
+    kind: "task" | "note" | "link" | "document";
+    id: string;
+  } | null;
   createdAt: string;
   filedAt: string | null;
 }

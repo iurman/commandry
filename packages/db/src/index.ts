@@ -26,4 +26,5 @@ export * from "./overnight-queue-repository";
 export * from "./local-mcp-repository";
 export * from "./work-discussion-repository";
 export * from "./work-relations-repository";
+export * from "./file-capture-repository";
 export * as schema from "./schema";

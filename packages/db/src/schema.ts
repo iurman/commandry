@@ -229,7 +229,7 @@ export const capture = pgTable(
   "capture",
   {
     id: uuid("id").primaryKey(),
-    inputType: text("input_type", { enum: ["text", "url"] }).notNull(),
+    inputType: text("input_type", { enum: ["text", "url", "file"] }).notNull(),
     originalContent: text("original_content").notNull(),
     source: text("source").notNull().default("manual-local"),
     author: text("author").notNull().default("local-user"),
@@ -240,7 +240,7 @@ export const capture = pgTable(
       onDelete: "restrict",
     }),
     filedRecordKind: text("filed_record_kind", {
-      enum: ["task", "note", "link"],
+      enum: ["task", "note", "link", "document"],
     }),
     filedRecordId: uuid("filed_record_id"),
     createdAt: createdAt(),
@@ -259,13 +259,40 @@ export const capture = pgTable(
     ),
     check(
       "capture_input_type_valid",
-      sql`${table.inputType} in ('text', 'url')`,
+      sql`${table.inputType} in ('text', 'url', 'file')`,
     ),
     check("capture_source_manual", sql`${table.source} = 'manual-local'`),
     check("capture_author_local", sql`${table.author} = 'local-user'`),
     check(
       "capture_filing_state_valid",
-      sql`(${table.state} = 'unfiled' and ${table.filedAt} is null and ${table.filedRecordKind} is null and ${table.filedRecordId} is null) or (${table.state} = 'filed' and ${table.filedAt} is not null and ${table.projectId} is not null and ${table.filedRecordKind} in ('task', 'note', 'link') and ${table.filedRecordId} is not null)`,
+      sql`(${table.state} = 'unfiled' and ${table.filedAt} is null and ${table.filedRecordKind} is null and ${table.filedRecordId} is null) or (${table.state} = 'filed' and ${table.filedAt} is not null and ${table.projectId} is not null and ${table.filedRecordKind} in ('task', 'note', 'link', 'document') and ${table.filedRecordId} is not null)`,
+    ),
+  ],
+);
+
+export const captureFile = pgTable(
+  "capture_file",
+  {
+    captureId: uuid("capture_id")
+      .primaryKey()
+      .references(() => capture.id, { onDelete: "restrict" }),
+    originalName: text("original_name").notNull(),
+    mediaType: text("media_type").notNull(),
+    byteSize: integer("byte_size").notNull(),
+    sha256: text("sha256").notNull(),
+    contentBase64: text("content_base64").notNull(),
+    createdAt: createdAt(),
+  },
+  (table) => [
+    check("capture_file_name_nonempty", sql`length(${table.originalName}) > 0`),
+    check(
+      "capture_file_size_valid",
+      sql`${table.byteSize} between 1 and 2097152`,
+    ),
+    check("capture_file_digest_valid", sql`${table.sha256} ~ '^[a-f0-9]{64}$'`),
+    check(
+      "capture_file_bytes_match_size",
+      sql`octet_length(decode(${table.contentBase64}, 'base64')) = ${table.byteSize}`,
     ),
   ],
 );
@@ -571,7 +598,7 @@ export const knowledgeItem = pgTable(
     sourceCaptureId: uuid("source_capture_id")
       .notNull()
       .references(() => capture.id, { onDelete: "restrict" }),
-    kind: text("kind", { enum: ["note", "link"] })
+    kind: text("kind", { enum: ["note", "link", "document"] })
       .notNull()
       .default("note"),
     title: text("title").notNull(),
@@ -594,10 +621,13 @@ export const knowledgeItem = pgTable(
       "knowledge_item_title_nonempty",
       sql`length(trim(${table.title})) > 0`,
     ),
-    check("knowledge_item_kind_valid", sql`${table.kind} in ('note', 'link')`),
+    check(
+      "knowledge_item_kind_valid",
+      sql`${table.kind} in ('note', 'link', 'document')`,
+    ),
     check(
       "knowledge_item_url_valid",
-      sql`(${table.kind} = 'note' and ${table.url} is null) or (${table.kind} = 'link' and ${table.url} is not null and length(trim(${table.url})) > 0)`,
+      sql`(${table.kind} in ('note', 'document') and ${table.url} is null) or (${table.kind} = 'link' and ${table.url} is not null and length(trim(${table.url})) > 0)`,
     ),
     check("knowledge_item_version_positive", sql`${table.version} > 0`),
   ],

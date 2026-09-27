@@ -38,3 +38,21 @@ export const UrlOriginal: Story = {
     },
   },
 };
+
+export const FileOriginal: Story = {
+  args: {
+    capture: {
+      ...syntheticCapture,
+      inputType: "file",
+      originalContent: "capture-file://00000000-0000-4000-8000-000000000001",
+      file: {
+        originalName: "Synthetic field log.txt",
+        mediaType: "text/plain",
+        byteSize: 184,
+        sha256: "a".repeat(64),
+        downloadHref:
+          "/api/v1/captures/00000000-0000-4000-8000-000000000001/original-file",
+      },
+    },
+  },
+};

@@ -51,7 +51,9 @@ export function captureTriageFailure(
     const status =
       error.code === "CAPTURE_NOT_FOUND" || error.code === "PROJECT_NOT_FOUND"
         ? 404
-        : 409;
+        : error.code === "CAPTURE_UNSUPPORTED"
+          ? 400
+          : 409;
     return jsonResponse(
       request,
       { code: error.code, message: error.message },

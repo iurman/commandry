@@ -5,13 +5,31 @@ import {
   MANUAL_CAPTURE_SOURCE,
 } from "@commandry/domain";
 import type { CommandryDatabase } from "./client";
-import { capture, knowledgeItem, project, workItem } from "./schema";
+import {
+  capture,
+  captureFile,
+  knowledgeItem,
+  project,
+  workItem,
+} from "./schema";
 
-function captureRecord(row: typeof capture.$inferSelect) {
+export function captureRecord(
+  row: typeof capture.$inferSelect,
+  file: typeof captureFile.$inferSelect | null = null,
+) {
   return {
     id: row.id,
     inputType: row.inputType,
     originalContent: row.originalContent,
+    file: file
+      ? {
+          originalName: file.originalName,
+          mediaType: file.mediaType,
+          byteSize: file.byteSize,
+          sha256: file.sha256,
+          downloadHref: `/api/v1/captures/${row.id}/original-file`,
+        }
+      : null,
     source: MANUAL_CAPTURE_SOURCE,
     author: MANUAL_CAPTURE_AUTHOR,
     state: row.state,
@@ -73,6 +91,7 @@ type SearchRow = {
     | "task"
     | "note"
     | "link"
+    | "document"
     | "comment"
     | "decision"
     | "project"
@@ -117,11 +136,12 @@ export function createCaptureRepository(db: CommandryDatabase) {
     },
     async getCapture(id: string) {
       const [row] = await db
-        .select()
+        .select({ capture, file: captureFile })
         .from(capture)
+        .leftJoin(captureFile, eq(captureFile.captureId, capture.id))
         .where(eq(capture.id, id))
         .limit(1);
-      return row ? captureRecord(row) : null;
+      return row ? captureRecord(row.capture, row.file) : null;
     },
     async listCaptures(input: PageQuery) {
       const anchor = input.cursor
@@ -129,8 +149,9 @@ export function createCaptureRepository(db: CommandryDatabase) {
         : null;
       if (input.cursor && !anchor) return { items: [], nextCursor: null };
       const rows = await db
-        .select()
+        .select({ capture, file: captureFile })
         .from(capture)
+        .leftJoin(captureFile, eq(captureFile.captureId, capture.id))
         .where(
           anchor
             ? sql`(${capture.createdAt}, ${capture.id}) < (${anchor}, ${input.cursor}::uuid)`
@@ -140,9 +161,9 @@ export function createCaptureRepository(db: CommandryDatabase) {
         .limit(input.limit + 1);
       const page = rows.slice(0, input.limit);
       return {
-        items: page.map(captureRecord),
+        items: page.map((row) => captureRecord(row.capture, row.file)),
         nextCursor:
-          rows.length > input.limit ? (page.at(-1)?.id ?? null) : null,
+          rows.length > input.limit ? (page.at(-1)?.capture.id ?? null) : null,
       };
     },
     async fileAsTask(input: {
@@ -274,6 +295,61 @@ export function createCaptureRepository(db: CommandryDatabase) {
         return {
           capture: captureRecord(updated),
           record: knowledgeRecord(record),
+        };
+      });
+    },
+    async fileAsDocument(input: {
+      captureId: string;
+      recordId: string;
+      projectId: string;
+      title: string;
+      content: string;
+    }) {
+      return db.transaction(async (tx) => {
+        const [file] = await tx
+          .select()
+          .from(captureFile)
+          .where(eq(captureFile.captureId, input.captureId))
+          .limit(1);
+        if (!file)
+          throw new CaptureError(
+            "CAPTURE_KIND_INVALID",
+            "Only an original file can be filed as a document",
+          );
+        const [updated] = await tx
+          .update(capture)
+          .set({
+            state: "filed",
+            projectId: input.projectId,
+            filedRecordKind: "document",
+            filedRecordId: input.recordId,
+            filedAt: new Date(),
+          })
+          .where(
+            and(eq(capture.id, input.captureId), eq(capture.state, "unfiled")),
+          )
+          .returning();
+        if (!updated)
+          throw new CaptureError(
+            "CAPTURE_ALREADY_FILED",
+            "Capture is already filed",
+          );
+        const [document] = await tx
+          .insert(knowledgeItem)
+          .values({
+            id: input.recordId,
+            projectId: input.projectId,
+            sourceCaptureId: input.captureId,
+            kind: "document",
+            title: input.title,
+            content: input.content,
+          })
+          .returning();
+        if (!document)
+          throw new Error("Knowledge document insert returned no row");
+        return {
+          capture: captureRecord(updated, file),
+          record: knowledgeRecord(document),
         };
       });
     },
@@ -452,6 +528,14 @@ export function createCaptureRepository(db: CommandryDatabase) {
             null::uuid as source_capture_id, null::uuid as target_id, created_at
           from capture
           where to_tsvector('simple', original_content) @@ websearch_to_tsquery('simple', ${input.q})
+          union all
+          select capture.id, 'capture'::text as kind, capture.project_id,
+            capture_file.original_name as title,
+            left(capture_file.original_name || ' · Original local file', 220) as excerpt,
+            null::uuid as source_capture_id, null::uuid as target_id, capture.created_at
+          from capture_file
+          inner join capture on capture.id = capture_file.capture_id
+          where to_tsvector('simple', capture_file.original_name) @@ websearch_to_tsquery('simple', ${input.q})
           union all
           select id, 'task'::text as kind, project_id, title,
             left(description, 220) as excerpt, source_capture_id, null::uuid as target_id, created_at

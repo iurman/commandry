@@ -22,7 +22,7 @@ interface KnowledgeItem {
   id: string;
   projectId: string;
   sourceCaptureId: string;
-  kind: "note" | "link";
+  kind: "note" | "link" | "document";
   title: string;
   content: string;
   url?: string | null;
@@ -300,7 +300,7 @@ export default function ProjectContent({ projectId }: { projectId: string }) {
             {knowledge.length === 0 && !error && (
               <RecordEmptyState
                 title="No knowledge yet"
-                description="File a capture as a note or link to retain its context here."
+                description="File a capture as a note, link, or document to retain its context here."
               />
             )}
             <ul className={styles.list} aria-label="Project knowledge">
@@ -315,6 +315,15 @@ export default function ProjectContent({ projectId }: { projectId: string }) {
                     <p>
                       <a href={item.url} rel="noreferrer" target="_blank">
                         Open saved external link
+                      </a>
+                    </p>
+                  )}
+                  {item.kind === "document" && (
+                    <p>
+                      <a
+                        href={`/api/v1/captures/${encodeURIComponent(item.sourceCaptureId)}/original-file`}
+                      >
+                        Download exact original file
                       </a>
                     </p>
                   )}

@@ -128,9 +128,13 @@ export function assembleProjectBrief(
     const sourceLabel =
       item.kind === "link"
         ? "Manual local knowledge link"
-        : (item.version ?? 1) > 1
-          ? "Locally revised knowledge note"
-          : "Manual local capture";
+        : item.kind === "document"
+          ? (item.version ?? 1) > 1
+            ? "Locally revised knowledge document"
+            : "Manual local knowledge document"
+          : (item.version ?? 1) > 1
+            ? "Locally revised knowledge note"
+            : "Manual local capture";
     return fact({
       id: item.id,
       kind: "knowledge_item",
@@ -138,7 +142,9 @@ export function assembleProjectBrief(
       detail:
         item.kind === "link"
           ? `Saved reference: ${item.url ?? "URL unavailable"}. ${briefExcerpt(item.content)}`
-          : briefExcerpt(item.content),
+          : item.kind === "document"
+            ? `Original file preserved separately. ${briefExcerpt(item.content)}`
+            : briefExcerpt(item.content),
       evidence: [
         evidence(
           "knowledge_item",
@@ -146,6 +152,16 @@ export function assembleProjectBrief(
           `/api/v1/knowledge-items/${item.id}`,
           item.updatedAt,
           sourceLabel,
+          false,
+        ),
+        evidence(
+          "capture",
+          item.sourceCaptureId,
+          `/api/v1/captures/${item.sourceCaptureId}`,
+          item.createdAt,
+          item.kind === "document"
+            ? "Manual local original file"
+            : "Manual local capture",
           false,
         ),
       ],

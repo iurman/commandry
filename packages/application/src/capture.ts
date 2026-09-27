@@ -56,6 +56,13 @@ export interface CaptureRepository {
     content: string;
     url: string;
   }): Promise<FileCaptureResponse>;
+  fileAsDocument(input: {
+    captureId: string;
+    recordId: string;
+    projectId: string;
+    title: string;
+    content: string;
+  }): Promise<FileCaptureResponse>;
   listProjectWork(
     projectId: string,
     query: CapturePageQuery,
@@ -94,7 +101,7 @@ export function createCaptureService(repository: CaptureRepository) {
       captureId: string,
       input: {
         projectId: string;
-        kind: "task" | "note" | "link";
+        kind: "task" | "note" | "link" | "document";
         title: string;
         body?: string | undefined;
       },
@@ -110,6 +117,24 @@ export function createCaptureService(repository: CaptureRepository) {
         );
       }
       await requireProject(input.projectId);
+      if (capture.inputType === "file" && input.kind !== "document")
+        throw new CaptureError(
+          "CAPTURE_KIND_INVALID",
+          "A file capture can only be filed as a document",
+        );
+      if (capture.inputType !== "file" && input.kind === "document")
+        throw new CaptureError(
+          "CAPTURE_KIND_INVALID",
+          "Only a file capture can become a document",
+        );
+      if (input.kind === "document")
+        return repository.fileAsDocument({
+          captureId,
+          recordId: crypto.randomUUID(),
+          projectId: input.projectId,
+          title: input.title,
+          content: input.body?.trim() ?? "",
+        });
       const content = manualFilingContent(capture.originalContent, input.body);
       const recordId = crypto.randomUUID();
       if (input.kind === "task") {

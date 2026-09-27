@@ -4,6 +4,7 @@ import { fileURLToPath } from "node:url";
 import { z } from "zod";
 import {
   captureSchema,
+  captureFileMetadataSchema,
   captureTriageSuggestionSchema,
   captureTriageDecisionSchema,
   captureTriageReviewSchema,
@@ -564,6 +565,55 @@ export function generateOpenApi(): string {
             },
             "400": {
               description: "Invalid capture",
+              content: jsonContent("ErrorResponse"),
+            },
+          },
+        },
+      },
+      "/api/v1/captures/files": {
+        post: {
+          operationId: "createFileCapture",
+          summary: "Preserve a local original file of at most 2 MiB",
+          requestBody: {
+            required: true,
+            content: {
+              "multipart/form-data": {
+                schema: {
+                  type: "object",
+                  required: ["file"],
+                  properties: { file: { type: "string", format: "binary" } },
+                },
+              },
+            },
+          },
+          responses: {
+            "201": {
+              description: "Original file captured with checksum",
+              content: jsonContent("Capture"),
+            },
+            "413": {
+              description: "File exceeds the local limit",
+              content: jsonContent("ErrorResponse"),
+            },
+          },
+        },
+      },
+      "/api/v1/captures/{id}/original-file": {
+        get: {
+          operationId: "downloadOriginalFile",
+          summary: "Download verified original bytes as an attachment",
+          parameters: [idParameter],
+          responses: {
+            "200": {
+              description: "Exact original file bytes with SHA-256 header",
+              content: {
+                "application/octet-stream": {
+                  schema: { type: "string", format: "binary" },
+                },
+              },
+            },
+            "404": {
+              description: "Original file not found",
               content: jsonContent("ErrorResponse"),
             },
           },
@@ -2319,6 +2369,7 @@ export function generateOpenApi(): string {
         ),
         CreateCaptureRequest: component(createCaptureRequestSchema),
         Capture: component(captureSchema),
+        CaptureFileMetadata: component(captureFileMetadataSchema),
         ListCapturesResponse: component(listCapturesResponseSchema),
         FileCaptureRequest: component(fileCaptureRequestSchema),
         FileCaptureResponse: component(fileCaptureResponseSchema),

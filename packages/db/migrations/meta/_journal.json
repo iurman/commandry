@@ -169,6 +169,13 @@
       "when": 1790468263679,
       "tag": "0023_nostalgic_pixie",
       "breakpoints": true
+    },
+    {
+      "idx": 24,
+      "version": "7",
+      "when": 1790469755686,
+      "tag": "0024_complete_black_panther",
+      "breakpoints": true
     }
   ]
 }

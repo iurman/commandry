@@ -818,6 +818,93 @@
         }
       }
     },
+    "/api/v1/captures/files": {
+      "post": {
+        "operationId": "createFileCapture",
+        "summary": "Preserve a local original file of at most 2 MiB",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "multipart/form-data": {
+              "schema": {
+                "type": "object",
+                "required": [
+                  "file"
+                ],
+                "properties": {
+                  "file": {
+                    "type": "string",
+                    "format": "binary"
+                  }
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": "Original file captured with checksum",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Capture"
+                }
+              }
+            }
+          },
+          "413": {
+            "description": "File exceeds the local limit",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/captures/{id}/original-file": {
+      "get": {
+        "operationId": "downloadOriginalFile",
+        "summary": "Download verified original bytes as an attachment",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "id",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Exact original file bytes with SHA-256 header",
+            "content": {
+              "application/octet-stream": {
+                "schema": {
+                  "type": "string",
+                  "format": "binary"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Original file not found",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/api/v1/captures/{id}": {
       "get": {
         "operationId": "getCapture",
@@ -6249,11 +6336,54 @@
             "type": "string",
             "enum": [
               "text",
-              "url"
+              "url",
+              "file"
             ]
           },
           "originalContent": {
             "type": "string"
+          },
+          "file": {
+            "anyOf": [
+              {
+                "type": "object",
+                "properties": {
+                  "originalName": {
+                    "type": "string",
+                    "minLength": 1
+                  },
+                  "mediaType": {
+                    "type": "string",
+                    "minLength": 1
+                  },
+                  "byteSize": {
+                    "type": "integer",
+                    "minimum": 1,
+                    "maximum": 2097152
+                  },
+                  "sha256": {
+                    "type": "string",
+                    "pattern": "^[a-f0-9]{64}$"
+                  },
+                  "downloadHref": {
+                    "type": "string",
+                    "format": "starts_with",
+                    "pattern": "^\\/api\\/v1\\/captures\\/.*"
+                  }
+                },
+                "required": [
+                  "originalName",
+                  "mediaType",
+                  "byteSize",
+                  "sha256",
+                  "downloadHref"
+                ],
+                "additionalProperties": false
+              },
+              {
+                "type": "null"
+              }
+            ]
           },
           "source": {
             "type": "string",
@@ -6292,7 +6422,8 @@
                     "enum": [
                       "task",
                       "note",
-                      "link"
+                      "link",
+                      "document"
                     ]
                   },
                   "id": {
@@ -6344,6 +6475,41 @@
         ],
         "additionalProperties": false
       },
+      "CaptureFileMetadata": {
+        "type": "object",
+        "properties": {
+          "originalName": {
+            "type": "string",
+            "minLength": 1
+          },
+          "mediaType": {
+            "type": "string",
+            "minLength": 1
+          },
+          "byteSize": {
+            "type": "integer",
+            "minimum": 1,
+            "maximum": 2097152
+          },
+          "sha256": {
+            "type": "string",
+            "pattern": "^[a-f0-9]{64}$"
+          },
+          "downloadHref": {
+            "type": "string",
+            "format": "starts_with",
+            "pattern": "^\\/api\\/v1\\/captures\\/.*"
+          }
+        },
+        "required": [
+          "originalName",
+          "mediaType",
+          "byteSize",
+          "sha256",
+          "downloadHref"
+        ],
+        "additionalProperties": false
+      },
       "ListCapturesResponse": {
         "type": "object",
         "properties": {
@@ -6361,11 +6527,54 @@
                   "type": "string",
                   "enum": [
                     "text",
-                    "url"
+                    "url",
+                    "file"
                   ]
                 },
                 "originalContent": {
                   "type": "string"
+                },
+                "file": {
+                  "anyOf": [
+                    {
+                      "type": "object",
+                      "properties": {
+                        "originalName": {
+                          "type": "string",
+                          "minLength": 1
+                        },
+                        "mediaType": {
+                          "type": "string",
+                          "minLength": 1
+                        },
+                        "byteSize": {
+                          "type": "integer",
+                          "minimum": 1,
+                          "maximum": 2097152
+                        },
+                        "sha256": {
+                          "type": "string",
+                          "pattern": "^[a-f0-9]{64}$"
+                        },
+                        "downloadHref": {
+                          "type": "string",
+                          "format": "starts_with",
+                          "pattern": "^\\/api\\/v1\\/captures\\/.*"
+                        }
+                      },
+                      "required": [
+                        "originalName",
+                        "mediaType",
+                        "byteSize",
+                        "sha256",
+                        "downloadHref"
+                      ],
+                      "additionalProperties": false
+                    },
+                    {
+                      "type": "null"
+                    }
+                  ]
                 },
                 "source": {
                   "type": "string",
@@ -6404,7 +6613,8 @@
                           "enum": [
                             "task",
                             "note",
-                            "link"
+                            "link",
+                            "document"
                           ]
                         },
                         "id": {
@@ -6489,7 +6699,8 @@
             "enum": [
               "task",
               "note",
-              "link"
+              "link",
+              "document"
             ]
           },
           "title": {
@@ -6524,11 +6735,54 @@
                 "type": "string",
                 "enum": [
                   "text",
-                  "url"
+                  "url",
+                  "file"
                 ]
               },
               "originalContent": {
                 "type": "string"
+              },
+              "file": {
+                "anyOf": [
+                  {
+                    "type": "object",
+                    "properties": {
+                      "originalName": {
+                        "type": "string",
+                        "minLength": 1
+                      },
+                      "mediaType": {
+                        "type": "string",
+                        "minLength": 1
+                      },
+                      "byteSize": {
+                        "type": "integer",
+                        "minimum": 1,
+                        "maximum": 2097152
+                      },
+                      "sha256": {
+                        "type": "string",
+                        "pattern": "^[a-f0-9]{64}$"
+                      },
+                      "downloadHref": {
+                        "type": "string",
+                        "format": "starts_with",
+                        "pattern": "^\\/api\\/v1\\/captures\\/.*"
+                      }
+                    },
+                    "required": [
+                      "originalName",
+                      "mediaType",
+                      "byteSize",
+                      "sha256",
+                      "downloadHref"
+                    ],
+                    "additionalProperties": false
+                  },
+                  {
+                    "type": "null"
+                  }
+                ]
               },
               "source": {
                 "type": "string",
@@ -6567,7 +6821,8 @@
                         "enum": [
                           "task",
                           "note",
-                          "link"
+                          "link",
+                          "document"
                         ]
                       },
                       "id": {
@@ -6724,7 +6979,8 @@
                     "type": "string",
                     "enum": [
                       "note",
-                      "link"
+                      "link",
+                      "document"
                     ]
                   },
                   "title": {
@@ -7216,11 +7472,54 @@
                 "type": "string",
                 "enum": [
                   "text",
-                  "url"
+                  "url",
+                  "file"
                 ]
               },
               "originalContent": {
                 "type": "string"
+              },
+              "file": {
+                "anyOf": [
+                  {
+                    "type": "object",
+                    "properties": {
+                      "originalName": {
+                        "type": "string",
+                        "minLength": 1
+                      },
+                      "mediaType": {
+                        "type": "string",
+                        "minLength": 1
+                      },
+                      "byteSize": {
+                        "type": "integer",
+                        "minimum": 1,
+                        "maximum": 2097152
+                      },
+                      "sha256": {
+                        "type": "string",
+                        "pattern": "^[a-f0-9]{64}$"
+                      },
+                      "downloadHref": {
+                        "type": "string",
+                        "format": "starts_with",
+                        "pattern": "^\\/api\\/v1\\/captures\\/.*"
+                      }
+                    },
+                    "required": [
+                      "originalName",
+                      "mediaType",
+                      "byteSize",
+                      "sha256",
+                      "downloadHref"
+                    ],
+                    "additionalProperties": false
+                  },
+                  {
+                    "type": "null"
+                  }
+                ]
               },
               "source": {
                 "type": "string",
@@ -7259,7 +7558,8 @@
                         "enum": [
                           "task",
                           "note",
-                          "link"
+                          "link",
+                          "document"
                         ]
                       },
                       "id": {
@@ -7589,7 +7889,8 @@
                         "type": "string",
                         "enum": [
                           "note",
-                          "link"
+                          "link",
+                          "document"
                         ]
                       },
                       "title": {
@@ -8845,7 +9146,8 @@
             "type": "string",
             "enum": [
               "note",
-              "link"
+              "link",
+              "document"
             ]
           },
           "title": {
@@ -8915,7 +9217,8 @@
             "type": "string",
             "enum": [
               "note",
-              "link"
+              "link",
+              "document"
             ]
           },
           "title": {
@@ -8995,7 +9298,8 @@
                   "type": "string",
                   "enum": [
                     "note",
-                    "link"
+                    "link",
+                    "document"
                   ]
                 },
                 "title": {
@@ -12007,7 +12311,8 @@
                   "type": "string",
                   "enum": [
                     "note",
-                    "link"
+                    "link",
+                    "document"
                   ]
                 },
                 "title": {
@@ -12090,6 +12395,7 @@
               "task",
               "note",
               "link",
+              "document",
               "comment",
               "decision",
               "project",
@@ -12169,6 +12475,7 @@
                     "task",
                     "note",
                     "link",
+                    "document",
                     "comment",
                     "decision",
                     "project",
