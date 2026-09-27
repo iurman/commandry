@@ -20,7 +20,8 @@ export function AppShell({
     | "Approvals"
     | "Automations"
     | "Overnight"
-    | "Notifications";
+    | "Notifications"
+    | "Account";
 }) {
   return (
     <div className="cmd-shell">
@@ -137,6 +138,13 @@ export function AppShell({
             href="/notifications"
           >
             Notifications
+          </a>
+          <a
+            aria-current={current === "Account" ? "page" : undefined}
+            className={`cmd-nav-link ${current === "Account" ? "cmd-nav-current" : ""}`}
+            href="/account"
+          >
+            Account
           </a>
         </nav>
         <p className="cmd-sidebar-note">

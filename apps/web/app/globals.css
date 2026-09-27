@@ -13,3 +13,35 @@
   --color-attention: var(--cmd-caution-text);
   --color-critical: var(--cmd-critical-text);
 }
+
+.cmd-auth-page {
+  display: grid;
+  min-height: 100svh;
+  place-items: center;
+  padding: 1.25rem;
+  background: var(--cmd-canvas);
+  color: var(--cmd-text);
+}
+
+.cmd-auth-card {
+  width: min(100%, 27rem);
+  padding: clamp(1.25rem, 4vw, 2rem);
+  border: 1px solid var(--cmd-border);
+  border-radius: var(--cmd-radius);
+  background: var(--cmd-surface);
+  box-shadow: 0 1.5rem 3rem rgb(12 25 40 / 10%);
+}
+
+.cmd-auth-card h1 {
+  margin: 0.5rem 0 1rem;
+  font-size: clamp(1.8rem, 5vw, 2.3rem);
+  line-height: 1.1;
+}
+
+.cmd-auth-card .cmd-form {
+  margin: 1.5rem 0;
+}
+
+.cmd-auth-card .cmd-form input {
+  width: 100%;
+}

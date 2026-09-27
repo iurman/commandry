@@ -13,7 +13,11 @@ const workspaceSources = {
 };
 
 await build({
-  entryPoints: ["src/index.ts", "src/migrate.ts"],
+  entryPoints: [
+    "src/index.ts",
+    "src/migrate.ts",
+    "src/bootstrap-local-auth.ts",
+  ],
   outdir: "dist",
   bundle: true,
   packages: "external",

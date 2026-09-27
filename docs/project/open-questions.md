@@ -24,6 +24,15 @@ single-user allowlist are settled. Choose passkey, email/password, or magic link
 for the first human login and define device loss/account recovery. This choice
 must not require a paid email service merely to start local development.
 
+An opt-in local password experiment now creates exactly one allowlisted owner
+through a one-time Docker bootstrap command, rejects public sign-up, validates
+PostgreSQL sessions on human pages and versioned routes, and offers sign-in and
+sign-out screens. Machine callback, receiver, and MCP POST routes retain their
+own scoped credentials. The local phone proxy can forward only session routes
+through its separate test/pass review gate. This experiment is off by default;
+it does not decide a production login or recovery method, attribute existing
+product audit records to a human, or lift the preview/production config gate.
+
 ### OQ-005: Which two integrations prove the vertical slice?
 
 Choose one development/work signal and one operational signal. Selection should

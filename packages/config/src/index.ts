@@ -1,4 +1,5 @@
 import { z } from "zod";
+import { isIP } from "node:net";
 
 const postgresUrl = z
   .url()
@@ -29,6 +30,8 @@ const environmentSchema = z.object({
     (value) => (value === "" ? undefined : value),
     z.email().optional(),
   ),
+  LOCAL_AUTH_MODE: z.enum(["off", "password"]).default("off"),
+  LOCAL_AUTH_TRUSTED_ORIGIN: optionalString,
   RELEASE_SHA: z.string().min(1),
   RELEASE_IMAGE_DIGEST: optionalString,
   RELEASE_BUILD_TIME: z.preprocess(
@@ -64,6 +67,8 @@ export type RuntimeConfig = {
   betterAuthSecret: string;
   appEncryptionKey: string;
   initialAdminEmail?: string;
+  localAuthMode: "off" | "password";
+  localAuthTrustedOrigin?: string;
   releaseSha: string;
   releaseImageDigest?: string;
   releaseBuildTime?: string;
@@ -111,6 +116,39 @@ export function loadRuntimeConfig(
     );
   }
   const databaseHosts = new Set([...localHosts, "postgres"]);
+  if (value.LOCAL_AUTH_MODE === "password" && !value.INITIAL_ADMIN_EMAIL) {
+    throw new ConfigurationError(
+      "INITIAL_ADMIN_EMAIL is required for provisional local password sign-in.",
+    );
+  }
+  if (value.LOCAL_AUTH_TRUSTED_ORIGIN) {
+    let trusted: URL;
+    try {
+      trusted = new URL(value.LOCAL_AUTH_TRUSTED_ORIGIN);
+    } catch {
+      throw new ConfigurationError("Invalid LOCAL_AUTH_TRUSTED_ORIGIN.");
+    }
+    const bytes = trusted.hostname.split(".").map(Number);
+    const firstOctet = bytes[0] ?? -1;
+    const secondOctet = bytes[1] ?? -1;
+    const privateAddress =
+      isIP(trusted.hostname) === 4 &&
+      (firstOctet === 10 ||
+        (firstOctet === 172 && secondOctet >= 16 && secondOctet <= 31) ||
+        (firstOctet === 192 && secondOctet === 168));
+    if (
+      trusted.protocol !== "http:" ||
+      !privateAddress ||
+      trusted.pathname !== "/" ||
+      trusted.search ||
+      trusted.hash ||
+      !trusted.port
+    ) {
+      throw new ConfigurationError(
+        "LOCAL_AUTH_TRUSTED_ORIGIN must be an HTTP private IPv4 origin with an explicit port.",
+      );
+    }
+  }
   if (!databaseHosts.has(new URL(value.DATABASE_URL).hostname)) {
     throw new ConfigurationError(
       "Local runtime DATABASE_URL must point to local PostgreSQL.",
@@ -136,6 +174,10 @@ export function loadRuntimeConfig(
     appEncryptionKey: value.APP_ENCRYPTION_KEY,
     ...(value.INITIAL_ADMIN_EMAIL && {
       initialAdminEmail: value.INITIAL_ADMIN_EMAIL,
+    }),
+    localAuthMode: value.LOCAL_AUTH_MODE,
+    ...(value.LOCAL_AUTH_TRUSTED_ORIGIN && {
+      localAuthTrustedOrigin: value.LOCAL_AUTH_TRUSTED_ORIGIN,
     }),
     releaseSha: value.RELEASE_SHA,
     ...(value.RELEASE_IMAGE_DIGEST && {

@@ -38,6 +38,11 @@ const removedResponseHeaders = new Set([
   "transfer-encoding",
   "upgrade",
 ]);
+const localAuthPaths = new Set([
+  "/api/auth/get-session",
+  "/api/auth/sign-in/email",
+  "/api/auth/sign-out",
+]);
 
 function sendPlain(response, status, message, extra = {}) {
   response.writeHead(status, {
@@ -80,7 +85,7 @@ function permittedPath(rawUrl) {
     return false;
   if (/^\/(?:auth|health|version)(?:\/|$)/i.test(decoded)) return false;
   if (/^\/api(?:\/|$)/i.test(decoded))
-    return /^\/api\/v1(?:\/|$)/i.test(decoded);
+    return /^\/api\/v1(?:\/|$)/i.test(decoded) || localAuthPaths.has(decoded);
   return true;
 }
 
@@ -125,7 +130,11 @@ export function createPhonePreviewServer({
       return sendPlain(response, 405, "Method denied.\n");
 
     if (isWrite(request.method)) {
-      if (!/^\/api\/v1(?:\/|\?)/i.test(request.url ?? ""))
+      const writePath = request.url?.split("?", 1)[0] ?? "";
+      if (
+        !/^\/api\/v1(?:\/|$)/i.test(writePath) &&
+        !(request.method === "POST" && localAuthPaths.has(writePath))
+      )
         return sendPlain(
           response,
           405,

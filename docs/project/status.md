@@ -116,6 +116,12 @@ and production prerequisites remain gates.
   reject wrong scope, replay, expiry, and post-cancellation callbacks. The
   versioned callback route is local-only; events and audit records are durable.
   It does not choose or connect an external runtime or authorize external work.
+- An opt-in local Better Auth password experiment can create one allowlisted
+  owner through a one-time Docker command, issue and revoke PostgreSQL sessions,
+  and protect human pages and versioned API routes. Sign-in and Account screens
+  work through the separate LAN review gate when an explicit private origin is
+  trusted. The default local review remains open behind test/pass; OQ-003
+  recovery, production activation, and human audit attribution remain open.
 - Work items now have append-only, cursor-paged local comments with immutable
   bodies and source-labeled search results. URL captures can be filed as
   knowledge links while preserving the original URL; the navigable link omits

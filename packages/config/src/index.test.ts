@@ -91,4 +91,34 @@ describe("runtime configuration", () => {
       }),
     ).toThrow(/local PostgreSQL/);
   });
+
+  it("keeps provisional password sign-in opt-in and bounded to one local owner", () => {
+    expect(loadRuntimeConfig(valid).localAuthMode).toBe("off");
+    expect(() =>
+      loadRuntimeConfig({ ...valid, LOCAL_AUTH_MODE: "password" }),
+    ).toThrow(/INITIAL_ADMIN_EMAIL/);
+    const config = loadRuntimeConfig({
+      ...valid,
+      LOCAL_AUTH_MODE: "password",
+      INITIAL_ADMIN_EMAIL: "owner@example.test",
+      LOCAL_AUTH_TRUSTED_ORIGIN: "http://10.0.0.73:3011",
+    });
+    expect(config.localAuthMode).toBe("password");
+    expect(config.localAuthTrustedOrigin).toBe("http://10.0.0.73:3011");
+    for (const untrusted of [
+      "https://10.0.0.73:3011",
+      "http://public.example:3011",
+      "http://10.0.0.73:3011/path",
+      "http://10.0.0.73:3011?query=1",
+    ]) {
+      expect(() =>
+        loadRuntimeConfig({
+          ...valid,
+          LOCAL_AUTH_MODE: "password",
+          INITIAL_ADMIN_EMAIL: "owner@example.test",
+          LOCAL_AUTH_TRUSTED_ORIGIN: untrusted,
+        }),
+      ).toThrow(ConfigurationError);
+    }
+  });
 });

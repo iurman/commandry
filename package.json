@@ -27,6 +27,7 @@
     "release:rehearse": "node scripts/rehearse-release.mjs",
     "backup:local": "node scripts/local-backup.mjs create",
     "backup:local:verify": "node scripts/local-backup.mjs verify",
+    "auth:bootstrap:local": "node scripts/bootstrap-local-auth.mjs",
     "production:config:check": "node scripts/check-production-config.mjs",
     "lab": "pnpm --filter @commandry/lab dev",
     "lab:check": "pnpm --filter @commandry/lab typecheck && node scripts/check-lab.mjs",

@@ -12,4 +12,5 @@ test-results/
 .turbo/
 *.tsbuildinfo
 .agent/local-backups/
+.agent/local-auth-password
 .agent/release-rehearsal-*/

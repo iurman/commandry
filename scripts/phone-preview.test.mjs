@@ -124,6 +124,7 @@ test("full LAN gateway uses test/pass, strips the gate credential, and limits pa
     assert.equal((await request(port, "/_next/static/chunk.js")).status, 200);
     for (const forbidden of [
       "/api/internal",
+      "/api/auth/sign-up/email",
       "/auth/sign-in",
       "/health/ready",
       "/version",
@@ -136,6 +137,59 @@ test("full LAN gateway uses test/pass, strips the gate credential, and limits pa
     assert.equal(received[0].host, `127.0.0.1:${upstreamPort}`);
     assert.equal(received[0].forwardedHost, `127.0.0.1:${port}`);
     assert.equal(received[0].forwardedProto, "http");
+  } finally {
+    await close(gateway);
+    await close(upstream);
+  }
+});
+
+test("phone gateway passes only local session endpoints after the review gate", async () => {
+  const received = [];
+  const upstream = createServer((incoming, response) => {
+    received.push({
+      path: incoming.url,
+      cookie: incoming.headers.cookie,
+      origin: incoming.headers.origin,
+      authorization: incoming.headers.authorization,
+    });
+    response.setHeader(
+      "set-cookie",
+      "better-auth.session_token=local; Path=/; HttpOnly",
+    );
+    response.end("session");
+  });
+  const upstreamPort = await listen(upstream);
+  const gateway = createPhonePreviewServer({
+    selected: loopback,
+    port: 0,
+    upstreamPort,
+  });
+  const port = await listen(gateway);
+  try {
+    const signIn = await request(port, "/api/auth/sign-in/email", {
+      method: "POST",
+      body: '{"email":"test@example.com","password":"local-test-password"}',
+      headers: { "content-type": "application/json" },
+    });
+    assert.equal(signIn.status, 200);
+    assert.match(signIn.headers["set-cookie"][0], /HttpOnly/);
+    const session = await request(port, "/api/auth/get-session", {
+      headers: { cookie: "better-auth.session_token=local" },
+    });
+    assert.equal(session.status, 200);
+    assert.equal(
+      (
+        await request(port, "/api/auth/sign-in/email", {
+          method: "POST",
+          body: "{}",
+          headers: { origin: "http://other.example" },
+        })
+      ).status,
+      403,
+    );
+    assert.equal(received.length, 2);
+    assert.equal(received[0].authorization, undefined);
+    assert.equal(received[1].cookie, "better-auth.session_token=local");
   } finally {
     await close(gateway);
     await close(upstream);

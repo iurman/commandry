@@ -90,6 +90,7 @@ describe("Command Center", () => {
       ["Automations", "/automations"],
       ["Overnight", "/overnight"],
       ["Notifications", "/notifications"],
+      ["Account", "/account"],
     ]);
     expect(
       screen.getByRole("heading", { name: "Command Center" }),
