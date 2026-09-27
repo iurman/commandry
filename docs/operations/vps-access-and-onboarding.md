@@ -13,36 +13,44 @@ a deployment or a change to an existing VPS service.
 
 - The local MVP is on `main` and runs in Docker for local review. Its external
   source observations and actions are labeled synthetic.
-- This development machine has a live Tailscale network interface. The
-  Tailscale CLI is not available in the current shell, so tailnet membership
-  and policy have not been inventoried through that CLI.
-- No `commandry-vps` SSH alias, dedicated Commandry SSH key, verified VPS
-  destination, successful VPS login, or remote service inventory exists yet.
+- The owner identified the VPS. `ssh commandry-vps` now authenticates over its
+  tailnet name with a pinned host key; `ssh commandry-vps-public` is a local
+  fallback alias. Both returned the same remote host and user. The local
+  Tailscale interface is active, while its CLI is unavailable in this shell.
+- A dedicated local Commandry key is outside the repository and mode `0600`.
+  The initial remote account has broad host privileges. A constrained operator
+  identity and provider-side host-key check remain access-hardening work
+  before production deployment. Local credential details stay in the ignored
+  `.agent/VPS_INVENTORY.md` note.
+- An initial read-only inventory found Ubuntu 24.04, four vCPUs, about 5 GiB
+  of available memory, 180 GiB of free disk, and existing Docker and user
+  services. The full host inventory is in that local-only note; provider,
+  recovery-console, snapshot, offsite backup, and firewall-policy facts remain
+  unverified. No existing VPS service has been changed by Codex.
 - The owner usually buys domains through Namecheap, but the registrar for
   `commandry.site` and the other domains has not been verified.
 
-The next required input is the owner's working `ssh user@host` destination, or
-the confirmed VPS tailnet name or IP and login user. Do not send a password,
-private key, or account token in chat or commit it to the repository. A
-historical SSH destination or a familiar hostname is not proof of VPS identity.
+Do not send a password, private key, or account token in chat or commit it to
+the repository. The current SSH login is an operator bootstrap path, not the
+constrained `commandry-deploy` identity in the accepted deployment strategy.
 
-## Establish SSH access once the VPS is identified
+## Re-establish and harden SSH access
 
-1. Verify the host identity using the VPS provider console or another trusted
-   existing channel. Preserve the verified host key in `~/.ssh/known_hosts`.
+1. Confirm the pinned host-key fingerprint through the VPS provider console or
+   another trusted channel when that access is available. The tailnet address
+   presented the same key as the previously pinned public address.
    `ssh-keyscan` alone does not authenticate a new host.
-2. Use the owner's working SSH login for an initial read-only connection. If
-   the VPS is in the tailnet, prefer its Tailscale IP or MagicDNS name for the
-   management path. Keep ordinary OpenSSH initially; enabling Tailscale SSH
-   changes how tailnet port 22 is handled and requires its own access review.
-3. Create a dedicated `~/.ssh/id_ed25519_commandry_codex` key on the Codex
-   machine with a passphrase, and install only its `.pub` key for a dedicated,
-   named operator account after the host inventory and access policy are
-   agreed. Do not reuse this key for an application connector or the
-   `commandry-deploy` identity. A human may need to unlock the key after a
-   reboot; the key and alias persist across chats.
-4. Add a local `~/.ssh/config` alias. Fill the verified host and operator user
-   only after they are known:
+2. Keep ordinary OpenSSH over the tailnet for management. Enabling Tailscale
+   SSH changes how tailnet port 22 is handled and needs a separate access
+   review. The public fallback is for recovery if the tailnet path fails.
+3. Keep the local private key and `~/.ssh/config` outside the repository with
+   mode `0600`. The remote account's broad privileges are an interim risk.
+   Move future Codex access to a named,
+   constrained operator account; keep the deployment identity separate. A
+   replacement key may use a passphrase and local SSH agent if the owner
+   prefers interactive unlocks.
+4. For a replacement machine, rebuild a local `~/.ssh/config` alias using the
+   verified tailnet name, pinned host key, and dedicated key:
 
    ```sshconfig
    Host commandry-vps
@@ -55,8 +63,8 @@ historical SSH destination or a familiar hostname is not proof of VPS identity.
    ```
 
 5. Check `ssh -G commandry-vps` for the effective host, user, and identity,
-   then run `ssh -o BatchMode=yes commandry-vps 'hostname; id -un'`. Access is
-   established only when that command succeeds against the verified VPS.
+   then run `ssh -o BatchMode=yes commandry-vps 'hostname; id -un'` to verify
+   non-interactive access to the expected host.
 
 `~/.ssh/config` and the key live in the local user profile, so later Codex
 chats in this workspace can call `ssh commandry-vps`; an always-open SSH

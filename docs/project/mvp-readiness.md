@@ -57,10 +57,13 @@ replace the production gates.
 
 ## What prevents production activation
 
-1. **VPS and recovery facts.** [OQ-019](open-questions.md#oq-019-can-the-existing-vps-safely-host-the-initial-database) needs the actual VPS inventory, available memory, storage,
-   recovery console, and snapshot path. ADR 0009 requires an offsite encrypted
-   backup and a clean VPS restore, plus a constrained deployment identity.
-   Local backup and rollback drills do not satisfy these gates.
+1. **VPS and recovery facts.** An initial read-only inventory under
+   [OQ-019](open-questions.md#oq-019-can-the-existing-vps-safely-host-the-initial-database) found four vCPUs, about 5 GiB of available memory,
+   180 GiB of free disk, existing Docker workloads, and a working SSH path.
+   Provider, recovery-console, snapshot, firewall, and backup details still
+   need validation. ADR 0009 requires an offsite encrypted backup and a clean
+   VPS restore, plus a constrained deployment identity. Local backup and
+   rollback drills do not satisfy these gates.
 2. **Human identity.** [OQ-003](open-questions.md#oq-003-what-is-the-first-human-sign-in-and-recovery-method) must settle production sign-in and account recovery. The
    optional Better Auth local owner experiment and phone `test`/`pass`
    review gate are not that decision. `APP_ENV=production` still refuses to
