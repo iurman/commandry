@@ -49,7 +49,11 @@ export function createLocalIntegrationService(port: LocalIntegrationPort) {
     setEnabled(id: string, enabled: boolean) {
       return port.setEnabled(id, enabled);
     },
-    async submitSample(id: string, input: RunLocalIntegrationSampleRequest) {
+    async submitSample(
+      id: string,
+      input: RunLocalIntegrationSampleRequest,
+      ingressMode: "manual" | "local-receiver" | "local-poll-feed" = "manual",
+    ) {
       const instance = await port.get(id);
       if (!instance) {
         throw new LocalIntegrationError(
@@ -86,6 +90,7 @@ export function createLocalIntegrationService(port: LocalIntegrationPort) {
             ...(input.occurredAt ? { occurredAt: input.occurredAt } : {}),
           },
           instance.id,
+          ingressMode,
         ),
       );
     },

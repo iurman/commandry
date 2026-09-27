@@ -51,6 +51,7 @@ function record(row: {
     enabled: row.instance.enabled,
     adapterMode: "local_fixture" as const,
     isSynthetic: true as const,
+    receiverConfigured: row.instance.receiverTokenDigest !== null,
     latestImportId: row.latestImportId,
     lastAttemptAt: row.lastAttemptAt
       ? new Date(row.lastAttemptAt).toISOString()

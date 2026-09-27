@@ -2549,6 +2549,7 @@ export const integrationInstance = pgTable(
       onDelete: "restrict",
     }),
     enabled: boolean("enabled").notNull().default(true),
+    receiverTokenDigest: text("receiver_token_digest"),
     createdAt: createdAt(),
     updatedAt: timestamp("updated_at", { withTimezone: true })
       .notNull()
@@ -2589,6 +2590,48 @@ export const integrationInstanceAudit = pgTable(
       table.createdAt,
       table.id,
     ),
+  ],
+);
+
+export const localConnectorFeed = pgTable(
+  "local_connector_feed",
+  {
+    id: uuid("id").primaryKey(),
+    integrationInstanceId: uuid("integration_instance_id")
+      .notNull()
+      .references(() => integrationInstance.id, { onDelete: "restrict" }),
+    scenarioId: text("scenario_id").notNull(),
+    occurrenceId: text("occurrence_id").notNull().unique(),
+    occurredAt: timestamp("occurred_at", { withTimezone: true }),
+    state: text("state", {
+      enum: ["queued", "processing", "submitted", "failed"],
+    })
+      .notNull()
+      .default("queued"),
+    importId: uuid("import_id"),
+    error: text("error"),
+    attempts: integer("attempts").notNull().default(0),
+    createdAt: createdAt(),
+    updatedAt: timestamp("updated_at", { withTimezone: true })
+      .notNull()
+      .defaultNow(),
+  },
+  (table) => [
+    index("local_connector_feed_instance_idx").on(
+      table.integrationInstanceId,
+      table.createdAt,
+      table.id,
+    ),
+    index("local_connector_feed_state_idx").on(
+      table.state,
+      table.updatedAt,
+      table.id,
+    ),
+    check(
+      "local_connector_feed_state_valid",
+      sql`${table.state} in ('queued', 'processing', 'submitted', 'failed')`,
+    ),
+    check("local_connector_feed_attempts_valid", sql`${table.attempts} >= 0`),
   ],
 );
 

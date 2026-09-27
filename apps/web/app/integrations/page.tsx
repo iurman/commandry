@@ -2,12 +2,15 @@
 
 import { useEffect, useState, type FormEvent } from "react";
 import type {
+  LocalConnectorFeedItem,
+  LocalConnectorToken,
   LocalIntegration,
   SyntheticEventImportRecord,
 } from "@commandry/contracts";
 import {
   AppShell,
   Button,
+  LocalConnectorPanel,
   LocalIntegrationCard,
   RecordEmptyState,
 } from "@commandry/ui";
@@ -45,6 +48,15 @@ export default function IntegrationsPage() {
   const [feedback, setFeedback] = useState<string | null>(null);
   const [receipt, setReceipt] = useState<SyntheticEventImportRecord | null>(
     null,
+  );
+  const [receiverTokens, setReceiverTokens] = useState<Record<string, string>>(
+    {},
+  );
+  const [feed, setFeed] = useState<Record<string, LocalConnectorFeedItem[]>>(
+    {},
+  );
+  const [feedCursors, setFeedCursors] = useState<Record<string, string | null>>(
+    {},
   );
 
   async function refreshIntegration(id: string) {
@@ -279,6 +291,104 @@ export default function IntegrationsPage() {
     }
   }
 
+  async function refreshFeed(id: string, cursor?: string) {
+    const page = await apiJson<PageResponse<LocalConnectorFeedItem>>(
+      pagePath(`/api/v1/integrations/${id}/poll-feed`, cursor),
+    );
+    setFeed((current) => ({
+      ...current,
+      [id]: cursor ? [...(current[id] ?? []), ...page.items] : page.items,
+    }));
+    setFeedCursors((current) => ({ ...current, [id]: page.nextCursor }));
+  }
+
+  async function rotateReceiverToken(item: LocalIntegration) {
+    if (busyId) return;
+    setBusyId(item.id);
+    setError(null);
+    try {
+      const result = await apiJson<LocalConnectorToken>(
+        `/api/v1/integrations/${item.id}/receiver-token`,
+        { method: "POST" },
+      );
+      setReceiverTokens((current) => ({ ...current, [item.id]: result.token }));
+      await refreshIntegration(item.id);
+      setFeedback(
+        `Local synthetic receiver token created for ${item.name}. It is shown once.`,
+      );
+    } catch (cause) {
+      setError(message(cause));
+    } finally {
+      setBusyId(null);
+    }
+  }
+
+  async function receiveFixture(
+    item: LocalIntegration,
+    scenarioId: LocalConnectorFeedItem["scenarioId"],
+  ) {
+    const token = receiverTokens[item.id];
+    if (!token || busyId) return;
+    setBusyId(item.id);
+    setError(null);
+    try {
+      const submitted = await apiJson<SyntheticEventImportRecord>(
+        `/api/v1/integrations/${item.id}/receive`,
+        {
+          method: "POST",
+          headers: { authorization: `Bearer ${token}` },
+          body: JSON.stringify({
+            scenarioId,
+            occurrenceId: `local-receiver:${crypto.randomUUID()}`,
+          }),
+        },
+      );
+      setReceipt(submitted);
+      await refreshIntegration(item.id);
+      setFeedback(
+        `Synthetic receiver envelope queued for ${item.name}. No live provider was contacted.`,
+      );
+    } catch (cause) {
+      setError(message(cause));
+    } finally {
+      setBusyId(null);
+    }
+  }
+
+  async function enqueuePollFixture(
+    item: LocalIntegration,
+    scenarioId: LocalConnectorFeedItem["scenarioId"],
+  ) {
+    if (busyId) return;
+    setBusyId(item.id);
+    setError(null);
+    try {
+      await apiJson<LocalConnectorFeedItem>(
+        `/api/v1/integrations/${item.id}/poll-feed`,
+        {
+          method: "POST",
+          body: JSON.stringify({
+            scenarioId,
+            occurrenceId: `local-poll:${crypto.randomUUID()}`,
+          }),
+        },
+      );
+      await refreshFeed(item.id);
+      setFeedback(
+        `Synthetic poll row queued for ${item.name}. The local worker will submit it.`,
+      );
+      window.setTimeout(() => {
+        void refreshFeed(item.id).catch((cause: unknown) =>
+          setError(message(cause)),
+        );
+      }, 6000);
+    } catch (cause) {
+      setError(message(cause));
+    } finally {
+      setBusyId(null);
+    }
+  }
+
   return (
     <AppShell current="Integrations">
       <header className="cmd-page-header">
@@ -337,7 +447,9 @@ export default function IntegrationsPage() {
         </div>
         <p className="cmd-form-intro">
           A source instance owns its project and optional resource binding. This
-          fixture mode makes no network call and stores no credential.
+          fixture mode makes no external network call. A local receiver token
+          can be minted for a synthetic webhook rehearsal; only its digest is
+          stored.
         </p>
         <form className="cmd-form" onSubmit={create}>
           <label htmlFor="integration-name">Source name</label>
@@ -504,6 +616,46 @@ export default function IntegrationsPage() {
                     </Button>
                   </>
                 )}
+                <LocalConnectorPanel
+                  enabled={item.enabled}
+                  receiverConfigured={item.receiverConfigured}
+                  token={receiverTokens[item.id] ?? null}
+                  feed={feed[item.id] ?? []}
+                  nextCursor={feedCursors[item.id] ?? null}
+                  busy={busyId !== null}
+                  onRotate={() => void rotateReceiverToken(item)}
+                  onReceive={(scenarioId) =>
+                    void receiveFixture(item, scenarioId)
+                  }
+                  onQueue={(scenarioId) =>
+                    void enqueuePollFixture(item, scenarioId)
+                  }
+                  onRefresh={() =>
+                    void refreshFeed(item.id).catch((cause: unknown) =>
+                      setError(message(cause)),
+                    )
+                  }
+                  onLoadMore={() =>
+                    void refreshFeed(
+                      item.id,
+                      feedCursors[item.id] ?? undefined,
+                    ).catch((cause: unknown) => setError(message(cause)))
+                  }
+                  scenarios={
+                    item.kind === "synthetic-development"
+                      ? [{ id: "development.pr-merged", label: "PR merge" }]
+                      : [
+                          {
+                            id: "operations.monitor-down",
+                            label: "monitor down",
+                          },
+                          {
+                            id: "operations.monitor-recovered",
+                            label: "recovery",
+                          },
+                        ]
+                  }
+                />
               </LocalIntegrationCard>
             </li>
           ))}

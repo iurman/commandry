@@ -43,8 +43,8 @@ export function LocalIntegrationCard({
       </div>
       <h3 className="cmd-record-title">{name}</h3>
       <p className="cmd-record-description">
-        Local fixture adapter. No live connection, credential, poll schedule, or
-        external action.
+        Local fixture adapter. Receiver and poll rehearsals use only synthetic
+        envelopes; there is no live provider or external action.
       </p>
       <p className="cmd-record-identity">
         <a href={projectHref}>{projectName}</a>

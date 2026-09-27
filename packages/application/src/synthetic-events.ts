@@ -51,6 +51,7 @@ export type SyntheticEventPage<T> = {
 export function prepareSyntheticEventImport(
   input: CreateSyntheticEventImportRequest,
   integrationInstanceId: string | null = null,
+  ingressMode: "manual" | "local-receiver" | "local-poll-feed" = "manual",
 ): PreparedSyntheticEventImport {
   const scenario = syntheticScenario(input.scenarioId);
   if (scenario.requiresResource && !input.resourceId) {
@@ -89,6 +90,7 @@ export function prepareSyntheticEventImport(
       resourceId,
       occurrenceId: input.occurrenceId,
       occurredAt,
+      ...(ingressMode === "manual" ? {} : { ingressMode }),
     },
   };
 }

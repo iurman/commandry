@@ -21,6 +21,7 @@ export * from "./notifications";
 export * from "./capture-triage";
 export * from "./morning-digest";
 export * from "./integrations";
+export * from "./local-connectors";
 export * from "./overnight-queue";
 export * from "./local-mcp";
 export * from "./work-discussion";

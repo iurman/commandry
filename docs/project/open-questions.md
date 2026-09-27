@@ -208,3 +208,14 @@ sharing, default views, ordering, pinned views, per-project ownership,
 retention, identity and access rules, and whether Knowledge Decisions should
 have a separate type filter. This local persistence does not settle a
 multi-user or canonical view taxonomy.
+
+### OQ-030: Which connector trust and polling model should ship?
+
+The local MVP rehearses a token-protected receiver and a PostgreSQL fixture
+feed polled by the separate worker. Both accept only named synthetic scenarios
+in local or test mode and use the existing envelope, deduplication, mapping,
+normalization, and activity path. The receiver token is shown once and stored
+as a digest. Validate provider authentication and signature schemes, credential
+custody, replay windows, source-specific cursors, backoff, retention, rate
+limits, source freshness, and the first real adapter before enabling a live
+connection. The local review gate is not product authentication.

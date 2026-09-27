@@ -46,7 +46,7 @@ test("configured local sources carry synthetic development and operations sample
     .getByRole("article")
     .filter({ hasText: `Repository fixture ${suffix}` });
   await expect(development).toContainText("Synthetic development");
-  await expect(development).toContainText("No live connection");
+  await expect(development).toContainText("no live provider");
   await development.getByRole("button", { name: "Simulate PR merge" }).click();
   await expect(
     page.getByRole("region", { name: "Latest sample receipt" }),
@@ -55,6 +55,85 @@ test("configured local sources carry synthetic development and operations sample
     page.getByRole("link", { name: "Original synthetic envelope" }),
   ).toBeVisible();
   await expect(development).toContainText("Last success:");
+
+  const connector = development.getByRole("region", {
+    name: "Local synthetic connector rehearsal",
+  });
+  await connector.getByRole("button", { name: "Create local token" }).click();
+  await expect(connector).toContainText(
+    "Local synthetic receiver token, shown once",
+  );
+  const configured = await request.get("/api/v1/integrations");
+  const developmentId = (await configured.json()).items.find(
+    (item: { name: string }) => item.name === `Repository fixture ${suffix}`,
+  ).id;
+  const receiverDenied = await request.post(
+    `/api/v1/integrations/${developmentId}/receive`,
+    {
+      data: {
+        scenarioId: "development.pr-merged",
+        occurrenceId: `missing-token-${suffix}`,
+      },
+    },
+  );
+  expect(receiverDenied.status()).toBe(401);
+  const receiverResponse = page.waitForResponse(
+    (response) =>
+      response.url().includes("/receive") &&
+      response.request().method() === "POST",
+  );
+  await connector
+    .getByRole("button", { name: "Send PR merge to receiver" })
+    .click();
+  const received = await (await receiverResponse).json();
+  await expect
+    .poll(
+      async () => {
+        const response = await request.get(
+          `/api/v1/synthetic-event-imports/${received.id}`,
+        );
+        return (await response.json()).state;
+      },
+      { timeout: 60_000 },
+    )
+    .toBe("succeeded");
+  const receiverEnvelope = await request.get(
+    `/api/v1/source-envelopes/${received.sourceEnvelopeId}`,
+  );
+  expect((await receiverEnvelope.json()).rawPayload.ingressMode).toBe(
+    "local-receiver",
+  );
+
+  await connector
+    .getByRole("button", { name: "Queue PR merge for local poll" })
+    .click();
+  let feedImportId: string | null = null;
+  await expect
+    .poll(
+      async () => {
+        const response = await request.get(
+          `/api/v1/integrations/${developmentId}/poll-feed`,
+        );
+        const first = (await response.json()).items[0];
+        if (!first) return "pending";
+        feedImportId = first.importId;
+        return first.state;
+      },
+      { timeout: 60_000 },
+    )
+    .toBe("submitted");
+  expect(feedImportId).not.toBeNull();
+  await connector.getByRole("button", { name: "Refresh feed" }).click();
+  await expect(connector).toContainText("submitted");
+  const pollReceipt = await request.get(
+    `/api/v1/synthetic-event-imports/${feedImportId}`,
+  );
+  const pollEnvelope = await request.get(
+    `/api/v1/source-envelopes/${(await pollReceipt.json()).sourceEnvelopeId}`,
+  );
+  expect((await pollEnvelope.json()).rawPayload.ingressMode).toBe(
+    "local-poll-feed",
+  );
 
   await page.getByLabel("Source category").selectOption("synthetic-operations");
   await page.getByLabel("Source name").fill(`Operations fixture ${suffix}`);

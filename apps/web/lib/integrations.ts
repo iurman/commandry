@@ -1,6 +1,12 @@
-import { createLocalIntegrationService } from "@commandry/application";
+import {
+  createLocalConnectorService,
+  createLocalIntegrationService,
+} from "@commandry/application";
 import { loadRuntimeConfig } from "@commandry/config";
-import { createLocalIntegrationRepository } from "@commandry/db";
+import {
+  createLocalConnectorRepository,
+  createLocalIntegrationRepository,
+} from "@commandry/db";
 import { LocalIntegrationError } from "@commandry/domain";
 import {
   createPgBossProducer,
@@ -10,6 +16,8 @@ import { getDatabase } from "./database";
 import { jsonResponse } from "./http";
 
 let service: ReturnType<typeof createLocalIntegrationService> | undefined;
+let connectorService:
+  ReturnType<typeof createLocalConnectorService> | undefined;
 
 export async function getLocalIntegrationService() {
   if (!service) {
@@ -25,6 +33,22 @@ export async function getLocalIntegrationService() {
     });
   }
   return service;
+}
+
+export async function getLocalConnectorService() {
+  if (!connectorService) {
+    const integration = await getLocalIntegrationService();
+    const connector = createLocalConnectorRepository(getDatabase().db);
+    connectorService = createLocalConnectorService({
+      ...connector,
+      get: integration.get,
+      resourceLinkedToProject: createLocalIntegrationRepository(
+        getDatabase().db,
+      ).resourceLinkedToProject,
+      submitSample: integration.submitSample,
+    });
+  }
+  return connectorService;
 }
 
 export function localIntegrationWriteAllowed(

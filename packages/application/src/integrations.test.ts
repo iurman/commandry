@@ -20,6 +20,7 @@ const fixture: LocalIntegration = {
   enabled: true,
   adapterMode: "local_fixture",
   isSynthetic: true,
+  receiverConfigured: false,
   lastAttemptAt: null,
   lastSuccessAt: null,
   lastError: null,

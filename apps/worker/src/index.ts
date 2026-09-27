@@ -7,6 +7,8 @@ import {
   createOvernightQueueProcessor,
   createLocalAutomationProcessor,
   createLocalFileTextService,
+  createLocalConnectorService,
+  createLocalIntegrationService,
   createSimulatedApprovalProcessor,
   createProjectBriefService,
   createSyntheticEventImportProcessor,
@@ -35,6 +37,8 @@ import {
   createOvernightQueueRepository,
   createLocalAutomationRepository,
   createLocalFileTextRepository,
+  createLocalConnectorRepository,
+  createLocalIntegrationRepository,
   createSimulatedApprovalRepository,
   createSyntheticEventImportRepository,
   createSyntheticRunRepository,
@@ -45,6 +49,7 @@ import {
   CAPTURE_TRIAGE_QUEUE,
   createPgBossProducer,
   createLocalAgentRunSubmission,
+  createSyntheticEventImportSubmission,
   createRecurringAutomationScheduler,
   createWorkRecurrenceScheduler,
   createSyntheticEventAutomationReconciler,
@@ -145,6 +150,19 @@ const processCaptureTriage = createCaptureTriageProcessor(
 );
 const fileTextRepository = createLocalFileTextRepository(database.db);
 const fileTextService = createLocalFileTextService(fileTextRepository);
+const localIntegrationRepository = createLocalIntegrationRepository(
+  database.db,
+);
+const localIntegrationService = createLocalIntegrationService({
+  ...localIntegrationRepository,
+  ...createSyntheticEventImportSubmission(database.db, transport.boss),
+});
+const localConnectorService = createLocalConnectorService({
+  ...createLocalConnectorRepository(database.db),
+  get: localIntegrationService.get,
+  resourceLinkedToProject: localIntegrationRepository.resourceLinkedToProject,
+  submitSample: localIntegrationService.submitSample,
+});
 const processLocalAutomation = createLocalAutomationProcessor(
   createLocalAutomationRepository(database.db),
   projectBriefService,
@@ -484,6 +502,34 @@ async function reconcileFileText() {
 await reconcileFileText();
 const fileTextTimer = setInterval(() => void reconcileFileText(), 30_000);
 fileTextTimer.unref();
+let reconcilingLocalFeed = false;
+async function reconcileLocalFeed() {
+  if (
+    reconcilingLocalFeed ||
+    (config.appEnv !== "local" && config.appEnv !== "test")
+  )
+    return;
+  reconcilingLocalFeed = true;
+  try {
+    for (let count = 0; count < 25; count += 1) {
+      const item = await localConnectorService.processNext();
+      if (!item) break;
+      log("info", "local_connector.synthetic_poll_processed", {
+        feedId: item.id,
+        state: item.state,
+      });
+    }
+  } catch (error) {
+    log("error", "local_connector.synthetic_poll_failed", {
+      error: error instanceof Error ? error.name : "unknown",
+    });
+  } finally {
+    reconcilingLocalFeed = false;
+  }
+}
+await reconcileLocalFeed();
+const localFeedTimer = setInterval(() => void reconcileLocalFeed(), 5_000);
+localFeedTimer.unref();
 log("info", "worker.started", { workerId });
 
 let stopping = false;
@@ -495,6 +541,7 @@ async function shutdown(signal: string) {
   clearInterval(recurringTimer);
   clearInterval(workRecurrenceTimer);
   clearInterval(fileTextTimer);
+  clearInterval(localFeedTimer);
   log("info", "worker.stopping", { signal });
   try {
     await transport.close();

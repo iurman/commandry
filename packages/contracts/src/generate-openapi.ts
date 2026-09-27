@@ -115,6 +115,9 @@ import {
   createLocalIntegrationRequestSchema,
   setLocalIntegrationEnabledRequestSchema,
   runLocalIntegrationSampleRequestSchema,
+  localConnectorTokenSchema,
+  localConnectorFeedItemSchema,
+  listLocalConnectorFeedResponseSchema,
   localIntegrationSchema,
   listLocalIntegrationsResponseSchema,
   createCaptureRequestSchema,
@@ -3306,6 +3309,84 @@ export function generateOpenApi(): string {
           },
         },
       },
+      "/api/v1/integrations/{id}/receiver-token": {
+        post: {
+          operationId: "rotateLocalSyntheticReceiverToken",
+          summary:
+            "Mint a one-time local synthetic receiver token; store only its digest",
+          parameters: [idParameter],
+          responses: {
+            "201": {
+              description: "Local receiver token shown once",
+              content: jsonContent("LocalConnectorToken"),
+            },
+            "403": {
+              description: "Local-only endpoint unavailable",
+              content: jsonContent("ErrorResponse"),
+            },
+          },
+        },
+      },
+      "/api/v1/integrations/{id}/receive": {
+        post: {
+          operationId: "receiveLocalSyntheticEnvelope",
+          summary:
+            "Receive a token-protected synthetic fixture envelope in local mode",
+          parameters: [idParameter],
+          security: [{ localSyntheticBearer: [] }],
+          requestBody: {
+            required: true,
+            content: jsonContent("RunLocalIntegrationSampleRequest"),
+          },
+          responses: {
+            "202": {
+              description: "Synthetic import receipt",
+              content: jsonContent("SyntheticEventImport"),
+            },
+            "401": {
+              description: "Invalid local receiver token",
+              content: jsonContent("ErrorResponse"),
+            },
+            "403": {
+              description: "Local-only endpoint unavailable",
+              content: jsonContent("ErrorResponse"),
+            },
+          },
+        },
+      },
+      "/api/v1/integrations/{id}/poll-feed": {
+        get: {
+          operationId: "listLocalSyntheticPollFeed",
+          summary:
+            "Page through queued synthetic fixture rows and worker outcomes",
+          parameters: [idParameter, ...pageParameters],
+          responses: {
+            "200": {
+              description: "Synthetic poll feed",
+              content: jsonContent("ListLocalConnectorFeedResponse"),
+            },
+          },
+        },
+        post: {
+          operationId: "queueLocalSyntheticPollFeed",
+          summary: "Queue a synthetic fixture row for local worker polling",
+          parameters: [idParameter],
+          requestBody: {
+            required: true,
+            content: jsonContent("RunLocalIntegrationSampleRequest"),
+          },
+          responses: {
+            "202": {
+              description: "Queued synthetic feed row",
+              content: jsonContent("LocalConnectorFeedItem"),
+            },
+            "403": {
+              description: "Local-only endpoint unavailable",
+              content: jsonContent("ErrorResponse"),
+            },
+          },
+        },
+      },
       "/api/v1/synthetic-event-imports": {
         get: {
           operationId: "listSyntheticEventImports",
@@ -3572,6 +3653,14 @@ export function generateOpenApi(): string {
       },
     },
     components: {
+      securitySchemes: {
+        localSyntheticBearer: {
+          type: "http",
+          scheme: "bearer",
+          description:
+            "Local synthetic receiver rehearsal token, not product authentication",
+        },
+      },
       schemas: {
         HealthResponse: component(healthResponseSchema),
         ErrorResponse: component(errorResponseSchema),
@@ -3932,6 +4021,11 @@ export function generateOpenApi(): string {
           runLocalIntegrationSampleRequestSchema,
         ),
         LocalIntegration: component(localIntegrationSchema),
+        LocalConnectorToken: component(localConnectorTokenSchema),
+        LocalConnectorFeedItem: component(localConnectorFeedItemSchema),
+        ListLocalConnectorFeedResponse: component(
+          listLocalConnectorFeedResponseSchema,
+        ),
         ListLocalIntegrationsResponse: component(
           listLocalIntegrationsResponseSchema,
         ),

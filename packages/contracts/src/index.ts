@@ -1385,6 +1385,32 @@ export const runLocalIntegrationSampleRequestSchema = z.strictObject({
   occurredAt: z.iso.datetime({ offset: true }).optional(),
 });
 
+export const localConnectorTokenSchema = z.object({
+  token: z.string().min(32),
+  issuedAt: z.iso.datetime({ offset: true }),
+  notice: z.literal("Local synthetic receiver token; shown once"),
+});
+
+export const localConnectorFeedItemSchema = z.object({
+  id: z.uuid(),
+  integrationInstanceId: z.uuid(),
+  scenarioId: syntheticScenarioIdSchema,
+  occurrenceId: z.string(),
+  occurredAt: z.iso.datetime({ offset: true }).nullable(),
+  state: z.enum(["queued", "processing", "submitted", "failed"]),
+  importId: z.uuid().nullable(),
+  error: z.string().nullable(),
+  attempts: z.number().int().nonnegative(),
+  createdAt: z.iso.datetime({ offset: true }),
+  updatedAt: z.iso.datetime({ offset: true }),
+  isSynthetic: z.literal(true),
+});
+
+export const listLocalConnectorFeedResponseSchema = z.object({
+  items: z.array(localConnectorFeedItemSchema),
+  nextCursor: z.uuid().nullable(),
+});
+
 export const localIntegrationSchema = z.object({
   id: z.uuid(),
   name: z.string(),
@@ -1396,6 +1422,7 @@ export const localIntegrationSchema = z.object({
   enabled: z.boolean(),
   adapterMode: z.literal("local_fixture"),
   isSynthetic: z.literal(true),
+  receiverConfigured: z.boolean(),
   lastAttemptAt: z.iso.datetime({ offset: true }).nullable(),
   lastSuccessAt: z.iso.datetime({ offset: true }).nullable(),
   lastError: z.string().nullable(),
@@ -2624,6 +2651,10 @@ export type CreateSyntheticEventImportRequest = z.infer<
   typeof createSyntheticEventImportRequestSchema
 >;
 export type LocalIntegration = z.infer<typeof localIntegrationSchema>;
+export type LocalConnectorFeedItem = z.infer<
+  typeof localConnectorFeedItemSchema
+>;
+export type LocalConnectorToken = z.infer<typeof localConnectorTokenSchema>;
 export type CreateLocalIntegrationRequest = z.infer<
   typeof createLocalIntegrationRequestSchema
 >;
