@@ -151,6 +151,12 @@ import {
   listKnowledgeProjectConnectionsResponseSchema,
   knowledgeProjectAuditEventSchema,
   listKnowledgeProjectAuditResponseSchema,
+  createWorkProjectLinkRequestSchema,
+  workProjectLinkSchema,
+  workProjectConnectionSchema,
+  listWorkProjectConnectionsResponseSchema,
+  workProjectAuditEventSchema,
+  listWorkProjectAuditResponseSchema,
   reviseKnowledgeItemRequestSchema,
   knowledgeItemRevisionSchema,
   listKnowledgeItemRevisionsResponseSchema,
@@ -537,6 +543,93 @@ const knowledgeProjectPaths = {
         "200": {
           description: "Archived relation",
           content: jsonContent("KnowledgeProjectLink"),
+        },
+        "404": {
+          description: "Relation not found",
+          content: jsonContent("ErrorResponse"),
+        },
+      },
+    },
+  },
+};
+
+const workProjectPaths = {
+  "/api/v1/work-items/{id}/projects": {
+    get: {
+      operationId: "listWorkItemProjects",
+      summary: "Page active secondary project context for one Work record",
+      parameters: [idParameter, ...pageParameters],
+      responses: {
+        "200": {
+          description: "Related project page",
+          content: jsonContent("ListWorkProjectConnectionsResponse"),
+        },
+        "404": {
+          description: "Work record not found",
+          content: jsonContent("ErrorResponse"),
+        },
+      },
+    },
+    post: {
+      operationId: "linkWorkItemProject",
+      summary: "Relate one source-backed Work record to another project",
+      parameters: [idParameter],
+      requestBody: {
+        required: true,
+        content: jsonContent("CreateWorkProjectLinkRequest"),
+      },
+      responses: {
+        "200": {
+          description: "Current typed relation",
+          content: jsonContent("WorkProjectConnection"),
+        },
+        "409": {
+          description: "Target is already the primary project",
+          content: jsonContent("ErrorResponse"),
+        },
+      },
+    },
+  },
+  "/api/v1/work-items/{id}/project-audit": {
+    get: {
+      operationId: "listWorkProjectAudit",
+      summary: "Page immutable secondary project context decisions",
+      parameters: [idParameter, ...pageParameters],
+      responses: {
+        "200": {
+          description: "Audit event page",
+          content: jsonContent("ListWorkProjectAuditResponse"),
+        },
+      },
+    },
+  },
+  "/api/v1/work-project-links/{id}": {
+    get: {
+      operationId: "getWorkProjectLink",
+      summary: "Read an exact active or archived Work project relation",
+      parameters: [idParameter],
+      responses: {
+        "200": {
+          description: "Exact relation",
+          content: jsonContent("WorkProjectLink"),
+        },
+        "404": {
+          description: "Relation not found",
+          content: jsonContent("ErrorResponse"),
+        },
+      },
+    },
+  },
+  "/api/v1/work-project-links/{id}/archive": {
+    put: {
+      operationId: "archiveWorkProjectLink",
+      summary:
+        "Archive one secondary project relation without deleting history",
+      parameters: [idParameter],
+      responses: {
+        "200": {
+          description: "Archived relation",
+          content: jsonContent("WorkProjectLink"),
         },
         "404": {
           description: "Relation not found",
@@ -979,6 +1072,7 @@ export function generateOpenApi(): string {
       },
       ...systemPaths,
       ...knowledgeProjectPaths,
+      ...workProjectPaths,
       "/api/v1/projects/{id}": {
         get: {
           operationId: "getProject",
@@ -3217,6 +3311,18 @@ export function generateOpenApi(): string {
         KnowledgeProjectAuditEvent: component(knowledgeProjectAuditEventSchema),
         ListKnowledgeProjectAuditResponse: component(
           listKnowledgeProjectAuditResponseSchema,
+        ),
+        CreateWorkProjectLinkRequest: component(
+          createWorkProjectLinkRequestSchema,
+        ),
+        WorkProjectLink: component(workProjectLinkSchema),
+        WorkProjectConnection: component(workProjectConnectionSchema),
+        ListWorkProjectConnectionsResponse: component(
+          listWorkProjectConnectionsResponseSchema,
+        ),
+        WorkProjectAuditEvent: component(workProjectAuditEventSchema),
+        ListWorkProjectAuditResponse: component(
+          listWorkProjectAuditResponseSchema,
         ),
         WorkspaceKnowledgeItem: component(workspaceKnowledgeItemSchema),
         ListWorkspaceKnowledgeResponse: component(

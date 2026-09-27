@@ -14,6 +14,7 @@ interface WorkItem {
   status: "open" | "done";
   priority?: "low" | "normal" | "high" | null;
   dueOn?: string | null;
+  contextLink?: { id: string; projectId: string; createdAt: string } | null;
   createdAt: string;
   updatedAt: string;
 }
@@ -140,6 +141,15 @@ export default function ProjectContent({ projectId }: { projectId: string }) {
           <span className={styles.meta}>{item.status}</span>
         </div>
         {item.description && <p>{item.description}</p>}
+        {item.contextLink && (
+          <p className="cmd-record-identity">
+            Shared from its primary project through a{" "}
+            <a href={`/api/v1/work-project-links/${item.contextLink.id}`}>
+              typed relationship
+            </a>
+            .
+          </p>
+        )}
         {(item.priority || item.dueOn) && (
           <p>
             {item.priority ? `${item.priority} priority` : "Priority unset"}

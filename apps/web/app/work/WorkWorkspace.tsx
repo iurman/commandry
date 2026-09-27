@@ -272,6 +272,17 @@ export default function WorkWorkspace({
                   {item.description && (
                     <p className="cmd-record-description">{item.description}</p>
                   )}
+                  {item.contextLink && (
+                    <p className="cmd-record-identity">
+                      Shared into this project through a{" "}
+                      <a
+                        href={`/api/v1/work-project-links/${item.contextLink.id}`}
+                      >
+                        typed relationship
+                      </a>
+                      .
+                    </p>
+                  )}
                   {item.dueOn && (
                     <p>
                       Due <time dateTime={item.dueOn}>{item.dueOn}</time> UTC

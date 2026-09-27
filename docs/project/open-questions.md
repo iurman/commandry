@@ -132,3 +132,14 @@ attachments and access policy should behave when secondary context is removed.
 The local implementation currently requires archiving active task attachments
 before unlinking their secondary Knowledge context; validate that policy for
 real integrations. These manual links are not authorization grants.
+
+### OQ-023: How should one Work item span multiple projects?
+
+The local MVP keeps one original capture, immutable primary project, and shared
+status while allowing explicit, auditable secondary project context. Validate
+whether the relation should also carry project-specific planning or annotations,
+whether parent and blocker relations may cross project boundaries, and how
+execution packets, direct agent work reads, and approval policy should treat
+secondary context. For now those operations remain owned by the primary
+project. A related project's brief includes the shared task, so its authorized
+brief readers can see that context; the link itself grants no capability.

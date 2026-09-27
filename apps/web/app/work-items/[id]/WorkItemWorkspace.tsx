@@ -14,6 +14,7 @@ import WorkDiscussion from "./WorkDiscussion";
 import WorkAttachments from "./WorkAttachments";
 import WorkAcceptance from "./WorkAcceptance";
 import WorkRelationships from "./WorkRelationships";
+import WorkProjectPanel from "./WorkProjectPanel";
 
 interface WorkItemRecord {
   id: string;
@@ -537,6 +538,10 @@ export default function WorkItemWorkspace({
             </aside>
           </div>
 
+          <WorkProjectPanel
+            workItemId={item.id}
+            primaryProjectId={item.projectId}
+          />
           <WorkRelationships workItemId={item.id} projectId={item.projectId} />
           <WorkAttachments workItemId={item.id} projectId={item.projectId} />
           <WorkAcceptance workItemId={item.id} status={item.status} />

@@ -28,3 +28,4 @@ export * from "./file-capture";
 export * from "./domain-portfolio";
 export * from "./system-context";
 export * from "./knowledge-project-context";
+export * from "./work-project-context";

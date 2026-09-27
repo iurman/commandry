@@ -141,6 +141,18 @@ export function assembleProjectBrief(
           "Manual local capture",
           false,
         ),
+        ...(item.contextLink
+          ? [
+              evidence(
+                "work_project_link",
+                item.contextLink.id,
+                `/api/v1/work-project-links/${item.contextLink.id}`,
+                item.contextLink.createdAt,
+                "Manual local work-project relationship",
+                false,
+              ),
+            ]
+          : []),
         ...(item.openBlockers ?? []).map((blocker) =>
           evidence(
             "work_item_relation",

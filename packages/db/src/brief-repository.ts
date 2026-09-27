@@ -19,6 +19,7 @@ import {
   system,
   systemProjectLink,
   workItem,
+  workProjectLink,
   workItemAttachment,
   workItemAcceptance,
   workItemAcceptanceRevision,
@@ -80,11 +81,22 @@ export function createBriefRepository(db: CommandryDatabase) {
             .limit(1);
 
           const openWorkRows = await tx
-            .select()
+            .select({ item: workItem, context: workProjectLink })
             .from(workItem)
+            .leftJoin(
+              workProjectLink,
+              and(
+                eq(workProjectLink.workItemId, workItem.id),
+                eq(workProjectLink.projectId, projectId),
+                eq(workProjectLink.lifecycle, "active"),
+              ),
+            )
             .where(
               and(
-                eq(workItem.projectId, projectId),
+                or(
+                  eq(workItem.projectId, projectId),
+                  isNotNull(workProjectLink.id),
+                ),
                 eq(workItem.status, "open"),
               ),
             )
@@ -92,7 +104,7 @@ export function createBriefRepository(db: CommandryDatabase) {
             .limit(query.limit + 1);
           const visibleWorkIds = openWorkRows
             .slice(0, query.limit)
-            .map((item) => item.id);
+            .map(({ item }) => item.id);
           const blockerRows = visibleWorkIds.length
             ? await tx
                 .select({ relation: workItemRelation, blocker: workItem })
@@ -347,21 +359,28 @@ export function createBriefRepository(db: CommandryDatabase) {
             work: page(
               openWorkRows,
               query.limit,
-              (row) => ({
-                id: row.id,
-                projectId: row.projectId,
-                sourceCaptureId: row.sourceCaptureId,
-                title: row.title,
-                description: row.description,
-                status: row.status,
-                priority: row.priority,
-                dueOn: row.dueOn,
-                openBlockers: blockersByWork.get(row.id) ?? [],
-                attachedDocuments: attachmentsByWork.get(row.id) ?? [],
+              ({ item, context }) => ({
+                id: item.id,
+                projectId: item.projectId,
+                sourceCaptureId: item.sourceCaptureId,
+                title: item.title,
+                description: item.description,
+                status: item.status,
+                priority: item.priority,
+                dueOn: item.dueOn,
+                contextLink: context
+                  ? {
+                      id: context.id,
+                      projectId: context.projectId,
+                      createdAt: context.createdAt.toISOString(),
+                    }
+                  : null,
+                openBlockers: blockersByWork.get(item.id) ?? [],
+                attachedDocuments: attachmentsByWork.get(item.id) ?? [],
                 acceptance: (() => {
-                  const acceptance = acceptanceByWork.get(row.id);
+                  const acceptance = acceptanceByWork.get(item.id);
                   if (!acceptance || !acceptance.criteria.trim()) return null;
-                  const review = verificationByWork.get(row.id);
+                  const review = verificationByWork.get(item.id);
                   return {
                     ...acceptance,
                     latestReview:
@@ -377,10 +396,10 @@ export function createBriefRepository(db: CommandryDatabase) {
                         : null,
                   };
                 })(),
-                createdAt: row.createdAt.toISOString(),
-                updatedAt: row.updatedAt.toISOString(),
+                createdAt: item.createdAt.toISOString(),
+                updatedAt: item.updatedAt.toISOString(),
               }),
-              (row) => row.id,
+              ({ item }) => item.id,
             ),
             knowledge: page(
               noteRows,

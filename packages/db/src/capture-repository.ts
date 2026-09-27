@@ -12,6 +12,7 @@ import {
   knowledgeProjectLink,
   project,
   workItem,
+  workProjectLink,
 } from "./schema";
 
 export function captureRecord(
@@ -44,7 +45,10 @@ export function captureRecord(
   };
 }
 
-function workRecord(row: typeof workItem.$inferSelect) {
+function workRecord(
+  row: typeof workItem.$inferSelect,
+  context?: typeof workProjectLink.$inferSelect | null,
+) {
   return {
     id: row.id,
     projectId: row.projectId,
@@ -54,6 +58,17 @@ function workRecord(row: typeof workItem.$inferSelect) {
     status: row.status,
     priority: row.priority,
     dueOn: row.dueOn,
+    ...(context !== undefined
+      ? {
+          contextLink: context
+            ? {
+                id: context.id,
+                projectId: context.projectId,
+                createdAt: context.createdAt.toISOString(),
+              }
+            : null,
+        }
+      : {}),
     createdAt: row.createdAt.toISOString(),
     updatedAt: row.updatedAt.toISOString(),
   };
@@ -375,16 +390,35 @@ export function createCaptureRepository(db: CommandryDatabase) {
         ? await db
             .select({ createdAt: workItem.createdAt })
             .from(workItem)
-            .where(eq(workItem.id, input.cursor))
+            .where(
+              and(
+                eq(workItem.id, input.cursor),
+                or(
+                  eq(workItem.projectId, projectId),
+                  sql`exists (select 1 from work_project_link context where context.work_item_id = ${workItem.id} and context.project_id = ${projectId}::uuid and context.lifecycle = 'active')`,
+                ),
+              ),
+            )
             .limit(1)
         : [];
       if (input.cursor && !anchor) return { items: [], nextCursor: null };
       const rows = await db
-        .select()
+        .select({ item: workItem, context: workProjectLink })
         .from(workItem)
+        .leftJoin(
+          workProjectLink,
+          and(
+            eq(workProjectLink.workItemId, workItem.id),
+            eq(workProjectLink.projectId, projectId),
+            eq(workProjectLink.lifecycle, "active"),
+          ),
+        )
         .where(
           and(
-            eq(workItem.projectId, projectId),
+            or(
+              eq(workItem.projectId, projectId),
+              isNotNull(workProjectLink.id),
+            ),
             anchor
               ? sql`(${workItem.createdAt}, ${workItem.id}) < (${anchor.createdAt}, ${input.cursor}::uuid)`
               : undefined,
@@ -394,9 +428,9 @@ export function createCaptureRepository(db: CommandryDatabase) {
         .limit(input.limit + 1);
       const page = rows.slice(0, input.limit);
       return {
-        items: page.map(workRecord),
+        items: page.map(({ item, context }) => workRecord(item, context)),
         nextCursor:
-          rows.length > input.limit ? (page.at(-1)?.id ?? null) : null,
+          rows.length > input.limit ? (page.at(-1)?.item.id ?? null) : null,
       };
     },
     async listProjectKnowledge(projectId: string, input: PageQuery) {
@@ -461,7 +495,10 @@ export function createCaptureRepository(db: CommandryDatabase) {
               and(
                 eq(workItem.id, input.cursor),
                 input.projectId
-                  ? eq(workItem.projectId, input.projectId)
+                  ? or(
+                      eq(workItem.projectId, input.projectId),
+                      sql`exists (select 1 from work_project_link context where context.work_item_id = ${workItem.id} and context.project_id = ${input.projectId}::uuid and context.lifecycle = 'active')`,
+                    )
                   : undefined,
                 input.status ? eq(workItem.status, input.status) : undefined,
               ),
@@ -470,13 +507,30 @@ export function createCaptureRepository(db: CommandryDatabase) {
         : [];
       if (input.cursor && !anchor) return { items: [], nextCursor: null };
       const rows = await db
-        .select({ item: workItem, projectName: project.name })
+        .select({
+          item: workItem,
+          projectName: project.name,
+          context: workProjectLink,
+        })
         .from(workItem)
         .innerJoin(project, eq(workItem.projectId, project.id))
+        .leftJoin(
+          workProjectLink,
+          and(
+            eq(workProjectLink.workItemId, workItem.id),
+            input.projectId
+              ? eq(workProjectLink.projectId, input.projectId)
+              : sql`false`,
+            eq(workProjectLink.lifecycle, "active"),
+          ),
+        )
         .where(
           and(
             input.projectId
-              ? eq(workItem.projectId, input.projectId)
+              ? or(
+                  eq(workItem.projectId, input.projectId),
+                  isNotNull(workProjectLink.id),
+                )
               : undefined,
             input.status ? eq(workItem.status, input.status) : undefined,
             anchor
@@ -488,8 +542,8 @@ export function createCaptureRepository(db: CommandryDatabase) {
         .limit(input.limit + 1);
       const page = rows.slice(0, input.limit);
       return {
-        items: page.map(({ item, projectName }) => ({
-          ...workRecord(item),
+        items: page.map(({ item, projectName, context }) => ({
+          ...workRecord(item, input.projectId ? context : undefined),
           projectName,
         })),
         nextCursor:
@@ -609,10 +663,11 @@ export function createCaptureRepository(db: CommandryDatabase) {
           inner join capture on capture.id = capture_file.capture_id
           where to_tsvector('simple', capture_file.original_name) @@ websearch_to_tsquery('simple', ${input.q})
           union all
-          select id, 'task'::text as kind, project_id, title,
+          select id, 'task'::text as kind, ${input.projectId ? sql`${input.projectId}::uuid` : sql`project_id`} as project_id, title,
             left(description, 220) as excerpt, source_capture_id, null::uuid as target_id, created_at
           from work_item
           where to_tsvector('simple', title || ' ' || description) @@ websearch_to_tsquery('simple', ${input.q})
+            and ${input.projectId ? sql`(project_id = ${input.projectId}::uuid or exists (select 1 from work_project_link context where context.work_item_id = work_item.id and context.project_id = ${input.projectId}::uuid and context.lifecycle = 'active'))` : sql`true`}
           union all
           select id, kind, ${input.projectId ? sql`${input.projectId}::uuid` : sql`project_id`} as project_id, title,
             left(content || ' ' || coalesce(url, ''), 220) as excerpt, source_capture_id, null::uuid as target_id, created_at

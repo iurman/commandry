@@ -32,4 +32,5 @@ export * from "./file-capture-repository";
 export * from "./domain-portfolio-repository";
 export * from "./system-context-repository";
 export * from "./knowledge-project-repository";
+export * from "./work-project-repository";
 export * as schema from "./schema";

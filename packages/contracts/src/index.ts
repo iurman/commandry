@@ -482,8 +482,60 @@ export const workItemSchema = z.object({
   status: z.enum(["open", "done"]),
   priority: z.enum(["low", "normal", "high"]).nullable().optional(),
   dueOn: z.iso.date().nullable().optional(),
+  contextLink: z
+    .object({
+      id: z.uuid(),
+      projectId: z.uuid(),
+      createdAt: z.iso.datetime({ offset: true }),
+    })
+    .nullable()
+    .optional(),
   createdAt: z.iso.datetime({ offset: true }),
   updatedAt: z.iso.datetime({ offset: true }),
+});
+
+export const createWorkProjectLinkRequestSchema = z.strictObject({
+  projectId: z.uuid(),
+});
+
+export const workProjectLinkSchema = z.object({
+  id: z.uuid(),
+  workItemId: z.uuid(),
+  projectId: z.uuid(),
+  type: z.literal("relates_to"),
+  inverseType: z.literal("relates_to"),
+  sourceKind: z.literal("work_item"),
+  targetKind: z.literal("project"),
+  lifecycle: z.enum(["active", "archived"]),
+  provenance: z.literal("manual"),
+  actor: z.literal("local-user:unattributed"),
+  createdAt: z.iso.datetime({ offset: true }),
+  archivedAt: z.iso.datetime({ offset: true }).nullable(),
+});
+
+export const workProjectConnectionSchema = z.object({
+  link: workProjectLinkSchema,
+  project: projectSummarySchema,
+});
+
+export const listWorkProjectConnectionsResponseSchema = z.object({
+  items: z.array(workProjectConnectionSchema),
+  nextCursor: z.uuid().nullable(),
+});
+
+export const workProjectAuditEventSchema = z.object({
+  id: z.uuid(),
+  workItemId: z.uuid(),
+  projectId: z.uuid(),
+  linkId: z.uuid(),
+  operation: z.enum(["work.project_linked", "work.project_unlinked"]),
+  actor: z.literal("local-user:unattributed"),
+  createdAt: z.iso.datetime({ offset: true }),
+});
+
+export const listWorkProjectAuditResponseSchema = z.object({
+  items: z.array(workProjectAuditEventSchema),
+  nextCursor: z.uuid().nullable(),
 });
 
 export const changeWorkItemPlanningRequestSchema = z.strictObject({
@@ -1250,6 +1302,7 @@ export const evidenceReferenceSchema = z.object({
     "metric_sample",
     "knowledge_item",
     "knowledge_project_link",
+    "work_project_link",
     "decision",
     "resource",
     "project_resource_link",
@@ -2137,6 +2190,9 @@ export type CreateCaptureRequest = z.infer<typeof createCaptureRequestSchema>;
 export type Capture = z.infer<typeof captureSchema>;
 export type FileCaptureRequest = z.infer<typeof fileCaptureRequestSchema>;
 export type WorkItem = z.infer<typeof workItemSchema>;
+export type WorkProjectLink = z.infer<typeof workProjectLinkSchema>;
+export type WorkProjectConnection = z.infer<typeof workProjectConnectionSchema>;
+export type WorkProjectAuditEvent = z.infer<typeof workProjectAuditEventSchema>;
 export type WorkspaceWorkItem = z.infer<typeof workspaceWorkItemSchema>;
 export type ChangeWorkItemPlanningRequest = z.infer<
   typeof changeWorkItemPlanningRequestSchema

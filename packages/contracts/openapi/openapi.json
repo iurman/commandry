@@ -2754,6 +2754,239 @@
         }
       }
     },
+    "/api/v1/work-items/{id}/projects": {
+      "get": {
+        "operationId": "listWorkItemProjects",
+        "summary": "Page active secondary project context for one Work record",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "id",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          },
+          {
+            "in": "query",
+            "name": "limit",
+            "required": false,
+            "schema": {
+              "type": "integer",
+              "minimum": 1,
+              "maximum": 100,
+              "default": 25
+            }
+          },
+          {
+            "in": "query",
+            "name": "cursor",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Related project page",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ListWorkProjectConnectionsResponse"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Work record not found",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          }
+        }
+      },
+      "post": {
+        "operationId": "linkWorkItemProject",
+        "summary": "Relate one source-backed Work record to another project",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "id",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/CreateWorkProjectLinkRequest"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Current typed relation",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/WorkProjectConnection"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "Target is already the primary project",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/work-items/{id}/project-audit": {
+      "get": {
+        "operationId": "listWorkProjectAudit",
+        "summary": "Page immutable secondary project context decisions",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "id",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          },
+          {
+            "in": "query",
+            "name": "limit",
+            "required": false,
+            "schema": {
+              "type": "integer",
+              "minimum": 1,
+              "maximum": 100,
+              "default": 25
+            }
+          },
+          {
+            "in": "query",
+            "name": "cursor",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Audit event page",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ListWorkProjectAuditResponse"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/work-project-links/{id}": {
+      "get": {
+        "operationId": "getWorkProjectLink",
+        "summary": "Read an exact active or archived Work project relation",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "id",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Exact relation",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/WorkProjectLink"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Relation not found",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/work-project-links/{id}/archive": {
+      "put": {
+        "operationId": "archiveWorkProjectLink",
+        "summary": "Archive one secondary project relation without deleting history",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "id",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Archived relation",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/WorkProjectLink"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Relation not found",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/api/v1/projects/{id}": {
       "get": {
         "operationId": "getProject",
@@ -12491,6 +12724,39 @@
                       }
                     ]
                   },
+                  "contextLink": {
+                    "anyOf": [
+                      {
+                        "type": "object",
+                        "properties": {
+                          "id": {
+                            "type": "string",
+                            "format": "uuid",
+                            "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$"
+                          },
+                          "projectId": {
+                            "type": "string",
+                            "format": "uuid",
+                            "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$"
+                          },
+                          "createdAt": {
+                            "type": "string",
+                            "format": "date-time",
+                            "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))T(?:(?:[01]\\d|2[0-3]):[0-5]\\d:[0-5]\\d(?:\\.\\d+)?(?:Z|([+-](?:[01]\\d|2[0-3]):[0-5]\\d)))$"
+                          }
+                        },
+                        "required": [
+                          "id",
+                          "projectId",
+                          "createdAt"
+                        ],
+                        "additionalProperties": false
+                      },
+                      {
+                        "type": "null"
+                      }
+                    ]
+                  },
                   "createdAt": {
                     "type": "string",
                     "format": "date-time",
@@ -13434,6 +13700,39 @@
                           }
                         ]
                       },
+                      "contextLink": {
+                        "anyOf": [
+                          {
+                            "type": "object",
+                            "properties": {
+                              "id": {
+                                "type": "string",
+                                "format": "uuid",
+                                "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$"
+                              },
+                              "projectId": {
+                                "type": "string",
+                                "format": "uuid",
+                                "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$"
+                              },
+                              "createdAt": {
+                                "type": "string",
+                                "format": "date-time",
+                                "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))T(?:(?:[01]\\d|2[0-3]):[0-5]\\d:[0-5]\\d(?:\\.\\d+)?(?:Z|([+-](?:[01]\\d|2[0-3]):[0-5]\\d)))$"
+                              }
+                            },
+                            "required": [
+                              "id",
+                              "projectId",
+                              "createdAt"
+                            ],
+                            "additionalProperties": false
+                          },
+                          {
+                            "type": "null"
+                          }
+                        ]
+                      },
                       "createdAt": {
                         "type": "string",
                         "format": "date-time",
@@ -13654,6 +13953,39 @@
               }
             ]
           },
+          "contextLink": {
+            "anyOf": [
+              {
+                "type": "object",
+                "properties": {
+                  "id": {
+                    "type": "string",
+                    "format": "uuid",
+                    "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$"
+                  },
+                  "projectId": {
+                    "type": "string",
+                    "format": "uuid",
+                    "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$"
+                  },
+                  "createdAt": {
+                    "type": "string",
+                    "format": "date-time",
+                    "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))T(?:(?:[01]\\d|2[0-3]):[0-5]\\d:[0-5]\\d(?:\\.\\d+)?(?:Z|([+-](?:[01]\\d|2[0-3]):[0-5]\\d)))$"
+                  }
+                },
+                "required": [
+                  "id",
+                  "projectId",
+                  "createdAt"
+                ],
+                "additionalProperties": false
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
           "createdAt": {
             "type": "string",
             "format": "date-time",
@@ -13729,6 +14061,39 @@
                 "type": "string",
                 "format": "date",
                 "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))$"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "contextLink": {
+            "anyOf": [
+              {
+                "type": "object",
+                "properties": {
+                  "id": {
+                    "type": "string",
+                    "format": "uuid",
+                    "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$"
+                  },
+                  "projectId": {
+                    "type": "string",
+                    "format": "uuid",
+                    "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$"
+                  },
+                  "createdAt": {
+                    "type": "string",
+                    "format": "date-time",
+                    "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))T(?:(?:[01]\\d|2[0-3]):[0-5]\\d:[0-5]\\d(?:\\.\\d+)?(?:Z|([+-](?:[01]\\d|2[0-3]):[0-5]\\d)))$"
+                  }
+                },
+                "required": [
+                  "id",
+                  "projectId",
+                  "createdAt"
+                ],
+                "additionalProperties": false
               },
               {
                 "type": "null"
@@ -13820,6 +14185,39 @@
                       "type": "string",
                       "format": "date",
                       "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))$"
+                    },
+                    {
+                      "type": "null"
+                    }
+                  ]
+                },
+                "contextLink": {
+                  "anyOf": [
+                    {
+                      "type": "object",
+                      "properties": {
+                        "id": {
+                          "type": "string",
+                          "format": "uuid",
+                          "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$"
+                        },
+                        "projectId": {
+                          "type": "string",
+                          "format": "uuid",
+                          "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$"
+                        },
+                        "createdAt": {
+                          "type": "string",
+                          "format": "date-time",
+                          "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))T(?:(?:[01]\\d|2[0-3]):[0-5]\\d:[0-5]\\d(?:\\.\\d+)?(?:Z|([+-](?:[01]\\d|2[0-3]):[0-5]\\d)))$"
+                        }
+                      },
+                      "required": [
+                        "id",
+                        "projectId",
+                        "createdAt"
+                      ],
+                      "additionalProperties": false
                     },
                     {
                       "type": "null"
@@ -14177,6 +14575,39 @@
                       "type": "string",
                       "format": "date",
                       "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))$"
+                    },
+                    {
+                      "type": "null"
+                    }
+                  ]
+                },
+                "contextLink": {
+                  "anyOf": [
+                    {
+                      "type": "object",
+                      "properties": {
+                        "id": {
+                          "type": "string",
+                          "format": "uuid",
+                          "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$"
+                        },
+                        "projectId": {
+                          "type": "string",
+                          "format": "uuid",
+                          "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$"
+                        },
+                        "createdAt": {
+                          "type": "string",
+                          "format": "date-time",
+                          "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))T(?:(?:[01]\\d|2[0-3]):[0-5]\\d:[0-5]\\d(?:\\.\\d+)?(?:Z|([+-](?:[01]\\d|2[0-3]):[0-5]\\d)))$"
+                        }
+                      },
+                      "required": [
+                        "id",
+                        "projectId",
+                        "createdAt"
+                      ],
+                      "additionalProperties": false
                     },
                     {
                       "type": "null"
@@ -16113,6 +16544,601 @@
         ],
         "additionalProperties": false
       },
+      "CreateWorkProjectLinkRequest": {
+        "type": "object",
+        "properties": {
+          "projectId": {
+            "type": "string",
+            "format": "uuid",
+            "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$"
+          }
+        },
+        "required": [
+          "projectId"
+        ],
+        "additionalProperties": false
+      },
+      "WorkProjectLink": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string",
+            "format": "uuid",
+            "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$"
+          },
+          "workItemId": {
+            "type": "string",
+            "format": "uuid",
+            "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$"
+          },
+          "projectId": {
+            "type": "string",
+            "format": "uuid",
+            "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$"
+          },
+          "type": {
+            "type": "string",
+            "const": "relates_to"
+          },
+          "inverseType": {
+            "type": "string",
+            "const": "relates_to"
+          },
+          "sourceKind": {
+            "type": "string",
+            "const": "work_item"
+          },
+          "targetKind": {
+            "type": "string",
+            "const": "project"
+          },
+          "lifecycle": {
+            "type": "string",
+            "enum": [
+              "active",
+              "archived"
+            ]
+          },
+          "provenance": {
+            "type": "string",
+            "const": "manual"
+          },
+          "actor": {
+            "type": "string",
+            "const": "local-user:unattributed"
+          },
+          "createdAt": {
+            "type": "string",
+            "format": "date-time",
+            "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))T(?:(?:[01]\\d|2[0-3]):[0-5]\\d:[0-5]\\d(?:\\.\\d+)?(?:Z|([+-](?:[01]\\d|2[0-3]):[0-5]\\d)))$"
+          },
+          "archivedAt": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "date-time",
+                "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))T(?:(?:[01]\\d|2[0-3]):[0-5]\\d:[0-5]\\d(?:\\.\\d+)?(?:Z|([+-](?:[01]\\d|2[0-3]):[0-5]\\d)))$"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          }
+        },
+        "required": [
+          "id",
+          "workItemId",
+          "projectId",
+          "type",
+          "inverseType",
+          "sourceKind",
+          "targetKind",
+          "lifecycle",
+          "provenance",
+          "actor",
+          "createdAt",
+          "archivedAt"
+        ],
+        "additionalProperties": false
+      },
+      "WorkProjectConnection": {
+        "type": "object",
+        "properties": {
+          "link": {
+            "type": "object",
+            "properties": {
+              "id": {
+                "type": "string",
+                "format": "uuid",
+                "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$"
+              },
+              "workItemId": {
+                "type": "string",
+                "format": "uuid",
+                "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$"
+              },
+              "projectId": {
+                "type": "string",
+                "format": "uuid",
+                "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$"
+              },
+              "type": {
+                "type": "string",
+                "const": "relates_to"
+              },
+              "inverseType": {
+                "type": "string",
+                "const": "relates_to"
+              },
+              "sourceKind": {
+                "type": "string",
+                "const": "work_item"
+              },
+              "targetKind": {
+                "type": "string",
+                "const": "project"
+              },
+              "lifecycle": {
+                "type": "string",
+                "enum": [
+                  "active",
+                  "archived"
+                ]
+              },
+              "provenance": {
+                "type": "string",
+                "const": "manual"
+              },
+              "actor": {
+                "type": "string",
+                "const": "local-user:unattributed"
+              },
+              "createdAt": {
+                "type": "string",
+                "format": "date-time",
+                "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))T(?:(?:[01]\\d|2[0-3]):[0-5]\\d:[0-5]\\d(?:\\.\\d+)?(?:Z|([+-](?:[01]\\d|2[0-3]):[0-5]\\d)))$"
+              },
+              "archivedAt": {
+                "anyOf": [
+                  {
+                    "type": "string",
+                    "format": "date-time",
+                    "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))T(?:(?:[01]\\d|2[0-3]):[0-5]\\d:[0-5]\\d(?:\\.\\d+)?(?:Z|([+-](?:[01]\\d|2[0-3]):[0-5]\\d)))$"
+                  },
+                  {
+                    "type": "null"
+                  }
+                ]
+              }
+            },
+            "required": [
+              "id",
+              "workItemId",
+              "projectId",
+              "type",
+              "inverseType",
+              "sourceKind",
+              "targetKind",
+              "lifecycle",
+              "provenance",
+              "actor",
+              "createdAt",
+              "archivedAt"
+            ],
+            "additionalProperties": false
+          },
+          "project": {
+            "type": "object",
+            "properties": {
+              "id": {
+                "type": "string",
+                "format": "uuid",
+                "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$"
+              },
+              "name": {
+                "type": "string",
+                "minLength": 1
+              },
+              "summary": {
+                "type": [
+                  "string",
+                  "null"
+                ]
+              },
+              "type": {
+                "type": "string",
+                "minLength": 1
+              },
+              "lifecycle": {
+                "type": "string",
+                "enum": [
+                  "proposed",
+                  "active",
+                  "paused",
+                  "completed",
+                  "archived"
+                ]
+              },
+              "domain": {
+                "anyOf": [
+                  {
+                    "type": "object",
+                    "properties": {
+                      "id": {
+                        "type": "string",
+                        "format": "uuid",
+                        "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$"
+                      },
+                      "name": {
+                        "type": "string",
+                        "minLength": 1
+                      }
+                    },
+                    "required": [
+                      "id",
+                      "name"
+                    ],
+                    "additionalProperties": false
+                  },
+                  {
+                    "type": "null"
+                  }
+                ]
+              },
+              "createdAt": {
+                "type": "string",
+                "format": "date-time",
+                "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))T(?:(?:[01]\\d|2[0-3]):[0-5]\\d:[0-5]\\d(?:\\.\\d+)?(?:Z|([+-](?:[01]\\d|2[0-3]):[0-5]\\d)))$"
+              },
+              "updatedAt": {
+                "type": "string",
+                "format": "date-time",
+                "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))T(?:(?:[01]\\d|2[0-3]):[0-5]\\d:[0-5]\\d(?:\\.\\d+)?(?:Z|([+-](?:[01]\\d|2[0-3]):[0-5]\\d)))$"
+              }
+            },
+            "required": [
+              "id",
+              "name",
+              "summary",
+              "type",
+              "lifecycle",
+              "createdAt",
+              "updatedAt"
+            ],
+            "additionalProperties": false
+          }
+        },
+        "required": [
+          "link",
+          "project"
+        ],
+        "additionalProperties": false
+      },
+      "ListWorkProjectConnectionsResponse": {
+        "type": "object",
+        "properties": {
+          "items": {
+            "type": "array",
+            "items": {
+              "type": "object",
+              "properties": {
+                "link": {
+                  "type": "object",
+                  "properties": {
+                    "id": {
+                      "type": "string",
+                      "format": "uuid",
+                      "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$"
+                    },
+                    "workItemId": {
+                      "type": "string",
+                      "format": "uuid",
+                      "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$"
+                    },
+                    "projectId": {
+                      "type": "string",
+                      "format": "uuid",
+                      "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$"
+                    },
+                    "type": {
+                      "type": "string",
+                      "const": "relates_to"
+                    },
+                    "inverseType": {
+                      "type": "string",
+                      "const": "relates_to"
+                    },
+                    "sourceKind": {
+                      "type": "string",
+                      "const": "work_item"
+                    },
+                    "targetKind": {
+                      "type": "string",
+                      "const": "project"
+                    },
+                    "lifecycle": {
+                      "type": "string",
+                      "enum": [
+                        "active",
+                        "archived"
+                      ]
+                    },
+                    "provenance": {
+                      "type": "string",
+                      "const": "manual"
+                    },
+                    "actor": {
+                      "type": "string",
+                      "const": "local-user:unattributed"
+                    },
+                    "createdAt": {
+                      "type": "string",
+                      "format": "date-time",
+                      "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))T(?:(?:[01]\\d|2[0-3]):[0-5]\\d:[0-5]\\d(?:\\.\\d+)?(?:Z|([+-](?:[01]\\d|2[0-3]):[0-5]\\d)))$"
+                    },
+                    "archivedAt": {
+                      "anyOf": [
+                        {
+                          "type": "string",
+                          "format": "date-time",
+                          "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))T(?:(?:[01]\\d|2[0-3]):[0-5]\\d:[0-5]\\d(?:\\.\\d+)?(?:Z|([+-](?:[01]\\d|2[0-3]):[0-5]\\d)))$"
+                        },
+                        {
+                          "type": "null"
+                        }
+                      ]
+                    }
+                  },
+                  "required": [
+                    "id",
+                    "workItemId",
+                    "projectId",
+                    "type",
+                    "inverseType",
+                    "sourceKind",
+                    "targetKind",
+                    "lifecycle",
+                    "provenance",
+                    "actor",
+                    "createdAt",
+                    "archivedAt"
+                  ],
+                  "additionalProperties": false
+                },
+                "project": {
+                  "type": "object",
+                  "properties": {
+                    "id": {
+                      "type": "string",
+                      "format": "uuid",
+                      "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$"
+                    },
+                    "name": {
+                      "type": "string",
+                      "minLength": 1
+                    },
+                    "summary": {
+                      "type": [
+                        "string",
+                        "null"
+                      ]
+                    },
+                    "type": {
+                      "type": "string",
+                      "minLength": 1
+                    },
+                    "lifecycle": {
+                      "type": "string",
+                      "enum": [
+                        "proposed",
+                        "active",
+                        "paused",
+                        "completed",
+                        "archived"
+                      ]
+                    },
+                    "domain": {
+                      "anyOf": [
+                        {
+                          "type": "object",
+                          "properties": {
+                            "id": {
+                              "type": "string",
+                              "format": "uuid",
+                              "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$"
+                            },
+                            "name": {
+                              "type": "string",
+                              "minLength": 1
+                            }
+                          },
+                          "required": [
+                            "id",
+                            "name"
+                          ],
+                          "additionalProperties": false
+                        },
+                        {
+                          "type": "null"
+                        }
+                      ]
+                    },
+                    "createdAt": {
+                      "type": "string",
+                      "format": "date-time",
+                      "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))T(?:(?:[01]\\d|2[0-3]):[0-5]\\d:[0-5]\\d(?:\\.\\d+)?(?:Z|([+-](?:[01]\\d|2[0-3]):[0-5]\\d)))$"
+                    },
+                    "updatedAt": {
+                      "type": "string",
+                      "format": "date-time",
+                      "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))T(?:(?:[01]\\d|2[0-3]):[0-5]\\d:[0-5]\\d(?:\\.\\d+)?(?:Z|([+-](?:[01]\\d|2[0-3]):[0-5]\\d)))$"
+                    }
+                  },
+                  "required": [
+                    "id",
+                    "name",
+                    "summary",
+                    "type",
+                    "lifecycle",
+                    "createdAt",
+                    "updatedAt"
+                  ],
+                  "additionalProperties": false
+                }
+              },
+              "required": [
+                "link",
+                "project"
+              ],
+              "additionalProperties": false
+            }
+          },
+          "nextCursor": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "uuid",
+                "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          }
+        },
+        "required": [
+          "items",
+          "nextCursor"
+        ],
+        "additionalProperties": false
+      },
+      "WorkProjectAuditEvent": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string",
+            "format": "uuid",
+            "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$"
+          },
+          "workItemId": {
+            "type": "string",
+            "format": "uuid",
+            "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$"
+          },
+          "projectId": {
+            "type": "string",
+            "format": "uuid",
+            "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$"
+          },
+          "linkId": {
+            "type": "string",
+            "format": "uuid",
+            "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$"
+          },
+          "operation": {
+            "type": "string",
+            "enum": [
+              "work.project_linked",
+              "work.project_unlinked"
+            ]
+          },
+          "actor": {
+            "type": "string",
+            "const": "local-user:unattributed"
+          },
+          "createdAt": {
+            "type": "string",
+            "format": "date-time",
+            "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))T(?:(?:[01]\\d|2[0-3]):[0-5]\\d:[0-5]\\d(?:\\.\\d+)?(?:Z|([+-](?:[01]\\d|2[0-3]):[0-5]\\d)))$"
+          }
+        },
+        "required": [
+          "id",
+          "workItemId",
+          "projectId",
+          "linkId",
+          "operation",
+          "actor",
+          "createdAt"
+        ],
+        "additionalProperties": false
+      },
+      "ListWorkProjectAuditResponse": {
+        "type": "object",
+        "properties": {
+          "items": {
+            "type": "array",
+            "items": {
+              "type": "object",
+              "properties": {
+                "id": {
+                  "type": "string",
+                  "format": "uuid",
+                  "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$"
+                },
+                "workItemId": {
+                  "type": "string",
+                  "format": "uuid",
+                  "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$"
+                },
+                "projectId": {
+                  "type": "string",
+                  "format": "uuid",
+                  "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$"
+                },
+                "linkId": {
+                  "type": "string",
+                  "format": "uuid",
+                  "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$"
+                },
+                "operation": {
+                  "type": "string",
+                  "enum": [
+                    "work.project_linked",
+                    "work.project_unlinked"
+                  ]
+                },
+                "actor": {
+                  "type": "string",
+                  "const": "local-user:unattributed"
+                },
+                "createdAt": {
+                  "type": "string",
+                  "format": "date-time",
+                  "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))T(?:(?:[01]\\d|2[0-3]):[0-5]\\d:[0-5]\\d(?:\\.\\d+)?(?:Z|([+-](?:[01]\\d|2[0-3]):[0-5]\\d)))$"
+                }
+              },
+              "required": [
+                "id",
+                "workItemId",
+                "projectId",
+                "linkId",
+                "operation",
+                "actor",
+                "createdAt"
+              ],
+              "additionalProperties": false
+            }
+          },
+          "nextCursor": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "uuid",
+                "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          }
+        },
+        "required": [
+          "items",
+          "nextCursor"
+        ],
+        "additionalProperties": false
+      },
       "WorkspaceKnowledgeItem": {
         "type": "object",
         "properties": {
@@ -17426,6 +18452,7 @@
                     "metric_sample",
                     "knowledge_item",
                     "knowledge_project_link",
+                    "work_project_link",
                     "decision",
                     "resource",
                     "project_resource_link",
@@ -17634,6 +18661,7 @@
                             "metric_sample",
                             "knowledge_item",
                             "knowledge_project_link",
+                            "work_project_link",
                             "decision",
                             "resource",
                             "project_resource_link",
@@ -18508,6 +19536,7 @@
                                   "metric_sample",
                                   "knowledge_item",
                                   "knowledge_project_link",
+                                  "work_project_link",
                                   "decision",
                                   "resource",
                                   "project_resource_link",
@@ -19390,6 +20419,39 @@
                     }
                   ]
                 },
+                "contextLink": {
+                  "anyOf": [
+                    {
+                      "type": "object",
+                      "properties": {
+                        "id": {
+                          "type": "string",
+                          "format": "uuid",
+                          "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$"
+                        },
+                        "projectId": {
+                          "type": "string",
+                          "format": "uuid",
+                          "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$"
+                        },
+                        "createdAt": {
+                          "type": "string",
+                          "format": "date-time",
+                          "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))T(?:(?:[01]\\d|2[0-3]):[0-5]\\d:[0-5]\\d(?:\\.\\d+)?(?:Z|([+-](?:[01]\\d|2[0-3]):[0-5]\\d)))$"
+                        }
+                      },
+                      "required": [
+                        "id",
+                        "projectId",
+                        "createdAt"
+                      ],
+                      "additionalProperties": false
+                    },
+                    {
+                      "type": "null"
+                    }
+                  ]
+                },
                 "createdAt": {
                   "type": "string",
                   "format": "date-time",
@@ -19762,6 +20824,7 @@
               "metric_sample",
               "knowledge_item",
               "knowledge_project_link",
+              "work_project_link",
               "decision",
               "resource",
               "project_resource_link",
@@ -19867,6 +20930,7 @@
                     "metric_sample",
                     "knowledge_item",
                     "knowledge_project_link",
+                    "work_project_link",
                     "decision",
                     "resource",
                     "project_resource_link",
@@ -19997,6 +21061,7 @@
                           "metric_sample",
                           "knowledge_item",
                           "knowledge_project_link",
+                          "work_project_link",
                           "decision",
                           "resource",
                           "project_resource_link",
@@ -20161,6 +21226,7 @@
                     "metric_sample",
                     "knowledge_item",
                     "knowledge_project_link",
+                    "work_project_link",
                     "decision",
                     "resource",
                     "project_resource_link",
@@ -20353,6 +21419,7 @@
                         "metric_sample",
                         "knowledge_item",
                         "knowledge_project_link",
+                        "work_project_link",
                         "decision",
                         "resource",
                         "project_resource_link",
@@ -20474,6 +21541,7 @@
                                   "metric_sample",
                                   "knowledge_item",
                                   "knowledge_project_link",
+                                  "work_project_link",
                                   "decision",
                                   "resource",
                                   "project_resource_link",
@@ -20637,6 +21705,7 @@
                                   "metric_sample",
                                   "knowledge_item",
                                   "knowledge_project_link",
+                                  "work_project_link",
                                   "decision",
                                   "resource",
                                   "project_resource_link",
@@ -20800,6 +21869,7 @@
                                   "metric_sample",
                                   "knowledge_item",
                                   "knowledge_project_link",
+                                  "work_project_link",
                                   "decision",
                                   "resource",
                                   "project_resource_link",
@@ -20963,6 +22033,7 @@
                                   "metric_sample",
                                   "knowledge_item",
                                   "knowledge_project_link",
+                                  "work_project_link",
                                   "decision",
                                   "resource",
                                   "project_resource_link",
@@ -21126,6 +22197,7 @@
                                   "metric_sample",
                                   "knowledge_item",
                                   "knowledge_project_link",
+                                  "work_project_link",
                                   "decision",
                                   "resource",
                                   "project_resource_link",
@@ -21289,6 +22361,7 @@
                                   "metric_sample",
                                   "knowledge_item",
                                   "knowledge_project_link",
+                                  "work_project_link",
                                   "decision",
                                   "resource",
                                   "project_resource_link",
@@ -21452,6 +22525,7 @@
                                   "metric_sample",
                                   "knowledge_item",
                                   "knowledge_project_link",
+                                  "work_project_link",
                                   "decision",
                                   "resource",
                                   "project_resource_link",
@@ -21682,6 +22756,7 @@
                               "metric_sample",
                               "knowledge_item",
                               "knowledge_project_link",
+                              "work_project_link",
                               "decision",
                               "resource",
                               "project_resource_link",
@@ -21844,6 +22919,7 @@
                         "metric_sample",
                         "knowledge_item",
                         "knowledge_project_link",
+                        "work_project_link",
                         "decision",
                         "resource",
                         "project_resource_link",
@@ -21961,6 +23037,7 @@
                       "metric_sample",
                       "knowledge_item",
                       "knowledge_project_link",
+                      "work_project_link",
                       "decision",
                       "resource",
                       "project_resource_link",
@@ -22061,6 +23138,7 @@
                         "metric_sample",
                         "knowledge_item",
                         "knowledge_project_link",
+                        "work_project_link",
                         "decision",
                         "resource",
                         "project_resource_link",
@@ -22136,6 +23214,7 @@
                         "metric_sample",
                         "knowledge_item",
                         "knowledge_project_link",
+                        "work_project_link",
                         "decision",
                         "resource",
                         "project_resource_link",
@@ -22242,6 +23321,7 @@
                         "metric_sample",
                         "knowledge_item",
                         "knowledge_project_link",
+                        "work_project_link",
                         "decision",
                         "resource",
                         "project_resource_link",
@@ -22341,6 +23421,7 @@
                           "metric_sample",
                           "knowledge_item",
                           "knowledge_project_link",
+                          "work_project_link",
                           "decision",
                           "resource",
                           "project_resource_link",
@@ -22437,6 +23518,7 @@
                                     "metric_sample",
                                     "knowledge_item",
                                     "knowledge_project_link",
+                                    "work_project_link",
                                     "decision",
                                     "resource",
                                     "project_resource_link",
@@ -22711,6 +23793,7 @@
                             "metric_sample",
                             "knowledge_item",
                             "knowledge_project_link",
+                            "work_project_link",
                             "decision",
                             "resource",
                             "project_resource_link",
@@ -22828,6 +23911,7 @@
                           "metric_sample",
                           "knowledge_item",
                           "knowledge_project_link",
+                          "work_project_link",
                           "decision",
                           "resource",
                           "project_resource_link",
@@ -22928,6 +24012,7 @@
                             "metric_sample",
                             "knowledge_item",
                             "knowledge_project_link",
+                            "work_project_link",
                             "decision",
                             "resource",
                             "project_resource_link",
@@ -23003,6 +24088,7 @@
                             "metric_sample",
                             "knowledge_item",
                             "knowledge_project_link",
+                            "work_project_link",
                             "decision",
                             "resource",
                             "project_resource_link",
@@ -23109,6 +24195,7 @@
                             "metric_sample",
                             "knowledge_item",
                             "knowledge_project_link",
+                            "work_project_link",
                             "decision",
                             "resource",
                             "project_resource_link",
@@ -23208,6 +24295,7 @@
                               "metric_sample",
                               "knowledge_item",
                               "knowledge_project_link",
+                              "work_project_link",
                               "decision",
                               "resource",
                               "project_resource_link",
@@ -23304,6 +24392,7 @@
                                         "metric_sample",
                                         "knowledge_item",
                                         "knowledge_project_link",
+                                        "work_project_link",
                                         "decision",
                                         "resource",
                                         "project_resource_link",
@@ -23597,6 +24686,7 @@
                                   "metric_sample",
                                   "knowledge_item",
                                   "knowledge_project_link",
+                                  "work_project_link",
                                   "decision",
                                   "resource",
                                   "project_resource_link",
@@ -23714,6 +24804,7 @@
                                 "metric_sample",
                                 "knowledge_item",
                                 "knowledge_project_link",
+                                "work_project_link",
                                 "decision",
                                 "resource",
                                 "project_resource_link",
@@ -23814,6 +24905,7 @@
                                   "metric_sample",
                                   "knowledge_item",
                                   "knowledge_project_link",
+                                  "work_project_link",
                                   "decision",
                                   "resource",
                                   "project_resource_link",
@@ -23889,6 +24981,7 @@
                                   "metric_sample",
                                   "knowledge_item",
                                   "knowledge_project_link",
+                                  "work_project_link",
                                   "decision",
                                   "resource",
                                   "project_resource_link",
@@ -23995,6 +25088,7 @@
                                   "metric_sample",
                                   "knowledge_item",
                                   "knowledge_project_link",
+                                  "work_project_link",
                                   "decision",
                                   "resource",
                                   "project_resource_link",
@@ -24094,6 +25188,7 @@
                                     "metric_sample",
                                     "knowledge_item",
                                     "knowledge_project_link",
+                                    "work_project_link",
                                     "decision",
                                     "resource",
                                     "project_resource_link",
@@ -24190,6 +25285,7 @@
                                               "metric_sample",
                                               "knowledge_item",
                                               "knowledge_project_link",
+                                              "work_project_link",
                                               "decision",
                                               "resource",
                                               "project_resource_link",
@@ -24836,6 +25932,7 @@
                     "metric_sample",
                     "knowledge_item",
                     "knowledge_project_link",
+                    "work_project_link",
                     "decision",
                     "resource",
                     "project_resource_link",
@@ -25108,6 +26205,7 @@
                             "metric_sample",
                             "knowledge_item",
                             "knowledge_project_link",
+                            "work_project_link",
                             "decision",
                             "resource",
                             "project_resource_link",
@@ -26284,6 +27382,7 @@
                         "metric_sample",
                         "knowledge_item",
                         "knowledge_project_link",
+                        "work_project_link",
                         "decision",
                         "resource",
                         "project_resource_link",
@@ -26469,6 +27568,7 @@
                                     "metric_sample",
                                     "knowledge_item",
                                     "knowledge_project_link",
+                                    "work_project_link",
                                     "decision",
                                     "resource",
                                     "project_resource_link",
@@ -26590,6 +27690,7 @@
                                               "metric_sample",
                                               "knowledge_item",
                                               "knowledge_project_link",
+                                              "work_project_link",
                                               "decision",
                                               "resource",
                                               "project_resource_link",
@@ -26753,6 +27854,7 @@
                                               "metric_sample",
                                               "knowledge_item",
                                               "knowledge_project_link",
+                                              "work_project_link",
                                               "decision",
                                               "resource",
                                               "project_resource_link",
@@ -26916,6 +28018,7 @@
                                               "metric_sample",
                                               "knowledge_item",
                                               "knowledge_project_link",
+                                              "work_project_link",
                                               "decision",
                                               "resource",
                                               "project_resource_link",
@@ -27079,6 +28182,7 @@
                                               "metric_sample",
                                               "knowledge_item",
                                               "knowledge_project_link",
+                                              "work_project_link",
                                               "decision",
                                               "resource",
                                               "project_resource_link",
@@ -27242,6 +28346,7 @@
                                               "metric_sample",
                                               "knowledge_item",
                                               "knowledge_project_link",
+                                              "work_project_link",
                                               "decision",
                                               "resource",
                                               "project_resource_link",
@@ -27405,6 +28510,7 @@
                                               "metric_sample",
                                               "knowledge_item",
                                               "knowledge_project_link",
+                                              "work_project_link",
                                               "decision",
                                               "resource",
                                               "project_resource_link",
@@ -27568,6 +28674,7 @@
                                               "metric_sample",
                                               "knowledge_item",
                                               "knowledge_project_link",
+                                              "work_project_link",
                                               "decision",
                                               "resource",
                                               "project_resource_link",
@@ -27798,6 +28905,7 @@
                                           "metric_sample",
                                           "knowledge_item",
                                           "knowledge_project_link",
+                                          "work_project_link",
                                           "decision",
                                           "resource",
                                           "project_resource_link",
@@ -28152,6 +29260,7 @@
                     "metric_sample",
                     "knowledge_item",
                     "knowledge_project_link",
+                    "work_project_link",
                     "decision",
                     "resource",
                     "project_resource_link",
@@ -28337,6 +29446,7 @@
                                 "metric_sample",
                                 "knowledge_item",
                                 "knowledge_project_link",
+                                "work_project_link",
                                 "decision",
                                 "resource",
                                 "project_resource_link",
@@ -28458,6 +29568,7 @@
                                           "metric_sample",
                                           "knowledge_item",
                                           "knowledge_project_link",
+                                          "work_project_link",
                                           "decision",
                                           "resource",
                                           "project_resource_link",
@@ -28621,6 +29732,7 @@
                                           "metric_sample",
                                           "knowledge_item",
                                           "knowledge_project_link",
+                                          "work_project_link",
                                           "decision",
                                           "resource",
                                           "project_resource_link",
@@ -28784,6 +29896,7 @@
                                           "metric_sample",
                                           "knowledge_item",
                                           "knowledge_project_link",
+                                          "work_project_link",
                                           "decision",
                                           "resource",
                                           "project_resource_link",
@@ -28947,6 +30060,7 @@
                                           "metric_sample",
                                           "knowledge_item",
                                           "knowledge_project_link",
+                                          "work_project_link",
                                           "decision",
                                           "resource",
                                           "project_resource_link",
@@ -29110,6 +30224,7 @@
                                           "metric_sample",
                                           "knowledge_item",
                                           "knowledge_project_link",
+                                          "work_project_link",
                                           "decision",
                                           "resource",
                                           "project_resource_link",
@@ -29273,6 +30388,7 @@
                                           "metric_sample",
                                           "knowledge_item",
                                           "knowledge_project_link",
+                                          "work_project_link",
                                           "decision",
                                           "resource",
                                           "project_resource_link",
@@ -29436,6 +30552,7 @@
                                           "metric_sample",
                                           "knowledge_item",
                                           "knowledge_project_link",
+                                          "work_project_link",
                                           "decision",
                                           "resource",
                                           "project_resource_link",
@@ -29666,6 +30783,7 @@
                                       "metric_sample",
                                       "knowledge_item",
                                       "knowledge_project_link",
+                                      "work_project_link",
                                       "decision",
                                       "resource",
                                       "project_resource_link",
@@ -29876,6 +30994,7 @@
                         "metric_sample",
                         "knowledge_item",
                         "knowledge_project_link",
+                        "work_project_link",
                         "decision",
                         "resource",
                         "project_resource_link",
@@ -30061,6 +31180,7 @@
                                     "metric_sample",
                                     "knowledge_item",
                                     "knowledge_project_link",
+                                    "work_project_link",
                                     "decision",
                                     "resource",
                                     "project_resource_link",
@@ -30182,6 +31302,7 @@
                                               "metric_sample",
                                               "knowledge_item",
                                               "knowledge_project_link",
+                                              "work_project_link",
                                               "decision",
                                               "resource",
                                               "project_resource_link",
@@ -30345,6 +31466,7 @@
                                               "metric_sample",
                                               "knowledge_item",
                                               "knowledge_project_link",
+                                              "work_project_link",
                                               "decision",
                                               "resource",
                                               "project_resource_link",
@@ -30508,6 +31630,7 @@
                                               "metric_sample",
                                               "knowledge_item",
                                               "knowledge_project_link",
+                                              "work_project_link",
                                               "decision",
                                               "resource",
                                               "project_resource_link",
@@ -30671,6 +31794,7 @@
                                               "metric_sample",
                                               "knowledge_item",
                                               "knowledge_project_link",
+                                              "work_project_link",
                                               "decision",
                                               "resource",
                                               "project_resource_link",
@@ -30834,6 +31958,7 @@
                                               "metric_sample",
                                               "knowledge_item",
                                               "knowledge_project_link",
+                                              "work_project_link",
                                               "decision",
                                               "resource",
                                               "project_resource_link",
@@ -30997,6 +32122,7 @@
                                               "metric_sample",
                                               "knowledge_item",
                                               "knowledge_project_link",
+                                              "work_project_link",
                                               "decision",
                                               "resource",
                                               "project_resource_link",
@@ -31160,6 +32286,7 @@
                                               "metric_sample",
                                               "knowledge_item",
                                               "knowledge_project_link",
+                                              "work_project_link",
                                               "decision",
                                               "resource",
                                               "project_resource_link",
@@ -31390,6 +32517,7 @@
                                           "metric_sample",
                                           "knowledge_item",
                                           "knowledge_project_link",
+                                          "work_project_link",
                                           "decision",
                                           "resource",
                                           "project_resource_link",

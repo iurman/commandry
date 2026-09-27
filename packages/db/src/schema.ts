@@ -1047,6 +1047,95 @@ export const knowledgeProjectAuditEvent = pgTable(
   ],
 );
 
+export const workProjectLink = pgTable(
+  "work_project_link",
+  {
+    id: uuid("id").primaryKey(),
+    workItemId: uuid("work_item_id")
+      .notNull()
+      .references(() => workItem.id, { onDelete: "restrict" }),
+    projectId: uuid("project_id")
+      .notNull()
+      .references(() => project.id, { onDelete: "restrict" }),
+    type: text("type", { enum: ["relates_to"] })
+      .notNull()
+      .default("relates_to"),
+    sourceKind: text("source_kind", { enum: ["work_item"] })
+      .notNull()
+      .default("work_item"),
+    targetKind: text("target_kind", { enum: ["project"] })
+      .notNull()
+      .default("project"),
+    lifecycle: text("lifecycle", { enum: ["active", "archived"] })
+      .notNull()
+      .default("active"),
+    provenance: text("provenance").notNull().default("manual"),
+    actor: text("actor").notNull().default("local-user:unattributed"),
+    createdAt: createdAt(),
+    archivedAt: timestamp("archived_at", { withTimezone: true }),
+  },
+  (table) => [
+    uniqueIndex("work_project_link_one_active_idx")
+      .on(table.workItemId, table.projectId)
+      .where(sql`${table.lifecycle} = 'active'`),
+    index("work_project_link_project_page_idx").on(table.projectId, table.id),
+    index("work_project_link_work_page_idx").on(table.workItemId, table.id),
+    check("work_project_link_type_valid", sql`${table.type} = 'relates_to'`),
+    check(
+      "work_project_link_direction_valid",
+      sql`${table.sourceKind} = 'work_item' and ${table.targetKind} = 'project'`,
+    ),
+    check(
+      "work_project_link_lifecycle_valid",
+      sql`(${table.lifecycle} = 'active' and ${table.archivedAt} is null) or (${table.lifecycle} = 'archived' and ${table.archivedAt} is not null)`,
+    ),
+    check(
+      "work_project_link_provenance_manual",
+      sql`${table.provenance} = 'manual'`,
+    ),
+    check(
+      "work_project_link_actor_local",
+      sql`${table.actor} = 'local-user:unattributed'`,
+    ),
+  ],
+);
+
+export const workProjectAuditEvent = pgTable(
+  "work_project_audit_event",
+  {
+    id: uuid("id").primaryKey(),
+    workItemId: uuid("work_item_id")
+      .notNull()
+      .references(() => workItem.id, { onDelete: "restrict" }),
+    projectId: uuid("project_id")
+      .notNull()
+      .references(() => project.id, { onDelete: "restrict" }),
+    linkId: uuid("link_id")
+      .notNull()
+      .references(() => workProjectLink.id, { onDelete: "restrict" }),
+    operation: text("operation", {
+      enum: ["work.project_linked", "work.project_unlinked"],
+    }).notNull(),
+    actor: text("actor").notNull().default("local-user:unattributed"),
+    createdAt: createdAt(),
+  },
+  (table) => [
+    index("work_project_audit_work_page_idx").on(
+      table.workItemId,
+      table.createdAt,
+      table.id,
+    ),
+    check(
+      "work_project_audit_operation_valid",
+      sql`${table.operation} in ('work.project_linked', 'work.project_unlinked')`,
+    ),
+    check(
+      "work_project_audit_actor_local",
+      sql`${table.actor} = 'local-user:unattributed'`,
+    ),
+  ],
+);
+
 export const workItemAttachment = pgTable(
   "work_item_attachment",
   {

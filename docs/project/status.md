@@ -2,7 +2,7 @@
 
 **Status: Operational**
 
-**Last updated:** 2026-09-26
+**Last updated:** 2026-09-27
 
 ## Current phase
 
@@ -71,6 +71,14 @@ authentication is complete. There is no production deployment.
   and removes current context without rewriting existing packets or the
   original capture. The local relationship policy remains provisional under
   OQ-022 and does not grant access.
+- A Work item can retain one original capture and primary Project while gaining
+  explicit, auditable secondary Project context. All related projects show the
+  same persisted task and status. Project Work lists, scoped search, and live
+  briefs cite the exact active relation; unlinking archives it without changing
+  the original capture or primary ownership. New execution packets and direct
+  agent work reads remain scoped to the primary Project, while a related
+  Project's brief includes the shared task. This local relationship policy is
+  provisional under OQ-023 and grants no capability by itself.
 - Shared Zod contracts generate a checked OpenAPI document. PostgreSQL has
   reviewed, repeatable Drizzle migrations and separate local migration and
   application roles. The pg-boss worker records attempts, audits, and heartbeat
@@ -124,8 +132,8 @@ authentication is complete. There is no production deployment.
 - Work items have project-scoped, typed parent/subtask and blocking links with
   cycle prevention, audit-preserving archive, cursor-paged inverse views, and
   a responsive editor. Open blockers appear with exact relationship evidence
-  in live briefs and pause local overnight readiness. Cross-project work links,
-  initiatives and larger file handling remain open.
+  in live briefs and pause local overnight readiness. Cross-project task
+  dependencies, initiatives and larger file handling remain open.
 - Semantic CSS tokens, accessible responsive components, and representative
   Storybook states exist in the local-only lab. The lab is excluded from the
   production image.

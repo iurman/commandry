@@ -1,6 +1,7 @@
 export * from "./synthetic-run";
 export * from "./relationships";
 export * from "./knowledge-project-context";
+export * from "./work-project-context";
 export * from "./capture";
 export * from "./synthetic-events";
 export * from "./project-brief";
