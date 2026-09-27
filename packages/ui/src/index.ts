@@ -30,6 +30,8 @@ export { AutomationCard } from "./components/AutomationCard";
 export { AutomationEvidenceCheckCard } from "./components/AutomationEvidenceCheckCard";
 export { LocalAttentionSignalCard } from "./components/LocalAttentionSignalCard";
 export type { LocalAttentionSignalView } from "./components/LocalAttentionSignalCard";
+export { ResourceImpactCard } from "./components/ResourceImpactCard";
+export type { ResourceImpactCardView } from "./components/ResourceImpactCard";
 export { SyntheticFlowTimeline } from "./components/SyntheticFlowTimeline";
 export type { SyntheticFlowStageView } from "./components/SyntheticFlowTimeline";
 export { DomainCard } from "./components/DomainCard";

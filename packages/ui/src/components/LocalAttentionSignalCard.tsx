@@ -5,6 +5,7 @@ export interface LocalAttentionSignalView {
   projectName: string;
   integrationName: string | null;
   resourceName: string | null;
+  resourceId?: string | null;
   evidenceHref: string;
   previousEvidenceHref: string | null;
   reason: string;
@@ -72,6 +73,11 @@ export function LocalAttentionSignalCard({
         <time dateTime={signal.evaluatedAt}>{signal.evaluatedAt}</time>. Real
         source and resource health remain unknown.
       </p>
+      {signal.resourceId && signal.ruleId === "metric_drop" && (
+        <a href={`/resources/${signal.resourceId}#dependency-impact`}>
+          Review potential dependency impact
+        </a>
+      )}
     </article>
   );
 }

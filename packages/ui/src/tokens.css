@@ -1040,6 +1040,17 @@ textarea {
   color: var(--cmd-critical-text);
 }
 
+.cmd-impact-path {
+  display: grid;
+  gap: var(--cmd-space-2);
+  margin: var(--cmd-space-2) 0;
+  padding-left: var(--cmd-space-5);
+}
+
+.cmd-impact-path li {
+  overflow-wrap: anywhere;
+}
+
 .cmd-form-success {
   border-left-color: var(--cmd-positive-text);
   color: var(--cmd-positive-text);

@@ -181,6 +181,57 @@ test(
         limit: 1,
       });
       assert.equal(incoming.items[0]?.resource.id, service.id);
+      const frontend = await catalog.createResource({
+        id: crypto.randomUUID(),
+        kind: "service",
+        name: "Local frontend",
+      });
+      await topology.addDependency(frontend.id, {
+        requiredResourceId: service.id,
+      });
+      await catalog.insertProjectResourceLink({
+        id: crypto.randomUUID(),
+        projectId: projectA.id,
+        resourceId: frontend.id,
+        type: "supports",
+        sourceKind: "resource",
+        targetKind: "project",
+      });
+      const firstImpact = await topology.listImpact(databaseResource.id, {
+        limit: 1,
+      });
+      assert.equal(firstImpact.maxHops, 6);
+      assert.equal(firstImpact.realHealth, "unknown");
+      assert.equal(firstImpact.latestSyntheticDrop, null);
+      assert.ok(firstImpact.nextCursor);
+      const secondImpact = await topology.listImpact(databaseResource.id, {
+        limit: 1,
+        cursor: firstImpact.nextCursor!,
+      });
+      assert.equal(secondImpact.nextCursor, null);
+      const impacted = [...firstImpact.items, ...secondImpact.items];
+      assert.deepEqual(
+        new Set(impacted.map((item) => item.resource.id)),
+        new Set([service.id, frontend.id]),
+      );
+      assert.deepEqual(
+        impacted
+          .find((item) => item.resource.id === frontend.id)
+          ?.path.map((node) => node.id),
+        [databaseResource.id, service.id, frontend.id],
+      );
+      assert.equal(
+        impacted.find((item) => item.resource.id === service.id)?.projects
+          .length,
+        2,
+      );
+      await topology.addDependency(databaseResource.id, {
+        requiredResourceId: frontend.id,
+      });
+      const cyclicImpact = await topology.listImpact(databaseResource.id, {
+        limit: 10,
+      });
+      assert.equal(cyclicImpact.items.length, 2);
       await assert.rejects(
         topology.addDependency(service.id, {
           requiredResourceId: databaseResource.id,

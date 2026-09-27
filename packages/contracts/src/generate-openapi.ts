@@ -175,6 +175,7 @@ import {
   createResourceDependencyRequestSchema,
   resourceDependencySchema,
   listResourceDependenciesResponseSchema,
+  resourceImpactResponseSchema,
   createSyntheticRunRequestSchema,
   correlationMetadataSchema,
   errorResponseSchema,
@@ -1044,6 +1045,21 @@ export function generateOpenApi(): string {
             "409": {
               description: "Dependency already exists",
               content: jsonContent("ErrorResponse"),
+            },
+          },
+        },
+      },
+      "/api/v1/resources/{id}/impact": {
+        get: {
+          operationId: "getResourceImpact",
+          summary:
+            "Page potential downstream impact from recorded local dependencies and synthetic attention",
+          parameters: [idParameter, ...pageParameters],
+          responses: {
+            "200": {
+              description:
+                "Bounded dependency paths, supporting projects, and latest active synthetic metric drop",
+              content: jsonContent("ResourceImpactResponse"),
             },
           },
         },
@@ -4153,6 +4169,7 @@ export function generateOpenApi(): string {
           parameters: [
             ...pageParameters,
             projectFilterParameter,
+            resourceFilterParameter,
             {
               name: "view",
               in: "query",
@@ -4290,6 +4307,7 @@ export function generateOpenApi(): string {
         ListResourceDependenciesResponse: component(
           listResourceDependenciesResponseSchema,
         ),
+        ResourceImpactResponse: component(resourceImpactResponseSchema),
         ProjectSummary: component(projectSummarySchema),
         ProjectMetadataEvent: component(projectMetadataEventSchema),
         ListProjectMetadataEventsResponse: component(

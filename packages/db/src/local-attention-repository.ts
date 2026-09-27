@@ -329,6 +329,7 @@ export function createLocalAttentionRepository(db: CommandryDatabase) {
       cursor?: string | undefined;
       view: "active" | "all";
       projectId?: string | undefined;
+      resourceId?: string | undefined;
     }) {
       const rows = await db
         .select({
@@ -351,6 +352,9 @@ export function createLocalAttentionRepository(db: CommandryDatabase) {
               : undefined,
             query.projectId
               ? eq(localAttentionSignal.projectId, query.projectId)
+              : undefined,
+            query.resourceId
+              ? eq(localAttentionSignal.resourceId, query.resourceId)
               : undefined,
             query.cursor
               ? sql`(${localAttentionSignal.changedAt}, ${localAttentionSignal.id}) < (select changed_at, id from local_attention_signal where id = ${query.cursor}::uuid)`

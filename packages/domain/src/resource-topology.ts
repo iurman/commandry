@@ -6,6 +6,18 @@ export const resourceRelationshipRegistry = {
   },
 } as const;
 
+export const RESOURCE_IMPACT_MAX_HOPS = 6;
+
+export function explainResourceImpact(pathNames: string[]): string {
+  const source = pathNames[0];
+  const dependent = pathNames.at(-1);
+  const hops = pathNames.length - 1;
+  if (!source || !dependent || hops < 1) {
+    throw new Error("A potential impact needs a recorded dependency path");
+  }
+  return `${dependent} is connected to ${source} by ${hops} manually recorded dependency ${hops === 1 ? "link" : "links"}. This is potential impact, not an observed outage.`;
+}
+
 export class ResourceTopologyError extends Error {
   constructor(
     public readonly code:

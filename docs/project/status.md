@@ -56,6 +56,12 @@ and production prerequisites remain gates.
   evidence, explainable activity and attention, briefs, packets, scoped fake
   agents, simulated approvals, local automation, integration fixtures, and the
   Overnight Queue, and local packet-scoped MCP read sessions.
+- A resource impact view and versioned API page recorded downstream depends-on
+  paths up to six hops, active supporting Project links, and the latest active
+  synthetic metric-drop evidence from the worker. The signal card links to the
+  resource view and its filtered signal history. A path is potential impact,
+  never evidence of an outage; real health remains unknown. The depth bound and
+  propagation semantics are provisional under OQ-031.
 - Portfolio Domains are distinct local records with editable details and one
   active typed `owned_by` relationship per project. Moving or unlinking a
   project archives the old edge while retaining exact link and audit reads.

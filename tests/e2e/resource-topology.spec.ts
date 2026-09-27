@@ -146,6 +146,34 @@ test("resource tree, dependency inverse, and labeled synthetic context stay dist
       name: service.name,
     }),
   ).toBeVisible();
+  const impactSection = page.locator("#dependency-impact");
+  await expect(
+    impactSection.getByRole("heading", {
+      name: "Potential dependency impact",
+    }),
+  ).toBeVisible();
+  await expect(
+    impactSection.getByRole("link", { name: service.name }).first(),
+  ).toBeVisible();
+  await expect(impactSection).toContainText(`${token} project`);
+  await expect(impactSection).toContainText(
+    "No active synthetic metric-drop signal is recorded",
+  );
+  const impactResponse = await request.get(
+    `/api/v1/resources/${database.id}/impact?limit=1`,
+  );
+  expect(impactResponse.status()).toBe(200);
+  const impact = await impactResponse.json();
+  expect(impact.items[0]?.resource.id).toBe(service.id);
+  expect(impact.items[0]?.path.map((node: { id: string }) => node.id)).toEqual([
+    database.id,
+    service.id,
+  ]);
+  expect(impact.realHealth).toBe("unknown");
+  await page.waitForLoadState("networkidle");
+  expect(
+    await page.evaluate(() => document.documentElement.scrollWidth),
+  ).toBeLessThanOrEqual(await page.evaluate(() => window.innerWidth));
 
   const importResponse = await request.post("/api/v1/synthetic-event-imports", {
     data: {

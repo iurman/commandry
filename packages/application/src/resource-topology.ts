@@ -1,10 +1,13 @@
 import type {
   CreateResourceDependencyRequest,
   ResourceDependency,
+  ResourceImpactItem,
+  ResourceImpactResponse,
   ResourceSummary,
   SetResourceParentRequest,
 } from "@commandry/contracts";
 import {
+  explainResourceImpact,
   requireAcyclicParent,
   requireDistinctDependency,
 } from "@commandry/domain";
@@ -40,6 +43,14 @@ export interface ResourceTopologyPort {
       direction: "outgoing" | "incoming";
     },
   ): Promise<ResourceTopologyPage<ResourceDependency>>;
+  listImpact(
+    resourceId: string,
+    query: ResourceTopologyPageQuery,
+  ): Promise<
+    Omit<ResourceImpactResponse, "items"> & {
+      items: Array<Omit<ResourceImpactItem, "reason">>;
+    }
+  >;
 }
 
 export function createResourceTopologyService(port: ResourceTopologyPort) {
@@ -58,5 +69,15 @@ export function createResourceTopologyService(port: ResourceTopologyPort) {
       return port.addDependency(resourceId, input);
     },
     listDependencies: port.listDependencies,
+    async listImpact(resourceId: string, query: ResourceTopologyPageQuery) {
+      const page = await port.listImpact(resourceId, query);
+      return {
+        ...page,
+        items: page.items.map((item) => ({
+          ...item,
+          reason: explainResourceImpact(item.path.map((node) => node.name)),
+        })),
+      } satisfies ResourceImpactResponse;
+    },
   };
 }

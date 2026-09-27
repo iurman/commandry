@@ -43,11 +43,26 @@ test("synthetic source and trend signals retain evidence and audited local prefe
   });
   expect(resourceResponse.status()).toBe(201);
   const resource = await resourceResponse.json();
+  const dependentResponse = await request.post("/api/v1/resources", {
+    data: { name: `Attention dependent ${suffix}`, kind: "service" },
+  });
+  expect(dependentResponse.status()).toBe(201);
+  const dependent = await dependentResponse.json();
+  const dependencyResponse = await request.post(
+    `/api/v1/resources/${dependent.id}/dependencies`,
+    { data: { requiredResourceId: resource.id } },
+  );
+  expect(dependencyResponse.status()).toBe(201);
   const linkResponse = await request.post(
     `/api/v1/projects/${project.id}/resources`,
     { data: { resourceId: resource.id, type: "supports" } },
   );
   expect(linkResponse.status()).toBe(201);
+  const dependentLinkResponse = await request.post(
+    `/api/v1/projects/${project.id}/resources`,
+    { data: { resourceId: dependent.id, type: "supports" } },
+  );
+  expect(dependentLinkResponse.status()).toBe(201);
   const developmentResponse = await request.post("/api/v1/integrations", {
     data: {
       name: `Attention development ${suffix}`,
@@ -131,6 +146,40 @@ test("synthetic source and trend signals retain evidence and audited local prefe
   });
   await expect(staleCard).toContainText(`Attention development ${suffix}`);
   await expect(metricCard).toContainText(`Attention resource ${suffix}`);
+  const impactResponse = await request.get(
+    `/api/v1/resources/${resource.id}/impact?limit=20`,
+  );
+  expect(impactResponse.status()).toBe(200);
+  const impact = await impactResponse.json();
+  expect(impact.items[0]?.resource.id).toBe(dependent.id);
+  expect(impact.items[0]?.projects[0]?.id).toBe(project.id);
+  expect(impact.latestSyntheticDrop?.latestValue).toBe(0);
+  expect(impact.realHealth).toBe("unknown");
+  await metricCard
+    .getByRole("link", { name: "Review potential dependency impact" })
+    .click();
+  const impactSection = page.locator("#dependency-impact");
+  await expect(
+    impactSection.getByRole("heading", {
+      name: "Potential dependency impact",
+    }),
+  ).toBeVisible();
+  await expect(impactSection).toContainText(`Attention dependent ${suffix}`);
+  await expect(impactSection).toContainText("Latest active synthetic anomaly");
+  await page.waitForLoadState("networkidle");
+  expect(
+    await page.evaluate(() => document.documentElement.scrollWidth),
+  ).toBeLessThanOrEqual(await page.evaluate(() => window.innerWidth));
+  await impactSection
+    .getByRole("link", { name: "Review this resource's signal history" })
+    .click();
+  await expect(
+    page.getByRole("article", { name: "Synthetic attention metric drop" }),
+  ).toBeVisible();
+  await expect(
+    page.getByRole("article", { name: "Synthetic attention source stale" }),
+  ).toHaveCount(0);
+  await page.goto(`/attention-signals?projectId=${project.id}`);
   await expect(
     page.getByText("Real source and resource health remain unknown.").first(),
   ).toBeVisible();

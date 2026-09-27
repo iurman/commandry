@@ -277,6 +277,49 @@ export const listResourceDependenciesResponseSchema = z.object({
   nextCursor: z.uuid().nullable(),
 });
 
+export const listResourceImpactQuerySchema = z.object({
+  limit: z.coerce.number().int().min(1).max(50).default(20),
+  cursor: z.uuid().optional(),
+});
+
+export const resourceImpactProjectSchema = z.object({
+  id: z.uuid(),
+  name: z.string().min(1),
+  resourceId: z.uuid(),
+});
+
+export const resourceImpactItemSchema = z.object({
+  resource: resourceSummarySchema,
+  depth: z.number().int().min(1).max(6),
+  path: z.array(resourceSummarySchema).min(2).max(7),
+  reason: z.string().min(1),
+  projects: z.array(resourceImpactProjectSchema),
+});
+
+export const resourceImpactSignalSchema = z.object({
+  id: z.uuid(),
+  projectId: z.uuid(),
+  projectName: z.string().min(1),
+  reason: z.string().min(1),
+  observedAt: z.iso.datetime({ offset: true }),
+  previousValue: z.number().int(),
+  latestValue: z.number().int(),
+  threshold: z.number().int().min(1),
+  evidenceHref: z.string().startsWith("/api/v1/metrics/"),
+  previousEvidenceHref: z.string().startsWith("/api/v1/metrics/"),
+});
+
+export const resourceImpactResponseSchema = z.object({
+  source: resourceSummarySchema,
+  sourceProjects: z.array(resourceImpactProjectSchema),
+  latestSyntheticDrop: resourceImpactSignalSchema.nullable(),
+  items: z.array(resourceImpactItemSchema),
+  nextCursor: z.uuid().nullable(),
+  maxHops: z.literal(6),
+  sourceLabel: z.literal("Recorded local dependencies and synthetic attention"),
+  realHealth: z.literal("unknown"),
+});
+
 export const projectSummarySchema = z.object({
   id: z.uuid(),
   name: z.string().min(1),
@@ -1962,6 +2005,7 @@ export const localAttentionSignalSchema = z.object({
 export const listLocalAttentionSignalsQuerySchema =
   listResourcesQuerySchema.extend({
     projectId: z.uuid().optional(),
+    resourceId: z.uuid().optional(),
     view: z.enum(["active", "all"]).default("active"),
   });
 
@@ -3001,6 +3045,10 @@ export type CreateResourceDependencyRequest = z.infer<
   typeof createResourceDependencyRequestSchema
 >;
 export type ResourceDependency = z.infer<typeof resourceDependencySchema>;
+export type ResourceImpactItem = z.infer<typeof resourceImpactItemSchema>;
+export type ResourceImpactResponse = z.infer<
+  typeof resourceImpactResponseSchema
+>;
 export type CreateProjectResourceLinkRequest = z.infer<
   typeof createProjectResourceLinkRequestSchema
 >;

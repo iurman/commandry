@@ -29,6 +29,7 @@ export interface LocalAttentionPort {
     query: PageQuery & {
       view: "active" | "all";
       projectId?: string | undefined;
+      resourceId?: string | undefined;
     },
   ): Promise<{ items: LocalAttentionSignal[]; nextCursor: string | null }>;
   listAudit(

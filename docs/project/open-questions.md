@@ -278,6 +278,11 @@ in minutes. Received time and import completion remain distinct. The default
 never marks a real resource healthy. Validate provider-specific expected
 cadence, delay tolerance, clock skew, mixed sources, silence alerts, and how a
 production health projection should use freshness once real inputs exist.
+The local resource impact view follows up to six manually recorded dependency
+hops and shows active supporting Project links beside synthetic metric-drop
+evidence. Validate dependency direction, propagation depth, cycles, project
+impact semantics, and mixed-source anomaly thresholds before treating this as
+an incident or operational health model.
 
 ### OQ-032: What verifies an automation result and belongs in its export?
 

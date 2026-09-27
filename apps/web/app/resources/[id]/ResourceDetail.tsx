@@ -21,6 +21,7 @@ import {
   type ResourceRecord,
 } from "../../projects/api";
 import ResourceTopologyPanel from "./ResourceTopologyPanel";
+import ResourceImpactPanel from "./ResourceImpactPanel";
 import ResourceSystemsPanel from "./ResourceSystemsPanel";
 import SyntheticMetricsPanel from "../../SyntheticMetricsPanel";
 import styles from "./resource.module.css";
@@ -228,6 +229,7 @@ export default function ResourceDetail({ resourceId }: { resourceId: string }) {
             onResourceChange={setResource}
             resource={resource}
           />
+          <ResourceImpactPanel resourceId={resource.id} />
           <ResourceSystemsPanel resourceId={resource.id} />
           <section
             className="cmd-workspace-section"

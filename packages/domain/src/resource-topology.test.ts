@@ -1,5 +1,6 @@
 import { expect, test } from "vitest";
 import {
+  explainResourceImpact,
   requireAcyclicParent,
   requireDistinctDependency,
   resourceRelationshipRegistry,
@@ -11,6 +12,13 @@ test("resource relationships have resource-to-resource inverse meaning", () => {
     targetKind: "resource",
     inverseType: "required_by",
   });
+});
+
+test("impact explanations follow recorded paths without claiming an outage", () => {
+  expect(explainResourceImpact(["Database", "API", "Website"])).toBe(
+    "Website is connected to Database by 2 manually recorded dependency links. This is potential impact, not an observed outage.",
+  );
+  expect(() => explainResourceImpact(["Database"])).toThrow();
 });
 
 test("primary parent and dependency guards reject self and ancestry cycles", () => {

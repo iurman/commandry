@@ -13,10 +13,12 @@ function signalPath(
   view: "active" | "all",
   cursor?: string | null,
   projectId?: string | null,
+  resourceId?: string | null,
 ) {
   const params = new URLSearchParams({ limit: "20", view });
   if (cursor) params.set("cursor", cursor);
   if (projectId) params.set("projectId", projectId);
+  if (resourceId) params.set("resourceId", resourceId);
   return `/api/v1/attention-signals?${params}`;
 }
 
@@ -28,6 +30,7 @@ function auditPath(cursor?: string | null) {
 
 export default function AttentionSignalsPage() {
   const [projectId, setProjectId] = useState<string | null>(null);
+  const [resourceId, setResourceId] = useState<string | null>(null);
   const [settings, setSettings] = useState<LocalAttentionSettings | null>(null);
   const [staleSourceEnabled, setStaleSourceEnabled] = useState(true);
   const [metricDropEnabled, setMetricDropEnabled] = useState(true);
@@ -47,16 +50,20 @@ export default function AttentionSignalsPage() {
     const projectScope = new URLSearchParams(window.location.search).get(
       "projectId",
     );
+    const resourceScope = new URLSearchParams(window.location.search).get(
+      "resourceId",
+    );
     Promise.all([
       apiJson<LocalAttentionSettings>("/api/v1/attention-rules"),
       apiJson<PageResponse<LocalAttentionSignal>>(
-        signalPath("active", null, projectScope),
+        signalPath("active", null, projectScope, resourceScope),
       ),
       apiJson<PageResponse<LocalAttentionAuditEvent>>(auditPath()),
     ])
       .then(([rules, signalPage, auditPage]) => {
         if (!active) return;
         setProjectId(projectScope);
+        setResourceId(resourceScope);
         setSettings(rules);
         setStaleSourceEnabled(rules.staleSourceEnabled);
         setMetricDropEnabled(rules.metricDropEnabled);
@@ -88,7 +95,7 @@ export default function AttentionSignalsPage() {
     setError(null);
     try {
       const page = await apiJson<PageResponse<LocalAttentionSignal>>(
-        signalPath(nextView, cursor, projectId),
+        signalPath(nextView, cursor, projectId, resourceId),
       );
       setView(nextView);
       setSignals((current) =>
@@ -251,6 +258,12 @@ export default function AttentionSignalsPage() {
           <p>
             Showing signals for project <code>{projectId}</code>.{" "}
             <a href="/attention-signals">Show all projects</a>
+          </p>
+        )}
+        {resourceId && (
+          <p>
+            Showing signals for resource <code>{resourceId}</code>.{" "}
+            <a href="/attention-signals">Show all resources</a>
           </p>
         )}
         <div className="cmd-attention-actions">

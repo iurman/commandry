@@ -1,16 +1,22 @@
 import assert from "node:assert/strict";
 import { resolve } from "node:path";
 import { test } from "node:test";
-import { createLocalAttentionService } from "@commandry/application";
+import {
+  createLocalAttentionService,
+  createResourceTopologyService,
+} from "@commandry/application";
 import { createDatabase } from "./client";
 import { createLocalAttentionRepository } from "./local-attention-repository";
+import { createResourceTopologyRepository } from "./resource-topology-repository";
 import { migrateDatabase } from "./migrate";
 import {
   integrationInstance,
   metricSample,
   normalizedEvent,
   project,
+  projectResourceLink,
   resource,
+  resourceDependency,
   sourceEnvelope,
   syntheticEventImport,
 } from "./schema";
@@ -26,6 +32,7 @@ test("local attention reconciles evidence, preferences, resolution, and paged hi
   const database = createDatabase({ connectionString, max: 3 });
   const projectId = crypto.randomUUID();
   const resourceId = crypto.randomUUID();
+  const dependentId = crypto.randomUUID();
   const staleIntegrationId = crypto.randomUUID();
   const metricIntegrationId = crypto.randomUUID();
   const service = createLocalAttentionService(
@@ -41,6 +48,24 @@ test("local attention reconciles evidence, preferences, resolution, and paged hi
       id: resourceId,
       kind: "service",
       name: "Synthetic availability target",
+    });
+    await database.db.insert(resource).values({
+      id: dependentId,
+      kind: "service",
+      name: "Synthetic dependent service",
+    });
+    await database.db.insert(resourceDependency).values({
+      id: crypto.randomUUID(),
+      requiredResourceId: resourceId,
+      dependentResourceId: dependentId,
+    });
+    await database.db.insert(projectResourceLink).values({
+      id: crypto.randomUUID(),
+      projectId,
+      resourceId: dependentId,
+      type: "supports",
+      sourceKind: "resource",
+      targetKind: "project",
     });
     await database.db.insert(integrationInstance).values([
       {
@@ -192,6 +217,27 @@ test("local attention reconciles evidence, preferences, resolution, and paged hi
       ),
     );
     assert.ok(signals.every((signal) => signal.realHealth === "unknown"));
+    const resourceSignals = await service.listSignals({
+      view: "active",
+      resourceId,
+      limit: 10,
+    });
+    assert.deepEqual(
+      resourceSignals.items.map((signal) => signal.ruleId),
+      ["metric_drop"],
+    );
+    const impact = await createResourceTopologyService(
+      createResourceTopologyRepository(database.db),
+    ).listImpact(resourceId, { limit: 10 });
+    assert.equal(impact.items[0]?.resource.id, dependentId);
+    assert.equal(impact.items[0]?.projects[0]?.id, projectId);
+    assert.equal(impact.latestSyntheticDrop?.previousValue, 100);
+    assert.equal(impact.latestSyntheticDrop?.latestValue, 50);
+    assert.equal(
+      impact.latestSyntheticDrop?.evidenceHref,
+      `/api/v1/metrics/${latestMetric}`,
+    );
+    assert.equal(impact.realHealth, "unknown");
     await assert.rejects(
       service.updateSettings({
         expectedVersion: original.version,

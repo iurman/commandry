@@ -1,12 +1,31 @@
-import { and, eq, gt, isNull, sql } from "drizzle-orm";
+import {
+  and,
+  desc,
+  eq,
+  gt,
+  inArray,
+  isNotNull,
+  isNull,
+  sql,
+} from "drizzle-orm";
 import type {
   CreateResourceDependencyRequest,
   SetResourceParentRequest,
 } from "@commandry/contracts";
-import { requireAcyclicParent, ResourceTopologyError } from "@commandry/domain";
+import {
+  requireAcyclicParent,
+  RESOURCE_IMPACT_MAX_HOPS,
+  ResourceTopologyError,
+} from "@commandry/domain";
 import { resourceSummary } from "./catalog-repository";
 import type { CommandryDatabase } from "./client";
-import { resource, resourceDependency } from "./schema";
+import {
+  localAttentionSignal,
+  project,
+  projectResourceLink,
+  resource,
+  resourceDependency,
+} from "./schema";
 
 type PageQuery = { limit: number; cursor?: string | undefined };
 
@@ -223,6 +242,153 @@ export function createResourceTopologyRepository(db: CommandryDatabase) {
         })),
         nextCursor:
           rows.length > query.limit ? (visible.at(-1)?.link.id ?? null) : null,
+      };
+    },
+    async listImpact(resourceId: string, query: PageQuery) {
+      const [subject] = await db
+        .select()
+        .from(resource)
+        .where(eq(resource.id, resourceId))
+        .limit(1);
+      if (!subject) {
+        throw new ResourceTopologyError(
+          "RESOURCE_NOT_FOUND",
+          "Resource not found",
+        );
+      }
+      const cursorFilter = query.cursor
+        ? sql`candidate.resource_id > ${query.cursor}::uuid`
+        : sql`true`;
+      const paths = await db.execute<{
+        resourceId: string;
+        path: string[];
+        depth: number;
+      }>(sql`
+        with recursive walk as (
+          select link.dependent_resource_id as resource_id,
+            array[${resourceId}::uuid, link.dependent_resource_id] as path,
+            1::integer as depth
+          from resource_dependency link
+          where link.required_resource_id = ${resourceId}::uuid
+          union all
+          select link.dependent_resource_id, walk.path || link.dependent_resource_id,
+            walk.depth + 1
+          from walk
+          join resource_dependency link
+            on link.required_resource_id = walk.resource_id
+          where walk.depth < ${RESOURCE_IMPACT_MAX_HOPS}
+            and not link.dependent_resource_id = any(walk.path)
+        ), candidate as (
+          select resource_id, path, depth,
+            row_number() over (
+              partition by resource_id order by depth, path::text
+            ) as priority
+          from walk
+        )
+        select candidate.resource_id as "resourceId", candidate.path,
+          candidate.depth
+        from candidate
+        where candidate.priority = 1 and ${cursorFilter}
+        order by candidate.resource_id
+        limit ${query.limit + 1}
+      `);
+      const visible = paths.rows.slice(0, query.limit);
+      const nodeIds = [
+        ...new Set([resourceId, ...visible.flatMap((row) => row.path)]),
+      ];
+      const [nodes, projectLinks, [drop]] = await Promise.all([
+        db.select().from(resource).where(inArray(resource.id, nodeIds)),
+        db
+          .select({
+            resourceId: projectResourceLink.resourceId,
+            id: project.id,
+            name: project.name,
+          })
+          .from(projectResourceLink)
+          .innerJoin(project, eq(projectResourceLink.projectId, project.id))
+          .where(
+            and(
+              inArray(projectResourceLink.resourceId, nodeIds),
+              eq(projectResourceLink.type, "supports"),
+              eq(projectResourceLink.lifecycle, "active"),
+            ),
+          )
+          .orderBy(project.name, project.id),
+        db
+          .select({ signal: localAttentionSignal, projectName: project.name })
+          .from(localAttentionSignal)
+          .innerJoin(project, eq(localAttentionSignal.projectId, project.id))
+          .where(
+            and(
+              eq(localAttentionSignal.resourceId, resourceId),
+              eq(localAttentionSignal.ruleId, "metric_drop"),
+              eq(localAttentionSignal.state, "active"),
+              isNotNull(localAttentionSignal.previousEvidenceId),
+              isNotNull(localAttentionSignal.previousValue),
+              isNotNull(localAttentionSignal.latestValue),
+            ),
+          )
+          .orderBy(
+            desc(localAttentionSignal.changedAt),
+            desc(localAttentionSignal.id),
+          )
+          .limit(1),
+      ]);
+      const nodeById = new Map(
+        nodes.map((node) => [node.id, resourceSummary(node)]),
+      );
+      const projectsByResource = new Map<
+        string,
+        Array<{ id: string; name: string; resourceId: string }>
+      >();
+      for (const link of projectLinks) {
+        const list = projectsByResource.get(link.resourceId) ?? [];
+        list.push(link);
+        projectsByResource.set(link.resourceId, list);
+      }
+      const items = visible.map((row) => {
+        const path = row.path.map((id) => nodeById.get(id));
+        const impacted = nodeById.get(row.resourceId);
+        if (!impacted || path.some((node) => !node)) {
+          throw new Error("Resource impact path changed during the read");
+        }
+        return {
+          resource: impacted,
+          depth: row.depth,
+          path: path as Array<NonNullable<(typeof path)[number]>>,
+          projects: projectsByResource.get(row.resourceId) ?? [],
+        };
+      });
+      return {
+        source: resourceSummary(subject),
+        sourceProjects: projectsByResource.get(resourceId) ?? [],
+        latestSyntheticDrop:
+          drop &&
+          drop.signal.previousEvidenceId &&
+          drop.signal.previousValue !== null &&
+          drop.signal.latestValue !== null
+            ? {
+                id: drop.signal.id,
+                projectId: drop.signal.projectId,
+                projectName: drop.projectName,
+                reason: drop.signal.reason,
+                observedAt: drop.signal.observedAt.toISOString(),
+                previousValue: drop.signal.previousValue,
+                latestValue: drop.signal.latestValue,
+                threshold: drop.signal.threshold,
+                evidenceHref: `/api/v1/metrics/${drop.signal.evidenceId}`,
+                previousEvidenceHref: `/api/v1/metrics/${drop.signal.previousEvidenceId}`,
+              }
+            : null,
+        items,
+        nextCursor:
+          paths.rows.length > query.limit
+            ? (visible.at(-1)?.resourceId ?? null)
+            : null,
+        maxHops: 6 as const,
+        sourceLabel:
+          "Recorded local dependencies and synthetic attention" as const,
+        realHealth: "unknown" as const,
       };
     },
   };
