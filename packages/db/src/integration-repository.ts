@@ -1,6 +1,9 @@
 import { and, desc, eq, sql } from "drizzle-orm";
 import type { CreateLocalIntegrationRequest } from "@commandry/contracts";
-import { LocalIntegrationError } from "@commandry/domain";
+import {
+  classifyObservationFreshness,
+  LocalIntegrationError,
+} from "@commandry/domain";
 import type { CommandryDatabase } from "./client";
 import {
   integrationInstance,
@@ -30,6 +33,24 @@ const lastError = sql<string | null>`(
   where integration_instance_id = ${integrationInstance.id}
   order by created_at desc, id desc limit 1
 )`;
+const lastObservedAt = sql<Date | null>`(
+  select envelope.occurred_at from source_envelope envelope
+  join synthetic_event_import imported on imported.id = envelope.import_id
+  where imported.integration_instance_id = ${integrationInstance.id} and imported.state = 'succeeded'
+  order by envelope.occurred_at desc, envelope.id desc limit 1
+)`;
+const lastReceivedAt = sql<Date | null>`(
+  select envelope.received_at from source_envelope envelope
+  join synthetic_event_import imported on imported.id = envelope.import_id
+  where imported.integration_instance_id = ${integrationInstance.id} and imported.state = 'succeeded'
+  order by envelope.occurred_at desc, envelope.id desc limit 1
+)`;
+const lastEnvelopeId = sql<string | null>`(
+  select envelope.id from source_envelope envelope
+  join synthetic_event_import imported on imported.id = envelope.import_id
+  where imported.integration_instance_id = ${integrationInstance.id} and imported.state = 'succeeded'
+  order by envelope.occurred_at desc, envelope.id desc limit 1
+)`;
 
 function record(row: {
   instance: typeof integrationInstance.$inferSelect;
@@ -39,6 +60,9 @@ function record(row: {
   lastAttemptAt: Date | null;
   lastSuccessAt: Date | null;
   lastError: string | null;
+  lastObservedAt: Date | null;
+  lastReceivedAt: Date | null;
+  lastEnvelopeId: string | null;
 }) {
   return {
     id: row.instance.id,
@@ -52,6 +76,21 @@ function record(row: {
     adapterMode: "local_fixture" as const,
     isSynthetic: true as const,
     receiverConfigured: row.instance.receiverTokenDigest !== null,
+    freshnessWindowMinutes: row.instance.freshnessWindowMinutes,
+    freshnessState: classifyObservationFreshness(
+      row.lastObservedAt ? new Date(row.lastObservedAt) : null,
+      row.instance.freshnessWindowMinutes,
+      new Date(),
+    ),
+    lastObservedAt: row.lastObservedAt
+      ? new Date(row.lastObservedAt).toISOString()
+      : null,
+    lastReceivedAt: row.lastReceivedAt
+      ? new Date(row.lastReceivedAt).toISOString()
+      : null,
+    observationEvidenceHref: row.lastEnvelopeId
+      ? `/api/v1/source-envelopes/${row.lastEnvelopeId}`
+      : null,
     latestImportId: row.latestImportId,
     lastAttemptAt: row.lastAttemptAt
       ? new Date(row.lastAttemptAt).toISOString()
@@ -78,6 +117,9 @@ export function createLocalIntegrationRepository(db: CommandryDatabase) {
         lastAttemptAt,
         lastSuccessAt,
         lastError,
+        lastObservedAt,
+        lastReceivedAt,
+        lastEnvelopeId,
       })
       .from(integrationInstance)
       .innerJoin(project, eq(integrationInstance.projectId, project.id))
@@ -160,6 +202,7 @@ export function createLocalIntegrationRepository(db: CommandryDatabase) {
       limit: number;
       cursor?: string | undefined;
       projectId?: string | undefined;
+      resourceId?: string | undefined;
     }) {
       const [anchor] = query.cursor
         ? await db
@@ -171,6 +214,9 @@ export function createLocalIntegrationRepository(db: CommandryDatabase) {
                 query.projectId
                   ? eq(integrationInstance.projectId, query.projectId)
                   : undefined,
+                query.resourceId
+                  ? eq(integrationInstance.resourceId, query.resourceId)
+                  : undefined,
               ),
             )
             .limit(1)
@@ -181,6 +227,9 @@ export function createLocalIntegrationRepository(db: CommandryDatabase) {
           and(
             query.projectId
               ? eq(integrationInstance.projectId, query.projectId)
+              : undefined,
+            query.resourceId
+              ? eq(integrationInstance.resourceId, query.resourceId)
               : undefined,
             anchor
               ? sql`(${integrationInstance.createdAt}, ${integrationInstance.id}) < (${anchor.createdAt}, ${query.cursor}::uuid)`
@@ -224,6 +273,40 @@ export function createLocalIntegrationRepository(db: CommandryDatabase) {
           actor: "local-user:unattributed",
           operation: enabled ? "integration.enabled" : "integration.disabled",
           details: { enabled },
+        });
+      });
+      const updated = await get(id);
+      if (!updated) throw new Error("Integration disappeared after update");
+      return updated;
+    },
+    async setFreshnessWindow(id: string, windowMinutes: number) {
+      await db.transaction(async (tx) => {
+        const [current] = await tx
+          .select()
+          .from(integrationInstance)
+          .where(eq(integrationInstance.id, id))
+          .for("update")
+          .limit(1);
+        if (!current)
+          throw new LocalIntegrationError(
+            "INTEGRATION_NOT_FOUND",
+            "Integration not found",
+          );
+        if (current.freshnessWindowMinutes === windowMinutes) return;
+        await tx
+          .update(integrationInstance)
+          .set({ freshnessWindowMinutes: windowMinutes, updatedAt: new Date() })
+          .where(eq(integrationInstance.id, id));
+        await tx.insert(integrationInstanceAudit).values({
+          id: crypto.randomUUID(),
+          integrationInstanceId: id,
+          actor: "local-user:unattributed",
+          operation: "integration.freshness_window_changed",
+          details: {
+            windowMinutes: String(windowMinutes),
+            previousMinutes: String(current.freshnessWindowMinutes),
+            synthetic: true,
+          },
         });
       });
       const updated = await get(id);

@@ -1,0 +1,2 @@
+ALTER TABLE "integration_instance" ADD COLUMN "freshness_window_minutes" integer DEFAULT 60 NOT NULL;--> statement-breakpoint
+ALTER TABLE "integration_instance" ADD CONSTRAINT "integration_instance_freshness_window_valid" CHECK ("integration_instance"."freshness_window_minutes" between 1 and 10080);

@@ -1,9 +1,11 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import type { LocalIntegration } from "@commandry/contracts";
 import {
   AppShell,
   Button,
+  LocalIntegrationCard,
   StatusBadge,
   SyntheticEventCard,
 } from "@commandry/ui";
@@ -14,6 +16,7 @@ import {
 } from "../../activity/api";
 import {
   apiJson,
+  pagePath,
   type PageResponse,
   type ResourceRecord,
 } from "../../projects/api";
@@ -31,6 +34,9 @@ export default function ResourceDetail({ resourceId }: { resourceId: string }) {
   const [eventsLoading, setEventsLoading] = useState(true);
   const [eventsMoreLoading, setEventsMoreLoading] = useState(false);
   const [eventsError, setEventsError] = useState<string | null>(null);
+  const [sources, setSources] = useState<LocalIntegration[]>([]);
+  const [sourceCursor, setSourceCursor] = useState<string | null>(null);
+  const [sourcesError, setSourcesError] = useState<string | null>(null);
 
   useEffect(() => {
     let active = true;
@@ -55,6 +61,46 @@ export default function ResourceDetail({ resourceId }: { resourceId: string }) {
       active = false;
     };
   }, [resourceId]);
+
+  useEffect(() => {
+    let active = true;
+    apiJson<PageResponse<LocalIntegration>>(
+      `${pagePath("/api/v1/integrations")}&resourceId=${encodeURIComponent(resourceId)}`,
+    )
+      .then((page) => {
+        if (!active) return;
+        setSources(page.items);
+        setSourceCursor(page.nextCursor);
+      })
+      .catch((cause: unknown) => {
+        if (active)
+          setSourcesError(
+            cause instanceof Error
+              ? cause.message
+              : "Synthetic sources are unavailable.",
+          );
+      });
+    return () => {
+      active = false;
+    };
+  }, [resourceId]);
+
+  async function loadMoreSources() {
+    if (!sourceCursor) return;
+    try {
+      const page = await apiJson<PageResponse<LocalIntegration>>(
+        `${pagePath("/api/v1/integrations", sourceCursor)}&resourceId=${encodeURIComponent(resourceId)}`,
+      );
+      setSources((current) => [...current, ...page.items]);
+      setSourceCursor(page.nextCursor);
+    } catch (cause) {
+      setSourcesError(
+        cause instanceof Error
+          ? cause.message
+          : "Could not load more synthetic sources.",
+      );
+    }
+  }
 
   useEffect(() => {
     let active = true;
@@ -183,6 +229,53 @@ export default function ResourceDetail({ resourceId }: { resourceId: string }) {
             resource={resource}
           />
           <ResourceSystemsPanel resourceId={resource.id} />
+          <section
+            className="cmd-workspace-section"
+            aria-label="Synthetic source freshness"
+          >
+            <p className="cmd-eyebrow">Source observation / Fixture only</p>
+            <h2>Synthetic source freshness</h2>
+            <p>
+              Age is calculated from each fixture&apos;s source timestamp and
+              configured window. This does not establish real resource health.
+            </p>
+            {sourcesError && (
+              <p className="cmd-inline-state cmd-error" role="alert">
+                {sourcesError}
+              </p>
+            )}
+            {sources.length === 0 && !sourcesError && (
+              <p>No local synthetic source is bound to this resource.</p>
+            )}
+            <div className="cmd-record-list">
+              {sources.map((item) => (
+                <LocalIntegrationCard
+                  key={item.id}
+                  name={item.name}
+                  kind={item.kind}
+                  enabled={item.enabled}
+                  projectName={item.projectName}
+                  projectHref={`/projects/${item.projectId}`}
+                  resourceName={item.resourceName}
+                  resourceHref={`/resources/${resourceId}`}
+                  activityHref={`/activity?projectId=${item.projectId}`}
+                  lastAttemptAt={item.lastAttemptAt}
+                  lastSuccessAt={item.lastSuccessAt}
+                  lastError={item.lastError}
+                  freshnessState={item.freshnessState}
+                  freshnessWindowMinutes={item.freshnessWindowMinutes}
+                  lastObservedAt={item.lastObservedAt}
+                  lastReceivedAt={item.lastReceivedAt}
+                  observationEvidenceHref={item.observationEvidenceHref}
+                />
+              ))}
+            </div>
+            {sourceCursor && (
+              <Button onClick={() => void loadMoreSources()}>
+                Load more synthetic sources
+              </Button>
+            )}
+          </section>
           <SyntheticMetricsPanel resourceId={resource.id} />
           <section
             className="cmd-workspace-section"

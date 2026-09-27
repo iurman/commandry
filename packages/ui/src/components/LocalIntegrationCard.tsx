@@ -16,6 +16,11 @@ export function LocalIntegrationCard({
   lastAttemptAt,
   lastSuccessAt,
   lastError,
+  freshnessState,
+  freshnessWindowMinutes,
+  lastObservedAt,
+  lastReceivedAt,
+  observationEvidenceHref,
   children,
 }: {
   name: string;
@@ -29,6 +34,11 @@ export function LocalIntegrationCard({
   lastAttemptAt: string | null;
   lastSuccessAt: string | null;
   lastError: string | null;
+  freshnessState: "unknown" | "fresh" | "stale" | "future";
+  freshnessWindowMinutes: number;
+  lastObservedAt: string | null;
+  lastReceivedAt: string | null;
+  observationEvidenceHref: string | null;
   children?: ReactNode;
 }) {
   return (
@@ -57,6 +67,21 @@ export function LocalIntegrationCard({
         Last attempt: {when(lastAttemptAt)}. Last success: {when(lastSuccessAt)}
         . Next attempt: none scheduled.
       </p>
+      <div className="cmd-source-freshness">
+        <strong>Synthetic observation: {freshnessState}</strong>
+        <p>
+          Source timestamp: {when(lastObservedAt)}. Received:{" "}
+          {when(lastReceivedAt)}. Freshness window: {freshnessWindowMinutes}{" "}
+          minutes.
+        </p>
+        {observationEvidenceHref && (
+          <a href={observationEvidenceHref}>Original synthetic envelope</a>
+        )}
+        <p>
+          This classification describes fixture age. Real resource health
+          remains unknown.
+        </p>
+      </div>
       {lastError && (
         <p className="cmd-inline-state cmd-error">Last error: {lastError}</p>
       )}

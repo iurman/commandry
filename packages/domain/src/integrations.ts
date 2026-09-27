@@ -3,6 +3,19 @@ import type { SyntheticScenarioId } from "./synthetic-events";
 export type LocalIntegrationKind =
   "synthetic-development" | "synthetic-operations";
 
+export type ObservationFreshness = "unknown" | "fresh" | "stale" | "future";
+
+export function classifyObservationFreshness(
+  observedAt: Date | null,
+  windowMinutes: number,
+  asOf: Date,
+): ObservationFreshness {
+  if (!observedAt) return "unknown";
+  const age = asOf.getTime() - observedAt.getTime();
+  if (age < 0) return "future";
+  return age <= windowMinutes * 60_000 ? "fresh" : "stale";
+}
+
 export class LocalIntegrationError extends Error {
   constructor(
     public readonly code:

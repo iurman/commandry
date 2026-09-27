@@ -8308,6 +8308,15 @@
               "type": "string",
               "format": "uuid"
             }
+          },
+          {
+            "in": "query",
+            "name": "resourceId",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
           }
         ],
         "responses": {
@@ -8494,6 +8503,55 @@
           },
           "409": {
             "description": "Disabled source, unlinked resource, or occurrence conflict",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/integrations/{id}/freshness": {
+      "put": {
+        "operationId": "setLocalIntegrationFreshnessWindow",
+        "summary": "Set the local synthetic observation freshness window",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "id",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/SetLocalIntegrationFreshnessRequest"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Source with recalculated observation freshness",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/LocalIntegration"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Local-only endpoint unavailable",
             "content": {
               "application/json": {
                 "schema": {
@@ -8723,6 +8781,15 @@
           {
             "in": "query",
             "name": "cursor",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          },
+          {
+            "name": "integrationInstanceId",
+            "in": "query",
             "required": false,
             "schema": {
               "type": "string",
@@ -38841,6 +38908,20 @@
         ],
         "additionalProperties": false
       },
+      "SetLocalIntegrationFreshnessRequest": {
+        "type": "object",
+        "properties": {
+          "windowMinutes": {
+            "type": "integer",
+            "minimum": 1,
+            "maximum": 10080
+          }
+        },
+        "required": [
+          "windowMinutes"
+        ],
+        "additionalProperties": false
+      },
       "RunLocalIntegrationSampleRequest": {
         "type": "object",
         "properties": {
@@ -38927,6 +39008,56 @@
           "receiverConfigured": {
             "type": "boolean"
           },
+          "freshnessWindowMinutes": {
+            "type": "integer",
+            "minimum": 1,
+            "maximum": 10080
+          },
+          "freshnessState": {
+            "type": "string",
+            "enum": [
+              "unknown",
+              "fresh",
+              "stale",
+              "future"
+            ]
+          },
+          "lastObservedAt": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "date-time",
+                "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))T(?:(?:[01]\\d|2[0-3]):[0-5]\\d:[0-5]\\d(?:\\.\\d+)?(?:Z|([+-](?:[01]\\d|2[0-3]):[0-5]\\d)))$"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "lastReceivedAt": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "date-time",
+                "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))T(?:(?:[01]\\d|2[0-3]):[0-5]\\d:[0-5]\\d(?:\\.\\d+)?(?:Z|([+-](?:[01]\\d|2[0-3]):[0-5]\\d)))$"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "observationEvidenceHref": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "starts_with",
+                "pattern": "^\\/api\\/v1\\/source-envelopes\\/.*"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
           "lastAttemptAt": {
             "anyOf": [
               {
@@ -38998,6 +39129,11 @@
           "adapterMode",
           "isSynthetic",
           "receiverConfigured",
+          "freshnessWindowMinutes",
+          "freshnessState",
+          "lastObservedAt",
+          "lastReceivedAt",
+          "observationEvidenceHref",
           "lastAttemptAt",
           "lastSuccessAt",
           "lastError",
@@ -39319,6 +39455,56 @@
                 "receiverConfigured": {
                   "type": "boolean"
                 },
+                "freshnessWindowMinutes": {
+                  "type": "integer",
+                  "minimum": 1,
+                  "maximum": 10080
+                },
+                "freshnessState": {
+                  "type": "string",
+                  "enum": [
+                    "unknown",
+                    "fresh",
+                    "stale",
+                    "future"
+                  ]
+                },
+                "lastObservedAt": {
+                  "anyOf": [
+                    {
+                      "type": "string",
+                      "format": "date-time",
+                      "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))T(?:(?:[01]\\d|2[0-3]):[0-5]\\d:[0-5]\\d(?:\\.\\d+)?(?:Z|([+-](?:[01]\\d|2[0-3]):[0-5]\\d)))$"
+                    },
+                    {
+                      "type": "null"
+                    }
+                  ]
+                },
+                "lastReceivedAt": {
+                  "anyOf": [
+                    {
+                      "type": "string",
+                      "format": "date-time",
+                      "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))T(?:(?:[01]\\d|2[0-3]):[0-5]\\d:[0-5]\\d(?:\\.\\d+)?(?:Z|([+-](?:[01]\\d|2[0-3]):[0-5]\\d)))$"
+                    },
+                    {
+                      "type": "null"
+                    }
+                  ]
+                },
+                "observationEvidenceHref": {
+                  "anyOf": [
+                    {
+                      "type": "string",
+                      "format": "starts_with",
+                      "pattern": "^\\/api\\/v1\\/source-envelopes\\/.*"
+                    },
+                    {
+                      "type": "null"
+                    }
+                  ]
+                },
                 "lastAttemptAt": {
                   "anyOf": [
                     {
@@ -39390,6 +39576,11 @@
                 "adapterMode",
                 "isSynthetic",
                 "receiverConfigured",
+                "freshnessWindowMinutes",
+                "freshnessState",
+                "lastObservedAt",
+                "lastReceivedAt",
+                "observationEvidenceHref",
                 "lastAttemptAt",
                 "lastSuccessAt",
                 "lastError",

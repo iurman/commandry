@@ -109,6 +109,7 @@ export interface SyntheticEventImportSubmissionPort {
   list(input: {
     limit: number;
     cursor?: string | undefined;
+    integrationInstanceId?: string | undefined;
   }): Promise<SyntheticEventPage<SyntheticEventImportRecord>>;
 }
 
@@ -148,7 +149,11 @@ export function createSyntheticEventImportService(
     getById(id: string) {
       return port.getById(id);
     },
-    list(input: { limit: number; cursor?: string | undefined }) {
+    list(input: {
+      limit: number;
+      cursor?: string | undefined;
+      integrationInstanceId?: string | undefined;
+    }) {
       return port.list(input);
     },
   };
@@ -276,6 +281,7 @@ export interface SyntheticEventReadPort {
   list(input: {
     limit: number;
     cursor?: string | undefined;
+    integrationInstanceId?: string | undefined;
   }): Promise<SyntheticEventPage<SyntheticEventImportRecord>>;
   getEventById(id: string): Promise<NormalizedSyntheticEvent | null>;
   listEvents(

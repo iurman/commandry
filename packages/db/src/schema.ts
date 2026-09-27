@@ -2550,6 +2550,9 @@ export const integrationInstance = pgTable(
     }),
     enabled: boolean("enabled").notNull().default(true),
     receiverTokenDigest: text("receiver_token_digest"),
+    freshnessWindowMinutes: integer("freshness_window_minutes")
+      .notNull()
+      .default(60),
     createdAt: createdAt(),
     updatedAt: timestamp("updated_at", { withTimezone: true })
       .notNull()
@@ -2565,6 +2568,10 @@ export const integrationInstance = pgTable(
     check(
       "integration_instance_resource_required",
       sql`${table.kind} = 'synthetic-development' or ${table.resourceId} is not null`,
+    ),
+    check(
+      "integration_instance_freshness_window_valid",
+      sql`${table.freshnessWindowMinutes} between 1 and 10080`,
     ),
   ],
 );

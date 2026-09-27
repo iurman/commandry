@@ -219,3 +219,13 @@ as a digest. Validate provider authentication and signature schemes, credential
 custody, replay windows, source-specific cursors, backoff, retention, rate
 limits, source freshness, and the first real adapter before enabling a live
 connection. The local review gate is not product authentication.
+
+### OQ-031: How should source freshness affect operational health?
+
+The local MVP classifies the most recent successful synthetic source timestamp
+as unknown, fresh, stale, or future-dated using an auditable per-source window
+in minutes. Received time and import completion remain distinct. The default
+60-minute window is provisional and can be changed locally; this classification
+never marks a real resource healthy. Validate provider-specific expected
+cadence, delay tolerance, clock skew, mixed sources, silence alerts, and how a
+production health projection should use freshness once real inputs exist.

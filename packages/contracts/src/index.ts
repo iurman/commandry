@@ -1379,6 +1379,10 @@ export const setLocalIntegrationEnabledRequestSchema = z.strictObject({
   enabled: z.boolean(),
 });
 
+export const setLocalIntegrationFreshnessRequestSchema = z.strictObject({
+  windowMinutes: z.number().int().min(1).max(10080),
+});
+
 export const runLocalIntegrationSampleRequestSchema = z.strictObject({
   scenarioId: syntheticScenarioIdSchema,
   occurrenceId: z.string().trim().min(1).max(180),
@@ -1423,6 +1427,14 @@ export const localIntegrationSchema = z.object({
   adapterMode: z.literal("local_fixture"),
   isSynthetic: z.literal(true),
   receiverConfigured: z.boolean(),
+  freshnessWindowMinutes: z.number().int().min(1).max(10080),
+  freshnessState: z.enum(["unknown", "fresh", "stale", "future"]),
+  lastObservedAt: z.iso.datetime({ offset: true }).nullable(),
+  lastReceivedAt: z.iso.datetime({ offset: true }).nullable(),
+  observationEvidenceHref: z
+    .string()
+    .startsWith("/api/v1/source-envelopes/")
+    .nullable(),
   lastAttemptAt: z.iso.datetime({ offset: true }).nullable(),
   lastSuccessAt: z.iso.datetime({ offset: true }).nullable(),
   lastError: z.string().nullable(),
@@ -1436,6 +1448,7 @@ export const localIntegrationSchema = z.object({
 export const listLocalIntegrationsQuerySchema = listResourcesQuerySchema.extend(
   {
     projectId: z.uuid().optional(),
+    resourceId: z.uuid().optional(),
   },
 );
 
@@ -1475,6 +1488,11 @@ export const listSyntheticEventImportsResponseSchema = z.object({
   items: z.array(syntheticEventImportSchema),
   nextCursor: z.uuid().nullable(),
 });
+
+export const listSyntheticEventImportsQuerySchema =
+  listResourcesQuerySchema.extend({
+    integrationInstanceId: z.uuid().optional(),
+  });
 
 export const sourceEnvelopeSchema = z.object({
   id: z.uuid(),
@@ -2660,6 +2678,9 @@ export type CreateLocalIntegrationRequest = z.infer<
 >;
 export type SetLocalIntegrationEnabledRequest = z.infer<
   typeof setLocalIntegrationEnabledRequestSchema
+>;
+export type SetLocalIntegrationFreshnessRequest = z.infer<
+  typeof setLocalIntegrationFreshnessRequestSchema
 >;
 export type RunLocalIntegrationSampleRequest = z.infer<
   typeof runLocalIntegrationSampleRequestSchema

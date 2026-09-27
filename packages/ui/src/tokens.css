@@ -34,6 +34,33 @@
   background: var(--cmd-surface-muted);
 }
 
+.cmd-source-freshness {
+  margin: var(--cmd-space-3) 0;
+  padding: var(--cmd-space-3);
+  border-left: 3px solid var(--cmd-border);
+  background: var(--cmd-surface-muted);
+}
+
+.cmd-source-freshness p {
+  margin: var(--cmd-space-2) 0;
+}
+
+.cmd-freshness-form {
+  display: flex;
+  align-items: end;
+  flex-wrap: wrap;
+  gap: var(--cmd-space-2);
+  width: 100%;
+}
+
+.cmd-freshness-form label {
+  width: 100%;
+}
+
+.cmd-freshness-form input {
+  width: min(100%, 10rem);
+}
+
 .cmd-local-connector h4 {
   margin: 0 0 var(--cmd-space-2);
 }

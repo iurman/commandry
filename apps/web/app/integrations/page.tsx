@@ -58,6 +58,12 @@ export default function IntegrationsPage() {
   const [feedCursors, setFeedCursors] = useState<Record<string, string | null>>(
     {},
   );
+  const [history, setHistory] = useState<
+    Record<string, SyntheticEventImportRecord[]>
+  >({});
+  const [historyCursors, setHistoryCursors] = useState<
+    Record<string, string | null>
+  >({});
 
   async function refreshIntegration(id: string) {
     const updated = await apiJson<LocalIntegration>(
@@ -389,6 +395,49 @@ export default function IntegrationsPage() {
     }
   }
 
+  async function saveFreshnessWindow(
+    item: LocalIntegration,
+    event: FormEvent<HTMLFormElement>,
+  ) {
+    event.preventDefault();
+    if (busyId) return;
+    const windowMinutes = Number(
+      new FormData(event.currentTarget).get("windowMinutes"),
+    );
+    setBusyId(item.id);
+    setError(null);
+    try {
+      const updated = await apiJson<LocalIntegration>(
+        `/api/v1/integrations/${item.id}/freshness`,
+        {
+          method: "PUT",
+          body: JSON.stringify({ windowMinutes }),
+        },
+      );
+      setItems((current) =>
+        current.map((entry) => (entry.id === item.id ? updated : entry)),
+      );
+      setFeedback(
+        `Synthetic observation window for ${item.name} set to ${windowMinutes} minutes.`,
+      );
+    } catch (cause) {
+      setError(message(cause));
+    } finally {
+      setBusyId(null);
+    }
+  }
+
+  async function loadHistory(id: string, cursor?: string) {
+    const page = await apiJson<PageResponse<SyntheticEventImportRecord>>(
+      `${pagePath("/api/v1/synthetic-event-imports", cursor)}&integrationInstanceId=${encodeURIComponent(id)}`,
+    );
+    setHistory((current) => ({
+      ...current,
+      [id]: cursor ? [...(current[id] ?? []), ...page.items] : page.items,
+    }));
+    setHistoryCursors((current) => ({ ...current, [id]: page.nextCursor }));
+  }
+
   return (
     <AppShell current="Integrations">
       <header className="cmd-page-header">
@@ -580,7 +629,33 @@ export default function IntegrationsPage() {
                 lastAttemptAt={item.lastAttemptAt}
                 lastSuccessAt={item.lastSuccessAt}
                 lastError={item.lastError}
+                freshnessState={item.freshnessState}
+                freshnessWindowMinutes={item.freshnessWindowMinutes}
+                lastObservedAt={item.lastObservedAt}
+                lastReceivedAt={item.lastReceivedAt}
+                observationEvidenceHref={item.observationEvidenceHref}
               >
+                <form
+                  className="cmd-freshness-form"
+                  onSubmit={(event) => void saveFreshnessWindow(item, event)}
+                >
+                  <label htmlFor={`freshness-${item.id}`}>
+                    Synthetic freshness window, minutes
+                  </label>
+                  <input
+                    key={`${item.id}-${item.freshnessWindowMinutes}`}
+                    id={`freshness-${item.id}`}
+                    name="windowMinutes"
+                    type="number"
+                    min={1}
+                    max={10080}
+                    defaultValue={item.freshnessWindowMinutes}
+                    required
+                  />
+                  <Button type="submit" disabled={busyId !== null}>
+                    Save window
+                  </Button>
+                </form>
                 <Button
                   type="button"
                   onClick={() => setEnabled(item)}
@@ -656,6 +731,65 @@ export default function IntegrationsPage() {
                         ]
                   }
                 />
+                <section
+                  className="cmd-local-connector"
+                  aria-label={`Synthetic source history for ${item.name}`}
+                >
+                  <h4>Import history</h4>
+                  <p>
+                    Worker receipts remain linked to their original synthetic
+                    envelopes.
+                  </p>
+                  <Button
+                    type="button"
+                    onClick={() =>
+                      void loadHistory(item.id).catch((cause: unknown) =>
+                        setError(message(cause)),
+                      )
+                    }
+                  >
+                    Load recent imports
+                  </Button>
+                  {(history[item.id] ?? []).length === 0 && (
+                    <p>No imports loaded.</p>
+                  )}
+                  <ol className="cmd-connector-feed">
+                    {(history[item.id] ?? []).map((entry) => (
+                      <li key={entry.id}>
+                        {entry.scenarioId} / {entry.state} / observed{" "}
+                        {new Date(entry.occurredAt).toLocaleString()} / received{" "}
+                        {new Date(entry.receivedAt).toLocaleString()}
+                        {" · "}
+                        <a
+                          href={`/api/v1/source-envelopes/${entry.sourceEnvelopeId}`}
+                        >
+                          Original synthetic envelope
+                        </a>
+                        {entry.eventId && (
+                          <>
+                            {" · "}
+                            <a href={`/api/v1/events/${entry.eventId}`}>
+                              Normalized event
+                            </a>
+                          </>
+                        )}
+                      </li>
+                    ))}
+                  </ol>
+                  {historyCursors[item.id] && (
+                    <Button
+                      type="button"
+                      onClick={() =>
+                        void loadHistory(
+                          item.id,
+                          historyCursors[item.id] ?? undefined,
+                        ).catch((cause: unknown) => setError(message(cause)))
+                      }
+                    >
+                      Load older imports
+                    </Button>
+                  )}
+                </section>
               </LocalIntegrationCard>
             </li>
           ))}

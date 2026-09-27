@@ -167,12 +167,26 @@ export function createSyntheticEventImportRepository(db: CommandryDatabase) {
 
   return {
     getById,
-    async list(input: { limit: number; cursor?: string | undefined }) {
+    async list(input: {
+      limit: number;
+      cursor?: string | undefined;
+      integrationInstanceId?: string | undefined;
+    }) {
       const [anchor] = input.cursor
         ? await db
             .select({ createdAt: syntheticEventImport.createdAt })
             .from(syntheticEventImport)
-            .where(eq(syntheticEventImport.id, input.cursor))
+            .where(
+              and(
+                eq(syntheticEventImport.id, input.cursor),
+                input.integrationInstanceId
+                  ? eq(
+                      syntheticEventImport.integrationInstanceId,
+                      input.integrationInstanceId,
+                    )
+                  : undefined,
+              ),
+            )
             .limit(1)
         : [];
       if (input.cursor && !anchor) return { items: [], nextCursor: null };
@@ -192,9 +206,17 @@ export function createSyntheticEventImportRepository(db: CommandryDatabase) {
           eq(normalizedEvent.importId, syntheticEventImport.id),
         )
         .where(
-          anchor
-            ? sql`(${syntheticEventImport.createdAt}, ${syntheticEventImport.id}) < (${anchor.createdAt}, ${input.cursor}::uuid)`
-            : undefined,
+          and(
+            input.integrationInstanceId
+              ? eq(
+                  syntheticEventImport.integrationInstanceId,
+                  input.integrationInstanceId,
+                )
+              : undefined,
+            anchor
+              ? sql`(${syntheticEventImport.createdAt}, ${syntheticEventImport.id}) < (${anchor.createdAt}, ${input.cursor}::uuid)`
+              : undefined,
+          ),
         )
         .orderBy(
           desc(syntheticEventImport.createdAt),

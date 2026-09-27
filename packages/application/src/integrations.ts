@@ -20,8 +20,13 @@ export interface LocalIntegrationPort {
     limit: number;
     cursor?: string | undefined;
     projectId?: string | undefined;
+    resourceId?: string | undefined;
   }): Promise<{ items: LocalIntegration[]; nextCursor: string | null }>;
   setEnabled(id: string, enabled: boolean): Promise<LocalIntegration>;
+  setFreshnessWindow(
+    id: string,
+    windowMinutes: number,
+  ): Promise<LocalIntegration>;
   resourceLinkedToProject(
     resourceId: string,
     projectId: string,
@@ -43,11 +48,15 @@ export function createLocalIntegrationService(port: LocalIntegrationPort) {
       limit: number;
       cursor?: string | undefined;
       projectId?: string | undefined;
+      resourceId?: string | undefined;
     }) {
       return port.list(input);
     },
     setEnabled(id: string, enabled: boolean) {
       return port.setEnabled(id, enabled);
+    },
+    setFreshnessWindow(id: string, windowMinutes: number) {
+      return port.setFreshnessWindow(id, windowMinutes);
     },
     async submitSample(
       id: string,

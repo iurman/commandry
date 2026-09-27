@@ -1,7 +1,7 @@
 import { loadRuntimeConfig } from "@commandry/config";
 import {
   createSyntheticEventImportRequestSchema,
-  listResourcesQuerySchema,
+  listSyntheticEventImportsQuerySchema,
   listSyntheticEventImportsResponseSchema,
   syntheticEventImportSchema,
 } from "@commandry/contracts";
@@ -17,7 +17,7 @@ export const dynamic = "force-dynamic";
 
 export async function GET(request: Request): Promise<Response> {
   loadRuntimeConfig();
-  const parsed = listResourcesQuerySchema.safeParse(
+  const parsed = listSyntheticEventImportsQuerySchema.safeParse(
     Object.fromEntries(new URL(request.url).searchParams),
   );
   if (!parsed.success)

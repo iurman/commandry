@@ -114,6 +114,7 @@ import {
   createSyntheticEventImportRequestSchema,
   createLocalIntegrationRequestSchema,
   setLocalIntegrationEnabledRequestSchema,
+  setLocalIntegrationFreshnessRequestSchema,
   runLocalIntegrationSampleRequestSchema,
   localConnectorTokenSchema,
   localConnectorFeedItemSchema,
@@ -3218,7 +3219,11 @@ export function generateOpenApi(): string {
         get: {
           operationId: "listLocalIntegrations",
           summary: "Page through configured local fixture sources",
-          parameters: [...pageParameters, projectFilterParameter],
+          parameters: [
+            ...pageParameters,
+            projectFilterParameter,
+            resourceFilterParameter,
+          ],
           responses: {
             "200": {
               description: "Local integration page with observed sync state",
@@ -3309,6 +3314,27 @@ export function generateOpenApi(): string {
           },
         },
       },
+      "/api/v1/integrations/{id}/freshness": {
+        put: {
+          operationId: "setLocalIntegrationFreshnessWindow",
+          summary: "Set the local synthetic observation freshness window",
+          parameters: [idParameter],
+          requestBody: {
+            required: true,
+            content: jsonContent("SetLocalIntegrationFreshnessRequest"),
+          },
+          responses: {
+            "200": {
+              description: "Source with recalculated observation freshness",
+              content: jsonContent("LocalIntegration"),
+            },
+            "403": {
+              description: "Local-only endpoint unavailable",
+              content: jsonContent("ErrorResponse"),
+            },
+          },
+        },
+      },
       "/api/v1/integrations/{id}/receiver-token": {
         post: {
           operationId: "rotateLocalSyntheticReceiverToken",
@@ -3391,7 +3417,15 @@ export function generateOpenApi(): string {
         get: {
           operationId: "listSyntheticEventImports",
           summary: "Page through locally submitted synthetic imports",
-          parameters: pageParameters,
+          parameters: [
+            ...pageParameters,
+            {
+              name: "integrationInstanceId",
+              in: "query",
+              required: false,
+              schema: { type: "string", format: "uuid" },
+            },
+          ],
           responses: {
             "200": {
               description: "A page of synthetic imports",
@@ -4016,6 +4050,9 @@ export function generateOpenApi(): string {
         ),
         SetLocalIntegrationEnabledRequest: component(
           setLocalIntegrationEnabledRequestSchema,
+        ),
+        SetLocalIntegrationFreshnessRequest: component(
+          setLocalIntegrationFreshnessRequestSchema,
         ),
         RunLocalIntegrationSampleRequest: component(
           runLocalIntegrationSampleRequestSchema,

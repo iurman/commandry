@@ -52,7 +52,9 @@ test("configured local sources carry synthetic development and operations sample
     page.getByRole("region", { name: "Latest sample receipt" }),
   ).toContainText("succeeded", { timeout: 60_000 });
   await expect(
-    page.getByRole("link", { name: "Original synthetic envelope" }),
+    page
+      .getByRole("region", { name: "Latest sample receipt" })
+      .getByRole("link", { name: "Original synthetic envelope" }),
   ).toBeVisible();
   await expect(development).toContainText("Last success:");
 
@@ -148,6 +150,59 @@ test("configured local sources carry synthetic development and operations sample
     .getByRole("article")
     .filter({ hasText: `Operations fixture ${suffix}` });
   await expect(operations).toContainText(resource.name);
+  const sourcePage = await request.get(
+    `/api/v1/integrations?projectId=${project.id}`,
+  );
+  const operationsId = (await sourcePage.json()).items.find(
+    (item: { name: string }) => item.name === `Operations fixture ${suffix}`,
+  ).id;
+  const oldObservation = await request.post(
+    `/api/v1/integrations/${operationsId}/sample`,
+    {
+      data: {
+        scenarioId: "operations.monitor-down",
+        occurrenceId: `old-monitor-${suffix}`,
+        occurredAt: new Date(Date.now() - 120 * 60_000).toISOString(),
+      },
+    },
+  );
+  expect(oldObservation.status()).toBe(202);
+  const oldImport = await oldObservation.json();
+  await expect
+    .poll(
+      async () => {
+        const response = await request.get(
+          `/api/v1/synthetic-event-imports/${oldImport.id}`,
+        );
+        return (await response.json()).state;
+      },
+      { timeout: 60_000 },
+    )
+    .toBe("succeeded");
+  await page.reload();
+  await expect(operations).toContainText("Synthetic observation: stale");
+  await operations
+    .getByLabel("Synthetic freshness window, minutes")
+    .fill("180");
+  await operations.getByRole("button", { name: "Save window" }).click();
+  await expect(operations).toContainText("Synthetic observation: fresh");
+  await operations.getByRole("button", { name: "Load recent imports" }).click();
+  await expect(
+    operations.getByRole("region", {
+      name: `Synthetic source history for Operations fixture ${suffix}`,
+    }),
+  ).toContainText("operations.monitor-down");
+  const scopedImports = await request.get(
+    `/api/v1/synthetic-event-imports?integrationInstanceId=${operationsId}`,
+  );
+  const scopedItems = (await scopedImports.json()).items;
+  expect(scopedItems.length).toBeGreaterThan(0);
+  expect(
+    scopedItems.every(
+      (entry: { integrationInstanceId: string }) =>
+        entry.integrationInstanceId === operationsId,
+    ),
+  ).toBe(true);
   const sampleResponse = page.waitForResponse(
     (response) =>
       response.url().includes("/sample") &&
@@ -192,6 +247,13 @@ test("configured local sources carry synthetic development and operations sample
   await expect(
     page.getByRole("list", { name: "Active synthetic attention" }),
   ).toContainText(resource.name);
+  await page.goto(`/resources/${resource.id}`);
+  await expect(
+    page.getByRole("region", { name: "Synthetic source freshness" }),
+  ).toContainText(`Operations fixture ${suffix}`);
+  await expect(
+    page.getByRole("region", { name: "Synthetic source freshness" }),
+  ).toContainText("Real resource health remains unknown");
   await page.goto(`/projects/${project.id}`);
   await page.getByRole("link", { name: "Configure local sources" }).click();
   await expect(page).toHaveURL(

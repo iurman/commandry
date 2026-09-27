@@ -17,6 +17,11 @@ const meta = {
     lastAttemptAt: "2026-09-26T10:00:00.000Z",
     lastSuccessAt: "2026-09-26T10:00:01.000Z",
     lastError: null,
+    freshnessState: "stale",
+    freshnessWindowMinutes: 60,
+    lastObservedAt: "2026-09-26T10:00:00.000Z",
+    lastReceivedAt: "2026-09-26T10:00:01.000Z",
+    observationEvidenceHref: "#synthetic-envelope",
     children: <Button>Simulate monitor down</Button>,
   },
 } satisfies Meta<typeof LocalIntegrationCard>;
@@ -34,6 +39,10 @@ export const Disabled: Story = {
     resourceHref: null,
     lastAttemptAt: null,
     lastSuccessAt: null,
+    freshnessState: "unknown",
+    lastObservedAt: null,
+    lastReceivedAt: null,
+    observationEvidenceHref: null,
     children: <Button disabled>Simulate PR merge</Button>,
   },
 };
