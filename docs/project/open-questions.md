@@ -270,3 +270,15 @@ export carries the local definition and every synthetic run with its result and
 evidence. Validate semantic verification, reviewer identity, recheck policy,
 redaction, provenance of imported definitions, export format and scope, and
 retention before treating this as a production verification workflow.
+
+### OQ-033: What offline behavior should an installed client support?
+
+The local MVP offers an installable manifest on secure origins and caches only
+a generic offline help page. Project pages, API responses, captures, and queued
+actions stay online-only; the browser connection indicator checks reachability
+without implying that external sources are fresh. The current same-network
+phone preview uses HTTP and is usable in the browser but cannot offer secure
+origin installation or service-worker offline help. Validate real-device
+installation, authentication, cached-data privacy, conflict handling, source
+freshness, and the smallest useful offline read/write scope before expanding
+this behavior.

@@ -9,7 +9,10 @@ test("local shell labels simulated data without claiming live health", async ({
     page.getByRole("heading", { name: "Command Center" }),
   ).toBeVisible();
   const navigation = page.getByRole("navigation", { name: "Main navigation" });
-  await expect(navigation.getByRole("link")).toHaveCount(14);
+  await expect(navigation.getByRole("link", { name: "Home" })).toHaveAttribute(
+    "href",
+    "/",
+  );
   await expect(navigation.getByRole("link", { name: "Inbox" })).toBeVisible();
   await expect(
     navigation.getByRole("link", { name: "Projects" }),
@@ -27,6 +30,10 @@ test("local shell labels simulated data without claiming live health", async ({
   await expect(
     navigation.getByRole("link", { name: "Infrastructure" }),
   ).toHaveAttribute("href", "/infrastructure");
+  await expect(navigation.getByRole("link", { name: "Signals" })).toHaveAttribute(
+    "href",
+    "/attention-signals",
+  );
   await expect(navigation.getByRole("link", { name: "Search" })).toBeVisible();
   await expect(
     navigation.getByRole("link", { name: "Activity" }),

@@ -1,4 +1,6 @@
 export { AppShell } from "./components/AppShell";
+export { ConnectionStatus } from "./components/ConnectionStatus";
+export type { ConnectionState } from "./components/ConnectionStatus";
 export { Button } from "./components/Button";
 export { StatePanel } from "./components/StatePanel";
 export { StatusBadge } from "./components/StatusBadge";

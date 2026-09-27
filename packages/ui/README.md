@@ -19,12 +19,12 @@ The stylesheet respects system reduced motion and accepts
 
 | Export | Use | Contract |
 | --- | --- | --- |
-| `AppShell` | Frame the initial web navigation | Home is the only link; planned destinations are labeled and non-interactive. A skip link reaches main content. |
+| `AppShell` | Frame the responsive product navigation | Active destinations are links, a skip link reaches main content, and the web application mounts its local connection control in the sidebar slot. |
+| `ConnectionStatus` | Explain browser-to-app connectivity | Text distinguishes checking, reachable, device-offline, and server-unreachable states. Reachability makes no claim about source freshness or database health. |
 | `StatePanel` | Present one section's data state | `normal`, `loading`, `empty`, `error`, `disabled`, and `permission-denied` are explicit text states. Loading sets `aria-busy`; error text uses an alert role. Non-normal states do not render stale children. |
 | `StatusBadge` | Label one state dimension | A visible dimension and label accompany the tone. Lifecycle, health, attention, sync, and execution remain separate. |
 | `Button` | Present an actual available action | Primary and secondary variants share focus and target sizing. Native `disabled` is supported. Do not render a button for an unfinished product action. |
 
-The lab stories render these exports with normal, loading, empty, error,
-disabled, and permission-denied examples. Focus and state text remain visible
-without motion, sound, or color alone. Components assume a responsive container
-and wrap or stack at narrow widths.
+The lab stories exercise representative state and connection variants. Focus
+and state text remain visible without motion, sound, or color alone. Components
+assume a responsive container and wrap or stack at narrow widths.

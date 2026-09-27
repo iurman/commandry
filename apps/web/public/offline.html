@@ -1,0 +1,70 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <meta name="theme-color" content="#17212b" />
+    <title>Commandry is offline</title>
+    <style>
+      :root {
+        color-scheme: light dark;
+        font-family: system-ui, sans-serif;
+      }
+      body {
+        min-height: 100vh;
+        margin: 0;
+        display: grid;
+        place-items: center;
+        background: #f5f6f8;
+        color: #17212b;
+      }
+      main {
+        width: min(32rem, calc(100% - 2rem));
+        padding: 2rem;
+        border: 1px solid #cbd3dc;
+        border-radius: 0.65rem;
+        background: white;
+      }
+      h1 {
+        margin-top: 0;
+        line-height: 1.15;
+      }
+      p {
+        line-height: 1.55;
+      }
+      a {
+        color: #244c87;
+        font-weight: 700;
+      }
+      a:focus-visible {
+        outline: 3px solid #285cc2;
+        outline-offset: 4px;
+      }
+      @media (prefers-color-scheme: dark) {
+        body {
+          background: #111820;
+          color: #edf3f8;
+        }
+        main {
+          background: #1b252e;
+          border-color: #536473;
+        }
+        a {
+          color: #a7c8ff;
+        }
+      }
+    </style>
+  </head>
+  <body>
+    <main>
+      <p>Local connection unavailable</p>
+      <h1>Commandry cannot load this page offline.</h1>
+      <p>
+        Project content, actions, and API results are not saved on this device.
+        Reconnect to your local Commandry server before creating or changing
+        records.
+      </p>
+      <p><a href="/">Try Commandry again</a></p>
+    </main>
+  </body>
+</html>

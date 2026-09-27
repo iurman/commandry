@@ -143,6 +143,7 @@ export function AppShell({
           <span className="cmd-mobile-nav-hint">Swipe to see more. </span>
           Navigation opens the local workspaces.
         </p>
+        <div data-commandry-device-status />
       </aside>
       <main className="cmd-main" id="main-content">
         {children}

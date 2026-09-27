@@ -296,6 +296,63 @@ textarea {
   padding: 0 var(--cmd-space-2);
 }
 
+.cmd-device-status {
+  display: grid;
+  gap: var(--cmd-space-2);
+  min-width: 0;
+  padding: 0 var(--cmd-space-2);
+  font-size: 0.78rem;
+}
+
+.cmd-connection-status {
+  display: grid;
+  gap: var(--cmd-space-1);
+  padding: var(--cmd-space-2) var(--cmd-space-3);
+  border-left: 3px solid var(--cmd-border);
+  background: var(--cmd-surface-muted);
+}
+
+.cmd-connection-reachable {
+  border-left-color: var(--cmd-positive-text);
+}
+
+.cmd-connection-device_offline,
+.cmd-connection-unreachable {
+  border-left-color: var(--cmd-caution-text);
+}
+
+.cmd-connection-label {
+  font-weight: 700;
+}
+
+.cmd-connection-detail {
+  color: var(--cmd-text-muted);
+  line-height: 1.35;
+}
+
+.cmd-device-details summary {
+  width: fit-content;
+  cursor: pointer;
+  color: var(--cmd-accent);
+  font-weight: 650;
+}
+
+.cmd-device-details p {
+  line-height: 1.45;
+}
+
+.cmd-device-install {
+  min-height: 2.75rem;
+  padding: var(--cmd-space-2) var(--cmd-space-3);
+  border: 1px solid var(--cmd-accent);
+  border-radius: var(--cmd-radius);
+  background: var(--cmd-accent);
+  color: var(--cmd-accent-text);
+  cursor: pointer;
+  font: inherit;
+  font-weight: 700;
+}
+
 .cmd-mobile-nav-hint {
   display: none;
 }
