@@ -28,6 +28,15 @@ export function automationDefinitionRecord(
     routine: "local_project_summary_v1" as const,
     triggerType: row.triggerType,
     eventType: row.eventType,
+    condition:
+      row.conditionResourceId && row.conditionThresholdPercent !== null
+        ? {
+            resourceId: row.conditionResourceId,
+            metricName: "external_availability" as const,
+            operator: "lte" as const,
+            thresholdPercent: row.conditionThresholdPercent,
+          }
+        : null,
     enabled: row.enabled,
     sourceOfTruth: "local-only" as const,
     recurrenceStartAt: row.recurrenceStartAt?.toISOString() ?? null,
@@ -46,6 +55,7 @@ export function automationRunRecord(row: typeof automationRun.$inferSelect) {
     occurrenceId: row.occurrenceId,
     trigger: row.trigger,
     sourceEventId: row.sourceEventId,
+    sourceMetricSampleId: row.sourceMetricSampleId,
     scheduledFor: row.scheduledFor?.toISOString() ?? null,
     state: row.state,
     attempts: row.attempts,

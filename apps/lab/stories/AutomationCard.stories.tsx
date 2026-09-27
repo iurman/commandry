@@ -69,3 +69,16 @@ export const SyntheticEvent: Story = {
     },
   },
 };
+
+export const SyntheticCondition: Story = {
+  args: {
+    automation: {
+      ...meta.args.automation,
+      name: "Review synthetic service availability",
+      triggerType: "synthetic_condition",
+      condition: { thresholdPercent: 50 },
+      latestRunState: "succeeded",
+      nextRunAt: null,
+    },
+  },
+};

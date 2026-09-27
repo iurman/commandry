@@ -282,6 +282,7 @@ export interface SyntheticEventReadPort {
   listMetrics(
     input: EventPageQuery,
   ): Promise<SyntheticEventPage<SyntheticMetricSample>>;
+  getMetricSampleById(id: string): Promise<SyntheticMetricSample | null>;
   getAlertById(id: string): Promise<SyntheticAlert | null>;
   listAlerts(
     input: EventPageQuery & { state?: "open" | "resolved" | undefined },
@@ -296,6 +297,7 @@ export function createSyntheticEventReadService(port: SyntheticEventReadPort) {
     getEventById: port.getEventById,
     listEvents: port.listEvents,
     listMetrics: port.listMetrics,
+    getMetricSampleById: port.getMetricSampleById,
     getAlertById: port.getAlertById,
     listAlerts: port.listAlerts,
     getSourceEnvelopeById: port.getSourceEnvelopeById,

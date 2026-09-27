@@ -3,9 +3,14 @@ export interface AutomationCardView {
   name: string;
   projectName: string;
   enabled: boolean;
-  triggerType: "on_creation_once" | "recurring_interval" | "synthetic_event";
+  triggerType:
+    | "on_creation_once"
+    | "recurring_interval"
+    | "synthetic_event"
+    | "synthetic_condition";
   eventType?:
     "git.pull_request.merged" | "monitor.down" | "monitor.recovered" | null;
+  condition?: { thresholdPercent: number } | null;
   latestRunState:
     "queued" | "running" | "succeeded" | "failed" | "skipped" | null;
   latestRunAt: string | null;
@@ -42,7 +47,9 @@ export function AutomationCard({
               ? "Recurring local interval"
               : automation.triggerType === "synthetic_event"
                 ? `Synthetic ${automation.eventType ?? "fixture"} event`
-                : "On creation once"}
+                : automation.triggerType === "synthetic_condition"
+                  ? `Synthetic availability at or below ${automation.condition?.thresholdPercent ?? "configured"}%`
+                  : "On creation once"}
           </dd>
         </div>
         <div>
@@ -58,6 +65,8 @@ export function AutomationCard({
           <dd>
             {automation.triggerType === "synthetic_event" ? (
               "On next matching synthetic event"
+            ) : automation.triggerType === "synthetic_condition" ? (
+              "On next synthetic below-threshold crossing"
             ) : automation.nextRunAt ? (
               <time dateTime={automation.nextRunAt}>
                 {automation.nextRunAt} UTC

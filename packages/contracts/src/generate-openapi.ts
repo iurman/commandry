@@ -2397,6 +2397,24 @@ export function generateOpenApi(): string {
           },
         },
       },
+      "/api/v1/metrics/{id}": {
+        get: {
+          operationId: "getSyntheticMetricSample",
+          summary:
+            "Read the exact immutable synthetic metric sample used as evidence",
+          parameters: [idParameter],
+          responses: {
+            "200": {
+              description: "Synthetic metric sample with source reference",
+              content: jsonContent("SyntheticMetricSample"),
+            },
+            "404": {
+              description: "Metric sample not found",
+              content: jsonContent("ErrorResponse"),
+            },
+          },
+        },
+      },
       "/api/v1/events/{id}": {
         get: {
           operationId: "getNormalizedEvent",

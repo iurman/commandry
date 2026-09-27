@@ -13,6 +13,7 @@ import {
   pagePath,
   type PageResponse,
   type ProjectRecord,
+  type ProjectResourceLink,
 } from "../projects/api";
 
 export default function AutomationsPage() {
@@ -28,13 +29,24 @@ export default function AutomationsPage() {
   const [name, setName] = useState("");
   const [enabled, setEnabled] = useState(true);
   const [triggerType, setTriggerType] = useState<
-    "on_creation_once" | "recurring_interval" | "synthetic_event"
+    | "on_creation_once"
+    | "recurring_interval"
+    | "synthetic_event"
+    | "synthetic_condition"
   >("on_creation_once");
   const [eventType, setEventType] = useState<
     "git.pull_request.merged" | "monitor.down" | "monitor.recovered"
   >("monitor.down");
   const [recurrenceLocalTime, setRecurrenceLocalTime] = useState("");
   const [everyMinutes, setEveryMinutes] = useState("60");
+  const [conditionResources, setConditionResources] = useState<
+    ProjectResourceLink[]
+  >([]);
+  const [conditionResourceCursor, setConditionResourceCursor] = useState<
+    string | null
+  >(null);
+  const [conditionResourceId, setConditionResourceId] = useState("");
+  const [thresholdPercent, setThresholdPercent] = useState("50");
   const [loading, setLoading] = useState(true);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -108,6 +120,66 @@ export default function AutomationsPage() {
       active = false;
     };
   }, []);
+
+  useEffect(() => {
+    if (!projectId) return;
+    let active = true;
+    apiJson<PageResponse<ProjectResourceLink>>(
+      pagePath(`/api/v1/projects/${encodeURIComponent(projectId)}/resources`),
+    )
+      .then((page) => {
+        if (!active) return;
+        const unique = page.items.filter(
+          (item, index, all) =>
+            all.findIndex(
+              (candidate) => candidate.resource.id === item.resource.id,
+            ) === index,
+        );
+        setConditionResources(unique);
+        setConditionResourceCursor(page.nextCursor);
+      })
+      .catch((cause: unknown) => {
+        if (active)
+          setError(
+            cause instanceof Error
+              ? cause.message
+              : "Could not load project resources.",
+          );
+      });
+    return () => {
+      active = false;
+    };
+  }, [projectId]);
+
+  async function loadMoreConditionResources() {
+    if (!conditionResourceCursor || !projectId || busy) return;
+    setBusy(true);
+    setError(null);
+    try {
+      const page = await apiJson<PageResponse<ProjectResourceLink>>(
+        pagePath(
+          `/api/v1/projects/${encodeURIComponent(projectId)}/resources`,
+          conditionResourceCursor,
+        ),
+      );
+      setConditionResources((current) => [
+        ...current,
+        ...page.items.filter(
+          (item) =>
+            !current.some((saved) => saved.resource.id === item.resource.id),
+        ),
+      ]);
+      setConditionResourceCursor(page.nextCursor);
+    } catch (cause) {
+      setError(
+        cause instanceof Error
+          ? cause.message
+          : "Could not load more project resources.",
+      );
+    } finally {
+      setBusy(false);
+    }
+  }
 
   async function loadMoreProjects() {
     if (!projectCursor || busy) return;
@@ -186,6 +258,16 @@ export default function AutomationsPage() {
       );
       return;
     }
+    if (
+      triggerType === "synthetic_condition" &&
+      (!conditionResourceId ||
+        !Number.isInteger(Number(thresholdPercent)) ||
+        Number(thresholdPercent) < 0 ||
+        Number(thresholdPercent) > 99)
+    ) {
+      setError("Choose a linked resource and a threshold from 0 to 99%.");
+      return;
+    }
     setBusy(true);
     setError(null);
     setFeedback(null);
@@ -200,6 +282,16 @@ export default function AutomationsPage() {
             enabled,
             ...(recurrence ? { recurrence } : {}),
             ...(triggerType === "synthetic_event" ? { eventType } : {}),
+            ...(triggerType === "synthetic_condition"
+              ? {
+                  condition: {
+                    resourceId: conditionResourceId,
+                    metricName: "external_availability",
+                    operator: "lte",
+                    thresholdPercent: Number(thresholdPercent),
+                  },
+                }
+              : {}),
           }),
         },
       );
@@ -218,9 +310,13 @@ export default function AutomationsPage() {
             ? enabled
               ? "Synthetic event routine saved. A new matching fixture event will queue a source-linked local summary."
               : "Disabled synthetic event routine saved. Matching events will be recorded as skipped."
-            : enabled
-              ? "Local automation created and its one-time synthetic summary queued. Open it to review the worker result."
-              : "Disabled local automation saved. It will not run until enabled and manually triggered.",
+            : triggerType === "synthetic_condition"
+              ? enabled
+                ? "Synthetic availability condition saved. Its next eligible below-threshold crossing will queue a source-linked local summary."
+                : "Disabled synthetic condition saved. Below-threshold crossings will be recorded as skipped."
+              : enabled
+                ? "Local automation created and its one-time synthetic summary queued. Open it to review the worker result."
+                : "Disabled local automation saved. It will not run until enabled and manually triggered.",
       );
       setName("");
       setRecurrenceLocalTime("");
@@ -244,10 +340,11 @@ export default function AutomationsPage() {
           <p className="cmd-eyebrow">Local-only / Controlled routines</p>
           <h1>Automations</h1>
           <p className="cmd-lead">
-            Review definitions and worker runs. This first routine reads a
+            Review definitions and worker runs. This local routine reads a
             project brief at creation, at a recurring UTC interval, after a
-            matching synthetic event, or in a manually scheduled one-time run.
-            Output is synthetic and unverified; no external action occurs.
+            matching synthetic event or availability crossing, or in a manually
+            scheduled one-time run. Output is synthetic and unverified; no
+            external action occurs.
           </p>
           <p>
             <a href="/morning">Open the source-linked morning run digest</a>
@@ -293,6 +390,7 @@ export default function AutomationsPage() {
                     enabled: item.enabled,
                     triggerType: item.triggerType,
                     eventType: item.eventType,
+                    condition: item.condition ?? null,
                     latestRunState: latestRuns[item.id]?.state ?? null,
                     latestRunAt: latestRuns[item.id]?.createdAt ?? null,
                     nextRunAt: item.nextRunAt,
@@ -314,9 +412,10 @@ export default function AutomationsPage() {
           <p className="cmd-eyebrow">Create / Read-only</p>
           <h2 id="automation-create-heading">New local routine</h2>
           <p className="cmd-form-intro">
-            Choose a summary at creation, a bounded recurring schedule, or a
-            project-scoped synthetic fixture event. Open the detail page to
-            review runs or schedule an extra one-time local run.
+            Choose a summary at creation, a bounded recurring schedule, a
+            project-scoped synthetic fixture event, or a resource-specific
+            synthetic availability condition. Open the detail page to review
+            runs or schedule an extra one-time local run.
           </p>
           <form className="cmd-form" onSubmit={create}>
             <label htmlFor="automation-name">Name</label>
@@ -330,7 +429,12 @@ export default function AutomationsPage() {
             <label htmlFor="automation-project">Project</label>
             <select
               id="automation-project"
-              onChange={(event) => setProjectId(event.target.value)}
+              onChange={(event) => {
+                setProjectId(event.target.value);
+                setConditionResourceId("");
+                setConditionResources([]);
+                setConditionResourceCursor(null);
+              }}
               required
               value={projectId}
             >
@@ -356,7 +460,8 @@ export default function AutomationsPage() {
                   event.target.value as
                     | "on_creation_once"
                     | "recurring_interval"
-                    | "synthetic_event",
+                    | "synthetic_event"
+                    | "synthetic_condition",
                 )
               }
               value={triggerType}
@@ -366,6 +471,9 @@ export default function AutomationsPage() {
                 Recurring local interval
               </option>
               <option value="synthetic_event">Synthetic fixture event</option>
+              <option value="synthetic_condition">
+                Synthetic availability threshold
+              </option>
             </select>
             {triggerType === "synthetic_event" && (
               <>
@@ -389,6 +497,55 @@ export default function AutomationsPage() {
                   Only newly ingested fixture events for this project match.
                   Each source event is evaluated once; a disabled or busy
                   routine records a skipped run. No live connector is attached.
+                </p>
+              </>
+            )}
+            {triggerType === "synthetic_condition" && (
+              <>
+                <label htmlFor="automation-condition-resource">
+                  Linked resource to watch
+                </label>
+                <select
+                  id="automation-condition-resource"
+                  required
+                  value={conditionResourceId}
+                  onChange={(event) =>
+                    setConditionResourceId(event.target.value)
+                  }
+                >
+                  <option value="">Choose a project resource</option>
+                  {conditionResources.map((link) => (
+                    <option key={link.resource.id} value={link.resource.id}>
+                      {link.resource.name}
+                    </option>
+                  ))}
+                </select>
+                {conditionResourceCursor && (
+                  <Button
+                    disabled={busy}
+                    onClick={loadMoreConditionResources}
+                    type="button"
+                  >
+                    Load more resource choices
+                  </Button>
+                )}
+                <label htmlFor="automation-condition-threshold">
+                  At or below availability (%)
+                </label>
+                <input
+                  id="automation-condition-threshold"
+                  type="number"
+                  min={0}
+                  max={99}
+                  required
+                  value={thresholdPercent}
+                  onChange={(event) => setThresholdPercent(event.target.value)}
+                />
+                <p className="cmd-form-hint">
+                  This local rule watches only synthetic external availability
+                  samples for one linked resource. It fires once when a sample
+                  enters the below-threshold state, then waits for a recovery
+                  before another crossing. It performs no external action.
                 </p>
               </>
             )}

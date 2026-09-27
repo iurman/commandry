@@ -9,6 +9,7 @@ import {
   firstRecurrenceAfter,
   dueRecurrence,
   localAutomationTrigger,
+  syntheticConditionAutomationDecision,
   syntheticEventAutomationDecision,
 } from "./local-automation";
 
@@ -161,5 +162,81 @@ describe("local automation policy", () => {
         false,
       ),
     ).toBe("ineligible");
+  });
+
+  it("evaluates synthetic resource availability only on a new below-threshold crossing", () => {
+    const definition = {
+      projectId: "project-a",
+      triggerType: "synthetic_condition",
+      conditionResourceId: "resource-a",
+      conditionThresholdPercent: 50,
+      createdAt: new Date("2026-09-26T11:59:00Z"),
+      enabled: true,
+    };
+    const sample = {
+      projectId: "project-a",
+      resourceId: "resource-a",
+      name: "external_availability",
+      unit: "percent",
+      value: 0,
+      isSynthetic: true,
+      sourceKind: "synthetic-operations",
+      recordedAt: new Date("2026-09-26T12:00:00Z"),
+    };
+    expect(
+      localAutomationTrigger({
+        condition: { resourceId: "resource-a", thresholdPercent: 50 },
+      }),
+    ).toBe("synthetic_condition");
+    expect(() =>
+      localAutomationTrigger({
+        condition: { resourceId: "resource-a", thresholdPercent: 50 },
+        eventType: "monitor.down",
+      }),
+    ).toThrow(/Choose only one trigger/);
+    expect(
+      syntheticConditionAutomationDecision(
+        definition,
+        sample,
+        null,
+        true,
+        false,
+      ),
+    ).toBe("queue");
+    expect(
+      syntheticConditionAutomationDecision(definition, sample, 100, true, true),
+    ).toBe("skip_overlap");
+    expect(
+      syntheticConditionAutomationDecision(
+        { ...definition, enabled: false },
+        sample,
+        100,
+        true,
+        false,
+      ),
+    ).toBe("skip_disabled");
+    for (const [changedDefinition, changedSample, previous, latest] of [
+      [definition, sample, 0, true],
+      [definition, sample, 100, false],
+      [definition, { ...sample, value: 100 }, 0, true],
+      [definition, { ...sample, resourceId: "resource-b" }, 100, true],
+      [definition, { ...sample, isSynthetic: false }, 100, true],
+      [
+        { ...definition, createdAt: new Date("2026-09-26T12:01:00Z") },
+        sample,
+        100,
+        true,
+      ],
+    ] as const) {
+      expect(
+        syntheticConditionAutomationDecision(
+          changedDefinition,
+          changedSample,
+          previous,
+          latest,
+          false,
+        ),
+      ).toBe("ineligible");
+    }
   });
 });

@@ -41,6 +41,7 @@ import {
   createLocalAgentRunSubmission,
   createRecurringAutomationScheduler,
   createSyntheticEventAutomationReconciler,
+  createSyntheticConditionAutomationReconciler,
   LOCAL_AGENT_RUN_QUEUE,
   OVERNIGHT_QUEUE,
   LOCAL_AUTOMATION_QUEUE,
@@ -144,6 +145,8 @@ const recurringAutomationScheduler = createRecurringAutomationScheduler(
 );
 const syntheticEventAutomationReconciler =
   createSyntheticEventAutomationReconciler(database.db, transport.boss);
+const syntheticConditionAutomationReconciler =
+  createSyntheticConditionAutomationReconciler(database.db, transport.boss);
 const workerId = randomUUID();
 
 function log(
@@ -226,6 +229,9 @@ await transport.boss.work(SYNTHETIC_EVENT_IMPORT_QUEUE, async ([job]) => {
     if (!imported.eventId)
       throw new Error("Synthetic import completed without a normalized event");
     await syntheticEventAutomationReconciler.reconcileEvent(imported.eventId);
+    await syntheticConditionAutomationReconciler.reconcileEvent(
+      imported.eventId,
+    );
     log("info", "synthetic_event_import.completed", {
       correlationId: input.runId,
       occurrenceId: input.occurrenceId,

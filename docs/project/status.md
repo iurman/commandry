@@ -91,6 +91,14 @@ authentication is complete. There is no production deployment.
   original context. A configurable local completion gate requires a current
   met review when criteria exist. Claims remain manually recorded and
   unverified by any external system.
+- A local automation can watch a linked resource's labeled synthetic external
+  availability sample against a per-definition threshold. The worker creates
+  one source-linked brief run when the sample first enters the below-threshold
+  state and requires an above-threshold recovery before another crossing.
+  Exact metric, event, and original-envelope evidence remains available; a
+  disabled or overlapping crossing is audited as skipped. This condition uses
+  only fixture imports and cannot operate on live monitoring data or take an
+  external action.
 - Work items have project-scoped, typed parent/subtask and blocking links with
   cycle prevention, audit-preserving archive, cursor-paged inverse views, and
   a responsive editor. Open blockers appear with exact relationship evidence

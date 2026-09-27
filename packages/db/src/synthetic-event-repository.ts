@@ -31,6 +31,28 @@ type EventPageQuery = {
 type SourceLabel =
   "Synthetic development fixture" | "Synthetic operational fixture";
 
+function metricRecord(
+  sample: typeof metricSample.$inferSelect,
+  resourceName: string,
+) {
+  return {
+    id: sample.id,
+    eventId: sample.eventId,
+    projectId: sample.projectId,
+    resourceId: sample.resourceId,
+    resourceName,
+    name: "external_availability" as const,
+    unit: "percent" as const,
+    value: sample.value,
+    sampledAt: sample.sampledAt.toISOString(),
+    recordedAt: sample.recordedAt.toISOString(),
+    sourceEnvelopeId: sample.sourceEnvelopeId,
+    evidenceHref: `/api/v1/source-envelopes/${sample.sourceEnvelopeId}`,
+    sourceLabel: "Synthetic operational fixture" as const,
+    isSynthetic: true as const,
+  };
+}
+
 function envelopeRecord(row: typeof sourceEnvelope.$inferSelect) {
   return {
     id: row.id,
@@ -611,25 +633,21 @@ export function createSyntheticEventImportRepository(db: CommandryDatabase) {
         .limit(input.limit + 1);
       const page = rows.slice(0, input.limit);
       return {
-        items: page.map(({ sample, resourceName }) => ({
-          id: sample.id,
-          eventId: sample.eventId,
-          projectId: sample.projectId,
-          resourceId: sample.resourceId,
-          resourceName,
-          name: "external_availability" as const,
-          unit: "percent" as const,
-          value: sample.value,
-          sampledAt: sample.sampledAt.toISOString(),
-          recordedAt: sample.recordedAt.toISOString(),
-          sourceEnvelopeId: sample.sourceEnvelopeId,
-          evidenceHref: `/api/v1/source-envelopes/${sample.sourceEnvelopeId}`,
-          sourceLabel: "Synthetic operational fixture" as const,
-          isSynthetic: true as const,
-        })),
+        items: page.map(({ sample, resourceName }) =>
+          metricRecord(sample, resourceName),
+        ),
         nextCursor:
           rows.length > input.limit ? (page.at(-1)?.sample.id ?? null) : null,
       };
+    },
+    async getMetricSampleById(id: string) {
+      const [row] = await db
+        .select({ sample: metricSample, resourceName: resource.name })
+        .from(metricSample)
+        .innerJoin(resource, eq(resource.id, metricSample.resourceId))
+        .where(eq(metricSample.id, id))
+        .limit(1);
+      return row ? metricRecord(row.sample, row.resourceName) : null;
     },
     async getAlertById(id: string) {
       const [row] = await db

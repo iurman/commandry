@@ -4,6 +4,7 @@ export const LOCAL_PROJECT_SUMMARY_POLICY = {
   optionalManualSchedule: "one_time_utc",
   optionalRecurrence: "bounded_utc_interval",
   optionalSyntheticEvent: "project_scoped_synthetic_event",
+  optionalSyntheticCondition: "resource_scoped_synthetic_metric_threshold",
   sourceOfTruth: "local-only",
   risk: "read_only",
   requiredCapability: "project.brief.read",
@@ -29,7 +30,8 @@ export type LocalAutomationErrorCode =
   | "AUTOMATION_STALE"
   | "AUTOMATION_OCCURRENCE_CONFLICT"
   | "AUTOMATION_RUN_NOT_FOUND"
-  | "AUTOMATION_INVALID_SCHEDULE";
+  | "AUTOMATION_INVALID_SCHEDULE"
+  | "AUTOMATION_INVALID_CONDITION";
 
 export const LOCAL_AUTOMATION_EVENT_TYPES = [
   "git.pull_request.merged",
@@ -43,17 +45,70 @@ export type LocalAutomationEventType =
 export function localAutomationTrigger(input: {
   recurrence?: { startAt: string; everyMinutes: number } | undefined;
   eventType?: LocalAutomationEventType | undefined;
+  condition?: { resourceId: string; thresholdPercent: number } | undefined;
 }) {
-  if (input.recurrence && input.eventType)
+  if (
+    Number(Boolean(input.recurrence)) +
+      Number(Boolean(input.eventType)) +
+      Number(Boolean(input.condition)) >
+    1
+  )
     throw new LocalAutomationError(
-      "AUTOMATION_INVALID_SCHEDULE",
-      "Choose a recurring interval or synthetic event, not both",
+      "AUTOMATION_INVALID_CONDITION",
+      "Choose only one trigger: recurring interval, synthetic event, or synthetic condition",
     );
-  return input.eventType
-    ? "synthetic_event"
-    : input.recurrence
-      ? "recurring_interval"
-      : "on_creation_once";
+  return input.condition
+    ? "synthetic_condition"
+    : input.eventType
+      ? "synthetic_event"
+      : input.recurrence
+        ? "recurring_interval"
+        : "on_creation_once";
+}
+
+export function syntheticConditionAutomationDecision(
+  definition: {
+    projectId: string;
+    triggerType: string;
+    conditionResourceId: string | null;
+    conditionThresholdPercent: number | null;
+    createdAt: Date;
+    enabled: boolean;
+  },
+  sample: {
+    projectId: string;
+    resourceId: string;
+    name: string;
+    unit: string;
+    value: number;
+    isSynthetic: boolean;
+    sourceKind: string;
+    recordedAt: Date;
+  },
+  previousValue: number | null,
+  isLatest: boolean,
+  hasActiveRun: boolean,
+): "ineligible" | "queue" | "skip_disabled" | "skip_overlap" {
+  const threshold = definition.conditionThresholdPercent;
+  if (
+    definition.triggerType !== "synthetic_condition" ||
+    definition.projectId !== sample.projectId ||
+    definition.conditionResourceId !== sample.resourceId ||
+    threshold === null ||
+    threshold < 0 ||
+    threshold > 99 ||
+    definition.createdAt > sample.recordedAt ||
+    sample.name !== "external_availability" ||
+    sample.unit !== "percent" ||
+    sample.sourceKind !== "synthetic-operations" ||
+    !sample.isSynthetic ||
+    !isLatest ||
+    sample.value > threshold ||
+    (previousValue !== null && previousValue <= threshold)
+  )
+    return "ineligible";
+  if (!definition.enabled) return "skip_disabled";
+  return hasActiveRun ? "skip_overlap" : "queue";
 }
 
 export function syntheticEventAutomationDecision(

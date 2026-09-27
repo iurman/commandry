@@ -154,6 +154,7 @@ describe("synthetic event application", () => {
       getEventById: async () => null,
       listEvents: async () => ({ items: [], nextCursor: null }),
       listMetrics: async () => ({ items: [], nextCursor: null }),
+      getMetricSampleById: async () => null,
       getAlertById: async () => alert,
       listAlerts: async (query) => {
         expect(query.state).toBe("open");

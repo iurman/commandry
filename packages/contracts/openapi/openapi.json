@@ -5428,6 +5428,45 @@
         }
       }
     },
+    "/api/v1/metrics/{id}": {
+      "get": {
+        "operationId": "getSyntheticMetricSample",
+        "summary": "Read the exact immutable synthetic metric sample used as evidence",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "id",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Synthetic metric sample with source reference",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SyntheticMetricSample"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Metric sample not found",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/api/v1/events/{id}": {
       "get": {
         "operationId": "getNormalizedEvent",
@@ -11341,6 +11380,36 @@
               "monitor.down",
               "monitor.recovered"
             ]
+          },
+          "condition": {
+            "type": "object",
+            "properties": {
+              "resourceId": {
+                "type": "string",
+                "format": "uuid",
+                "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$"
+              },
+              "metricName": {
+                "type": "string",
+                "const": "external_availability"
+              },
+              "operator": {
+                "type": "string",
+                "const": "lte"
+              },
+              "thresholdPercent": {
+                "type": "integer",
+                "minimum": 0,
+                "maximum": 99
+              }
+            },
+            "required": [
+              "resourceId",
+              "metricName",
+              "operator",
+              "thresholdPercent"
+            ],
+            "additionalProperties": false
           }
         },
         "required": [
@@ -11410,7 +11479,8 @@
             "enum": [
               "on_creation_once",
               "recurring_interval",
-              "synthetic_event"
+              "synthetic_event",
+              "synthetic_condition"
             ]
           },
           "eventType": {
@@ -11422,6 +11492,43 @@
                   "monitor.down",
                   "monitor.recovered"
                 ]
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "condition": {
+            "anyOf": [
+              {
+                "type": "object",
+                "properties": {
+                  "resourceId": {
+                    "type": "string",
+                    "format": "uuid",
+                    "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$"
+                  },
+                  "metricName": {
+                    "type": "string",
+                    "const": "external_availability"
+                  },
+                  "operator": {
+                    "type": "string",
+                    "const": "lte"
+                  },
+                  "thresholdPercent": {
+                    "type": "integer",
+                    "minimum": 0,
+                    "maximum": 99
+                  }
+                },
+                "required": [
+                  "resourceId",
+                  "metricName",
+                  "operator",
+                  "thresholdPercent"
+                ],
+                "additionalProperties": false
               },
               {
                 "type": "null"
@@ -11526,6 +11633,7 @@
                     "work_item_attachment",
                     "work_item_acceptance_revision",
                     "work_item_verification",
+                    "metric_sample",
                     "knowledge_item",
                     "decision",
                     "resource",
@@ -11642,10 +11750,23 @@
               "manual",
               "scheduled",
               "recurring",
-              "synthetic_event"
+              "synthetic_event",
+              "synthetic_condition"
             ]
           },
           "sourceEventId": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "uuid",
+                "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "sourceMetricSampleId": {
             "anyOf": [
               {
                 "type": "string",
@@ -11713,6 +11834,7 @@
                             "work_item_attachment",
                             "work_item_acceptance_revision",
                             "work_item_verification",
+                            "metric_sample",
                             "knowledge_item",
                             "decision",
                             "resource",
@@ -12313,7 +12435,8 @@
                   "enum": [
                     "on_creation_once",
                     "recurring_interval",
-                    "synthetic_event"
+                    "synthetic_event",
+                    "synthetic_condition"
                   ]
                 },
                 "eventType": {
@@ -12325,6 +12448,43 @@
                         "monitor.down",
                         "monitor.recovered"
                       ]
+                    },
+                    {
+                      "type": "null"
+                    }
+                  ]
+                },
+                "condition": {
+                  "anyOf": [
+                    {
+                      "type": "object",
+                      "properties": {
+                        "resourceId": {
+                          "type": "string",
+                          "format": "uuid",
+                          "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$"
+                        },
+                        "metricName": {
+                          "type": "string",
+                          "const": "external_availability"
+                        },
+                        "operator": {
+                          "type": "string",
+                          "const": "lte"
+                        },
+                        "thresholdPercent": {
+                          "type": "integer",
+                          "minimum": 0,
+                          "maximum": 99
+                        }
+                      },
+                      "required": [
+                        "resourceId",
+                        "metricName",
+                        "operator",
+                        "thresholdPercent"
+                      ],
+                      "additionalProperties": false
                     },
                     {
                       "type": "null"
@@ -12457,10 +12617,23 @@
                     "manual",
                     "scheduled",
                     "recurring",
-                    "synthetic_event"
+                    "synthetic_event",
+                    "synthetic_condition"
                   ]
                 },
                 "sourceEventId": {
+                  "anyOf": [
+                    {
+                      "type": "string",
+                      "format": "uuid",
+                      "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$"
+                    },
+                    {
+                      "type": "null"
+                    }
+                  ]
+                },
+                "sourceMetricSampleId": {
                   "anyOf": [
                     {
                       "type": "string",
@@ -12528,6 +12701,7 @@
                                   "work_item_attachment",
                                   "work_item_acceptance_revision",
                                   "work_item_verification",
+                                  "metric_sample",
                                   "knowledge_item",
                                   "decision",
                                   "resource",
@@ -13737,6 +13911,7 @@
               "work_item_attachment",
               "work_item_acceptance_revision",
               "work_item_verification",
+              "metric_sample",
               "knowledge_item",
               "decision",
               "resource",
@@ -13833,6 +14008,7 @@
                     "work_item_attachment",
                     "work_item_acceptance_revision",
                     "work_item_verification",
+                    "metric_sample",
                     "knowledge_item",
                     "decision",
                     "resource",
@@ -13954,6 +14130,7 @@
                           "work_item_attachment",
                           "work_item_acceptance_revision",
                           "work_item_verification",
+                          "metric_sample",
                           "knowledge_item",
                           "decision",
                           "resource",
@@ -14110,6 +14287,7 @@
                     "work_item_attachment",
                     "work_item_acceptance_revision",
                     "work_item_verification",
+                    "metric_sample",
                     "knowledge_item",
                     "decision",
                     "resource",
@@ -14268,6 +14446,7 @@
                         "work_item_attachment",
                         "work_item_acceptance_revision",
                         "work_item_verification",
+                        "metric_sample",
                         "knowledge_item",
                         "decision",
                         "resource",
@@ -14380,6 +14559,7 @@
                                   "work_item_attachment",
                                   "work_item_acceptance_revision",
                                   "work_item_verification",
+                                  "metric_sample",
                                   "knowledge_item",
                                   "decision",
                                   "resource",
@@ -14534,6 +14714,7 @@
                                   "work_item_attachment",
                                   "work_item_acceptance_revision",
                                   "work_item_verification",
+                                  "metric_sample",
                                   "knowledge_item",
                                   "decision",
                                   "resource",
@@ -14688,6 +14869,7 @@
                                   "work_item_attachment",
                                   "work_item_acceptance_revision",
                                   "work_item_verification",
+                                  "metric_sample",
                                   "knowledge_item",
                                   "decision",
                                   "resource",
@@ -14842,6 +15024,7 @@
                                   "work_item_attachment",
                                   "work_item_acceptance_revision",
                                   "work_item_verification",
+                                  "metric_sample",
                                   "knowledge_item",
                                   "decision",
                                   "resource",
@@ -14996,6 +15179,7 @@
                                   "work_item_attachment",
                                   "work_item_acceptance_revision",
                                   "work_item_verification",
+                                  "metric_sample",
                                   "knowledge_item",
                                   "decision",
                                   "resource",
@@ -15150,6 +15334,7 @@
                                   "work_item_attachment",
                                   "work_item_acceptance_revision",
                                   "work_item_verification",
+                                  "metric_sample",
                                   "knowledge_item",
                                   "decision",
                                   "resource",
@@ -15372,6 +15557,7 @@
                               "work_item_attachment",
                               "work_item_acceptance_revision",
                               "work_item_verification",
+                              "metric_sample",
                               "knowledge_item",
                               "decision",
                               "resource",
@@ -15526,6 +15712,7 @@
                         "work_item_attachment",
                         "work_item_acceptance_revision",
                         "work_item_verification",
+                        "metric_sample",
                         "knowledge_item",
                         "decision",
                         "resource",
@@ -15635,6 +15822,7 @@
                       "work_item_attachment",
                       "work_item_acceptance_revision",
                       "work_item_verification",
+                      "metric_sample",
                       "knowledge_item",
                       "decision",
                       "resource",
@@ -15727,6 +15915,7 @@
                         "work_item_attachment",
                         "work_item_acceptance_revision",
                         "work_item_verification",
+                        "metric_sample",
                         "knowledge_item",
                         "decision",
                         "resource",
@@ -15825,6 +16014,7 @@
                         "work_item_attachment",
                         "work_item_acceptance_revision",
                         "work_item_verification",
+                        "metric_sample",
                         "knowledge_item",
                         "decision",
                         "resource",
@@ -15916,6 +16106,7 @@
                           "work_item_attachment",
                           "work_item_acceptance_revision",
                           "work_item_verification",
+                          "metric_sample",
                           "knowledge_item",
                           "decision",
                           "resource",
@@ -16004,6 +16195,7 @@
                                     "work_item_attachment",
                                     "work_item_acceptance_revision",
                                     "work_item_verification",
+                                    "metric_sample",
                                     "knowledge_item",
                                     "decision",
                                     "resource",
@@ -16270,6 +16462,7 @@
                             "work_item_attachment",
                             "work_item_acceptance_revision",
                             "work_item_verification",
+                            "metric_sample",
                             "knowledge_item",
                             "decision",
                             "resource",
@@ -16379,6 +16572,7 @@
                           "work_item_attachment",
                           "work_item_acceptance_revision",
                           "work_item_verification",
+                          "metric_sample",
                           "knowledge_item",
                           "decision",
                           "resource",
@@ -16471,6 +16665,7 @@
                             "work_item_attachment",
                             "work_item_acceptance_revision",
                             "work_item_verification",
+                            "metric_sample",
                             "knowledge_item",
                             "decision",
                             "resource",
@@ -16569,6 +16764,7 @@
                             "work_item_attachment",
                             "work_item_acceptance_revision",
                             "work_item_verification",
+                            "metric_sample",
                             "knowledge_item",
                             "decision",
                             "resource",
@@ -16660,6 +16856,7 @@
                               "work_item_attachment",
                               "work_item_acceptance_revision",
                               "work_item_verification",
+                              "metric_sample",
                               "knowledge_item",
                               "decision",
                               "resource",
@@ -16748,6 +16945,7 @@
                                         "work_item_attachment",
                                         "work_item_acceptance_revision",
                                         "work_item_verification",
+                                        "metric_sample",
                                         "knowledge_item",
                                         "decision",
                                         "resource",
@@ -17033,6 +17231,7 @@
                                   "work_item_attachment",
                                   "work_item_acceptance_revision",
                                   "work_item_verification",
+                                  "metric_sample",
                                   "knowledge_item",
                                   "decision",
                                   "resource",
@@ -17142,6 +17341,7 @@
                                 "work_item_attachment",
                                 "work_item_acceptance_revision",
                                 "work_item_verification",
+                                "metric_sample",
                                 "knowledge_item",
                                 "decision",
                                 "resource",
@@ -17234,6 +17434,7 @@
                                   "work_item_attachment",
                                   "work_item_acceptance_revision",
                                   "work_item_verification",
+                                  "metric_sample",
                                   "knowledge_item",
                                   "decision",
                                   "resource",
@@ -17332,6 +17533,7 @@
                                   "work_item_attachment",
                                   "work_item_acceptance_revision",
                                   "work_item_verification",
+                                  "metric_sample",
                                   "knowledge_item",
                                   "decision",
                                   "resource",
@@ -17423,6 +17625,7 @@
                                     "work_item_attachment",
                                     "work_item_acceptance_revision",
                                     "work_item_verification",
+                                    "metric_sample",
                                     "knowledge_item",
                                     "decision",
                                     "resource",
@@ -17511,6 +17714,7 @@
                                               "work_item_attachment",
                                               "work_item_acceptance_revision",
                                               "work_item_verification",
+                                              "metric_sample",
                                               "knowledge_item",
                                               "decision",
                                               "resource",
@@ -18149,6 +18353,7 @@
                     "work_item_attachment",
                     "work_item_acceptance_revision",
                     "work_item_verification",
+                    "metric_sample",
                     "knowledge_item",
                     "decision",
                     "resource",
@@ -18413,6 +18618,7 @@
                             "work_item_attachment",
                             "work_item_acceptance_revision",
                             "work_item_verification",
+                            "metric_sample",
                             "knowledge_item",
                             "decision",
                             "resource",
@@ -19581,6 +19787,7 @@
                         "work_item_attachment",
                         "work_item_acceptance_revision",
                         "work_item_verification",
+                        "metric_sample",
                         "knowledge_item",
                         "decision",
                         "resource",
@@ -19732,6 +19939,7 @@
                                     "work_item_attachment",
                                     "work_item_acceptance_revision",
                                     "work_item_verification",
+                                    "metric_sample",
                                     "knowledge_item",
                                     "decision",
                                     "resource",
@@ -19844,6 +20052,7 @@
                                               "work_item_attachment",
                                               "work_item_acceptance_revision",
                                               "work_item_verification",
+                                              "metric_sample",
                                               "knowledge_item",
                                               "decision",
                                               "resource",
@@ -19998,6 +20207,7 @@
                                               "work_item_attachment",
                                               "work_item_acceptance_revision",
                                               "work_item_verification",
+                                              "metric_sample",
                                               "knowledge_item",
                                               "decision",
                                               "resource",
@@ -20152,6 +20362,7 @@
                                               "work_item_attachment",
                                               "work_item_acceptance_revision",
                                               "work_item_verification",
+                                              "metric_sample",
                                               "knowledge_item",
                                               "decision",
                                               "resource",
@@ -20306,6 +20517,7 @@
                                               "work_item_attachment",
                                               "work_item_acceptance_revision",
                                               "work_item_verification",
+                                              "metric_sample",
                                               "knowledge_item",
                                               "decision",
                                               "resource",
@@ -20460,6 +20672,7 @@
                                               "work_item_attachment",
                                               "work_item_acceptance_revision",
                                               "work_item_verification",
+                                              "metric_sample",
                                               "knowledge_item",
                                               "decision",
                                               "resource",
@@ -20614,6 +20827,7 @@
                                               "work_item_attachment",
                                               "work_item_acceptance_revision",
                                               "work_item_verification",
+                                              "metric_sample",
                                               "knowledge_item",
                                               "decision",
                                               "resource",
@@ -20836,6 +21050,7 @@
                                           "work_item_attachment",
                                           "work_item_acceptance_revision",
                                           "work_item_verification",
+                                          "metric_sample",
                                           "knowledge_item",
                                           "decision",
                                           "resource",
@@ -21182,6 +21397,7 @@
                     "work_item_attachment",
                     "work_item_acceptance_revision",
                     "work_item_verification",
+                    "metric_sample",
                     "knowledge_item",
                     "decision",
                     "resource",
@@ -21333,6 +21549,7 @@
                                 "work_item_attachment",
                                 "work_item_acceptance_revision",
                                 "work_item_verification",
+                                "metric_sample",
                                 "knowledge_item",
                                 "decision",
                                 "resource",
@@ -21445,6 +21662,7 @@
                                           "work_item_attachment",
                                           "work_item_acceptance_revision",
                                           "work_item_verification",
+                                          "metric_sample",
                                           "knowledge_item",
                                           "decision",
                                           "resource",
@@ -21599,6 +21817,7 @@
                                           "work_item_attachment",
                                           "work_item_acceptance_revision",
                                           "work_item_verification",
+                                          "metric_sample",
                                           "knowledge_item",
                                           "decision",
                                           "resource",
@@ -21753,6 +21972,7 @@
                                           "work_item_attachment",
                                           "work_item_acceptance_revision",
                                           "work_item_verification",
+                                          "metric_sample",
                                           "knowledge_item",
                                           "decision",
                                           "resource",
@@ -21907,6 +22127,7 @@
                                           "work_item_attachment",
                                           "work_item_acceptance_revision",
                                           "work_item_verification",
+                                          "metric_sample",
                                           "knowledge_item",
                                           "decision",
                                           "resource",
@@ -22061,6 +22282,7 @@
                                           "work_item_attachment",
                                           "work_item_acceptance_revision",
                                           "work_item_verification",
+                                          "metric_sample",
                                           "knowledge_item",
                                           "decision",
                                           "resource",
@@ -22215,6 +22437,7 @@
                                           "work_item_attachment",
                                           "work_item_acceptance_revision",
                                           "work_item_verification",
+                                          "metric_sample",
                                           "knowledge_item",
                                           "decision",
                                           "resource",
@@ -22437,6 +22660,7 @@
                                       "work_item_attachment",
                                       "work_item_acceptance_revision",
                                       "work_item_verification",
+                                      "metric_sample",
                                       "knowledge_item",
                                       "decision",
                                       "resource",
@@ -22639,6 +22863,7 @@
                         "work_item_attachment",
                         "work_item_acceptance_revision",
                         "work_item_verification",
+                        "metric_sample",
                         "knowledge_item",
                         "decision",
                         "resource",
@@ -22790,6 +23015,7 @@
                                     "work_item_attachment",
                                     "work_item_acceptance_revision",
                                     "work_item_verification",
+                                    "metric_sample",
                                     "knowledge_item",
                                     "decision",
                                     "resource",
@@ -22902,6 +23128,7 @@
                                               "work_item_attachment",
                                               "work_item_acceptance_revision",
                                               "work_item_verification",
+                                              "metric_sample",
                                               "knowledge_item",
                                               "decision",
                                               "resource",
@@ -23056,6 +23283,7 @@
                                               "work_item_attachment",
                                               "work_item_acceptance_revision",
                                               "work_item_verification",
+                                              "metric_sample",
                                               "knowledge_item",
                                               "decision",
                                               "resource",
@@ -23210,6 +23438,7 @@
                                               "work_item_attachment",
                                               "work_item_acceptance_revision",
                                               "work_item_verification",
+                                              "metric_sample",
                                               "knowledge_item",
                                               "decision",
                                               "resource",
@@ -23364,6 +23593,7 @@
                                               "work_item_attachment",
                                               "work_item_acceptance_revision",
                                               "work_item_verification",
+                                              "metric_sample",
                                               "knowledge_item",
                                               "decision",
                                               "resource",
@@ -23518,6 +23748,7 @@
                                               "work_item_attachment",
                                               "work_item_acceptance_revision",
                                               "work_item_verification",
+                                              "metric_sample",
                                               "knowledge_item",
                                               "decision",
                                               "resource",
@@ -23672,6 +23903,7 @@
                                               "work_item_attachment",
                                               "work_item_acceptance_revision",
                                               "work_item_verification",
+                                              "metric_sample",
                                               "knowledge_item",
                                               "decision",
                                               "resource",
@@ -23894,6 +24126,7 @@
                                           "work_item_attachment",
                                           "work_item_acceptance_revision",
                                           "work_item_verification",
+                                          "metric_sample",
                                           "knowledge_item",
                                           "decision",
                                           "resource",

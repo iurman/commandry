@@ -599,6 +599,14 @@ export const createAutomationDefinitionRequestSchema = z.strictObject({
   eventType: z
     .enum(["git.pull_request.merged", "monitor.down", "monitor.recovered"])
     .optional(),
+  condition: z
+    .strictObject({
+      resourceId: z.uuid(),
+      metricName: z.literal("external_availability"),
+      operator: z.literal("lte"),
+      thresholdPercent: z.number().int().min(0).max(99),
+    })
+    .optional(),
 });
 export const setAutomationEnabledRequestSchema = z.strictObject({
   enabled: z.boolean(),
@@ -617,10 +625,20 @@ export const automationDefinitionSchema = z.object({
     "on_creation_once",
     "recurring_interval",
     "synthetic_event",
+    "synthetic_condition",
   ]),
   eventType: z
     .enum(["git.pull_request.merged", "monitor.down", "monitor.recovered"])
     .nullable(),
+  condition: z
+    .object({
+      resourceId: z.uuid(),
+      metricName: z.literal("external_availability"),
+      operator: z.literal("lte"),
+      thresholdPercent: z.number().int().min(0).max(99),
+    })
+    .nullable()
+    .optional(),
   enabled: z.boolean(),
   sourceOfTruth: z.literal("local-only"),
   recurrenceStartAt: z.iso.datetime({ offset: true }).nullable(),
@@ -910,6 +928,7 @@ export const evidenceReferenceSchema = z.object({
     "work_item_attachment",
     "work_item_acceptance_revision",
     "work_item_verification",
+    "metric_sample",
     "knowledge_item",
     "decision",
     "resource",
@@ -946,8 +965,10 @@ export const automationRunSchema = z.object({
     "scheduled",
     "recurring",
     "synthetic_event",
+    "synthetic_condition",
   ]),
   sourceEventId: z.uuid().nullable(),
+  sourceMetricSampleId: z.uuid().nullable().optional(),
   scheduledFor: z.iso.datetime({ offset: true }).nullable(),
   state: z.enum(["queued", "running", "succeeded", "failed", "skipped"]),
   attempts: z.number().int().min(0),

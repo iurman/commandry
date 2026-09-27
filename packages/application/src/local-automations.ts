@@ -11,6 +11,7 @@ import {
   type NormalizedSyntheticEvent,
   type ProjectBrief,
   type SetAutomationEnabledRequest,
+  type SyntheticMetricSample,
   type TriggerAutomationRunRequest,
 } from "@commandry/contracts";
 import { LocalAutomationError } from "@commandry/domain";
@@ -65,6 +66,8 @@ export function createLocalAutomationService(port: LocalAutomationPort) {
 export function buildLocalProjectSummaryResult(
   brief: ProjectBrief,
   sourceEvent: NormalizedSyntheticEvent | null = null,
+  sourceMetric: SyntheticMetricSample | null = null,
+  thresholdPercent: number | null = null,
 ): AutomationRunResult {
   const work = brief.sections.work;
   const decisions = brief.sections.decisions;
@@ -83,6 +86,19 @@ export function buildLocalProjectSummaryResult(
           },
         ]
       : []),
+    ...(sourceMetric
+      ? [
+          {
+            kind: "metric_sample" as const,
+            id: sourceMetric.id,
+            href: `/api/v1/metrics/${sourceMetric.id}`,
+            recordedAt: sourceMetric.recordedAt,
+            occurredAt: sourceMetric.sampledAt,
+            sourceLabel: sourceMetric.sourceLabel,
+            isSynthetic: true,
+          },
+        ]
+      : []),
     ...brief.state.evidence,
     ...work.items.flatMap((item) => item.evidence),
     ...decisions.items.flatMap((item) => item.evidence),
@@ -92,7 +108,7 @@ export function buildLocalProjectSummaryResult(
     new Map(evidence.map((item) => [`${item.kind}:${item.id}`, item])).values(),
   );
   return automationRunResultSchema.parse({
-    summary: `${sourceEvent ? `Synthetic ${sourceEvent.type} event prompted this summary. ` : ""}Local brief preview: ${work.items.length} open work item(s), ${decisions.items.length} decision(s), and ${attention.items.length} synthetic attention item(s). Review the source pages for the complete records. No work was executed or verified.`,
+    summary: `${sourceMetric ? `Synthetic ${sourceMetric.name} ${sourceMetric.value}% entered the at-or-below ${thresholdPercent}% condition for ${sourceMetric.resourceName}. ` : sourceEvent ? `Synthetic ${sourceEvent.type} event prompted this summary. ` : ""}Local brief preview: ${work.items.length} open work item(s), ${decisions.items.length} decision(s), and ${attention.items.length} synthetic attention item(s). Review the source pages for the complete records. No work was executed or verified.`,
     asOf: brief.asOf,
     evidence: distinctEvidence,
     sourceLabel: "Synthetic local automation",
@@ -104,6 +120,7 @@ export function buildLocalProjectSummaryResult(
 
 export interface LocalAutomationProcessingPort {
   getRun(id: string): Promise<AutomationRun | null>;
+  getDefinition?(id: string): Promise<AutomationDefinition | null>;
   beginAttempt(id: string): Promise<string | null>;
   recordRead(runId: string, asOf: string): Promise<void>;
   complete(
@@ -119,6 +136,7 @@ export function createLocalAutomationProcessor(
   briefs: { getBrief(projectId: string): Promise<ProjectBrief | null> },
   events?: {
     getEventById(id: string): Promise<NormalizedSyntheticEvent | null>;
+    getMetricSampleById?(id: string): Promise<SyntheticMetricSample | null>;
   },
 ) {
   return async (job: AutomationJobV1): Promise<AutomationRun> => {
@@ -155,6 +173,30 @@ export function createLocalAutomationProcessor(
           "AUTOMATION_RUN_NOT_FOUND",
           "Synthetic source event is unavailable for this run",
         );
+      const sourceMetric = run.sourceMetricSampleId
+        ? ((await events?.getMetricSampleById?.(run.sourceMetricSampleId)) ??
+          null)
+        : null;
+      const definition = run.sourceMetricSampleId
+        ? ((await port.getDefinition?.(run.definitionId)) ?? null)
+        : null;
+      if (
+        run.sourceMetricSampleId &&
+        (!sourceMetric ||
+          !definition?.condition ||
+          definition.triggerType !== "synthetic_condition" ||
+          sourceMetric.id !== run.sourceMetricSampleId ||
+          sourceMetric.eventId !== run.sourceEventId ||
+          sourceMetric.projectId !== run.projectId ||
+          sourceMetric.resourceId !== definition.condition.resourceId ||
+          sourceMetric.name !== "external_availability" ||
+          sourceMetric.value > definition.condition.thresholdPercent ||
+          !sourceMetric.isSynthetic)
+      )
+        throw new LocalAutomationError(
+          "AUTOMATION_RUN_NOT_FOUND",
+          "Synthetic metric condition source is unavailable for this run",
+        );
       const brief = await briefs.getBrief(run.projectId);
       if (!brief || brief.project.id !== run.projectId)
         throw new LocalAutomationError(
@@ -165,7 +207,12 @@ export function createLocalAutomationProcessor(
       return await port.complete(
         run.id,
         attemptId,
-        buildLocalProjectSummaryResult(brief, sourceEvent),
+        buildLocalProjectSummaryResult(
+          brief,
+          sourceEvent,
+          sourceMetric,
+          definition?.condition?.thresholdPercent ?? null,
+        ),
       );
     } catch (error) {
       await port.failAttempt(run.id, attemptId);

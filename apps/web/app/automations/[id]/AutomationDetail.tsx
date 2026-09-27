@@ -79,7 +79,8 @@ export default function AutomationDetail({
       !(
         definition?.enabled &&
         (definition.triggerType === "recurring_interval" ||
-          definition.triggerType === "synthetic_event")
+          definition.triggerType === "synthetic_event" ||
+          definition.triggerType === "synthetic_condition")
       )
     )
       return;
@@ -98,7 +99,9 @@ export default function AutomationDetail({
         (run.state === "queued" && !run.scheduledFor),
     );
     const delay =
-      definition?.triggerType === "synthetic_event" && !hasReadyRun
+      (definition?.triggerType === "synthetic_event" ||
+        definition?.triggerType === "synthetic_condition") &&
+      !hasReadyRun
         ? 5000
         : hasReadyRun || !Number.isFinite(nextDue)
           ? 1500
@@ -145,7 +148,7 @@ export default function AutomationDetail({
       setDefinition(updated);
       setFeedback(
         updated.enabled
-          ? "Enabled. Future matching synthetic events can create runs; the on-creation trigger does not replay. A recurring schedule resumes at its next future interval."
+          ? "Enabled. Future matching synthetic events or availability crossings can create runs; the on-creation trigger does not replay. A recurring schedule resumes at its next future interval."
           : "Disabled. Pending work will be skipped if it has not started.",
       );
     } catch (cause) {
@@ -303,10 +306,10 @@ export default function AutomationDetail({
               <h1>{definition.name}</h1>
               <p className="cmd-lead">
                 A bounded project brief read. An enabled definition runs once at
-                creation, a recurring UTC interval, or a matching synthetic
-                fixture event; you can also run now or schedule one local run
-                for later. Every result is synthetic and unverified, with no
-                external action.
+                creation, a recurring UTC interval, a matching synthetic fixture
+                event, or a resource-specific synthetic availability crossing.
+                You can also run now or schedule one local run for later. Every
+                result is synthetic and unverified, with no external action.
               </p>
               <p className="cmd-record-identity">
                 Definition ID <code>{definition.id}</code>
@@ -342,7 +345,9 @@ export default function AutomationDetail({
                       ? "Recurring local interval"
                       : definition.triggerType === "synthetic_event"
                         ? "Synthetic fixture event"
-                        : "On creation once"}
+                        : definition.triggerType === "synthetic_condition"
+                          ? "Synthetic availability threshold"
+                          : "On creation once"}
                   </dd>
                 </div>
                 {definition.eventType && (
@@ -350,6 +355,27 @@ export default function AutomationDetail({
                     <dt>Event type</dt>
                     <dd>{definition.eventType} (synthetic only)</dd>
                   </div>
+                )}
+                {definition.condition && (
+                  <>
+                    <div>
+                      <dt>Watched resource</dt>
+                      <dd>
+                        <a
+                          href={`/resources/${definition.condition.resourceId}`}
+                        >
+                          {definition.condition.resourceId}
+                        </a>
+                      </dd>
+                    </div>
+                    <div>
+                      <dt>Condition</dt>
+                      <dd>
+                        Synthetic external availability at or below{" "}
+                        {definition.condition.thresholdPercent}%
+                      </dd>
+                    </div>
+                  </>
                 )}
                 {definition.recurrenceStartAt &&
                   definition.recurrenceEveryMinutes && (
@@ -378,8 +404,13 @@ export default function AutomationDetail({
                         {definition.nextRunAt} UTC
                       </time>
                     ) : definition.enabled &&
-                      definition.triggerType === "synthetic_event" ? (
-                      "On next matching synthetic event"
+                      (definition.triggerType === "synthetic_event" ||
+                        definition.triggerType === "synthetic_condition") ? (
+                      definition.triggerType === "synthetic_condition" ? (
+                        "On next synthetic below-threshold crossing"
+                      ) : (
+                        "On next matching synthetic event"
+                      )
                     ) : definition.enabled ? (
                       "None queued"
                     ) : (
@@ -424,6 +455,18 @@ export default function AutomationDetail({
                   is evaluated once. Disabled or overlapping work is recorded as
                   skipped. Each run links to its exact normalized source event
                   and preserves the original source envelope.
+                </p>
+              )}
+              {definition.triggerType === "synthetic_condition" && (
+                <p>
+                  Condition policy: only immutable, labeled synthetic external
+                  availability samples for the linked resource are considered.
+                  The first sample at or below the threshold creates a run;
+                  another run needs a recovery above the threshold first.
+                  Disabled or overlapping crossings are recorded as skipped.
+                  Each run links to its exact metric sample, normalized event,
+                  and original source envelope. No live monitoring connector is
+                  attached.
                 </p>
               )}
               <div className="cmd-decision-actions">
@@ -523,7 +566,7 @@ export default function AutomationDetail({
             {runs.length === 0 && (
               <RecordEmptyState
                 title="No runs yet"
-                description="Import a matching synthetic event, run this routine now, or schedule one local run."
+                description="Import a matching synthetic event or availability crossing, run this routine now, or schedule one local run."
               />
             )}
             <ul
@@ -540,9 +583,11 @@ export default function AutomationDetail({
                           ? "Recurring local run"
                           : run.trigger === "synthetic_event"
                             ? "Synthetic event run"
-                            : run.trigger === "scheduled"
-                              ? "Scheduled local run"
-                              : "Manual local run"}
+                            : run.trigger === "synthetic_condition"
+                              ? "Synthetic condition run"
+                              : run.trigger === "scheduled"
+                                ? "Scheduled local run"
+                                : "Manual local run"}
                     </strong>
                     <span className="cmd-count">{run.state}</span>
                   </div>
@@ -565,6 +610,15 @@ export default function AutomationDetail({
                         synthetic source event
                       </a>{" "}
                       <code>{run.sourceEventId}</code>
+                    </p>
+                  )}
+                  {run.sourceMetricSampleId && (
+                    <p>
+                      Threshold evidence{" "}
+                      <a href={`/api/v1/metrics/${run.sourceMetricSampleId}`}>
+                        synthetic metric sample
+                      </a>{" "}
+                      <code>{run.sourceMetricSampleId}</code>
                     </p>
                   )}
                   {run.error && (

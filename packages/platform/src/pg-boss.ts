@@ -1,5 +1,5 @@
 import { createHash } from "node:crypto";
-import { and, asc, eq, inArray, isNotNull, lte, sql } from "drizzle-orm";
+import { and, asc, desc, eq, inArray, isNotNull, lte, sql } from "drizzle-orm";
 import { PgBoss, fromDrizzle } from "pg-boss";
 import { Pool } from "pg";
 import type {
@@ -34,6 +34,7 @@ import {
   firstRecurrenceAfter,
   localAutomationTrigger,
   syntheticEventAutomationDecision,
+  syntheticConditionAutomationDecision,
   LocalAgentError,
   OvernightQueueError,
   LocalIntegrationError,
@@ -195,6 +196,27 @@ export function createLocalAutomationSubmission(
         const now = new Date();
         const recurrence = recurringAutomationStart(input.recurrence, now);
         const triggerType = localAutomationTrigger(input);
+        if (input.condition) {
+          const [link] = await tx
+            .select({ id: schema.projectResourceLink.id })
+            .from(schema.projectResourceLink)
+            .where(
+              and(
+                eq(schema.projectResourceLink.projectId, input.projectId),
+                eq(
+                  schema.projectResourceLink.resourceId,
+                  input.condition.resourceId,
+                ),
+                eq(schema.projectResourceLink.lifecycle, "active"),
+              ),
+            )
+            .limit(1);
+          if (!link)
+            throw new LocalAutomationError(
+              "AUTOMATION_INVALID_CONDITION",
+              "Condition resource needs an active link to this project",
+            );
+        }
         const id = crypto.randomUUID();
         const [row] = await tx
           .insert(schema.automationDefinition)
@@ -204,6 +226,9 @@ export function createLocalAutomationSubmission(
             name: input.name,
             triggerType,
             eventType: input.eventType ?? null,
+            conditionResourceId: input.condition?.resourceId ?? null,
+            conditionThresholdPercent:
+              input.condition?.thresholdPercent ?? null,
             recurrenceStartAt: recurrence?.startAt ?? null,
             recurrenceEveryMinutes: recurrence?.everyMinutes ?? null,
             nextOccurrenceAt: recurrence?.startAt ?? null,
@@ -222,6 +247,11 @@ export function createLocalAutomationSubmission(
             enabled: input.enabled,
             triggerType,
             eventType: input.eventType ?? null,
+            conditionResourceId: input.condition?.resourceId ?? null,
+            conditionMetricName: input.condition?.metricName ?? null,
+            conditionOperator: input.condition?.operator ?? null,
+            conditionThresholdPercent:
+              input.condition?.thresholdPercent ?? null,
             recurrenceStartAt: recurrence?.startAt.toISOString() ?? null,
             recurrenceEveryMinutes: recurrence?.everyMinutes ?? null,
           },
@@ -547,6 +577,202 @@ export function createSyntheticEventAutomationReconciler(
               eventType: event.type,
               jobId,
             },
+            createdAt: now,
+          });
+          return true;
+        });
+        if (created) materialized += 1;
+      }
+      return materialized;
+    },
+  };
+}
+
+/** Reconcile an immutable synthetic availability sample once when it enters a configured low state. */
+export function createSyntheticConditionAutomationReconciler(
+  db: CommandryDatabase,
+  boss: PgBoss,
+) {
+  return {
+    async reconcileEvent(eventId: string): Promise<number> {
+      const [sample] = await db
+        .select()
+        .from(schema.metricSample)
+        .where(eq(schema.metricSample.eventId, eventId))
+        .limit(1);
+      if (
+        !sample ||
+        !sample.isSynthetic ||
+        sample.sourceKind !== "synthetic-operations" ||
+        sample.name !== "external_availability" ||
+        sample.unit !== "percent"
+      )
+        return 0;
+      const candidates = await db
+        .select({ id: schema.automationDefinition.id })
+        .from(schema.automationDefinition)
+        .where(
+          and(
+            eq(schema.automationDefinition.projectId, sample.projectId),
+            eq(
+              schema.automationDefinition.conditionResourceId,
+              sample.resourceId,
+            ),
+            eq(schema.automationDefinition.triggerType, "synthetic_condition"),
+            lte(schema.automationDefinition.createdAt, sample.recordedAt),
+          ),
+        );
+      let materialized = 0;
+      for (const candidate of candidates) {
+        const created = await db.transaction(async (tx) => {
+          const [definition] = await tx
+            .select()
+            .from(schema.automationDefinition)
+            .where(eq(schema.automationDefinition.id, candidate.id))
+            .for("update")
+            .limit(1);
+          if (!definition) return false;
+          const [activeLink] = await tx
+            .select({ id: schema.projectResourceLink.id })
+            .from(schema.projectResourceLink)
+            .where(
+              and(
+                eq(schema.projectResourceLink.projectId, sample.projectId),
+                eq(schema.projectResourceLink.resourceId, sample.resourceId),
+                eq(schema.projectResourceLink.lifecycle, "active"),
+              ),
+            )
+            .limit(1);
+          if (!activeLink) return false;
+          const [latest] = await tx
+            .select({ id: schema.metricSample.id })
+            .from(schema.metricSample)
+            .where(
+              and(
+                eq(schema.metricSample.projectId, sample.projectId),
+                eq(schema.metricSample.resourceId, sample.resourceId),
+                eq(schema.metricSample.name, "external_availability"),
+                eq(schema.metricSample.sourceKind, "synthetic-operations"),
+              ),
+            )
+            .orderBy(
+              desc(schema.metricSample.sampledAt),
+              desc(schema.metricSample.id),
+            )
+            .limit(1);
+          const [previous] = await tx
+            .select({ value: schema.metricSample.value })
+            .from(schema.metricSample)
+            .where(
+              and(
+                eq(schema.metricSample.projectId, sample.projectId),
+                eq(schema.metricSample.resourceId, sample.resourceId),
+                eq(schema.metricSample.name, "external_availability"),
+                eq(schema.metricSample.sourceKind, "synthetic-operations"),
+                sql`(${schema.metricSample.sampledAt}, ${schema.metricSample.id}) < (${sample.sampledAt}, ${sample.id}::uuid)`,
+              ),
+            )
+            .orderBy(
+              desc(schema.metricSample.sampledAt),
+              desc(schema.metricSample.id),
+            )
+            .limit(1);
+          const [existing] = await tx
+            .select({ id: schema.automationRun.id })
+            .from(schema.automationRun)
+            .where(
+              and(
+                eq(schema.automationRun.definitionId, definition.id),
+                eq(schema.automationRun.sourceEventId, sample.eventId),
+              ),
+            )
+            .limit(1);
+          if (existing) return false;
+          const [active] = definition.enabled
+            ? await tx
+                .select({ id: schema.automationRun.id })
+                .from(schema.automationRun)
+                .where(
+                  and(
+                    eq(schema.automationRun.definitionId, definition.id),
+                    inArray(schema.automationRun.state, ["queued", "running"]),
+                  ),
+                )
+                .limit(1)
+            : [];
+          const decision = syntheticConditionAutomationDecision(
+            definition,
+            sample,
+            previous?.value ?? null,
+            latest?.id === sample.id,
+            Boolean(active),
+          );
+          if (decision === "ineligible") return false;
+          const reason =
+            decision === "skip_disabled"
+              ? "disabled_at_condition"
+              : decision === "skip_overlap"
+                ? "previous_run_active"
+                : null;
+          const now = new Date();
+          const runId = crypto.randomUUID();
+          await tx.insert(schema.automationRun).values({
+            id: runId,
+            definitionId: definition.id,
+            projectId: definition.projectId,
+            occurrenceId: eventOccurrenceId(definition.id, sample.eventId),
+            trigger: "synthetic_condition",
+            sourceEventId: sample.eventId,
+            sourceMetricSampleId: sample.id,
+            state: reason ? "skipped" : "queued",
+            error: reason
+              ? reason === "disabled_at_condition"
+                ? "Disabled when synthetic condition was observed"
+                : "Previous local run is still active"
+              : null,
+            completedAt: reason ? now : null,
+            createdAt: now,
+          });
+          const details = {
+            trigger: "synthetic_condition",
+            metricSampleId: sample.id,
+            sourceEventId: sample.eventId,
+            resourceId: sample.resourceId,
+            metricName: "external_availability",
+            value: sample.value,
+            thresholdPercent: definition.conditionThresholdPercent,
+            previousValue: previous?.value ?? null,
+            sampledAt: sample.sampledAt.toISOString(),
+            sourceLabel: sample.sourceLabel,
+          };
+          if (reason) {
+            await tx.insert(schema.automationAuditEvent).values({
+              id: crypto.randomUUID(),
+              definitionId: definition.id,
+              runId,
+              actor: "system:synthetic-condition-automation",
+              operation: "automation.run_skipped",
+              details: { ...details, reason },
+              createdAt: now,
+            });
+            return true;
+          }
+          const jobId = await boss.send(
+            LOCAL_AUTOMATION_QUEUE,
+            { version: 1, runId, definitionId: definition.id },
+            { db: fromDrizzle(tx, sql) },
+          );
+          if (!jobId)
+            throw new Error(
+              "Synthetic condition automation job was not enqueued",
+            );
+          await tx.insert(schema.automationAuditEvent).values({
+            id: crypto.randomUUID(),
+            definitionId: definition.id,
+            runId,
+            actor: "system:synthetic-condition-automation",
+            operation: "automation.run_queued",
+            details: { ...details, jobId },
             createdAt: now,
           });
           return true;

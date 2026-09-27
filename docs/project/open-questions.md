@@ -104,3 +104,10 @@ Choose a narrow question and real data source for the first viewport—likely on
 run's messages and handoffs or one correlation chain—before building a universal
 live graph. Define aggregation, replay, freshness, privacy, and list/timeline
 fallback behavior.
+
+### OQ-020: Which conditional automation rules belong in the first release?
+
+The local fixture rule uses a per-definition availability threshold, fires on
+entry into the below-threshold state, and resets after recovery. Decide which
+live metrics, units, source freshness checks, hysteresis, missing-data behavior,
+and suppression controls are needed after the first connectors are selected.
