@@ -33,7 +33,7 @@ may evolve, but an agent should not need to reverse-engineer routine work.
 | `pnpm backup:local` | Encrypt a bounded current local PostgreSQL archive, verify a disposable restore, and retain local evidence; never address production |
 | `pnpm backup:local:verify <backup-id>` | Recheck one retained encrypted local archive and disposable restore without exposing contents |
 | `pnpm release:rehearse` | Build two committed images, clone local data into an isolated PostgreSQL container, verify web and worker across a code switch and rollback, and record local evidence |
-| `pnpm release:preflight` | Check the current local Compose stack, API, worker heartbeat, and passed local recovery evidence; persist a local-only result without invoking a deployment |
+| `pnpm release:preflight` | Check the current local Compose stack, API, worker heartbeat, passed local recovery evidence, and clean committed source matching the image and running version; persist a local-only result without invoking a deployment |
 | `pnpm backup:verify` | Check backup freshness and integrity without exposing backup credentials or contents |
 
 Commands must fail with actionable messages and non-zero exit codes. No script

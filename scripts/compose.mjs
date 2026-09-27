@@ -1,5 +1,10 @@
 import { existsSync } from "node:fs";
 import { detectContainerRuntime, runContainer } from "./container-runtime.mjs";
+import {
+  getLocalSourceState,
+  localComposeSourceVariables,
+  runtimeWithLocalSource,
+} from "./local-source-provenance.mjs";
 
 const action = process.argv[2];
 if (action !== "up" && action !== "down") {
@@ -22,6 +27,22 @@ if (!runtime) {
 
 const args = ["compose", "--env-file", ".env.local", "-f", "compose.yaml"];
 args.push(...(action === "up" ? ["up", "--build", "-d", "--wait"] : ["down"]));
-const result = runContainer(runtime, args, { stdio: "inherit" });
+let source = null;
+try {
+  if (action === "up") source = getLocalSourceState();
+} catch (error) {
+  console.error(
+    error instanceof Error ? error.message : "Git source is unavailable",
+  );
+  process.exit(1);
+}
+const overrides = source ? localComposeSourceVariables(source) : {};
+const hostRuntime = source
+  ? runtimeWithLocalSource(runtime, overrides)
+  : runtime;
+const result = runContainer(hostRuntime, args, {
+  stdio: "inherit",
+  env: { ...process.env, ...overrides },
+});
 if (result.error) console.error(`Compose failed: ${result.error.message}`);
 process.exit(result.status ?? 1);

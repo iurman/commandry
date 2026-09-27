@@ -1,5 +1,6 @@
 import { describe, expect, it } from "vitest";
 import {
+  assessLocalReleaseCandidate,
   assessLocalReleasePreflight,
   type LocalReleasePreflightChecks,
 } from "./local-release-preflight";
@@ -40,5 +41,22 @@ describe("local release preflight", () => {
         heartbeatFresh: false,
       }),
     ).toEqual({ outcome: "failed", errorCode: "POSTGRES_UNHEALTHY" });
+  });
+
+  it("requires clean source provenance for a release candidate", () => {
+    expect(assessLocalReleaseCandidate(passed, true)).toEqual({
+      outcome: "passed",
+      errorCode: null,
+    });
+    expect(assessLocalReleaseCandidate(passed, false)).toEqual({
+      outcome: "failed",
+      errorCode: "SOURCE_PROVENANCE_UNVERIFIED",
+    });
+    expect(
+      assessLocalReleaseCandidate({ ...passed, heartbeatFresh: false }, false),
+    ).toEqual({
+      outcome: "failed",
+      errorCode: "WORKER_HEARTBEAT_STALE",
+    });
   });
 });

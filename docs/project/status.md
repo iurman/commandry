@@ -200,9 +200,13 @@ and production prerequisites remain gates.
   web, worker, and migrator state, shared web/worker image identity, live and
   versioned API reads, a recent worker heartbeat, and the latest passed local
   backup, restore, and rollback records. PostgreSQL preserves each result and
-  its exact source links for the Recovery UI and versioned API. Its checkout
-  revision is descriptive; the local image is not proven to contain that
-  revision. Production gates remain unverified.
+  its exact source links for the Recovery UI and versioned API. The local
+  Compose build labels its Git revision and clean or dirty state; version 2
+  preflight evidence requires the image label and running version to match a
+  clean committed checkout. Earlier preflight records remain explicitly
+  unverified for source provenance. A local build label is not a registry
+  digest, signature, or production supply-chain attestation. Production gates
+  remain unverified.
 - Work items have project-scoped, typed parent/subtask and blocking links with
   cycle prevention, audit-preserving archive, cursor-paged inverse views, and
   a responsive editor. Open blockers appear with exact relationship evidence

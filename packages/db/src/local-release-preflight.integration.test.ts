@@ -50,8 +50,10 @@ test("local Compose preflight is evidence-linked, immutable, and cursor-paged", 
     const failedBackupId = crypto.randomUUID();
     const passedId = crypto.randomUUID();
     const failedId = crypto.randomUUID();
+    const provenId = crypto.randomUUID();
     const firstTime = new Date("2031-09-27T08:00:00.000Z");
     const laterTime = new Date("2031-09-27T09:00:00.000Z");
+    const provenTime = new Date("2031-09-27T07:00:00.000Z");
     const sourceDigest = "c".repeat(64);
     await client.query(
       `insert into local_backup_evidence
@@ -128,6 +130,29 @@ test("local Compose preflight is evidence-linked, immutable, and cursor-paged", 
       heartbeatFresh: false,
       at: laterTime,
     });
+    async function insertProvenPreflight(sourceVerified: boolean) {
+      await client.query(
+        `insert into local_release_preflight
+         (id, outcome, source_evidence_version, checkout_revision, image_id,
+          version_sha, image_source_revision, image_source_clean, checkout_clean,
+          source_verified, checks, backup_evidence_id, recovery_evidence_id,
+          release_evidence_id, started_at, completed_at)
+         values ($1, 'passed', 2, $2, $3, $2, $2, true, true,
+                 $4, $5, $6, $7, $8, $9, $9)`,
+        [
+          sourceVerified ? provenId : crypto.randomUUID(),
+          "e".repeat(40),
+          `sha256:${"f".repeat(64)}`,
+          sourceVerified,
+          JSON.stringify(checks),
+          backupId,
+          recoveryId,
+          releaseId,
+          provenTime,
+        ],
+      );
+    }
+    await insertProvenPreflight(true);
     const repository = createLocalReleasePreflightRepository(transactionDb);
     const service = createLocalReleasePreflightService(repository);
     const firstPage = await service.list({ limit: 1 });
@@ -135,8 +160,14 @@ test("local Compose preflight is evidence-linked, immutable, and cursor-paged", 
     assert.equal(firstPage.nextCursor, failedId);
     const secondPage = await service.list({ limit: 1, cursor: failedId });
     assert.equal(secondPage.items[0]?.id, passedId);
-    assert.equal(secondPage.nextCursor, null);
+    assert.equal(secondPage.nextCursor, passedId);
+    const thirdPage = await service.list({ limit: 1, cursor: passedId });
+    assert.equal(thirdPage.items[0]?.id, provenId);
+    assert.equal(thirdPage.nextCursor, null);
     assert.equal((await service.get(passedId))?.checks.apiRead, true);
+    assert.equal((await service.get(passedId))?.sourceEvidenceVersion, 1);
+    assert.equal((await service.get(passedId))?.sourceVerified, null);
+    assert.equal((await service.get(provenId))?.sourceVerified, true);
     assert.equal(
       localReleasePreflightSchema.parse(await service.get(passedId))
         .backupEvidenceId,
@@ -171,6 +202,7 @@ test("local Compose preflight is evidence-linked, immutable, and cursor-paged", 
         at: laterTime,
       }),
     );
+    await rejectsWithoutAborting(() => insertProvenPreflight(false));
     await rejectsWithoutAborting(() =>
       insertPreflight({
         id: crypto.randomUUID(),

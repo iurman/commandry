@@ -29,6 +29,7 @@ test("Recovery shows persisted local preflight evidence without claiming VPS rea
       `a[href="/api/v1/local-release-preflights/${latest.id}"]`,
     );
     await expect(evidenceLink).toBeVisible();
+    const latestCard = page.locator("article").filter({ has: evidenceLink });
     const detailResponse = await request.get(
       `/api/v1/local-release-preflights/${latest.id}`,
     );
@@ -37,6 +38,13 @@ test("Recovery shows persisted local preflight evidence without claiming VPS rea
       id: string;
       outcome: string;
       sourceLabel: string;
+      sourceEvidenceVersion: 1 | 2;
+      checkoutRevision: string | null;
+      versionSha: string | null;
+      imageSourceRevision: string | null;
+      imageSourceClean: boolean | null;
+      checkoutClean: boolean | null;
+      sourceVerified: boolean | null;
       backupEvidenceId: string | null;
       recoveryEvidenceId: string | null;
       releaseEvidenceId: string | null;
@@ -44,6 +52,22 @@ test("Recovery shows persisted local preflight evidence without claiming VPS rea
     expect(detail.id).toBe(latest.id);
     expect(detail.outcome).toBe(latest.outcome);
     expect(detail.sourceLabel).toBe("Local Compose release preflight");
+    if (detail.sourceEvidenceVersion === 2) {
+      await expect(
+        latestCard.getByText("Committed source provenance", { exact: true }),
+      ).toBeVisible();
+      if (detail.outcome === "passed") {
+        expect(detail.sourceVerified).toBe(true);
+        expect(detail.imageSourceRevision).toBe(detail.checkoutRevision);
+        expect(detail.versionSha).toBe(detail.checkoutRevision);
+        expect(detail.imageSourceClean).toBe(true);
+        expect(detail.checkoutClean).toBe(true);
+      } else if (detail.sourceVerified === false) {
+        await expect(
+          latestCard.getByText(/Committed source provenance is not verified/),
+        ).toBeVisible();
+      }
+    }
     if (latest.outcome === "passed") {
       expect(detail.backupEvidenceId).toBeTruthy();
       expect(detail.recoveryEvidenceId).toBeTruthy();
@@ -52,7 +76,9 @@ test("Recovery shows persisted local preflight evidence without claiming VPS rea
   } else {
     await expect(page.getByText("No local preflight recorded")).toBeVisible();
   }
-  await expect
-    .poll(() => page.evaluate(() => document.documentElement.scrollWidth))
-    .toBeLessThanOrEqual(await page.evaluate(() => window.innerWidth));
+  await page.waitForLoadState("networkidle");
+  await page.evaluate(() => document.fonts.ready);
+  expect(
+    await page.evaluate(() => document.documentElement.scrollWidth),
+  ).toBeLessThanOrEqual(await page.evaluate(() => window.innerWidth));
 });

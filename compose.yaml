@@ -5,6 +5,9 @@ x-app: &app
   build:
     context: .
     dockerfile: Dockerfile
+    args:
+      COMMANDRY_SOURCE_REVISION: ${COMMANDRY_SOURCE_REVISION:-unknown}
+      COMMANDRY_SOURCE_CLEAN: ${COMMANDRY_SOURCE_CLEAN:-false}
   init: true
 
 services:

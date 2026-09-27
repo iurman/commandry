@@ -952,6 +952,7 @@ export const localReleasePreflightSchema = z.object({
   environment: z.literal("local"),
   sourceLabel: z.literal("Local Compose release preflight"),
   outcome: z.enum(["passed", "failed"]),
+  sourceEvidenceVersion: z.union([z.literal(1), z.literal(2)]),
   checkoutRevision: z
     .string()
     .regex(/^[0-9a-f]{40}$/)
@@ -961,6 +962,13 @@ export const localReleasePreflightSchema = z.object({
     .regex(/^sha256:[0-9a-f]{64}$/)
     .nullable(),
   versionSha: z.string().min(1).max(128).nullable(),
+  imageSourceRevision: z
+    .string()
+    .regex(/^[0-9a-f]{40}$/)
+    .nullable(),
+  imageSourceClean: z.boolean().nullable(),
+  checkoutClean: z.boolean().nullable(),
+  sourceVerified: z.boolean().nullable(),
   checks: localReleasePreflightChecksSchema,
   backupEvidenceId: z.uuid().nullable(),
   recoveryEvidenceId: z.uuid().nullable(),

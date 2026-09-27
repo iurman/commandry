@@ -2,9 +2,14 @@ export interface LocalReleasePreflightCardView {
   id: string;
   sourceLabel: string;
   outcome: "passed" | "failed";
+  sourceEvidenceVersion: 1 | 2;
   checkoutRevision: string | null;
   imageId: string | null;
   versionSha: string | null;
+  imageSourceRevision: string | null;
+  imageSourceClean: boolean | null;
+  checkoutClean: boolean | null;
+  sourceVerified: boolean | null;
   checks: {
     postgresHealthy: boolean;
     webHealthy: boolean;
@@ -56,8 +61,14 @@ export function LocalReleasePreflightCard({
       <p>
         Checkout {preflight.checkoutRevision?.slice(0, 8) ?? "unknown"} / local
         image {preflight.imageId?.slice(7, 19) ?? "unknown"} / version label{" "}
-        {preflight.versionSha ?? "unknown"}. The local image is not proven to
-        contain that checkout revision.
+        {preflight.versionSha ?? "unknown"}.
+      </p>
+      <p>
+        {preflight.sourceEvidenceVersion === 1
+          ? "This older local check did not verify the image source revision."
+          : preflight.sourceVerified
+            ? "The image label and running version match this clean committed checkout."
+            : `Image source ${preflight.imageSourceRevision?.slice(0, 8) ?? "unknown"}; image labeled ${preflight.imageSourceClean ? "clean" : "dirty or unknown"}; checkout ${preflight.checkoutClean ? "clean" : "dirty"}. Committed source provenance is not verified.`}
       </p>
       <ul className="cmd-recovery-gates">
         {(Object.keys(checkLabels) as Array<keyof typeof checkLabels>).map(
@@ -70,6 +81,16 @@ export function LocalReleasePreflightCard({
             </li>
           ),
         )}
+        <li>
+          <span>Committed source provenance</span>
+          <span className="cmd-panel-state">
+            {preflight.sourceEvidenceVersion === 1
+              ? "not checked"
+              : preflight.sourceVerified
+                ? "passed"
+                : "failed"}
+          </span>
+        </li>
       </ul>
       {preflight.errorCode && (
         <p className="cmd-inline-state cmd-error">

@@ -1,10 +1,10 @@
 import { randomUUID } from "node:crypto";
-import { spawnSync } from "node:child_process";
 import { existsSync } from "node:fs";
 import { dirname, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
-import { assessLocalReleasePreflight } from "../packages/domain/src/local-release-preflight.ts";
+import { assessLocalReleaseCandidate } from "../packages/domain/src/local-release-preflight.ts";
 import { detectContainerRuntime, runContainer } from "./container-runtime.mjs";
+import { getLocalSourceState } from "./local-source-provenance.mjs";
 
 const root = resolve(dirname(fileURLToPath(import.meta.url)), "..");
 process.chdir(root);
@@ -58,12 +58,34 @@ function normalizedImageId(value) {
   return id && /^[0-9a-f]{64}$/.test(id) ? `sha256:${id}` : null;
 }
 
+function imageSourceLabels(containerId) {
+  const raw = inspect(containerId, "{{json .Config.Labels}}");
+  try {
+    const labels = JSON.parse(raw);
+    const revision = labels?.["org.opencontainers.image.revision"];
+    const clean = labels?.["org.commandry.source.clean"];
+    return {
+      revision:
+        typeof revision === "string" && /^[0-9a-f]{40}$/.test(revision)
+          ? revision
+          : null,
+      clean: clean === "true" ? true : clean === "false" ? false : null,
+    };
+  } catch {
+    return { revision: null, clean: null };
+  }
+}
+
 function sqlQuote(value) {
   return `'${String(value).replaceAll("'", "''")}'`;
 }
 
 function sqlNullable(value) {
   return value === null ? "null" : sqlQuote(value);
+}
+
+function sqlNullableBoolean(value) {
+  return value === null ? "null" : String(value);
 }
 
 function localQuery(statement) {
@@ -117,15 +139,15 @@ const workerId = serviceId("worker");
 const migrateId = serviceId("migrate");
 const imageId = normalizedImageId(inspect(webId, "{{.Image}}"));
 const workerImageId = normalizedImageId(inspect(workerId, "{{.Image}}"));
-const revisionResult = spawnSync("git", ["rev-parse", "HEAD"], {
-  encoding: "utf8",
-  timeout: 5_000,
-});
-const checkoutRevision =
-  revisionResult.status === 0 &&
-  /^[0-9a-f]{40}$/.test(revisionResult.stdout.trim())
-    ? revisionResult.stdout.trim()
-    : null;
+const imageSource = imageSourceLabels(webId);
+let checkout = null;
+try {
+  checkout = getLocalSourceState();
+} catch {
+  checkout = null;
+}
+const checkoutRevision = checkout?.revision ?? null;
+const checkoutClean = checkout?.clean ?? false;
 
 const [live, ready, version, projects, backup, recovery, release] =
   await Promise.all([
@@ -167,18 +189,29 @@ const checks = {
   heartbeatFresh,
   localEvidence: backup.passed && recovery.passed && release.passed,
 };
-const assessment = assessLocalReleasePreflight(checks);
+const sourceVerified =
+  checkoutClean &&
+  imageSource.clean === true &&
+  imageSource.revision !== null &&
+  imageSource.revision === checkoutRevision &&
+  versionSha === checkoutRevision &&
+  checks.sameImage;
+const assessment = assessLocalReleaseCandidate(checks, sourceVerified);
 const completedAt = new Date().toISOString();
 const persisted = localQuery(
   `insert into local_release_preflight
-    (id, outcome, checkout_revision, image_id, version_sha, checks,
+    (id, outcome, source_evidence_version, checkout_revision, image_id,
+     version_sha, image_source_revision, image_source_clean, checkout_clean,
+     source_verified, checks,
      backup_evidence_id, recovery_evidence_id, release_evidence_id,
      error_code, started_at, completed_at)
    values (
-     ${sqlQuote(id)}, ${sqlQuote(assessment.outcome)},
+     ${sqlQuote(id)}, ${sqlQuote(assessment.outcome)}, 2,
      ${sqlNullable(checkoutRevision)},
      ${sqlNullable(imageId)},
-     ${sqlNullable(versionSha)}, ${sqlQuote(JSON.stringify(checks))}::jsonb,
+     ${sqlNullable(versionSha)}, ${sqlNullable(imageSource.revision)},
+     ${sqlNullableBoolean(imageSource.clean)}, ${checkoutClean},
+     ${sourceVerified}, ${sqlQuote(JSON.stringify(checks))}::jsonb,
      ${sqlNullable(backup.id)}, ${sqlNullable(recovery.id)},
      ${sqlNullable(release.id)}, ${sqlNullable(assessment.errorCode)},
      ${sqlQuote(startedAt)}, ${sqlQuote(completedAt)}
@@ -194,6 +227,10 @@ console.log(
     outcome: assessment.outcome,
     errorCode: assessment.errorCode,
     checks,
+    imageSourceRevision: imageSource.revision,
+    imageSourceClean: imageSource.clean,
+    checkoutClean,
+    sourceVerified,
     productionReady: false,
   }),
 );

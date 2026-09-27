@@ -279,8 +279,8 @@ export default function LocalRecoveryPage() {
             starting Compose. The host command checks the current web, worker,
             PostgreSQL, migrator, versioned read, heartbeat, and latest local
             backup, restore, and rollback evidence. It records one immutable
-            result. It cannot establish VPS readiness or prove which checkout
-            revision built the local image.
+            result. A clean committed build can also verify its image source
+            label against the running revision. None establishes VPS readiness.
           </p>
           {preflights.length === 0 && !loading && !error && (
             <RecordEmptyState

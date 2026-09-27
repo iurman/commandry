@@ -3630,9 +3630,16 @@ export const localReleasePreflight = pgTable(
       .notNull()
       .default("Local Compose release preflight"),
     outcome: text("outcome", { enum: ["passed", "failed"] }).notNull(),
+    sourceEvidenceVersion: integer("source_evidence_version")
+      .notNull()
+      .default(1),
     checkoutRevision: text("checkout_revision"),
     imageId: text("image_id"),
     versionSha: text("version_sha"),
+    imageSourceRevision: text("image_source_revision"),
+    imageSourceClean: boolean("image_source_clean"),
+    checkoutClean: boolean("checkout_clean"),
+    sourceVerified: boolean("source_verified"),
     checks: jsonb("checks").$type<LocalReleasePreflightChecks>().notNull(),
     backupEvidenceId: uuid("backup_evidence_id").references(
       () => localBackupEvidence.id,
@@ -3660,6 +3667,13 @@ export const localReleasePreflight = pgTable(
     check(
       "local_release_preflight_outcome_valid",
       sql`${table.outcome} in ('passed', 'failed')`,
+    ),
+    check(
+      "local_release_preflight_source_version_valid",
+      sql`${table.sourceEvidenceVersion} in (1, 2) and (
+        (${table.sourceEvidenceVersion} = 1 and ${table.imageSourceRevision} is null and ${table.imageSourceClean} is null and ${table.checkoutClean} is null and ${table.sourceVerified} is null)
+        or (${table.sourceEvidenceVersion} = 2 and ${table.checkoutClean} is not null and ${table.sourceVerified} is not null)
+      )`,
     ),
     check(
       "local_release_preflight_checks_valid",
@@ -3691,6 +3705,18 @@ export const localReleasePreflight = pgTable(
         and ${table.releaseEvidenceId} is not null
         and ${table.errorCode} is null
         and ${table.completedAt} >= ${table.startedAt}
+        and (
+          ${table.sourceEvidenceVersion} = 1
+          or (
+            ${table.sourceEvidenceVersion} = 2
+            and ${table.imageSourceRevision} is not null
+            and ${table.imageSourceRevision} = ${table.checkoutRevision}
+            and ${table.imageSourceClean} is true
+            and ${table.checkoutClean} is true
+            and ${table.sourceVerified} is true
+            and ${table.versionSha} = ${table.checkoutRevision}
+          )
+        )
       )`,
     ),
   ],

@@ -18,6 +18,10 @@ RUN CI=true pnpm --filter @commandry/worker... install --prod --offline --frozen
 
 FROM node:24.19.0-bookworm-slim@sha256:a9f5f7c91a432850b2a8a7797adf5eadb6c733ceed61167806cee7ea7fbc29df AS runtime
 WORKDIR /app
+ARG COMMANDRY_SOURCE_REVISION=unknown
+ARG COMMANDRY_SOURCE_CLEAN=false
+LABEL org.opencontainers.image.revision="$COMMANDRY_SOURCE_REVISION" \
+      org.commandry.source.clean="$COMMANDRY_SOURCE_CLEAN"
 ENV NODE_ENV=production \
     NEXT_TELEMETRY_DISABLED=1 \
     PORT=3000 \

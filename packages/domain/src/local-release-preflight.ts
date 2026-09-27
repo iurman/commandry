@@ -26,3 +26,14 @@ export function assessLocalReleasePreflight(
     ? { outcome: "failed", errorCode: firstFailure.errorCode }
     : { outcome: "passed", errorCode: null };
 }
+
+export function assessLocalReleaseCandidate(
+  checks: LocalReleasePreflightChecks,
+  sourceVerified: boolean,
+): { outcome: "passed" | "failed"; errorCode: string | null } {
+  const local = assessLocalReleasePreflight(checks);
+  if (local.outcome === "failed") return local;
+  return sourceVerified
+    ? local
+    : { outcome: "failed", errorCode: "SOURCE_PROVENANCE_UNVERIFIED" };
+}

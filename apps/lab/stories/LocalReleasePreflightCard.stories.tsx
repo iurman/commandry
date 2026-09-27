@@ -5,9 +5,14 @@ const preflight = {
   id: "8d709fa6-ece0-4e33-b2a3-8cb43b1a045e",
   sourceLabel: "Local Compose release preflight",
   outcome: "passed" as const,
+  sourceEvidenceVersion: 2 as const,
   checkoutRevision: "a".repeat(40),
   imageId: `sha256:${"b".repeat(64)}`,
-  versionSha: "campaign",
+  versionSha: "a".repeat(40),
+  imageSourceRevision: "a".repeat(40),
+  imageSourceClean: true,
+  checkoutClean: true,
+  sourceVerified: true,
   checks: {
     postgresHealthy: true,
     webHealthy: true,
@@ -52,6 +57,34 @@ export const MissingWorkerHeartbeat: Story = {
       outcome: "failed",
       checks: { ...preflight.checks, heartbeatFresh: false },
       errorCode: "WORKER_HEARTBEAT_STALE",
+    },
+  },
+};
+
+export const DirtySource: Story = {
+  args: {
+    preflight: {
+      ...preflight,
+      outcome: "failed",
+      versionSha: "local-dirty",
+      imageSourceClean: false,
+      checkoutClean: false,
+      sourceVerified: false,
+      errorCode: "SOURCE_PROVENANCE_UNVERIFIED",
+    },
+  },
+};
+
+export const OlderSourceUnchecked: Story = {
+  args: {
+    preflight: {
+      ...preflight,
+      sourceEvidenceVersion: 1,
+      versionSha: "campaign",
+      imageSourceRevision: null,
+      imageSourceClean: null,
+      checkoutClean: null,
+      sourceVerified: null,
     },
   },
 };
