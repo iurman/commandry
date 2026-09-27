@@ -118,6 +118,9 @@ export default function ProjectsPage() {
             Keep one home for a concern, whether it is an application, a trip,
             or a system you operate.
           </p>
+          <p>
+            <a href="/domains">Browse portfolio domains</a>
+          </p>
         </div>
         <span className="cmd-headline-mark" aria-hidden="true">
           01 / Context
@@ -166,7 +169,11 @@ export default function ProjectsPage() {
                         tone="neutral"
                       />
                     }
-                    description={project.summary}
+                    description={
+                      project.domain
+                        ? `${project.summary ? `${project.summary} ` : ""}Domain: ${project.domain.name}`
+                        : project.summary
+                    }
                     href={`/projects/${encodeURIComponent(project.id)}`}
                     id={project.id}
                     kind={project.type}

@@ -1,15 +1,25 @@
 import { and, eq, gt } from "drizzle-orm";
 import { projectResourceRelationship } from "@commandry/domain";
 import type { CommandryDatabase } from "./client";
-import { project, projectResourceLink, resource } from "./schema";
+import {
+  domain,
+  project,
+  projectDomainLink,
+  projectResourceLink,
+  resource,
+} from "./schema";
 
-function projectSummary(row: typeof project.$inferSelect) {
+function projectSummary(
+  row: typeof project.$inferSelect,
+  owner: { id: string; name: string } | null = null,
+) {
   return {
     id: row.id,
     name: row.name,
     summary: row.summary,
     type: row.type,
     lifecycle: row.lifecycle,
+    domain: owner,
     createdAt: row.createdAt.toISOString(),
     updatedAt: row.updatedAt.toISOString(),
   };
@@ -52,24 +62,50 @@ export function createCatalogRepository(db: CommandryDatabase) {
     },
     async getProject(id: string) {
       const [row] = await db
-        .select()
+        .select({ record: project, owner: domain })
         .from(project)
+        .leftJoin(
+          projectDomainLink,
+          and(
+            eq(projectDomainLink.projectId, project.id),
+            eq(projectDomainLink.lifecycle, "active"),
+          ),
+        )
+        .leftJoin(domain, eq(domain.id, projectDomainLink.domainId))
         .where(eq(project.id, id))
         .limit(1);
-      return row ? projectSummary(row) : null;
+      return row
+        ? projectSummary(
+            row.record,
+            row.owner ? { id: row.owner.id, name: row.owner.name } : null,
+          )
+        : null;
     },
     async listProjects(input: PageQuery) {
       const rows = await db
-        .select()
+        .select({ record: project, owner: domain })
         .from(project)
+        .leftJoin(
+          projectDomainLink,
+          and(
+            eq(projectDomainLink.projectId, project.id),
+            eq(projectDomainLink.lifecycle, "active"),
+          ),
+        )
+        .leftJoin(domain, eq(domain.id, projectDomainLink.domainId))
         .where(input.cursor ? gt(project.id, input.cursor) : undefined)
         .orderBy(project.id)
         .limit(input.limit + 1);
       const page = rows.slice(0, input.limit);
       return {
-        items: page.map(projectSummary),
+        items: page.map(({ record, owner }) =>
+          projectSummary(
+            record,
+            owner ? { id: owner.id, name: owner.name } : null,
+          ),
+        ),
         nextCursor:
-          rows.length > input.limit ? (page.at(-1)?.id ?? null) : null,
+          rows.length > input.limit ? (page.at(-1)?.record.id ?? null) : null,
       };
     },
     async createResource(input: {

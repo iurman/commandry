@@ -127,6 +127,38 @@ const snapshot: ProjectBriefSnapshot = {
 };
 
 describe("project brief application", () => {
+  it("names the owning domain and cites both the domain and exact typed link", () => {
+    const domainId = "054bb4c1-f7a9-4722-8719-904c3eb9fa18";
+    const linkId = "dfd4874b-2b93-43ad-8eaf-f093e46aa9d8";
+    const brief = assembleProjectBrief(
+      {
+        ...snapshot,
+        domainMembership: {
+          domainId,
+          domainName: "Home",
+          linkId,
+          linkedAt: asOf,
+        },
+      },
+      asOf,
+    );
+    expect(brief.state.text).toContain("Owned by domain Home");
+    expect(brief.state.evidence).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({
+          kind: "domain",
+          id: domainId,
+          href: `/api/v1/domains/${domainId}`,
+        }),
+        expect.objectContaining({
+          kind: "project_domain_link",
+          id: linkId,
+          href: `/api/v1/project-domain-links/${linkId}`,
+        }),
+      ]),
+    );
+  });
+
   it("identifies a revised note as current local knowledge rather than original capture text", () => {
     const noteId = "1503fef8-7a72-45dc-b47b-717e2b0aba53";
     const brief = assembleProjectBrief(

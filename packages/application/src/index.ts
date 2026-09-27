@@ -25,3 +25,4 @@ export * from "./work-relations";
 export * from "./work-attachments";
 export * from "./work-acceptance";
 export * from "./file-capture";
+export * from "./domain-portfolio";

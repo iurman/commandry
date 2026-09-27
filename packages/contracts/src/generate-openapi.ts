@@ -93,6 +93,17 @@ import {
   listLocalIntegrationsResponseSchema,
   createCaptureRequestSchema,
   createProjectRequestSchema,
+  createDomainRequestSchema,
+  updateDomainRequestSchema,
+  archiveDomainRequestSchema,
+  setProjectDomainRequestSchema,
+  domainSummarySchema,
+  domainAuditEventSchema,
+  projectDomainLinkSchema,
+  projectDomainResponseSchema,
+  listDomainsResponseSchema,
+  listDomainProjectsResponseSchema,
+  listDomainAuditResponseSchema,
   createProjectResourceLinkRequestSchema,
   createResourceRequestSchema,
   setResourceParentRequestSchema,
@@ -454,6 +465,185 @@ export function generateOpenApi(): string {
             },
             "400": {
               description: "Invalid project",
+              content: jsonContent("ErrorResponse"),
+            },
+          },
+        },
+      },
+      "/api/v1/domains": {
+        get: {
+          operationId: "listDomains",
+          summary: "Page through locally owned portfolio domains",
+          parameters: [
+            ...pageParameters,
+            {
+              in: "query",
+              name: "lifecycle",
+              required: false,
+              schema: { type: "string", enum: ["active", "archived"] },
+            },
+          ],
+          responses: {
+            "200": {
+              description: "Domain page",
+              content: jsonContent("ListDomainsResponse"),
+            },
+            "400": {
+              description: "Invalid query",
+              content: jsonContent("ErrorResponse"),
+            },
+          },
+        },
+        post: {
+          operationId: "createDomain",
+          requestBody: {
+            required: true,
+            content: jsonContent("CreateDomainRequest"),
+          },
+          responses: {
+            "201": {
+              description: "Created domain",
+              content: jsonContent("DomainSummary"),
+            },
+            "400": {
+              description: "Invalid domain",
+              content: jsonContent("ErrorResponse"),
+            },
+          },
+        },
+      },
+      "/api/v1/domains/{id}": {
+        get: {
+          operationId: "getDomain",
+          parameters: [idParameter],
+          responses: {
+            "200": {
+              description: "Domain record",
+              content: jsonContent("DomainSummary"),
+            },
+            "404": {
+              description: "Domain not found",
+              content: jsonContent("ErrorResponse"),
+            },
+          },
+        },
+        patch: {
+          operationId: "updateDomain",
+          parameters: [idParameter],
+          requestBody: {
+            required: true,
+            content: jsonContent("UpdateDomainRequest"),
+          },
+          responses: {
+            "200": {
+              description: "Updated domain",
+              content: jsonContent("DomainSummary"),
+            },
+            "409": {
+              description: "Stale or archived domain",
+              content: jsonContent("ErrorResponse"),
+            },
+          },
+        },
+      },
+      "/api/v1/domains/{id}/archive": {
+        put: {
+          operationId: "archiveDomain",
+          parameters: [idParameter],
+          requestBody: {
+            required: true,
+            content: jsonContent("ArchiveDomainRequest"),
+          },
+          responses: {
+            "200": {
+              description: "Archived empty domain",
+              content: jsonContent("DomainSummary"),
+            },
+            "409": {
+              description: "Domain has active projects or changed",
+              content: jsonContent("ErrorResponse"),
+            },
+          },
+        },
+      },
+      "/api/v1/domains/{id}/projects": {
+        get: {
+          operationId: "listDomainProjects",
+          parameters: [idParameter, ...pageParameters],
+          responses: {
+            "200": {
+              description: "Projects owned by this domain",
+              content: jsonContent("ListDomainProjectsResponse"),
+            },
+            "404": {
+              description: "Domain not found",
+              content: jsonContent("ErrorResponse"),
+            },
+          },
+        },
+      },
+      "/api/v1/domains/{id}/audit": {
+        get: {
+          operationId: "listDomainAudit",
+          parameters: [idParameter, ...pageParameters],
+          responses: {
+            "200": {
+              description: "Immutable local domain audit page",
+              content: jsonContent("ListDomainAuditResponse"),
+            },
+            "404": {
+              description: "Domain not found",
+              content: jsonContent("ErrorResponse"),
+            },
+          },
+        },
+      },
+      "/api/v1/projects/{id}/domain": {
+        get: {
+          operationId: "getProjectDomain",
+          parameters: [idParameter],
+          responses: {
+            "200": {
+              description: "Current owning domain or null",
+              content: jsonContent("ProjectDomainResponse"),
+            },
+            "404": {
+              description: "Project not found",
+              content: jsonContent("ErrorResponse"),
+            },
+          },
+        },
+        put: {
+          operationId: "setProjectDomain",
+          parameters: [idParameter],
+          requestBody: {
+            required: true,
+            content: jsonContent("SetProjectDomainRequest"),
+          },
+          responses: {
+            "200": {
+              description: "Current owning domain or null",
+              content: jsonContent("ProjectDomainResponse"),
+            },
+            "409": {
+              description: "Stale membership or archived domain",
+              content: jsonContent("ErrorResponse"),
+            },
+          },
+        },
+      },
+      "/api/v1/project-domain-links/{id}": {
+        get: {
+          operationId: "getProjectDomainLink",
+          parameters: [idParameter],
+          responses: {
+            "200": {
+              description:
+                "Exact typed relationship, including archived history",
+              content: jsonContent("ProjectDomainLink"),
+            },
+            "404": {
+              description: "Relationship not found",
               content: jsonContent("ErrorResponse"),
             },
           },
@@ -2575,6 +2765,17 @@ export function generateOpenApi(): string {
           listResourceDependenciesResponseSchema,
         ),
         ProjectSummary: component(projectSummarySchema),
+        DomainSummary: component(domainSummarySchema),
+        DomainAuditEvent: component(domainAuditEventSchema),
+        ProjectDomainLink: component(projectDomainLinkSchema),
+        ProjectDomainResponse: component(projectDomainResponseSchema),
+        CreateDomainRequest: component(createDomainRequestSchema),
+        UpdateDomainRequest: component(updateDomainRequestSchema),
+        ArchiveDomainRequest: component(archiveDomainRequestSchema),
+        SetProjectDomainRequest: component(setProjectDomainRequestSchema),
+        ListDomainsResponse: component(listDomainsResponseSchema),
+        ListDomainProjectsResponse: component(listDomainProjectsResponseSchema),
+        ListDomainAuditResponse: component(listDomainAuditResponseSchema),
         CreateProjectRequest: component(createProjectRequestSchema),
         ListProjectsResponse: component(listProjectsResponseSchema),
         ProjectResourceLink: component(projectResourceLinkSchema),

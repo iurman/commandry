@@ -87,6 +87,35 @@ export const verification = pgTable(
 
 export const authSchema = { user, session, account, verification };
 
+export const domain = pgTable(
+  "domain",
+  {
+    id: uuid("id").primaryKey(),
+    name: text("name").notNull(),
+    description: text("description"),
+    lifecycle: text("lifecycle", { enum: ["active", "archived"] })
+      .notNull()
+      .default("active"),
+    version: integer("version").notNull().default(1),
+    createdAt: createdAt(),
+    updatedAt: updatedAt(),
+  },
+  (table) => [
+    index("domain_name_id_idx").on(table.name, table.id),
+    check("domain_name_nonempty", sql`length(trim(${table.name})) > 0`),
+    check("domain_name_bounded", sql`length(${table.name}) <= 200`),
+    check(
+      "domain_description_bounded",
+      sql`${table.description} is null or length(${table.description}) <= 4000`,
+    ),
+    check(
+      "domain_lifecycle_valid",
+      sql`${table.lifecycle} in ('active', 'archived')`,
+    ),
+    check("domain_version_positive", sql`${table.version} >= 1`),
+  ],
+);
+
 export const project = pgTable(
   "project",
   {
@@ -109,6 +138,84 @@ export const project = pgTable(
     check(
       "project_lifecycle_valid",
       sql`${table.lifecycle} in ('proposed', 'active', 'paused', 'completed', 'archived')`,
+    ),
+  ],
+);
+
+export const projectDomainLink = pgTable(
+  "project_domain_link",
+  {
+    id: uuid("id").primaryKey(),
+    projectId: uuid("project_id")
+      .notNull()
+      .references(() => project.id, { onDelete: "restrict" }),
+    domainId: uuid("domain_id")
+      .notNull()
+      .references(() => domain.id, { onDelete: "restrict" }),
+    type: text("type", { enum: ["owned_by"] })
+      .notNull()
+      .default("owned_by"),
+    sourceKind: text("source_kind", { enum: ["project"] })
+      .notNull()
+      .default("project"),
+    targetKind: text("target_kind", { enum: ["domain"] })
+      .notNull()
+      .default("domain"),
+    lifecycle: text("lifecycle", { enum: ["active", "archived"] })
+      .notNull()
+      .default("active"),
+    provenance: text("provenance").notNull().default("manual"),
+    createdAt: createdAt(),
+    archivedAt: timestamp("archived_at", { withTimezone: true }),
+  },
+  (table) => [
+    uniqueIndex("project_domain_link_one_active_idx")
+      .on(table.projectId)
+      .where(sql`${table.lifecycle} = 'active'`),
+    index("project_domain_link_domain_page_idx").on(table.domainId, table.id),
+    check("project_domain_link_type_valid", sql`${table.type} = 'owned_by'`),
+    check(
+      "project_domain_link_direction_valid",
+      sql`${table.sourceKind} = 'project' and ${table.targetKind} = 'domain'`,
+    ),
+    check(
+      "project_domain_link_lifecycle_valid",
+      sql`${table.lifecycle} in ('active', 'archived')`,
+    ),
+    check(
+      "project_domain_link_archive_consistent",
+      sql`(${table.lifecycle} = 'active' and ${table.archivedAt} is null) or (${table.lifecycle} = 'archived' and ${table.archivedAt} is not null)`,
+    ),
+    check(
+      "project_domain_link_provenance_manual",
+      sql`${table.provenance} = 'manual'`,
+    ),
+  ],
+);
+
+export const domainAuditEvent = pgTable(
+  "domain_audit_event",
+  {
+    id: uuid("id").primaryKey(),
+    domainId: uuid("domain_id")
+      .notNull()
+      .references(() => domain.id, { onDelete: "restrict" }),
+    projectId: uuid("project_id").references(() => project.id, {
+      onDelete: "restrict",
+    }),
+    actor: text("actor").notNull().default("local-user:unattributed"),
+    operation: text("operation").notNull(),
+    details: jsonb("details")
+      .$type<Record<string, string | number | boolean | null>>()
+      .notNull()
+      .default({}),
+    createdAt: createdAt(),
+  },
+  (table) => [
+    index("domain_audit_event_domain_page_idx").on(table.domainId, table.id),
+    check(
+      "domain_audit_event_operation_valid",
+      sql`${table.operation} in ('domain.created', 'domain.updated', 'domain.archived', 'domain.project_linked', 'domain.project_unlinked')`,
     ),
   ],
 );

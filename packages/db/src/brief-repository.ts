@@ -7,10 +7,12 @@ import type { CommandryDatabase } from "./client";
 import {
   alertCondition,
   alertEvidence,
+  domain,
   knowledgeItem,
   normalizedEvent,
   project,
   projectDecision,
+  projectDomainLink,
   projectResourceLink,
   resource,
   workItem,
@@ -62,6 +64,17 @@ export function createBriefRepository(db: CommandryDatabase) {
             .where(eq(project.id, projectId))
             .limit(1);
           if (!currentProject) return null;
+          const [ownedDomain] = await tx
+            .select({ link: projectDomainLink, owner: domain })
+            .from(projectDomainLink)
+            .innerJoin(domain, eq(domain.id, projectDomainLink.domainId))
+            .where(
+              and(
+                eq(projectDomainLink.projectId, projectId),
+                eq(projectDomainLink.lifecycle, "active"),
+              ),
+            )
+            .limit(1);
 
           const openWorkRows = await tx
             .select()
@@ -289,9 +302,20 @@ export function createBriefRepository(db: CommandryDatabase) {
               summary: currentProject.record.summary,
               type: currentProject.record.type,
               lifecycle: currentProject.record.lifecycle,
+              domain: ownedDomain
+                ? { id: ownedDomain.owner.id, name: ownedDomain.owner.name }
+                : null,
               createdAt: currentProject.record.createdAt.toISOString(),
               updatedAt: currentProject.record.updatedAt.toISOString(),
             },
+            domainMembership: ownedDomain
+              ? {
+                  domainId: ownedDomain.owner.id,
+                  domainName: ownedDomain.owner.name,
+                  linkId: ownedDomain.link.id,
+                  linkedAt: ownedDomain.link.createdAt.toISOString(),
+                }
+              : null,
             work: page(
               openWorkRows,
               query.limit,

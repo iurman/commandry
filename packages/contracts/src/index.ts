@@ -38,6 +38,83 @@ export const resourceSummarySchema = z.object({
   lastObservedAt: z.iso.datetime({ offset: true }).nullable(),
 });
 
+export const domainSummarySchema = z.object({
+  id: z.uuid(),
+  name: z.string().min(1),
+  description: z.string().nullable(),
+  lifecycle: z.enum(["active", "archived"]),
+  version: z.number().int().min(1),
+  createdAt: z.iso.datetime({ offset: true }),
+  updatedAt: z.iso.datetime({ offset: true }),
+});
+
+export const createDomainRequestSchema = z.strictObject({
+  name: z.string().trim().min(1).max(200),
+  description: z.string().trim().max(4000).optional(),
+});
+
+export const updateDomainRequestSchema = z
+  .strictObject({
+    expectedVersion: z.number().int().min(1),
+    name: z.string().trim().min(1).max(200).optional(),
+    description: z.string().trim().max(4000).nullable().optional(),
+  })
+  .refine(
+    (input) => input.name !== undefined || input.description !== undefined,
+    "Provide a name or description to change",
+  );
+
+export const archiveDomainRequestSchema = z.strictObject({
+  expectedVersion: z.number().int().min(1),
+});
+
+export const setProjectDomainRequestSchema = z.strictObject({
+  domainId: z.uuid().nullable(),
+  expectedDomainId: z.uuid().nullable(),
+});
+
+export const domainAuditEventSchema = z.object({
+  id: z.uuid(),
+  domainId: z.uuid(),
+  projectId: z.uuid().nullable(),
+  actor: z.literal("local-user:unattributed"),
+  operation: z.enum([
+    "domain.created",
+    "domain.updated",
+    "domain.archived",
+    "domain.project_linked",
+    "domain.project_unlinked",
+  ]),
+  details: z.record(
+    z.string(),
+    z.union([z.string(), z.number(), z.boolean(), z.null()]),
+  ),
+  createdAt: z.iso.datetime({ offset: true }),
+});
+
+export const projectDomainLinkSchema = z.object({
+  id: z.uuid(),
+  projectId: z.uuid(),
+  domainId: z.uuid(),
+  type: z.literal("owned_by"),
+  inverseType: z.literal("owns"),
+  sourceKind: z.literal("project"),
+  targetKind: z.literal("domain"),
+  lifecycle: z.enum(["active", "archived"]),
+  provenance: z.literal("manual"),
+  createdAt: z.iso.datetime({ offset: true }),
+  archivedAt: z.iso.datetime({ offset: true }).nullable(),
+});
+
+export const projectDomainMembershipSchema = z.object({
+  domain: domainSummarySchema,
+  link: projectDomainLinkSchema,
+});
+
+export const projectDomainResponseSchema = z.object({
+  membership: projectDomainMembershipSchema.nullable(),
+});
+
 export const createResourceRequestSchema = z.object({
   kind: z.string().trim().min(1).max(100),
   name: z.string().trim().min(1).max(200),
@@ -80,6 +157,10 @@ export const projectSummarySchema = z.object({
   summary: z.string().nullable(),
   type: z.string().min(1),
   lifecycle: z.enum(["proposed", "active", "paused", "completed", "archived"]),
+  domain: domainSummarySchema
+    .pick({ id: true, name: true })
+    .nullable()
+    .optional(),
   createdAt: z.iso.datetime({ offset: true }),
   updatedAt: z.iso.datetime({ offset: true }),
 });
@@ -113,6 +194,25 @@ export const listProjectsQuerySchema = listResourcesQuerySchema;
 
 export const listProjectsResponseSchema = z.object({
   items: z.array(projectSummarySchema),
+  nextCursor: z.uuid().nullable(),
+});
+
+export const listDomainsQuerySchema = listResourcesQuerySchema.extend({
+  lifecycle: z.enum(["active", "archived"]).optional(),
+});
+
+export const listDomainsResponseSchema = z.object({
+  items: z.array(domainSummarySchema),
+  nextCursor: z.uuid().nullable(),
+});
+
+export const listDomainProjectsResponseSchema = z.object({
+  items: z.array(projectSummarySchema),
+  nextCursor: z.uuid().nullable(),
+});
+
+export const listDomainAuditResponseSchema = z.object({
+  items: z.array(domainAuditEventSchema),
   nextCursor: z.uuid().nullable(),
 });
 
@@ -671,6 +771,7 @@ export const searchResultSchema = z.object({
     "document",
     "comment",
     "decision",
+    "domain",
     "project",
     "resource",
   ]),
@@ -922,6 +1023,8 @@ export const listAttentionResponseSchema = z.object({
 
 export const evidenceReferenceSchema = z.object({
   kind: z.enum([
+    "domain",
+    "project_domain_link",
     "project",
     "work_item",
     "work_item_relation",
@@ -1762,6 +1865,18 @@ export const syntheticRunSchema = z.object({
 
 export type ResourceSummary = z.infer<typeof resourceSummarySchema>;
 export type ProjectSummary = z.infer<typeof projectSummarySchema>;
+export type DomainSummary = z.infer<typeof domainSummarySchema>;
+export type CreateDomainRequest = z.infer<typeof createDomainRequestSchema>;
+export type UpdateDomainRequest = z.infer<typeof updateDomainRequestSchema>;
+export type ArchiveDomainRequest = z.infer<typeof archiveDomainRequestSchema>;
+export type SetProjectDomainRequest = z.infer<
+  typeof setProjectDomainRequestSchema
+>;
+export type DomainAuditEvent = z.infer<typeof domainAuditEventSchema>;
+export type ProjectDomainLink = z.infer<typeof projectDomainLinkSchema>;
+export type ProjectDomainMembership = z.infer<
+  typeof projectDomainMembershipSchema
+>;
 export type ProjectResourceLink = z.infer<typeof projectResourceLinkSchema>;
 export type ProjectResourceLinkDetail = z.infer<
   typeof projectResourceLinkDetailSchema

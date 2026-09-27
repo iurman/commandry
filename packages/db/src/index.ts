@@ -29,4 +29,5 @@ export * from "./work-relations-repository";
 export * from "./work-attachment-repository";
 export * from "./work-acceptance-repository";
 export * from "./file-capture-repository";
+export * from "./domain-portfolio-repository";
 export * as schema from "./schema";

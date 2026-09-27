@@ -4,6 +4,7 @@ export interface ProjectRecord {
   summary: string | null;
   type: string;
   lifecycle: string;
+  domain?: { id: string; name: string } | null;
   createdAt: string;
   updatedAt: string;
 }

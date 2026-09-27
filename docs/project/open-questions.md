@@ -111,3 +111,10 @@ The local fixture rule uses a per-definition availability threshold, fires on
 entry into the below-threshold state, and resets after recovery. Decide which
 live metrics, units, source freshness checks, hysteresis, missing-data behavior,
 and suppression controls are needed after the first connectors are selected.
+
+### OQ-021: How should domains, projects, and systems share context?
+
+The local portfolio currently permits one active owning domain per project and
+retains archived memberships as history. Validate additional cross-domain
+relationships, system membership, and whether domain navigation should use
+manual ordering or another presentation. Domains are not access boundaries.

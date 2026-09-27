@@ -55,6 +55,12 @@ export type BriefWorkItem = WorkItem & {
 export type ProjectBriefSnapshot = {
   asOf: string;
   project: ProjectSummary;
+  domainMembership?: {
+    domainId: string;
+    domainName: string;
+    linkId: string;
+    linkedAt: string;
+  } | null;
   work: BriefPage<BriefWorkItem>;
   knowledge: BriefPage<KnowledgeItem>;
   decisions: BriefPage<ProjectDecision>;
@@ -329,8 +335,30 @@ export function assembleProjectBrief(
     asOf: snapshot.asOf,
     method: PROJECT_BRIEF_METHOD,
     state: {
-      text: projectStateText(snapshot.project.lifecycle),
-      evidence: [projectEvidence],
+      text: `${projectStateText(snapshot.project.lifecycle)}${snapshot.domainMembership ? ` Owned by domain ${snapshot.domainMembership.domainName}.` : " No owning domain is recorded."}`,
+      evidence: [
+        projectEvidence,
+        ...(snapshot.domainMembership
+          ? [
+              evidence(
+                "domain",
+                snapshot.domainMembership.domainId,
+                `/api/v1/domains/${snapshot.domainMembership.domainId}`,
+                snapshot.domainMembership.linkedAt,
+                "Manual local portfolio domain",
+                false,
+              ),
+              evidence(
+                "project_domain_link",
+                snapshot.domainMembership.linkId,
+                `/api/v1/project-domain-links/${snapshot.domainMembership.linkId}`,
+                snapshot.domainMembership.linkedAt,
+                "Manual local domain membership",
+                false,
+              ),
+            ]
+          : []),
+      ],
     },
     sections: {
       work: section(

@@ -51,6 +51,13 @@ authentication is complete. There is no production deployment.
   evidence, explainable activity and attention, briefs, packets, scoped fake
   agents, simulated approvals, local automation, integration fixtures, and the
   Overnight Queue, and local packet-scoped MCP read sessions.
+- Portfolio Domains are distinct local records with editable details and one
+  active typed `owned_by` relationship per project. Moving or unlinking a
+  project archives the old edge while retaining exact link and audit reads.
+  Domain membership appears in the live project brief and new packet evidence;
+  it is local organization metadata and does not authorize access. The single
+  owning domain rule is provisional while broader context relationships remain
+  open.
 - Shared Zod contracts generate a checked OpenAPI document. PostgreSQL has
   reviewed, repeatable Drizzle migrations and separate local migration and
   application roles. The pg-boss worker records attempts, audits, and heartbeat

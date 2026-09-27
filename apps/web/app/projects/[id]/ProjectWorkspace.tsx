@@ -18,6 +18,7 @@ import {
 } from "../api";
 import ProjectContent from "./ProjectContent";
 import ProjectBriefPanel from "./ProjectBriefPanel";
+import ProjectDomainPanel from "./ProjectDomainPanel";
 import ProjectDecisions from "./ProjectDecisions";
 import SyntheticMetricsPanel from "../../SyntheticMetricsPanel";
 
@@ -52,6 +53,7 @@ function RelationshipTypeField({
 
 export default function ProjectWorkspace({ projectId }: { projectId: string }) {
   const [project, setProject] = useState<ProjectRecord | null>(null);
+  const [briefVersion, setBriefVersion] = useState(0);
   const [links, setLinks] = useState<ProjectResourceLink[]>([]);
   const [nextLinkCursor, setNextLinkCursor] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
@@ -299,7 +301,11 @@ export default function ProjectWorkspace({ projectId }: { projectId: string }) {
             />
           </header>
 
-          <ProjectBriefPanel projectId={projectId} />
+          <ProjectDomainPanel
+            projectId={projectId}
+            onMembershipChange={() => setBriefVersion((current) => current + 1)}
+          />
+          <ProjectBriefPanel key={briefVersion} projectId={projectId} />
           <SyntheticMetricsPanel projectId={projectId} />
 
           <div className="cmd-workspace-grid">
