@@ -451,8 +451,8 @@ export const captureSchema = z.object({
   inputType: z.enum(["text", "url", "file"]),
   originalContent: z.string(),
   file: captureFileMetadataSchema.nullable().optional(),
-  source: z.literal("manual-local"),
-  author: z.literal("local-user"),
+  source: z.enum(["manual-local", "automation-local-synthetic"]),
+  author: z.enum(["local-user", "system:local-automation-worker"]),
   state: z.enum(["unfiled", "filed"]),
   projectId: z.uuid().nullable(),
   filedRecord: z
@@ -1233,6 +1233,12 @@ export const createAutomationDefinitionRequestSchema = z.strictObject({
   projectId: z.uuid(),
   name: z.string().trim().min(1).max(200),
   enabled: z.boolean(),
+  localAction: z
+    .strictObject({
+      kind: z.literal("create_project_note"),
+      capabilityReference: z.literal("commandry.project.knowledge.create"),
+    })
+    .optional(),
   recurrence: z
     .strictObject({
       startAt: z.iso.datetime({ offset: true }),
@@ -1263,6 +1269,14 @@ export const automationDefinitionSchema = z.object({
   id: z.uuid(),
   projectId: z.uuid(),
   name: z.string(),
+  localAction: z
+    .object({
+      kind: z.literal("create_project_note"),
+      capabilityReference: z.literal("commandry.project.knowledge.create"),
+      risk: z.literal("reversible"),
+      approvalBehavior: z.literal("definition_opt_in_local_only"),
+    })
+    .nullable(),
   routine: z.literal("local_project_summary_v1"),
   triggerType: z.enum([
     "on_creation_once",
@@ -1733,6 +1747,17 @@ export const automationRunResultSchema = z.object({
   isSynthetic: z.literal(true),
   verificationStatus: z.literal("unverified"),
   externalActions: z.tuple([]),
+  localAction: z
+    .object({
+      kind: z.literal("create_project_note"),
+      capabilityReference: z.literal("commandry.project.knowledge.create"),
+      risk: z.literal("reversible"),
+      approvalBehavior: z.literal("definition_opt_in_local_only"),
+      captureId: z.uuid(),
+      recordId: z.uuid(),
+      href: z.string().startsWith("/knowledge-items/"),
+    })
+    .optional(),
 });
 export const automationRunSchema = z.object({
   id: z.uuid(),

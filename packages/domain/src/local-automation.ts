@@ -23,6 +23,40 @@ export const LOCAL_PROJECT_SUMMARY_POLICY = {
   ],
 } as const;
 
+export const LOCAL_PROJECT_NOTE_ACTION_POLICY = {
+  kind: "create_project_note",
+  capabilityReference: "commandry.project.knowledge.create",
+  risk: "reversible",
+  approvalBehavior: "definition_opt_in_local_only",
+  auditOperation: "automation.local_note_created",
+  externalActions: false,
+} as const;
+
+export function localAutomationNote(input: {
+  runId: string;
+  definitionId: string;
+  definitionName: string;
+  summary: string;
+  evidenceHrefs: string[];
+}) {
+  const shown = input.evidenceHrefs.slice(0, 20);
+  return {
+    title: `Synthetic automation summary: ${input.definitionName}`,
+    content: [
+      "Synthetic local automation note. This is generated content, not a live source report.",
+      `Run: ${input.runId}`,
+      `Review: /automations/${input.definitionId}`,
+      "",
+      input.summary.slice(0, 1500),
+      "",
+      `Evidence references (${shown.length} of ${input.evidenceHrefs.length}; review the run for the complete set):`,
+      ...shown,
+      "",
+      "Created only in Commandry. No external action or real-world verification occurred.",
+    ].join("\n"),
+  };
+}
+
 export type LocalAutomationErrorCode =
   | "PROJECT_NOT_FOUND"
   | "AUTOMATION_NOT_FOUND"

@@ -257,6 +257,8 @@ export function createLocalAutomationSubmission(
             id,
             projectId: input.projectId,
             name: input.name,
+            localActionKind: input.localAction?.kind ?? null,
+            capabilityReference: input.localAction?.capabilityReference ?? null,
             triggerType,
             eventType: input.eventType ?? null,
             conditionResourceId: input.condition?.resourceId ?? null,
@@ -279,6 +281,8 @@ export function createLocalAutomationSubmission(
           details: {
             enabled: input.enabled,
             triggerType,
+            localActionKind: input.localAction?.kind ?? null,
+            capabilityReference: input.localAction?.capabilityReference ?? null,
             eventType: input.eventType ?? null,
             conditionResourceId: input.condition?.resourceId ?? null,
             conditionMetricName: input.condition?.metricName ?? null,

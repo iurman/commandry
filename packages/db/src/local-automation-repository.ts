@@ -10,6 +10,8 @@ import {
   automationDefinition,
   automationRun,
   automationRunAttempt,
+  capture,
+  knowledgeItem,
 } from "./schema";
 
 export function automationDefinitionRecord(
@@ -25,6 +27,16 @@ export function automationDefinitionRecord(
     id: row.id,
     projectId: row.projectId,
     name: row.name,
+    localAction:
+      row.localActionKind === "create_project_note" &&
+      row.capabilityReference === "commandry.project.knowledge.create"
+        ? {
+            kind: "create_project_note" as const,
+            capabilityReference: "commandry.project.knowledge.create" as const,
+            risk: "reversible" as const,
+            approvalBehavior: "definition_opt_in_local_only" as const,
+          }
+        : null,
     routine: "local_project_summary_v1" as const,
     triggerType: row.triggerType,
     eventType: row.eventType,
@@ -94,6 +106,145 @@ function auditRecord(row: typeof automationAuditEvent.$inferSelect) {
 type PageQuery = { limit: number; cursor?: string | undefined };
 
 export function createLocalAutomationRepository(db: CommandryDatabase) {
+  async function completeRun(
+    runId: string,
+    attemptId: string,
+    result: AutomationRunResult,
+    note?: { title: string; content: string },
+  ) {
+    return db.transaction(async (tx) => {
+      const [current] = await tx
+        .select()
+        .from(automationRun)
+        .where(eq(automationRun.id, runId))
+        .for("update")
+        .limit(1);
+      if (!current)
+        throw new LocalAutomationError(
+          "AUTOMATION_RUN_NOT_FOUND",
+          "Automation run not found",
+        );
+      if (current.state === "succeeded") return automationRunRecord(current);
+      if (current.state !== "running")
+        throw new LocalAutomationError(
+          "AUTOMATION_RUN_NOT_READY",
+          "Automation run is not running",
+        );
+      const now = new Date();
+      let savedResult = result;
+      if (note) {
+        const [definition] = await tx
+          .select({
+            enabled: automationDefinition.enabled,
+            localActionKind: automationDefinition.localActionKind,
+            capabilityReference: automationDefinition.capabilityReference,
+          })
+          .from(automationDefinition)
+          .where(eq(automationDefinition.id, current.definitionId))
+          .for("update")
+          .limit(1);
+        if (
+          !definition?.enabled ||
+          definition.localActionKind !== "create_project_note" ||
+          definition.capabilityReference !==
+            "commandry.project.knowledge.create"
+        )
+          throw new LocalAutomationError(
+            "AUTOMATION_INVALID_CONDITION",
+            "Local note action is not enabled for this definition",
+          );
+        const captureId = crypto.randomUUID();
+        const recordId = crypto.randomUUID();
+        await tx.insert(capture).values({
+          id: captureId,
+          inputType: "text",
+          originalContent: note.content,
+          source: "automation-local-synthetic",
+          author: "system:local-automation-worker",
+          state: "filed",
+          projectId: current.projectId,
+          filedRecordKind: "note",
+          filedRecordId: recordId,
+          createdAt: now,
+          filedAt: now,
+        });
+        await tx.insert(knowledgeItem).values({
+          id: recordId,
+          projectId: current.projectId,
+          sourceCaptureId: captureId,
+          kind: "note",
+          title: note.title,
+          content: note.content,
+          createdAt: now,
+          updatedAt: now,
+        });
+        savedResult = automationRunResultSchema.parse({
+          ...result,
+          localAction: {
+            kind: "create_project_note",
+            capabilityReference: "commandry.project.knowledge.create",
+            risk: "reversible",
+            approvalBehavior: "definition_opt_in_local_only",
+            captureId,
+            recordId,
+            href: `/knowledge-items/${recordId}`,
+          },
+        });
+        await tx.insert(automationAuditEvent).values({
+          id: crypto.randomUUID(),
+          definitionId: current.definitionId,
+          runId,
+          actor: "system:local-automation-worker",
+          operation: "automation.local_note_created",
+          details: {
+            captureId,
+            recordId,
+            capabilityReference: "commandry.project.knowledge.create",
+            risk: "reversible",
+            approvalBehavior: "definition_opt_in_local_only",
+          },
+          createdAt: now,
+        });
+      }
+      const [attempt] = await tx
+        .update(automationRunAttempt)
+        .set({ state: "succeeded", completedAt: now })
+        .where(
+          and(
+            eq(automationRunAttempt.id, attemptId),
+            eq(automationRunAttempt.runId, runId),
+            eq(automationRunAttempt.state, "running"),
+          ),
+        )
+        .returning({ id: automationRunAttempt.id });
+      if (!attempt)
+        throw new LocalAutomationError(
+          "AUTOMATION_RUN_NOT_READY",
+          "Automation attempt is not running",
+        );
+      const [updated] = await tx
+        .update(automationRun)
+        .set({
+          state: "succeeded",
+          result: savedResult,
+          error: null,
+          completedAt: now,
+        })
+        .where(eq(automationRun.id, runId))
+        .returning();
+      if (!updated) throw new Error("Locked automation run disappeared");
+      await tx.insert(automationAuditEvent).values({
+        id: crypto.randomUUID(),
+        definitionId: current.definitionId,
+        runId,
+        actor: "system:local-automation-worker",
+        operation: "automation.run_succeeded",
+        details: { attemptId, evidenceCount: result.evidence.length },
+        createdAt: now,
+      });
+      return automationRunRecord(updated);
+    });
+  }
   return {
     async getDefinition(id: string) {
       const [row] = await db
@@ -393,46 +544,15 @@ export function createLocalAutomationRepository(db: CommandryDatabase) {
       attemptId: string,
       result: AutomationRunResult,
     ) {
-      return db.transaction(async (tx) => {
-        const [current] = await tx
-          .select()
-          .from(automationRun)
-          .where(eq(automationRun.id, runId))
-          .for("update")
-          .limit(1);
-        if (!current)
-          throw new LocalAutomationError(
-            "AUTOMATION_RUN_NOT_FOUND",
-            "Automation run not found",
-          );
-        if (current.state === "succeeded") return automationRunRecord(current);
-        const now = new Date();
-        await tx
-          .update(automationRunAttempt)
-          .set({ state: "succeeded", completedAt: now })
-          .where(
-            and(
-              eq(automationRunAttempt.id, attemptId),
-              eq(automationRunAttempt.runId, runId),
-            ),
-          );
-        const [updated] = await tx
-          .update(automationRun)
-          .set({ state: "succeeded", result, error: null, completedAt: now })
-          .where(eq(automationRun.id, runId))
-          .returning();
-        if (!updated) throw new Error("Locked automation run disappeared");
-        await tx.insert(automationAuditEvent).values({
-          id: crypto.randomUUID(),
-          definitionId: current.definitionId,
-          runId,
-          actor: "system:local-automation-worker",
-          operation: "automation.run_succeeded",
-          details: { attemptId, evidenceCount: result.evidence.length },
-          createdAt: now,
-        });
-        return automationRunRecord(updated);
-      });
+      return completeRun(runId, attemptId, result);
+    },
+    async completeWithLocalNote(
+      runId: string,
+      attemptId: string,
+      result: AutomationRunResult,
+      note: { title: string; content: string },
+    ) {
+      return completeRun(runId, attemptId, result, note);
     },
     async failAttempt(runId: string, attemptId: string) {
       await db.transaction(async (tx) => {

@@ -28,6 +28,7 @@ export default function AutomationsPage() {
   const [projectId, setProjectId] = useState("");
   const [name, setName] = useState("");
   const [enabled, setEnabled] = useState(true);
+  const [localNoteEnabled, setLocalNoteEnabled] = useState(false);
   const [triggerType, setTriggerType] = useState<
     | "on_creation_once"
     | "recurring_interval"
@@ -280,6 +281,14 @@ export default function AutomationsPage() {
             projectId,
             name: name.trim(),
             enabled,
+            ...(localNoteEnabled
+              ? {
+                  localAction: {
+                    kind: "create_project_note",
+                    capabilityReference: "commandry.project.knowledge.create",
+                  },
+                }
+              : {}),
             ...(recurrence ? { recurrence } : {}),
             ...(triggerType === "synthetic_event" ? { eventType } : {}),
             ...(triggerType === "synthetic_condition"
@@ -302,23 +311,26 @@ export default function AutomationsPage() {
           projects.find((item) => item.id === projectId)?.name ?? projectId,
       }));
       setFeedback(
-        triggerType === "recurring_interval"
-          ? enabled
-            ? "Recurring local summary saved. The worker will create at most one due occurrence per interval; output is synthetic and unverified."
-            : "Disabled recurring local summary saved. No occurrence will be created until it is enabled."
-          : triggerType === "synthetic_event"
+        localNoteEnabled
+          ? "Local routine saved with an opted-in Commandry note action. Each successful worker run creates one labeled synthetic project note and records its source capture in the audit."
+          : triggerType === "recurring_interval"
             ? enabled
-              ? "Synthetic event routine saved. A new matching fixture event will queue a source-linked local summary."
-              : "Disabled synthetic event routine saved. Matching events will be recorded as skipped."
-            : triggerType === "synthetic_condition"
+              ? "Recurring local summary saved. The worker will create at most one due occurrence per interval; output is synthetic and unverified."
+              : "Disabled recurring local summary saved. No occurrence will be created until it is enabled."
+            : triggerType === "synthetic_event"
               ? enabled
-                ? "Synthetic availability condition saved. Its next eligible below-threshold crossing will queue a source-linked local summary."
-                : "Disabled synthetic condition saved. Below-threshold crossings will be recorded as skipped."
-              : enabled
-                ? "Local automation created and its one-time synthetic summary queued. Open it to review the worker result."
-                : "Disabled local automation saved. It will not run until enabled and manually triggered.",
+                ? "Synthetic event routine saved. A new matching fixture event will queue a source-linked local summary."
+                : "Disabled synthetic event routine saved. Matching events will be recorded as skipped."
+              : triggerType === "synthetic_condition"
+                ? enabled
+                  ? "Synthetic availability condition saved. Its next eligible below-threshold crossing will queue a source-linked local summary."
+                  : "Disabled synthetic condition saved. Below-threshold crossings will be recorded as skipped."
+                : enabled
+                  ? "Local automation created and its one-time synthetic summary queued. Open it to review the worker result."
+                  : "Disabled local automation saved. It will not run until enabled and manually triggered.",
       );
       setName("");
+      setLocalNoteEnabled(false);
       setRecurrenceLocalTime("");
       if (enabled && triggerType === "on_creation_once")
         void enrich([definition]);
@@ -391,6 +403,7 @@ export default function AutomationsPage() {
                     triggerType: item.triggerType,
                     eventType: item.eventType,
                     condition: item.condition ?? null,
+                    createsLocalNote: Boolean(item.localAction),
                     latestRunState: latestRuns[item.id]?.state ?? null,
                     latestRunAt: latestRuns[item.id]?.createdAt ?? null,
                     nextRunAt: item.nextRunAt,
@@ -409,7 +422,7 @@ export default function AutomationsPage() {
           className="cmd-workspace-section cmd-create-panel"
           aria-labelledby="automation-create-heading"
         >
-          <p className="cmd-eyebrow">Create / Read-only</p>
+          <p className="cmd-eyebrow">Create / Bounded local policy</p>
           <h2 id="automation-create-heading">New local routine</h2>
           <p className="cmd-form-intro">
             Choose a summary at creation, a bounded recurring schedule, a
@@ -596,10 +609,24 @@ export default function AutomationsPage() {
               />
               Enabled at creation
             </label>
+            <label
+              className="cmd-automation-checkbox"
+              htmlFor="automation-local-note"
+            >
+              <input
+                checked={localNoteEnabled}
+                id="automation-local-note"
+                onChange={(event) => setLocalNoteEnabled(event.target.checked)}
+                type="checkbox"
+              />
+              Create a synthetic project note for each successful run
+            </label>
             <p className="cmd-form-hint">
-              Actor: local worker. Capability used: project.brief.read. Risk:
-              read-only. Approval: not required. Output: synthetic and
-              unverified.
+              Actor: local worker. Every run reads the project brief. The
+              optional note uses capability reference
+              commandry.project.knowledge.create and this definition&apos;s
+              local opt-in. Its generated original and run link are retained.
+              You can revise the note later. No external action occurs.
             </p>
             {feedback && (
               <p className="cmd-form-success" role="status">

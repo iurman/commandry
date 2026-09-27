@@ -13677,11 +13677,17 @@
           },
           "source": {
             "type": "string",
-            "const": "manual-local"
+            "enum": [
+              "manual-local",
+              "automation-local-synthetic"
+            ]
           },
           "author": {
             "type": "string",
-            "const": "local-user"
+            "enum": [
+              "local-user",
+              "system:local-automation-worker"
+            ]
           },
           "state": {
             "type": "string",
@@ -15208,11 +15214,17 @@
                 },
                 "source": {
                   "type": "string",
-                  "const": "manual-local"
+                  "enum": [
+                    "manual-local",
+                    "automation-local-synthetic"
+                  ]
                 },
                 "author": {
                   "type": "string",
-                  "const": "local-user"
+                  "enum": [
+                    "local-user",
+                    "system:local-automation-worker"
+                  ]
                 },
                 "state": {
                   "type": "string",
@@ -15437,11 +15449,17 @@
               },
               "source": {
                 "type": "string",
-                "const": "manual-local"
+                "enum": [
+                  "manual-local",
+                  "automation-local-synthetic"
+                ]
               },
               "author": {
                 "type": "string",
-                "const": "local-user"
+                "enum": [
+                  "local-user",
+                  "system:local-automation-worker"
+                ]
               },
               "state": {
                 "type": "string",
@@ -16294,11 +16312,17 @@
               },
               "source": {
                 "type": "string",
-                "const": "manual-local"
+                "enum": [
+                  "manual-local",
+                  "automation-local-synthetic"
+                ]
               },
               "author": {
                 "type": "string",
-                "const": "local-user"
+                "enum": [
+                  "local-user",
+                  "system:local-automation-worker"
+                ]
               },
               "state": {
                 "type": "string",
@@ -22634,6 +22658,24 @@
           "enabled": {
             "type": "boolean"
           },
+          "localAction": {
+            "type": "object",
+            "properties": {
+              "kind": {
+                "type": "string",
+                "const": "create_project_note"
+              },
+              "capabilityReference": {
+                "type": "string",
+                "const": "commandry.project.knowledge.create"
+              }
+            },
+            "required": [
+              "kind",
+              "capabilityReference"
+            ],
+            "additionalProperties": false
+          },
           "recurrence": {
             "type": "object",
             "properties": {
@@ -22750,6 +22792,41 @@
           },
           "name": {
             "type": "string"
+          },
+          "localAction": {
+            "anyOf": [
+              {
+                "type": "object",
+                "properties": {
+                  "kind": {
+                    "type": "string",
+                    "const": "create_project_note"
+                  },
+                  "capabilityReference": {
+                    "type": "string",
+                    "const": "commandry.project.knowledge.create"
+                  },
+                  "risk": {
+                    "type": "string",
+                    "const": "reversible"
+                  },
+                  "approvalBehavior": {
+                    "type": "string",
+                    "const": "definition_opt_in_local_only"
+                  }
+                },
+                "required": [
+                  "kind",
+                  "capabilityReference",
+                  "risk",
+                  "approvalBehavior"
+                ],
+                "additionalProperties": false
+              },
+              {
+                "type": "null"
+              }
+            ]
           },
           "routine": {
             "type": "string",
@@ -22874,6 +22951,7 @@
           "id",
           "projectId",
           "name",
+          "localAction",
           "routine",
           "triggerType",
           "eventType",
@@ -22998,6 +23076,52 @@
             "prefixItems": [],
             "items": false,
             "maxItems": 0
+          },
+          "localAction": {
+            "type": "object",
+            "properties": {
+              "kind": {
+                "type": "string",
+                "const": "create_project_note"
+              },
+              "capabilityReference": {
+                "type": "string",
+                "const": "commandry.project.knowledge.create"
+              },
+              "risk": {
+                "type": "string",
+                "const": "reversible"
+              },
+              "approvalBehavior": {
+                "type": "string",
+                "const": "definition_opt_in_local_only"
+              },
+              "captureId": {
+                "type": "string",
+                "format": "uuid",
+                "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$"
+              },
+              "recordId": {
+                "type": "string",
+                "format": "uuid",
+                "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$"
+              },
+              "href": {
+                "type": "string",
+                "format": "starts_with",
+                "pattern": "^\\/knowledge-items\\/.*"
+              }
+            },
+            "required": [
+              "kind",
+              "capabilityReference",
+              "risk",
+              "approvalBehavior",
+              "captureId",
+              "recordId",
+              "href"
+            ],
+            "additionalProperties": false
           }
         },
         "required": [
@@ -23209,6 +23333,52 @@
                     "prefixItems": [],
                     "items": false,
                     "maxItems": 0
+                  },
+                  "localAction": {
+                    "type": "object",
+                    "properties": {
+                      "kind": {
+                        "type": "string",
+                        "const": "create_project_note"
+                      },
+                      "capabilityReference": {
+                        "type": "string",
+                        "const": "commandry.project.knowledge.create"
+                      },
+                      "risk": {
+                        "type": "string",
+                        "const": "reversible"
+                      },
+                      "approvalBehavior": {
+                        "type": "string",
+                        "const": "definition_opt_in_local_only"
+                      },
+                      "captureId": {
+                        "type": "string",
+                        "format": "uuid",
+                        "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$"
+                      },
+                      "recordId": {
+                        "type": "string",
+                        "format": "uuid",
+                        "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$"
+                      },
+                      "href": {
+                        "type": "string",
+                        "format": "starts_with",
+                        "pattern": "^\\/knowledge-items\\/.*"
+                      }
+                    },
+                    "required": [
+                      "kind",
+                      "capabilityReference",
+                      "risk",
+                      "approvalBehavior",
+                      "captureId",
+                      "recordId",
+                      "href"
+                    ],
+                    "additionalProperties": false
                   }
                 },
                 "required": [
@@ -23621,6 +23791,41 @@
               "name": {
                 "type": "string"
               },
+              "localAction": {
+                "anyOf": [
+                  {
+                    "type": "object",
+                    "properties": {
+                      "kind": {
+                        "type": "string",
+                        "const": "create_project_note"
+                      },
+                      "capabilityReference": {
+                        "type": "string",
+                        "const": "commandry.project.knowledge.create"
+                      },
+                      "risk": {
+                        "type": "string",
+                        "const": "reversible"
+                      },
+                      "approvalBehavior": {
+                        "type": "string",
+                        "const": "definition_opt_in_local_only"
+                      }
+                    },
+                    "required": [
+                      "kind",
+                      "capabilityReference",
+                      "risk",
+                      "approvalBehavior"
+                    ],
+                    "additionalProperties": false
+                  },
+                  {
+                    "type": "null"
+                  }
+                ]
+              },
               "routine": {
                 "type": "string",
                 "const": "local_project_summary_v1"
@@ -23744,6 +23949,7 @@
               "id",
               "projectId",
               "name",
+              "localAction",
               "routine",
               "triggerType",
               "eventType",
@@ -23957,6 +24163,52 @@
                           "prefixItems": [],
                           "items": false,
                           "maxItems": 0
+                        },
+                        "localAction": {
+                          "type": "object",
+                          "properties": {
+                            "kind": {
+                              "type": "string",
+                              "const": "create_project_note"
+                            },
+                            "capabilityReference": {
+                              "type": "string",
+                              "const": "commandry.project.knowledge.create"
+                            },
+                            "risk": {
+                              "type": "string",
+                              "const": "reversible"
+                            },
+                            "approvalBehavior": {
+                              "type": "string",
+                              "const": "definition_opt_in_local_only"
+                            },
+                            "captureId": {
+                              "type": "string",
+                              "format": "uuid",
+                              "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$"
+                            },
+                            "recordId": {
+                              "type": "string",
+                              "format": "uuid",
+                              "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$"
+                            },
+                            "href": {
+                              "type": "string",
+                              "format": "starts_with",
+                              "pattern": "^\\/knowledge-items\\/.*"
+                            }
+                          },
+                          "required": [
+                            "kind",
+                            "capabilityReference",
+                            "risk",
+                            "approvalBehavior",
+                            "captureId",
+                            "recordId",
+                            "href"
+                          ],
+                          "additionalProperties": false
                         }
                       },
                       "required": [
@@ -24439,6 +24691,41 @@
                 "name": {
                   "type": "string"
                 },
+                "localAction": {
+                  "anyOf": [
+                    {
+                      "type": "object",
+                      "properties": {
+                        "kind": {
+                          "type": "string",
+                          "const": "create_project_note"
+                        },
+                        "capabilityReference": {
+                          "type": "string",
+                          "const": "commandry.project.knowledge.create"
+                        },
+                        "risk": {
+                          "type": "string",
+                          "const": "reversible"
+                        },
+                        "approvalBehavior": {
+                          "type": "string",
+                          "const": "definition_opt_in_local_only"
+                        }
+                      },
+                      "required": [
+                        "kind",
+                        "capabilityReference",
+                        "risk",
+                        "approvalBehavior"
+                      ],
+                      "additionalProperties": false
+                    },
+                    {
+                      "type": "null"
+                    }
+                  ]
+                },
                 "routine": {
                   "type": "string",
                   "const": "local_project_summary_v1"
@@ -24562,6 +24849,7 @@
                 "id",
                 "projectId",
                 "name",
+                "localAction",
                 "routine",
                 "triggerType",
                 "eventType",
@@ -24798,6 +25086,52 @@
                           "prefixItems": [],
                           "items": false,
                           "maxItems": 0
+                        },
+                        "localAction": {
+                          "type": "object",
+                          "properties": {
+                            "kind": {
+                              "type": "string",
+                              "const": "create_project_note"
+                            },
+                            "capabilityReference": {
+                              "type": "string",
+                              "const": "commandry.project.knowledge.create"
+                            },
+                            "risk": {
+                              "type": "string",
+                              "const": "reversible"
+                            },
+                            "approvalBehavior": {
+                              "type": "string",
+                              "const": "definition_opt_in_local_only"
+                            },
+                            "captureId": {
+                              "type": "string",
+                              "format": "uuid",
+                              "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$"
+                            },
+                            "recordId": {
+                              "type": "string",
+                              "format": "uuid",
+                              "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$"
+                            },
+                            "href": {
+                              "type": "string",
+                              "format": "starts_with",
+                              "pattern": "^\\/knowledge-items\\/.*"
+                            }
+                          },
+                          "required": [
+                            "kind",
+                            "capabilityReference",
+                            "risk",
+                            "approvalBehavior",
+                            "captureId",
+                            "recordId",
+                            "href"
+                          ],
+                          "additionalProperties": false
                         }
                       },
                       "required": [

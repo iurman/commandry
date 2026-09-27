@@ -23,6 +23,15 @@ export default meta;
 type Story = StoryObj<typeof meta>;
 
 export const Enabled: Story = {};
+export const LocalNoteAction: Story = {
+  args: {
+    automation: {
+      ...meta.args.automation,
+      name: "File a synthetic project note",
+      createsLocalNote: true,
+    },
+  },
+};
 export const Disabled: Story = {
   args: {
     automation: {

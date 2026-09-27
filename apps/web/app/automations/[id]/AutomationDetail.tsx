@@ -544,11 +544,20 @@ export default function AutomationDetail({
                 </div>
                 <div>
                   <dt>Capability</dt>
-                  <dd>project.brief.read</dd>
+                  <dd>
+                    project.brief.read
+                    {definition.localAction
+                      ? `; ${definition.localAction.capabilityReference}`
+                      : ""}
+                  </dd>
                 </div>
                 <div>
                   <dt>Risk and approval</dt>
-                  <dd>Read-only; no approval required</dd>
+                  <dd>
+                    {definition.localAction
+                      ? "Reversible local note; definition opt-in only"
+                      : "Read-only; no approval required"}
+                  </dd>
                 </div>
                 <div>
                   <dt>Source of truth</dt>
@@ -560,6 +569,14 @@ export default function AutomationDetail({
                 a dead-letter queue. This routine cannot use secrets or perform
                 external actions.
               </p>
+              {definition.localAction && (
+                <p>
+                  Each successful run atomically files one generated synthetic
+                  note into this project and records its capture and note IDs in
+                  the audit. Replaying a completed run cannot create another
+                  note. This local opt-in is not a production capability grant.
+                </p>
+              )}
               {definition.triggerType === "recurring_interval" && (
                 <p>
                   Recurrence policy: after worker downtime, at most the latest
@@ -760,6 +777,20 @@ export default function AutomationDetail({
                         </time>
                         . External actions: none.
                       </p>
+                      {run.result.localAction && (
+                        <p>
+                          <a href={run.result.localAction.href}>
+                            Open generated synthetic project note
+                          </a>{" "}
+                          <code>{run.result.localAction.recordId}</code>.
+                          Reversible local action, authorized by definition
+                          opt-in; capability reference{" "}
+                          <code>
+                            {run.result.localAction.capabilityReference}
+                          </code>
+                          .
+                        </p>
+                      )}
                       <ul aria-label={`Evidence for run ${run.id}`}>
                         {run.result.evidence.map((source) => (
                           <li key={`${source.kind}:${source.id}`}>

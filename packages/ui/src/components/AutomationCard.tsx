@@ -11,6 +11,7 @@ export interface AutomationCardView {
   eventType?:
     "git.pull_request.merged" | "monitor.down" | "monitor.recovered" | null;
   condition?: { thresholdPercent: number } | null;
+  createsLocalNote?: boolean;
   latestRunState:
     "queued" | "running" | "succeeded" | "failed" | "skipped" | null;
   latestRunAt: string | null;
@@ -26,7 +27,10 @@ export function AutomationCard({
     <article className="cmd-automation-card">
       <div className="cmd-section-heading">
         <div>
-          <p className="cmd-eyebrow">Local-only / Read-only</p>
+          <p className="cmd-eyebrow">
+            Local-only /{" "}
+            {automation.createsLocalNote ? "Project note" : "Read-only"}
+          </p>
           <h3>
             <a href={`/automations/${automation.id}`}>{automation.name}</a>
           </h3>
@@ -54,7 +58,10 @@ export function AutomationCard({
         </div>
         <div>
           <dt>Routine</dt>
-          <dd>Local project summary</dd>
+          <dd>
+            Local project summary
+            {automation.createsLocalNote ? " with synthetic note" : ""}
+          </dd>
         </div>
         <div>
           <dt>Latest run state</dt>

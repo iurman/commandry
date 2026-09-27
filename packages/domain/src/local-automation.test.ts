@@ -1,6 +1,8 @@
 import { describe, expect, it } from "vitest";
 import {
+  LOCAL_PROJECT_NOTE_ACTION_POLICY,
   LOCAL_PROJECT_SUMMARY_POLICY,
+  localAutomationNote,
   requireAutomationEnabled,
   requireExpectedAutomationEnabled,
   requireSameAutomationOccurrence,
@@ -14,6 +16,31 @@ import {
 } from "./local-automation";
 
 describe("local automation policy", () => {
+  it("bounds a synthetic local note to a capability reference and traceable source", () => {
+    expect(LOCAL_PROJECT_NOTE_ACTION_POLICY).toMatchObject({
+      capabilityReference: "commandry.project.knowledge.create",
+      risk: "reversible",
+      approvalBehavior: "definition_opt_in_local_only",
+      externalActions: false,
+    });
+    const note = localAutomationNote({
+      runId: "run-1",
+      definitionId: "definition-1",
+      definitionName: "Review project",
+      summary: "Synthetic local summary",
+      evidenceHrefs: Array.from(
+        { length: 23 },
+        (_, index) => `/api/v1/events/${index}`,
+      ),
+    });
+    expect(note.title).toContain("Synthetic automation");
+    expect(note.content).toContain("Run: run-1");
+    expect(note.content).toContain("20 of 23");
+    expect(note.content).toContain("/api/v1/events/19");
+    expect(note.content).not.toContain("/api/v1/events/20");
+    expect(note.content).toContain("No external action");
+  });
+
   it("declares a bounded read-only capability and rejects disabled or stale runs", () => {
     expect(LOCAL_PROJECT_SUMMARY_POLICY).toMatchObject({
       risk: "read_only",

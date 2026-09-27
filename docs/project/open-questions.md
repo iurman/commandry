@@ -50,6 +50,16 @@ artifact transfer, or retry policy for a real runner.
 Define operations, scopes, environments, expiry, delegation, and approval
 evaluation in enough detail to safely ship read tools and the first write action.
 
+The local MVP now allows an automation definition to opt into one fixed
+Commandry-owned note action with the literal capability reference
+`commandry.project.knowledge.create`. The worker checks the enabled definition
+and exact reference again before filing one labeled synthetic note and original
+capture atomically with the run result and audit. The note can be revised; its
+original and audit remain. This is a local policy rehearsal, not a general
+capability grant, human identity or approval system, secret reference, or
+authorization for an external write. Validate scoped grants, revocation,
+approval identity, and action risk before production use.
+
 ### OQ-008: Which secrets system will broker credentials?
 
 Decide whether the first release integrates a vault, uses platform-managed

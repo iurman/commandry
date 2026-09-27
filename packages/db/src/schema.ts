@@ -549,8 +549,16 @@ export const capture = pgTable(
     id: uuid("id").primaryKey(),
     inputType: text("input_type", { enum: ["text", "url", "file"] }).notNull(),
     originalContent: text("original_content").notNull(),
-    source: text("source").notNull().default("manual-local"),
-    author: text("author").notNull().default("local-user"),
+    source: text("source", {
+      enum: ["manual-local", "automation-local-synthetic"],
+    })
+      .notNull()
+      .default("manual-local"),
+    author: text("author", {
+      enum: ["local-user", "system:local-automation-worker"],
+    })
+      .notNull()
+      .default("local-user"),
     state: text("state", { enum: ["unfiled", "filed"] })
       .notNull()
       .default("unfiled"),
@@ -579,8 +587,14 @@ export const capture = pgTable(
       "capture_input_type_valid",
       sql`${table.inputType} in ('text', 'url', 'file')`,
     ),
-    check("capture_source_manual", sql`${table.source} = 'manual-local'`),
-    check("capture_author_local", sql`${table.author} = 'local-user'`),
+    check(
+      "capture_source_valid",
+      sql`${table.source} in ('manual-local', 'automation-local-synthetic')`,
+    ),
+    check(
+      "capture_author_valid",
+      sql`(${table.source} = 'manual-local' and ${table.author} = 'local-user') or (${table.source} = 'automation-local-synthetic' and ${table.author} = 'system:local-automation-worker')`,
+    ),
     check(
       "capture_filing_state_valid",
       sql`(${table.state} = 'unfiled' and ${table.filedAt} is null and ${table.filedRecordKind} is null and ${table.filedRecordId} is null) or (${table.state} = 'filed' and ${table.filedAt} is not null and ${table.projectId} is not null and ${table.filedRecordKind} in ('task', 'note', 'link', 'document') and ${table.filedRecordId} is not null)`,
@@ -1739,6 +1753,10 @@ export const automationDefinition = pgTable(
     routine: text("routine", { enum: ["local_project_summary_v1"] })
       .notNull()
       .default("local_project_summary_v1"),
+    localActionKind: text("local_action_kind", {
+      enum: ["create_project_note"],
+    }),
+    capabilityReference: text("capability_reference"),
     triggerType: text("trigger_type", {
       enum: [
         "on_creation_once",
@@ -1804,6 +1822,10 @@ export const automationDefinition = pgTable(
     check(
       "automation_definition_source_local",
       sql`${table.sourceOfTruth} = 'local-only'`,
+    ),
+    check(
+      "automation_definition_local_action_valid",
+      sql`(${table.localActionKind} is null and ${table.capabilityReference} is null) or (${table.localActionKind} = 'create_project_note' and ${table.capabilityReference} = 'commandry.project.knowledge.create')`,
     ),
   ],
 );

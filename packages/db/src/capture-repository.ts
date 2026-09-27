@@ -33,8 +33,8 @@ export function captureRecord(
           downloadHref: `/api/v1/captures/${row.id}/original-file`,
         }
       : null,
-    source: MANUAL_CAPTURE_SOURCE,
-    author: MANUAL_CAPTURE_AUTHOR,
+    source: row.source,
+    author: row.author,
     state: row.state,
     projectId: row.projectId,
     filedRecord:

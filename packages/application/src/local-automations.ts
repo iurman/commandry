@@ -14,7 +14,11 @@ import {
   type SyntheticMetricSample,
   type TriggerAutomationRunRequest,
 } from "@commandry/contracts";
-import { LocalAutomationError } from "@commandry/domain";
+import {
+  LOCAL_PROJECT_NOTE_ACTION_POLICY,
+  LocalAutomationError,
+  localAutomationNote,
+} from "@commandry/domain";
 
 type PageQuery = { limit: number; cursor?: string | undefined };
 
@@ -68,6 +72,7 @@ export function buildLocalProjectSummaryResult(
   sourceEvent: NormalizedSyntheticEvent | null = null,
   sourceMetric: SyntheticMetricSample | null = null,
   thresholdPercent: number | null = null,
+  createsLocalNote = false,
 ): AutomationRunResult {
   const work = brief.sections.work;
   const decisions = brief.sections.decisions;
@@ -108,7 +113,7 @@ export function buildLocalProjectSummaryResult(
     new Map(evidence.map((item) => [`${item.kind}:${item.id}`, item])).values(),
   );
   return automationRunResultSchema.parse({
-    summary: `${sourceMetric ? `Synthetic ${sourceMetric.name} ${sourceMetric.value}% entered the at-or-below ${thresholdPercent}% condition for ${sourceMetric.resourceName}. ` : sourceEvent ? `Synthetic ${sourceEvent.type} event prompted this summary. ` : ""}Local brief preview: ${work.items.length} open work item(s), ${decisions.items.length} decision(s), and ${attention.items.length} synthetic attention item(s). Review the source pages for the complete records. No work was executed or verified.`,
+    summary: `${sourceMetric ? `Synthetic ${sourceMetric.name} ${sourceMetric.value}% entered the at-or-below ${thresholdPercent}% condition for ${sourceMetric.resourceName}. ` : sourceEvent ? `Synthetic ${sourceEvent.type} event prompted this summary. ` : ""}Local brief preview: ${work.items.length} open work item(s), ${decisions.items.length} decision(s), and ${attention.items.length} synthetic attention item(s). Review the source pages for the complete records. ${createsLocalNote ? "A local synthetic note was created in Commandry; no external work was executed or verified." : "No work was executed or verified."}`,
     asOf: brief.asOf,
     evidence: distinctEvidence,
     sourceLabel: "Synthetic local automation",
@@ -127,6 +132,12 @@ export interface LocalAutomationProcessingPort {
     runId: string,
     attemptId: string,
     result: AutomationRunResult,
+  ): Promise<AutomationRun>;
+  completeWithLocalNote(
+    runId: string,
+    attemptId: string,
+    result: AutomationRunResult,
+    note: { title: string; content: string },
   ): Promise<AutomationRun>;
   failAttempt(runId: string, attemptId: string): Promise<void>;
 }
@@ -177,9 +188,12 @@ export function createLocalAutomationProcessor(
         ? ((await events?.getMetricSampleById?.(run.sourceMetricSampleId)) ??
           null)
         : null;
-      const definition = run.sourceMetricSampleId
-        ? ((await port.getDefinition?.(run.definitionId)) ?? null)
-        : null;
+      const definition = (await port.getDefinition?.(run.definitionId)) ?? null;
+      if (port.getDefinition && !definition)
+        throw new LocalAutomationError(
+          "AUTOMATION_NOT_FOUND",
+          "Automation definition is unavailable for this run",
+        );
       if (
         run.sourceMetricSampleId &&
         (!sourceMetric ||
@@ -204,16 +218,38 @@ export function createLocalAutomationProcessor(
           "Project brief is unavailable",
         );
       await port.recordRead(run.id, brief.asOf);
-      return await port.complete(
-        run.id,
-        attemptId,
-        buildLocalProjectSummaryResult(
-          brief,
-          sourceEvent,
-          sourceMetric,
-          definition?.condition?.thresholdPercent ?? null,
-        ),
+      const result = buildLocalProjectSummaryResult(
+        brief,
+        sourceEvent,
+        sourceMetric,
+        definition?.condition?.thresholdPercent ?? null,
+        Boolean(definition?.localAction),
       );
+      if (definition?.localAction) {
+        if (
+          definition.localAction.kind !==
+            LOCAL_PROJECT_NOTE_ACTION_POLICY.kind ||
+          definition.localAction.capabilityReference !==
+            LOCAL_PROJECT_NOTE_ACTION_POLICY.capabilityReference
+        )
+          throw new LocalAutomationError(
+            "AUTOMATION_INVALID_CONDITION",
+            "Local action capability reference is invalid",
+          );
+        return await port.completeWithLocalNote(
+          run.id,
+          attemptId,
+          result,
+          localAutomationNote({
+            runId: run.id,
+            definitionId: run.definitionId,
+            definitionName: definition.name,
+            summary: result.summary,
+            evidenceHrefs: result.evidence.map((item) => item.href),
+          }),
+        );
+      }
+      return await port.complete(run.id, attemptId, result);
     } catch (error) {
       await port.failAttempt(run.id, attemptId);
       throw error;
