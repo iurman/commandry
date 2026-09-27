@@ -53,14 +53,22 @@ test("a local system joins domain, project, and resource context without claimin
       name: "Browse operated systems and their supporting resources",
     })
     .click();
-  await page.getByLabel("Name").fill(`Home operations ${suffix}`);
   await page.getByLabel("Summary").fill("A continuing local capability");
+  const createSystemButton = page.getByRole("button", {
+    name: "Create system",
+  });
+  await expect
+    .poll(async () => {
+      await page.getByLabel("Name").fill(`Home operations ${suffix}`);
+      return createSystemButton.isEnabled();
+    })
+    .toBe(true);
   const createResponsePromise = page.waitForResponse(
     (response) =>
       response.url().endsWith("/api/v1/systems") &&
       response.request().method() === "POST",
   );
-  await page.getByRole("button", { name: "Create system" }).click();
+  await createSystemButton.click();
   const createResponse = await createResponsePromise;
   expect(createResponse.status()).toBe(201);
   const system = await createResponse.json();
