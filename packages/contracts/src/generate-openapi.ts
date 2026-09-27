@@ -221,6 +221,12 @@ import {
   listNotificationAuditResponseSchema,
   attentionItemSchema,
   listAttentionResponseSchema,
+  localAttentionSettingsSchema,
+  updateLocalAttentionSettingsRequestSchema,
+  localAttentionSignalSchema,
+  listLocalAttentionSignalsResponseSchema,
+  localAttentionAuditEventSchema,
+  listLocalAttentionAuditResponseSchema,
   listNormalizedEventsResponseSchema,
   listSyntheticAlertsResponseSchema,
   listSyntheticEventImportsResponseSchema,
@@ -3702,6 +3708,69 @@ export function generateOpenApi(): string {
           },
         },
       },
+      "/api/v1/attention-signals": {
+        get: {
+          operationId: "listLocalAttentionSignals",
+          summary: "Page evidence-linked synthetic freshness and metric trends",
+          parameters: [
+            ...pageParameters,
+            projectFilterParameter,
+            {
+              name: "view",
+              in: "query",
+              schema: { type: "string", enum: ["active", "all"] },
+            },
+          ],
+          responses: {
+            "200": {
+              description:
+                "Local attention signal page; real health remains unknown",
+              content: jsonContent("ListLocalAttentionSignalsResponse"),
+            },
+          },
+        },
+      },
+      "/api/v1/attention-rules": {
+        get: {
+          operationId: "getLocalAttentionRules",
+          responses: {
+            "200": {
+              description: "Provisional local rule preferences",
+              content: jsonContent("LocalAttentionSettings"),
+            },
+          },
+        },
+        patch: {
+          operationId: "updateLocalAttentionRules",
+          summary: "Update audited reversible local attention preferences",
+          requestBody: {
+            required: true,
+            content: jsonContent("UpdateLocalAttentionSettingsRequest"),
+          },
+          responses: {
+            "200": {
+              description: "Saved local rule preferences",
+              content: jsonContent("LocalAttentionSettings"),
+            },
+            "409": {
+              description: "Rule version changed",
+              content: jsonContent("ErrorResponse"),
+            },
+          },
+        },
+      },
+      "/api/v1/attention-rules/audit": {
+        get: {
+          operationId: "listLocalAttentionAudit",
+          parameters: pageParameters,
+          responses: {
+            "200": {
+              description: "Paged local rule and signal transition audit",
+              content: jsonContent("ListLocalAttentionAuditResponse"),
+            },
+          },
+        },
+      },
       "/api/v1/synthetic-runs": {
         post: {
           operationId: "createSyntheticRun",
@@ -4157,6 +4226,18 @@ export function generateOpenApi(): string {
         ),
         AttentionItem: component(attentionItemSchema),
         ListAttentionResponse: component(listAttentionResponseSchema),
+        LocalAttentionSettings: component(localAttentionSettingsSchema),
+        UpdateLocalAttentionSettingsRequest: component(
+          updateLocalAttentionSettingsRequestSchema,
+        ),
+        LocalAttentionSignal: component(localAttentionSignalSchema),
+        ListLocalAttentionSignalsResponse: component(
+          listLocalAttentionSignalsResponseSchema,
+        ),
+        LocalAttentionAuditEvent: component(localAttentionAuditEventSchema),
+        ListLocalAttentionAuditResponse: component(
+          listLocalAttentionAuditResponseSchema,
+        ),
         CreateSyntheticRunRequest: component(createSyntheticRunRequestSchema),
         SyntheticJobV1: component(syntheticJobV1Schema),
         SyntheticRun: component(syntheticRunSchema),

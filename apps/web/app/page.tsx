@@ -1,12 +1,17 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import type { Notification, WorkItem } from "@commandry/contracts";
+import type {
+  LocalAttentionSignal,
+  Notification,
+  WorkItem,
+} from "@commandry/contracts";
 import { chooseCommandCenterNextAction, workDueLabel } from "@commandry/domain";
 import {
   AppShell,
   Button,
   NotificationCard,
+  LocalAttentionSignalCard,
   StatePanel,
   StatusBadge,
   SyntheticEventCard,
@@ -31,6 +36,11 @@ function oneHourFromNow() {
 
 export default function HomePage() {
   const [notifications, setNotifications] = useState<Notification[]>([]);
+  const [localSignals, setLocalSignals] = useState<LocalAttentionSignal[]>([]);
+  const [localSignalsLoading, setLocalSignalsLoading] = useState(true);
+  const [localSignalsError, setLocalSignalsError] = useState<string | null>(
+    null,
+  );
   const [notificationsLoading, setNotificationsLoading] = useState(true);
   const [notificationsError, setNotificationsError] = useState<string | null>(
     null,
@@ -60,6 +70,31 @@ export default function HomePage() {
       })
       .finally(() => {
         if (active) setNotificationsLoading(false);
+      });
+    return () => {
+      active = false;
+    };
+  }, []);
+
+  useEffect(() => {
+    let active = true;
+    apiJson<PageResponse<LocalAttentionSignal>>(
+      "/api/v1/attention-signals?view=active&limit=3",
+    )
+      .then((page) => {
+        if (active) setLocalSignals(page.items);
+      })
+      .catch((cause: unknown) => {
+        if (active)
+          setLocalSignalsError(
+            message(
+              cause,
+              "Synthetic source and trend signals are unavailable.",
+            ),
+          );
+      })
+      .finally(() => {
+        if (active) setLocalSignalsLoading(false);
       });
     return () => {
       active = false;
@@ -211,6 +246,36 @@ export default function HomePage() {
           )}
           <p className="cmd-home-panel-link">
             <a href="/work">Review all upcoming work</a>
+          </p>
+        </StatePanel>
+        <StatePanel
+          id="source-signal-title"
+          state={
+            localSignalsLoading
+              ? "loading"
+              : localSignalsError
+                ? "error"
+                : localSignals.length
+                  ? "normal"
+                  : "empty"
+          }
+          title="Source and trend signals"
+          description={
+            localSignalsError ??
+            "Explainable synthetic source freshness and metric changes. Real source health remains unknown."
+          }
+        >
+          {localSignals.length > 0 && (
+            <ul className="cmd-notification-list">
+              {localSignals.map((signal) => (
+                <li key={signal.id}>
+                  <LocalAttentionSignalCard signal={signal} />
+                </li>
+              ))}
+            </ul>
+          )}
+          <p className="cmd-home-panel-link">
+            <a href="/attention-signals">Review signals and local rules</a>
           </p>
         </StatePanel>
         <StatePanel

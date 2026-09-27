@@ -1,0 +1,255 @@
+import assert from "node:assert/strict";
+import { resolve } from "node:path";
+import { test } from "node:test";
+import { createLocalAttentionService } from "@commandry/application";
+import { createDatabase } from "./client";
+import { createLocalAttentionRepository } from "./local-attention-repository";
+import { migrateDatabase } from "./migrate";
+import {
+  integrationInstance,
+  metricSample,
+  normalizedEvent,
+  project,
+  resource,
+  sourceEnvelope,
+  syntheticEventImport,
+} from "./schema";
+
+const connectionString = process.env.COMMANDRY_TEST_DATABASE_URL;
+if (!connectionString) throw new Error("Run through pnpm test:integration");
+
+test("local attention reconciles evidence, preferences, resolution, and paged history", async () => {
+  await migrateDatabase({
+    connectionString,
+    migrationsDir: resolve(process.cwd(), "packages/db/migrations"),
+  });
+  const database = createDatabase({ connectionString, max: 3 });
+  const projectId = crypto.randomUUID();
+  const resourceId = crypto.randomUUID();
+  const staleIntegrationId = crypto.randomUUID();
+  const metricIntegrationId = crypto.randomUUID();
+  const service = createLocalAttentionService(
+    createLocalAttentionRepository(database.db),
+  );
+  const original = await service.getSettings();
+  try {
+    await database.db.insert(project).values({
+      id: projectId,
+      name: "Local attention evidence",
+    });
+    await database.db.insert(resource).values({
+      id: resourceId,
+      kind: "service",
+      name: "Synthetic availability target",
+    });
+    await database.db.insert(integrationInstance).values([
+      {
+        id: staleIntegrationId,
+        name: "Synthetic stale development feed",
+        kind: "synthetic-development",
+        projectId,
+        freshnessWindowMinutes: 60,
+      },
+      {
+        id: metricIntegrationId,
+        name: "Synthetic availability feed",
+        kind: "synthetic-operations",
+        projectId,
+        resourceId,
+        freshnessWindowMinutes: 60,
+      },
+    ]);
+    async function observation(
+      kind: "development" | "operations",
+      integrationId: string,
+      at: Date,
+      value?: number,
+    ) {
+      const importId = crypto.randomUUID();
+      const envelopeId = crypto.randomUUID();
+      const sourceKind =
+        kind === "development"
+          ? ("synthetic-development" as const)
+          : ("synthetic-operations" as const);
+      const scenarioId =
+        kind === "development"
+          ? ("development.pr-merged" as const)
+          : value === 100
+            ? ("operations.monitor-recovered" as const)
+            : ("operations.monitor-down" as const);
+      await database.db.insert(syntheticEventImport).values({
+        id: importId,
+        occurrenceId: `attention:${importId}`,
+        requestFingerprint: "a".repeat(64),
+        scenarioId,
+        projectId,
+        integrationInstanceId: integrationId,
+        resourceId: kind === "operations" ? resourceId : null,
+        state: "succeeded",
+        completedAt: new Date(),
+      });
+      await database.db.insert(sourceEnvelope).values({
+        id: envelopeId,
+        importId,
+        sourceKind,
+        sourceLabel: `Synthetic ${kind} fixture`,
+        sourceSchemaVersion: "synthetic-fixture/v1",
+        sourceEventId: `attention:${envelopeId}`,
+        rawPayload: { scenarioId },
+        occurredAt: at,
+      });
+      if (kind === "operations" && value !== undefined) {
+        const eventId = crypto.randomUUID();
+        await database.db.insert(normalizedEvent).values({
+          id: eventId,
+          importId,
+          sourceEnvelopeId: envelopeId,
+          type: value === 100 ? "monitor.recovered" : "monitor.down",
+          projectId,
+          resourceId,
+          severity: value === 100 ? "info" : "critical",
+          summary: "Synthetic availability sample",
+          occurredAt: at,
+          sourceKind,
+          sourceLabel: "Synthetic operational fixture",
+          processingVersion: "synthetic-projection/v1",
+        });
+        const metricId = crypto.randomUUID();
+        await database.db.insert(metricSample).values({
+          id: metricId,
+          eventId,
+          sourceEnvelopeId: envelopeId,
+          projectId,
+          resourceId,
+          name: "external_availability",
+          unit: "percent",
+          value,
+          sampledAt: at,
+          sourceKind,
+          sourceLabel: "Synthetic operational fixture",
+          isSynthetic: true,
+        });
+        return metricId;
+      }
+      return envelopeId;
+    }
+
+    const asOf = new Date();
+    const staleEvidence = await observation(
+      "development",
+      staleIntegrationId,
+      new Date(asOf.getTime() - 2 * 60 * 60_000),
+    );
+    const earlierMetric = await observation(
+      "operations",
+      metricIntegrationId,
+      new Date(asOf.getTime() - 10 * 60_000),
+      100,
+    );
+    const latestMetric = await observation(
+      "operations",
+      metricIntegrationId,
+      new Date(asOf.getTime() - 5 * 60_000),
+      50,
+    );
+    const configured = await service.updateSettings({
+      expectedVersion: original.version,
+      staleSourceEnabled: true,
+      metricDropEnabled: true,
+      metricDropPoints: 25,
+    });
+    const firstEvaluation = await service.evaluate(asOf);
+    assert.ok(firstEvaluation.activated >= 2);
+    const first = await service.listSignals({
+      view: "active",
+      projectId,
+      limit: 1,
+    });
+    assert.equal(first.items.length, 1);
+    assert.ok(first.nextCursor);
+    const second = await service.listSignals({
+      view: "active",
+      projectId,
+      limit: 1,
+      cursor: first.nextCursor,
+    });
+    const signals = [...first.items, ...second.items];
+    assert.equal(signals.length, 2);
+    assert.equal(new Set(signals.map((signal) => signal.id)).size, 2);
+    assert.ok(
+      signals.some(
+        (signal) =>
+          signal.ruleId === "source_stale" &&
+          signal.evidenceHref.endsWith(staleEvidence),
+      ),
+    );
+    assert.ok(
+      signals.some(
+        (signal) =>
+          signal.ruleId === "metric_drop" &&
+          signal.evidenceHref.endsWith(latestMetric) &&
+          signal.previousEvidenceHref?.endsWith(earlierMetric),
+      ),
+    );
+    assert.ok(signals.every((signal) => signal.realHealth === "unknown"));
+    await assert.rejects(
+      service.updateSettings({
+        expectedVersion: original.version,
+        staleSourceEnabled: false,
+        metricDropEnabled: false,
+        metricDropPoints: 25,
+      }),
+      (error: unknown) =>
+        error instanceof Error &&
+        "code" in error &&
+        error.code === "SETTINGS_STALE",
+    );
+    await service.updateSettings({
+      expectedVersion: configured.version,
+      staleSourceEnabled: true,
+      metricDropEnabled: false,
+      metricDropPoints: 25,
+    });
+    await service.evaluate(asOf);
+    assert.deepEqual(
+      (
+        await service.listSignals({ view: "active", projectId, limit: 10 })
+      ).items.map((signal) => signal.ruleId),
+      ["source_stale"],
+    );
+    await observation("development", staleIntegrationId, asOf);
+    await service.evaluate(asOf);
+    assert.equal(
+      (await service.listSignals({ view: "active", projectId, limit: 10 }))
+        .items.length,
+      0,
+    );
+    const history = await service.listSignals({
+      view: "all",
+      projectId,
+      limit: 10,
+    });
+    assert.deepEqual(
+      new Set(history.items.map((signal) => signal.state)),
+      new Set(["resolved"]),
+    );
+    const audit = await service.listAudit({ limit: 100 });
+    assert.ok(
+      audit.items.some(
+        (item) => item.operation === "local_attention.rules_changed",
+      ),
+    );
+    assert.ok(
+      audit.items.some((item) => item.operation === "local_attention.resolved"),
+    );
+  } finally {
+    const latest = await service.getSettings();
+    await service.updateSettings({
+      expectedVersion: latest.version,
+      staleSourceEnabled: original.staleSourceEnabled,
+      metricDropEnabled: original.metricDropEnabled,
+      metricDropPoints: original.metricDropPoints,
+    });
+    await database.close();
+  }
+});

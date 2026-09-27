@@ -2877,6 +2877,129 @@ export const metricSample = pgTable(
   ],
 );
 
+export const localAttentionSetting = pgTable(
+  "local_attention_setting",
+  {
+    id: text("id").primaryKey(),
+    version: integer("version").notNull().default(1),
+    staleSourceEnabled: boolean("stale_source_enabled").notNull().default(true),
+    metricDropEnabled: boolean("metric_drop_enabled").notNull().default(true),
+    metricDropPoints: integer("metric_drop_points").notNull().default(25),
+    updatedAt: timestamp("updated_at", { withTimezone: true })
+      .notNull()
+      .defaultNow(),
+  },
+  (table) => [
+    check("local_attention_setting_singleton", sql`${table.id} = 'local'`),
+    check(
+      "local_attention_setting_version_positive",
+      sql`${table.version} > 0`,
+    ),
+    check(
+      "local_attention_setting_drop_points_valid",
+      sql`${table.metricDropPoints} between 1 and 100`,
+    ),
+  ],
+);
+
+export const localAttentionSignal = pgTable(
+  "local_attention_signal",
+  {
+    id: uuid("id").primaryKey(),
+    key: text("key").notNull(),
+    ruleId: text("rule_id", {
+      enum: ["source_stale", "metric_drop"],
+    }).notNull(),
+    state: text("state", { enum: ["active", "resolved"] }).notNull(),
+    projectId: uuid("project_id")
+      .notNull()
+      .references(() => project.id, { onDelete: "restrict" }),
+    integrationId: uuid("integration_id").references(
+      () => integrationInstance.id,
+      {
+        onDelete: "restrict",
+      },
+    ),
+    resourceId: uuid("resource_id").references(() => resource.id, {
+      onDelete: "restrict",
+    }),
+    evidenceKind: text("evidence_kind", {
+      enum: ["source_envelope", "metric_sample"],
+    }).notNull(),
+    evidenceId: uuid("evidence_id").notNull(),
+    previousEvidenceId: uuid("previous_evidence_id"),
+    reason: text("reason").notNull(),
+    observedAt: timestamp("observed_at", { withTimezone: true }).notNull(),
+    previousObservedAt: timestamp("previous_observed_at", {
+      withTimezone: true,
+    }),
+    previousValue: integer("previous_value"),
+    latestValue: integer("latest_value"),
+    threshold: integer("threshold").notNull(),
+    changedAt: timestamp("changed_at", { withTimezone: true })
+      .notNull()
+      .defaultNow(),
+    evaluatedAt: timestamp("evaluated_at", { withTimezone: true })
+      .notNull()
+      .defaultNow(),
+    isSynthetic: boolean("is_synthetic").notNull().default(true),
+  },
+  (table) => [
+    uniqueIndex("local_attention_signal_key_idx").on(table.key),
+    index("local_attention_signal_page_idx").on(
+      table.state,
+      table.changedAt,
+      table.id,
+    ),
+    index("local_attention_signal_project_idx").on(
+      table.projectId,
+      table.changedAt,
+      table.id,
+    ),
+    check(
+      "local_attention_signal_rule_valid",
+      sql`${table.ruleId} in ('source_stale', 'metric_drop')`,
+    ),
+    check(
+      "local_attention_signal_state_valid",
+      sql`${table.state} in ('active', 'resolved')`,
+    ),
+    check(
+      "local_attention_signal_synthetic_only",
+      sql`${table.isSynthetic} = true`,
+    ),
+    check(
+      "local_attention_signal_threshold_positive",
+      sql`${table.threshold} > 0`,
+    ),
+  ],
+);
+
+export const localAttentionAudit = pgTable(
+  "local_attention_audit",
+  {
+    id: uuid("id").primaryKey(),
+    signalId: uuid("signal_id").references(() => localAttentionSignal.id, {
+      onDelete: "restrict",
+    }),
+    actor: text("actor").notNull(),
+    operation: text("operation").notNull(),
+    details: jsonb("details")
+      .$type<Record<string, string | number | boolean | null>>()
+      .notNull()
+      .default({}),
+    createdAt: createdAt(),
+  },
+  (table) => [
+    index("local_attention_audit_page_idx").on(table.createdAt, table.id),
+    index("local_attention_audit_signal_idx").on(
+      table.signalId,
+      table.createdAt,
+      table.id,
+    ),
+  ],
+);
+
 export const alertCondition = pgTable(
   "alert_condition",
   {

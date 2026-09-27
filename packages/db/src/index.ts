@@ -11,6 +11,7 @@ export * from "./brief-repository";
 export * from "./execution-packet-repository";
 export * from "./local-agent-repository";
 export * from "./local-agent-run-repository";
+export * from "./local-attention-repository";
 export * from "./simulated-approval-repository";
 export * from "./work-item-status-repository";
 export * from "./work-planning-repository";

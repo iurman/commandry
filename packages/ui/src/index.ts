@@ -23,6 +23,8 @@ export { DecisionCard } from "./components/DecisionCard";
 export type { DecisionCardProps } from "./components/DecisionCard";
 export { AutomationCard } from "./components/AutomationCard";
 export { AutomationEvidenceCheckCard } from "./components/AutomationEvidenceCheckCard";
+export { LocalAttentionSignalCard } from "./components/LocalAttentionSignalCard";
+export type { LocalAttentionSignalView } from "./components/LocalAttentionSignalCard";
 export { DomainCard } from "./components/DomainCard";
 export { SystemCard } from "./components/SystemCard";
 export { OvernightQueueCard } from "./components/OvernightQueueCard";

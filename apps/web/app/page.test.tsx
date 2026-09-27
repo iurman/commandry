@@ -81,6 +81,7 @@ describe("Command Center", () => {
       ["Work", "/work"],
       ["Knowledge", "/knowledge"],
       ["Integrations", "/integrations"],
+      ["Signals", "/attention-signals"],
       ["Infrastructure", "/infrastructure"],
       ["Activity", "/activity"],
       ["Search", "/search"],
@@ -200,7 +201,7 @@ describe("Command Center", () => {
       ),
     );
     render(<HomePage />);
-    expect(await screen.findAllByText("Data unavailable")).toHaveLength(4);
+    expect(await screen.findAllByText("Data unavailable")).toHaveLength(5);
     expect(screen.getByText("No live sources")).toBeTruthy();
     expect(
       screen.queryByRole("link", { name: "Review captures in Inbox" }),

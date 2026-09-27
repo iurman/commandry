@@ -3,6 +3,7 @@ import {
   createAgentContextService,
   createCaptureTriageProcessor,
   createLocalAgentRunProcessor,
+  createLocalAttentionService,
   createLocalAgentRunService,
   createOvernightQueueProcessor,
   createLocalAutomationProcessor,
@@ -32,6 +33,7 @@ import {
   createCaptureTriageRepository,
   createDatabase,
   createLocalAgentRunRepository,
+  createLocalAttentionRepository,
   createLocalAgentRepository,
   createExecutionPacketRepository,
   createOvernightQueueRepository,
@@ -83,6 +85,29 @@ const processEventImport = createSyntheticEventImportProcessor(
   syntheticEventRepository,
 );
 const localAgentRunRepository = createLocalAgentRunRepository(database.db);
+const localAttentionService = createLocalAttentionService(
+  createLocalAttentionRepository(database.db),
+);
+let evaluatingLocalAttention = false;
+async function evaluateLocalAttention() {
+  if (
+    evaluatingLocalAttention ||
+    (config.appEnv !== "local" && config.appEnv !== "test")
+  )
+    return;
+  evaluatingLocalAttention = true;
+  try {
+    const outcome = await localAttentionService.evaluate();
+    if (outcome.activated || outcome.resolved)
+      log("info", "local_attention.evaluated", outcome);
+  } catch (error) {
+    log("error", "local_attention.evaluation_failed", {
+      error: error instanceof Error ? error.name : "unknown",
+    });
+  } finally {
+    evaluatingLocalAttention = false;
+  }
+}
 const projectBriefService = createProjectBriefService(
   createBriefRepository(database.db),
 );
@@ -269,6 +294,7 @@ await transport.boss.work(SYNTHETIC_EVENT_IMPORT_QUEUE, async ([job]) => {
     await syntheticConditionAutomationReconciler.reconcileEvent(
       imported.eventId,
     );
+    await evaluateLocalAttention();
     log("info", "synthetic_event_import.completed", {
       correlationId: input.runId,
       occurrenceId: input.occurrenceId,
@@ -530,6 +556,12 @@ async function reconcileLocalFeed() {
 await reconcileLocalFeed();
 const localFeedTimer = setInterval(() => void reconcileLocalFeed(), 5_000);
 localFeedTimer.unref();
+await evaluateLocalAttention();
+const localAttentionTimer = setInterval(
+  () => void evaluateLocalAttention(),
+  10_000,
+);
+localAttentionTimer.unref();
 log("info", "worker.started", { workerId });
 
 let stopping = false;
@@ -542,6 +574,7 @@ async function shutdown(signal: string) {
   clearInterval(workRecurrenceTimer);
   clearInterval(fileTextTimer);
   clearInterval(localFeedTimer);
+  clearInterval(localAttentionTimer);
   log("info", "worker.stopping", { signal });
   try {
     await transport.close();

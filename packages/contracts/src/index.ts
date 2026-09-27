@@ -1620,6 +1620,76 @@ export const listAttentionResponseSchema = z.object({
   nextCursor: z.uuid().nullable(),
 });
 
+export const localAttentionSettingsSchema = z.object({
+  version: z.number().int().min(0),
+  staleSourceEnabled: z.boolean(),
+  metricDropEnabled: z.boolean(),
+  metricDropPoints: z.number().int().min(1).max(100),
+  updatedAt: z.iso.datetime({ offset: true }).nullable(),
+  sourceLabel: z.literal("Local attention rules"),
+});
+
+export const updateLocalAttentionSettingsRequestSchema = z.strictObject({
+  expectedVersion: z.number().int().min(0),
+  staleSourceEnabled: z.boolean(),
+  metricDropEnabled: z.boolean(),
+  metricDropPoints: z.number().int().min(1).max(100),
+});
+
+export const localAttentionSignalSchema = z.object({
+  id: z.uuid(),
+  key: z.string().min(1),
+  ruleId: z.enum(["source_stale", "metric_drop"]),
+  state: z.enum(["active", "resolved"]),
+  projectId: z.uuid(),
+  projectName: z.string(),
+  integrationId: z.uuid().nullable(),
+  integrationName: z.string().nullable(),
+  resourceId: z.uuid().nullable(),
+  resourceName: z.string().nullable(),
+  evidenceHref: z.string().startsWith("/api/v1/"),
+  previousEvidenceHref: z.string().startsWith("/api/v1/").nullable(),
+  reason: z.string().min(1),
+  observedAt: z.iso.datetime({ offset: true }),
+  previousObservedAt: z.iso.datetime({ offset: true }).nullable(),
+  previousValue: z.number().int().nullable(),
+  latestValue: z.number().int().nullable(),
+  threshold: z.number().int().min(1),
+  changedAt: z.iso.datetime({ offset: true }),
+  evaluatedAt: z.iso.datetime({ offset: true }),
+  sourceLabel: z.literal("Synthetic local attention"),
+  isSynthetic: z.literal(true),
+  realHealth: z.literal("unknown"),
+});
+
+export const listLocalAttentionSignalsQuerySchema =
+  listResourcesQuerySchema.extend({
+    projectId: z.uuid().optional(),
+    view: z.enum(["active", "all"]).default("active"),
+  });
+
+export const listLocalAttentionSignalsResponseSchema = z.object({
+  items: z.array(localAttentionSignalSchema),
+  nextCursor: z.uuid().nullable(),
+});
+
+export const localAttentionAuditEventSchema = z.object({
+  id: z.uuid(),
+  signalId: z.uuid().nullable(),
+  actor: z.string(),
+  operation: z.string(),
+  details: z.record(
+    z.string(),
+    z.union([z.string(), z.number(), z.boolean(), z.null()]),
+  ),
+  createdAt: z.iso.datetime({ offset: true }),
+});
+
+export const listLocalAttentionAuditResponseSchema = z.object({
+  items: z.array(localAttentionAuditEventSchema),
+  nextCursor: z.uuid().nullable(),
+});
+
 export const evidenceReferenceSchema = z.object({
   kind: z.enum([
     "domain",
@@ -2731,6 +2801,16 @@ export type NormalizedSyntheticEvent = z.infer<typeof normalizedEventSchema>;
 export type SyntheticMetricSample = z.infer<typeof syntheticMetricSampleSchema>;
 export type SyntheticAlert = z.infer<typeof syntheticAlertSchema>;
 export type AttentionItem = z.infer<typeof attentionItemSchema>;
+export type LocalAttentionSettings = z.infer<
+  typeof localAttentionSettingsSchema
+>;
+export type UpdateLocalAttentionSettingsRequest = z.infer<
+  typeof updateLocalAttentionSettingsRequestSchema
+>;
+export type LocalAttentionSignal = z.infer<typeof localAttentionSignalSchema>;
+export type LocalAttentionAuditEvent = z.infer<
+  typeof localAttentionAuditEventSchema
+>;
 export type EvidenceReference = z.infer<typeof evidenceReferenceSchema>;
 export type BriefFact = z.infer<typeof briefFactSchema>;
 export type ProjectBrief = z.infer<typeof projectBriefSchema>;

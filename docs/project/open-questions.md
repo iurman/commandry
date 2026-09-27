@@ -79,6 +79,13 @@ prematurely building template-specific features.
 Decide the initial deterministic attention rules, notification channels, noise
 budgets, and where AI ranking is allowed.
 
+The local MVP rehearses two transparent synthetic rules: a source observation
+past its per-integration freshness window, and an availability metric drop of
+at least a configurable number of percentage points between the latest two
+samples when the latest is under 24 hours old. Local rule toggles and the drop
+threshold are audited. These defaults do not settle real-source noise budgets,
+notification routing, or production alert thresholds.
+
 ### OQ-013: What data retention and deletion promises apply?
 
 Define source payload, event, metric, agent log, artifact, audit, and deleted

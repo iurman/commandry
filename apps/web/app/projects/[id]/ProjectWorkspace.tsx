@@ -294,6 +294,11 @@ export default function ProjectWorkspace({ projectId }: { projectId: string }) {
                   Configure local sources
                 </a>
               </p>
+              <p className="cmd-record-identity">
+                <a href={`/attention-signals?projectId=${projectId}`}>
+                  Review synthetic attention signals
+                </a>
+              </p>
             </div>
             <StatusBadge
               dimension="lifecycle"
