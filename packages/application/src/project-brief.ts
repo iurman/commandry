@@ -25,6 +25,12 @@ import {
 
 export type BriefPage<T> = { items: T[]; nextCursor: string | null };
 export type BriefWorkItem = WorkItem & {
+  attachedDocuments?: {
+    attachmentId: string;
+    knowledgeItemId: string;
+    title: string;
+    recordedAt: string;
+  }[];
   openBlockers?: {
     relationId: string;
     workItemId: string;
@@ -99,7 +105,7 @@ export function assembleProjectBrief(
       id: item.id,
       kind: "work_item",
       title: item.title,
-      detail: `${workFactText(item.status)}. ${briefExcerpt(item.description)}${item.openBlockers?.length ? ` Blocked by ${item.openBlockers.map((blocker) => blocker.title).join(", ")}.` : ""}`,
+      detail: `${workFactText(item.status)}. ${briefExcerpt(item.description)}${item.openBlockers?.length ? ` Blocked by ${item.openBlockers.map((blocker) => blocker.title).join(", ")}.` : ""}${item.attachedDocuments?.length ? ` Attached documents: ${item.attachedDocuments.map((document) => document.title).join(", ")}.` : ""}`,
       evidence: [
         evidence(
           "work_item",
@@ -116,6 +122,16 @@ export function assembleProjectBrief(
             `/api/v1/work-item-relations/${blocker.relationId}`,
             blocker.recordedAt,
             "Manual local work relationship",
+            false,
+          ),
+        ),
+        ...(item.attachedDocuments ?? []).map((document) =>
+          evidence(
+            "work_item_attachment",
+            document.attachmentId,
+            `/api/v1/work-item-attachments/${document.attachmentId}`,
+            document.recordedAt,
+            "Manual local work attachment",
             false,
           ),
         ),

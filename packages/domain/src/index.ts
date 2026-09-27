@@ -21,5 +21,6 @@ export * from "./overnight-queue";
 export * from "./local-mcp";
 export * from "./work-discussion";
 export * from "./work-relations";
+export * from "./work-attachments";
 export * from "./file-capture";
 export * from "./knowledge-link";

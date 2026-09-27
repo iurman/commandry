@@ -176,6 +176,13 @@
       "when": 1790469755686,
       "tag": "0024_complete_black_panther",
       "breakpoints": true
+    },
+    {
+      "idx": 25,
+      "version": "7",
+      "when": 1790471112071,
+      "tag": "0025_mixed_vanisher",
+      "breakpoints": true
     }
   ]
 }

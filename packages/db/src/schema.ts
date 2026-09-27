@@ -633,6 +633,58 @@ export const knowledgeItem = pgTable(
   ],
 );
 
+export const workItemAttachment = pgTable(
+  "work_item_attachment",
+  {
+    id: uuid("id").primaryKey(),
+    projectId: uuid("project_id")
+      .notNull()
+      .references(() => project.id, { onDelete: "restrict" }),
+    workItemId: uuid("work_item_id")
+      .notNull()
+      .references(() => workItem.id, { onDelete: "restrict" }),
+    knowledgeItemId: uuid("knowledge_item_id")
+      .notNull()
+      .references(() => knowledgeItem.id, { onDelete: "restrict" }),
+    type: text("type", { enum: ["attached_document"] })
+      .notNull()
+      .default("attached_document"),
+    state: text("state", { enum: ["active", "archived"] })
+      .notNull()
+      .default("active"),
+    actor: text("actor").notNull().default("local-user:unattributed"),
+    createdAt: createdAt(),
+    archivedAt: timestamp("archived_at", { withTimezone: true }),
+  },
+  (table) => [
+    uniqueIndex("work_item_attachment_active_unique_idx")
+      .on(table.workItemId, table.knowledgeItemId)
+      .where(sql`${table.state} = 'active'`),
+    index("work_item_attachment_work_page_idx").on(
+      table.workItemId,
+      table.createdAt,
+      table.id,
+    ),
+    index("work_item_attachment_knowledge_page_idx").on(
+      table.knowledgeItemId,
+      table.createdAt,
+      table.id,
+    ),
+    check(
+      "work_item_attachment_type_valid",
+      sql`${table.type} = 'attached_document'`,
+    ),
+    check(
+      "work_item_attachment_state_valid",
+      sql`(${table.state} = 'active' and ${table.archivedAt} is null) or (${table.state} = 'archived' and ${table.archivedAt} is not null)`,
+    ),
+    check(
+      "work_item_attachment_actor_local",
+      sql`${table.actor} = 'local-user:unattributed'`,
+    ),
+  ],
+);
+
 export const knowledgeItemRevision = pgTable(
   "knowledge_item_revision",
   {

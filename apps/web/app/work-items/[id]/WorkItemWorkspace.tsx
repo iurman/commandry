@@ -11,6 +11,7 @@ import {
   type ProjectResourceLink,
 } from "../../projects/api";
 import WorkDiscussion from "./WorkDiscussion";
+import WorkAttachments from "./WorkAttachments";
 import WorkRelationships from "./WorkRelationships";
 
 interface WorkItemRecord {
@@ -534,6 +535,7 @@ export default function WorkItemWorkspace({
           </div>
 
           <WorkRelationships workItemId={item.id} projectId={item.projectId} />
+          <WorkAttachments workItemId={item.id} projectId={item.projectId} />
           <WorkDiscussion workItemId={item.id} />
 
           <section

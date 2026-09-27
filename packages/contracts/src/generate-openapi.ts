@@ -30,6 +30,9 @@ import {
   createWorkItemRelationRequestSchema,
   workItemRelationSchema,
   listWorkItemRelationsResponseSchema,
+  createWorkItemAttachmentRequestSchema,
+  workItemAttachmentSchema,
+  listWorkItemAttachmentsResponseSchema,
   createLocalAgentRequestSchema,
   localAgentProfileSchema,
   listLocalAgentsResponseSchema,
@@ -948,6 +951,74 @@ export function generateOpenApi(): string {
           },
         },
       },
+      "/api/v1/work-items/{id}/attachments": {
+        get: {
+          operationId: "listWorkItemAttachments",
+          summary: "Page active source-backed document attachments for a task",
+          parameters: [idParameter, ...pageParameters],
+          responses: {
+            "200": {
+              description: "Task document attachment page",
+              content: jsonContent("ListWorkItemAttachmentsResponse"),
+            },
+            "404": {
+              description: "Task not found",
+              content: jsonContent("ErrorResponse"),
+            },
+          },
+        },
+        post: {
+          operationId: "attachDocumentToWorkItem",
+          summary: "Link an existing same-project Knowledge document to a task",
+          parameters: [idParameter],
+          requestBody: {
+            required: true,
+            content: jsonContent("CreateWorkItemAttachmentRequest"),
+          },
+          responses: {
+            "201": {
+              description: "Audited task document attachment",
+              content: jsonContent("WorkItemAttachment"),
+            },
+            "409": {
+              description: "Duplicate or cross-project document link",
+              content: jsonContent("ErrorResponse"),
+            },
+          },
+        },
+      },
+      "/api/v1/work-item-attachments/{id}": {
+        get: {
+          operationId: "getWorkItemAttachment",
+          summary: "Read one task document link, including archived history",
+          parameters: [idParameter],
+          responses: {
+            "200": {
+              description: "Exact task document link",
+              content: jsonContent("WorkItemAttachment"),
+            },
+            "404": {
+              description: "Attachment not found",
+              content: jsonContent("ErrorResponse"),
+            },
+          },
+        },
+        delete: {
+          operationId: "archiveWorkItemAttachment",
+          summary: "Archive one active task document link with audit history",
+          parameters: [idParameter],
+          responses: {
+            "200": {
+              description: "Archived task document link",
+              content: jsonContent("WorkItemAttachment"),
+            },
+            "409": {
+              description: "Link is already archived",
+              content: jsonContent("ErrorResponse"),
+            },
+          },
+        },
+      },
       "/api/v1/knowledge-items/{id}": {
         get: {
           operationId: "getKnowledgeItem",
@@ -959,6 +1030,23 @@ export function generateOpenApi(): string {
             },
             "404": {
               description: "Knowledge item not found",
+              content: jsonContent("ErrorResponse"),
+            },
+          },
+        },
+      },
+      "/api/v1/knowledge-items/{id}/work-attachments": {
+        get: {
+          operationId: "listWorkAttachedToKnowledge",
+          summary: "Page the tasks that cite this original file document",
+          parameters: [idParameter, ...pageParameters],
+          responses: {
+            "200": {
+              description: "Inverse task attachment page",
+              content: jsonContent("ListWorkItemAttachmentsResponse"),
+            },
+            "404": {
+              description: "Document not found",
               content: jsonContent("ErrorResponse"),
             },
           },
@@ -2412,6 +2500,13 @@ export function generateOpenApi(): string {
         WorkItemRelation: component(workItemRelationSchema),
         ListWorkItemRelationsResponse: component(
           listWorkItemRelationsResponseSchema,
+        ),
+        CreateWorkItemAttachmentRequest: component(
+          createWorkItemAttachmentRequestSchema,
+        ),
+        WorkItemAttachment: component(workItemAttachmentSchema),
+        ListWorkItemAttachmentsResponse: component(
+          listWorkItemAttachmentsResponseSchema,
         ),
         KnowledgeItem: component(knowledgeItemSchema),
         WorkspaceKnowledgeItem: component(workspaceKnowledgeItemSchema),

@@ -74,18 +74,22 @@ authentication is complete. There is no production deployment.
   knowledge links while preserving the original URL; the navigable link omits
   query and fragment text. Links appear in project and global Knowledge,
   search, live briefs, and packet selection. No captured URL is fetched by
-  this local flow. Task attachment links and broader work types remain to be
-  implemented.
+  this local flow. Broader work types remain to be implemented.
 - The Inbox accepts bounded local files and preserves exact bytes, original
   metadata, and a SHA-256 digest in PostgreSQL. A file can be filed as a
   project Knowledge document; its editable context remains separate from the
   immutable file. Downloads are forced attachments. File extraction, larger
-  storage, task attachments, and production blob access remain open.
+  storage and production blob access remain open.
+- Project Knowledge documents can be linked to tasks through same-project
+  attachment relations. Task and document screens show both directions, exact
+  original downloads, and source context. Link creation and archive are
+  audited; live briefs cite active links and packet selection remains explicit.
+  The local API has no product human sign-in or production capability grant.
 - Work items have project-scoped, typed parent/subtask and blocking links with
   cycle prevention, audit-preserving archive, cursor-paged inverse views, and
   a responsive editor. Open blockers appear with exact relationship evidence
   in live briefs and pause local overnight readiness. Cross-project work links,
-  initiatives, acceptance criteria, and file attachments remain open.
+  initiatives, acceptance criteria, and larger file handling remain open.
 - Semantic CSS tokens, accessible responsive components, and representative
   Storybook states exist in the local-only lab. The lab is excluded from the
   production image.

@@ -14,6 +14,7 @@ import {
   projectResourceLink,
   resource,
   workItem,
+  workItemAttachment,
   workItemRelation,
 } from "./schema";
 
@@ -109,6 +110,44 @@ export function createBriefRepository(db: CommandryDatabase) {
               recordedAt: relation.createdAt.toISOString(),
             });
             blockersByWork.set(relation.targetWorkItemId, blockers);
+          }
+          const attachedRows = visibleWorkIds.length
+            ? await tx
+                .select({
+                  attachment: workItemAttachment,
+                  document: knowledgeItem,
+                })
+                .from(workItemAttachment)
+                .innerJoin(
+                  knowledgeItem,
+                  eq(knowledgeItem.id, workItemAttachment.knowledgeItemId),
+                )
+                .where(
+                  and(
+                    inArray(workItemAttachment.workItemId, visibleWorkIds),
+                    eq(workItemAttachment.state, "active"),
+                  ),
+                )
+                .orderBy(workItemAttachment.createdAt, workItemAttachment.id)
+            : [];
+          const attachmentsByWork = new Map<
+            string,
+            {
+              attachmentId: string;
+              knowledgeItemId: string;
+              title: string;
+              recordedAt: string;
+            }[]
+          >();
+          for (const { attachment, document } of attachedRows) {
+            const items = attachmentsByWork.get(attachment.workItemId) ?? [];
+            items.push({
+              attachmentId: attachment.id,
+              knowledgeItemId: document.id,
+              title: document.title,
+              recordedAt: attachment.createdAt.toISOString(),
+            });
+            attachmentsByWork.set(attachment.workItemId, items);
           }
           const noteRows = await tx
             .select()
@@ -216,6 +255,7 @@ export function createBriefRepository(db: CommandryDatabase) {
                 priority: row.priority,
                 dueOn: row.dueOn,
                 openBlockers: blockersByWork.get(row.id) ?? [],
+                attachedDocuments: attachmentsByWork.get(row.id) ?? [],
                 createdAt: row.createdAt.toISOString(),
                 updatedAt: row.updatedAt.toISOString(),
               }),

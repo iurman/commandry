@@ -326,6 +326,41 @@ export const listWorkItemRelationsResponseSchema = z.object({
   nextCursor: z.uuid().nullable(),
 });
 
+export const createWorkItemAttachmentRequestSchema = z.strictObject({
+  knowledgeItemId: z.uuid(),
+});
+
+export const workItemAttachmentSchema = z.object({
+  id: z.uuid(),
+  projectId: z.uuid(),
+  workItemId: z.uuid(),
+  workTitle: z.string(),
+  knowledgeItemId: z.uuid(),
+  documentTitle: z.string(),
+  sourceCaptureId: z.uuid(),
+  originalName: z.string(),
+  byteSize: z.number().int().positive(),
+  sha256: z.string().regex(/^[a-f0-9]{64}$/),
+  downloadHref: z.string().startsWith("/api/v1/captures/"),
+  type: z.literal("attached_document"),
+  inverseType: z.literal("attached_to_work"),
+  state: z.enum(["active", "archived"]),
+  actor: z.literal("local-user:unattributed"),
+  sourceLabel: z.literal("Manual local work attachment"),
+  createdAt: z.iso.datetime({ offset: true }),
+  archivedAt: z.iso.datetime({ offset: true }).nullable(),
+});
+
+export const listWorkItemAttachmentsQuerySchema = z.object({
+  limit: z.coerce.number().int().min(1).max(100).default(25),
+  cursor: z.uuid().optional(),
+});
+
+export const listWorkItemAttachmentsResponseSchema = z.object({
+  items: z.array(workItemAttachmentSchema),
+  nextCursor: z.uuid().nullable(),
+});
+
 export const knowledgeItemSchema = z.object({
   id: z.uuid(),
   projectId: z.uuid(),
@@ -819,6 +854,7 @@ export const evidenceReferenceSchema = z.object({
     "project",
     "work_item",
     "work_item_relation",
+    "work_item_attachment",
     "knowledge_item",
     "decision",
     "resource",
@@ -1666,6 +1702,10 @@ export type CreateWorkItemRelationRequest = z.infer<
   typeof createWorkItemRelationRequestSchema
 >;
 export type WorkItemRelation = z.infer<typeof workItemRelationSchema>;
+export type CreateWorkItemAttachmentRequest = z.infer<
+  typeof createWorkItemAttachmentRequestSchema
+>;
+export type WorkItemAttachment = z.infer<typeof workItemAttachmentSchema>;
 export type KnowledgeItem = z.infer<typeof knowledgeItemSchema>;
 export type WorkspaceKnowledgeItem = z.infer<
   typeof workspaceKnowledgeItemSchema
