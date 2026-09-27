@@ -67,6 +67,12 @@ and production prerequisites remain gates.
   resource view and its filtered signal history. A path is potential impact,
   never evidence of an outage; real health remains unknown. The depth bound and
   propagation semantics are provisional under OQ-031.
+- Synthetic attention signals now accept local quality feedback, a bounded
+  snooze, dismissal, and restoration tied to the reviewed evidence ID. Active
+  lists hide only that observation while all-history lists and append-only
+  audit keep the review. A later worker observation may surface again without
+  implying real health or automatic learning. This local control remains
+  provisional under OQ-012.
 - Portfolio Domains are distinct local records with editable details and one
   active typed `owned_by` relationship per project. Moving or unlinking a
   project archives the old edge while retaining exact link and audit reads.

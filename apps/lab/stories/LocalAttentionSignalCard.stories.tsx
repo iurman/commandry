@@ -48,3 +48,35 @@ export const StaleSource: Story = {
     },
   },
 };
+
+export const ReviewedNoisy: Story = {
+  args: {
+    signal: {
+      ...signal,
+      review: {
+        quality: "noisy",
+        disposition: "visible",
+        effectiveDisposition: "visible",
+        snoozedUntil: null,
+        note: "Expected fixture drop during a local test",
+        reviewedAt: at,
+      },
+    },
+  },
+};
+
+export const SnoozedCurrentEvidence: Story = {
+  args: {
+    signal: {
+      ...signal,
+      review: {
+        quality: "noisy",
+        disposition: "snoozed",
+        effectiveDisposition: "snoozed",
+        snoozedUntil: "2026-09-27T11:00:00.000Z",
+        note: "Recheck after the synthetic replay",
+        reviewedAt: at,
+      },
+    },
+  },
+};

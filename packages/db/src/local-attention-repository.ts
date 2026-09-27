@@ -1,10 +1,12 @@
-import { and, desc, eq, sql } from "drizzle-orm";
+import { and, desc, eq, inArray, sql } from "drizzle-orm";
 import type {
   LocalAttentionAuditEvent,
   LocalAttentionSettings,
   LocalAttentionSignal,
+  SubmitLocalAttentionReviewRequest,
   UpdateLocalAttentionSettingsRequest,
 } from "@commandry/contracts";
+import { localAttentionReviewSchema } from "@commandry/contracts";
 import {
   LOCAL_ATTENTION_DEFAULTS,
   LocalAttentionError,
@@ -38,13 +40,35 @@ function settingsRecord(
   };
 }
 
-function signalRecord(row: {
-  signal: typeof localAttentionSignal.$inferSelect;
-  projectName: string;
-  integrationName: string | null;
-  resourceName: string | null;
-}): LocalAttentionSignal {
+function signalRecord(
+  row: {
+    signal: typeof localAttentionSignal.$inferSelect;
+    projectName: string;
+    integrationName: string | null;
+    resourceName: string | null;
+  },
+  reviewEvent?: typeof localAttentionAudit.$inferSelect,
+): LocalAttentionSignal {
   const signal = row.signal;
+  const review =
+    reviewEvent?.details.evidenceId === signal.evidenceId
+      ? localAttentionReviewSchema.parse({
+          eventId: reviewEvent.id,
+          evidenceId: signal.evidenceId,
+          quality: reviewEvent.details.quality,
+          disposition: reviewEvent.details.disposition,
+          effectiveDisposition:
+            reviewEvent.details.disposition === "snoozed" &&
+            typeof reviewEvent.details.snoozedUntil === "string" &&
+            new Date(reviewEvent.details.snoozedUntil).getTime() <= Date.now()
+              ? "visible"
+              : reviewEvent.details.disposition,
+          snoozedUntil: reviewEvent.details.snoozedUntil,
+          note: reviewEvent.details.note,
+          reviewedAt: reviewEvent.createdAt.toISOString(),
+          sourceLabel: "Local review of synthetic evidence",
+        })
+      : null;
   const prefix =
     signal.evidenceKind === "source_envelope"
       ? "/api/v1/source-envelopes/"
@@ -60,6 +84,7 @@ function signalRecord(row: {
     integrationName: row.integrationName,
     resourceId: signal.resourceId,
     resourceName: row.resourceName,
+    evidenceId: signal.evidenceId,
     evidenceHref: `${prefix}${signal.evidenceId}`,
     previousEvidenceHref: signal.previousEvidenceId
       ? `${prefix}${signal.previousEvidenceId}`
@@ -75,6 +100,7 @@ function signalRecord(row: {
     sourceLabel: "Synthetic local attention",
     isSynthetic: true,
     realHealth: "unknown",
+    review,
   };
 }
 
@@ -92,6 +118,48 @@ function auditRecord(
 }
 
 export function createLocalAttentionRepository(db: CommandryDatabase) {
+  async function latestReviews(signalIds: string[]) {
+    if (signalIds.length === 0)
+      return new Map<string, typeof localAttentionAudit.$inferSelect>();
+    const rows = await db
+      .selectDistinctOn([localAttentionAudit.signalId])
+      .from(localAttentionAudit)
+      .where(
+        and(
+          eq(localAttentionAudit.operation, "local_attention.reviewed"),
+          inArray(localAttentionAudit.signalId, signalIds),
+        ),
+      )
+      .orderBy(
+        localAttentionAudit.signalId,
+        desc(localAttentionAudit.createdAt),
+        desc(localAttentionAudit.id),
+      );
+    return new Map(rows.map((row) => [row.signalId!, row]));
+  }
+
+  async function getSignalById(id: string) {
+    const [row] = await db
+      .select({
+        signal: localAttentionSignal,
+        projectName: project.name,
+        integrationName: integrationInstance.name,
+        resourceName: resource.name,
+      })
+      .from(localAttentionSignal)
+      .innerJoin(project, eq(localAttentionSignal.projectId, project.id))
+      .leftJoin(
+        integrationInstance,
+        eq(localAttentionSignal.integrationId, integrationInstance.id),
+      )
+      .leftJoin(resource, eq(localAttentionSignal.resourceId, resource.id))
+      .where(eq(localAttentionSignal.id, id))
+      .limit(1);
+    if (!row) return null;
+    const reviews = await latestReviews([id]);
+    return signalRecord(row, reviews.get(id));
+  }
+
   async function getSettings() {
     const [row] = await db
       .select()
@@ -102,6 +170,72 @@ export function createLocalAttentionRepository(db: CommandryDatabase) {
   }
   return {
     getSettings,
+    async reviewSignal(
+      signalId: string,
+      input: SubmitLocalAttentionReviewRequest,
+    ) {
+      await db.transaction(async (tx) => {
+        const [signal] = await tx
+          .select()
+          .from(localAttentionSignal)
+          .where(eq(localAttentionSignal.id, signalId))
+          .for("update")
+          .limit(1);
+        if (!signal)
+          throw new LocalAttentionError(
+            "SIGNAL_NOT_FOUND",
+            "Attention signal not found",
+          );
+        const [latest] = await tx
+          .select({
+            id: localAttentionAudit.id,
+            details: localAttentionAudit.details,
+          })
+          .from(localAttentionAudit)
+          .where(
+            and(
+              eq(localAttentionAudit.signalId, signalId),
+              eq(localAttentionAudit.operation, "local_attention.reviewed"),
+            ),
+          )
+          .orderBy(
+            desc(localAttentionAudit.createdAt),
+            desc(localAttentionAudit.id),
+          )
+          .limit(1);
+        if (
+          signal.evidenceId !== input.expectedEvidenceId ||
+          (latest?.details.evidenceId === signal.evidenceId
+            ? latest.id
+            : null) !== input.expectedReviewEventId
+        )
+          throw new LocalAttentionError(
+            "SIGNAL_REVIEW_STALE",
+            "Signal evidence or review changed; reload before saving",
+          );
+        await tx.insert(localAttentionAudit).values({
+          id: crypto.randomUUID(),
+          signalId,
+          actor: "local-reviewer:unattributed",
+          operation: "local_attention.reviewed",
+          details: {
+            evidenceId: signal.evidenceId,
+            ruleId: signal.ruleId,
+            quality: input.quality,
+            disposition: input.disposition,
+            snoozedUntil: input.snoozedUntil,
+            note: input.note,
+          },
+        });
+      });
+      const saved = await getSignalById(signalId);
+      if (!saved)
+        throw new LocalAttentionError(
+          "SIGNAL_NOT_FOUND",
+          "Attention signal not found",
+        );
+      return saved;
+    },
     async updateSettings(input: UpdateLocalAttentionSettingsRequest) {
       await db.transaction(async (tx) => {
         const [current] = await tx
@@ -350,6 +484,26 @@ export function createLocalAttentionRepository(db: CommandryDatabase) {
             query.view === "active"
               ? eq(localAttentionSignal.state, "active")
               : undefined,
+            query.view === "active"
+              ? sql`not exists (
+                  select 1 from local_attention_audit review
+                  where review.id = (
+                    select latest.id from local_attention_audit latest
+                    where latest.signal_id = ${localAttentionSignal.id}
+                      and latest.operation = 'local_attention.reviewed'
+                    order by latest.created_at desc, latest.id desc
+                    limit 1
+                  )
+                  and review.details->>'evidenceId' = ${localAttentionSignal.evidenceId}::text
+                  and (
+                    review.details->>'disposition' = 'dismissed'
+                    or (
+                      review.details->>'disposition' = 'snoozed'
+                      and (review.details->>'snoozedUntil')::timestamptz > now()
+                    )
+                  )
+                )`
+              : undefined,
             query.projectId
               ? eq(localAttentionSignal.projectId, query.projectId)
               : undefined,
@@ -367,8 +521,9 @@ export function createLocalAttentionRepository(db: CommandryDatabase) {
         )
         .limit(query.limit + 1);
       const page = rows.slice(0, query.limit);
+      const reviews = await latestReviews(page.map((row) => row.signal.id));
       return {
-        items: page.map(signalRecord),
+        items: page.map((row) => signalRecord(row, reviews.get(row.signal.id))),
         nextCursor: rows.length > query.limit ? page.at(-1)!.signal.id : null,
       };
     },

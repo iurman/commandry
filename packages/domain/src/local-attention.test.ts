@@ -2,6 +2,7 @@ import { describe, expect, it } from "vitest";
 import {
   metricDropSignal,
   sourceStalenessSignal,
+  validateLocalAttentionReview,
   type MetricPair,
   type SourceObservation,
 } from "./local-attention";
@@ -70,5 +71,35 @@ describe("local synthetic attention rules", () => {
         asOf,
       ),
     ).toBeNull();
+  });
+
+  it("bounds local snooze and keeps visible or dismissed reviews without a time", () => {
+    expect(() =>
+      validateLocalAttentionReview(
+        {
+          disposition: "snoozed",
+          snoozedUntil: "2026-09-27T13:00:00.000Z",
+        },
+        asOf,
+      ),
+    ).not.toThrow();
+    expect(() =>
+      validateLocalAttentionReview(
+        {
+          disposition: "snoozed",
+          snoozedUntil: "2026-10-06T12:00:00.000Z",
+        },
+        asOf,
+      ),
+    ).toThrow("within the next seven days");
+    expect(() =>
+      validateLocalAttentionReview(
+        {
+          disposition: "dismissed",
+          snoozedUntil: "2026-09-27T13:00:00.000Z",
+        },
+        asOf,
+      ),
+    ).toThrow("Only a snoozed signal");
   });
 });

@@ -2,11 +2,13 @@ import type {
   LocalAttentionAuditEvent,
   LocalAttentionSettings,
   LocalAttentionSignal,
+  SubmitLocalAttentionReviewRequest,
   UpdateLocalAttentionSettingsRequest,
 } from "@commandry/contracts";
 import {
   metricDropSignal,
   sourceStalenessSignal,
+  validateLocalAttentionReview,
   type DesiredLocalAttentionSignal,
   type MetricPair,
   type SourceObservation,
@@ -35,6 +37,10 @@ export interface LocalAttentionPort {
   listAudit(
     query: PageQuery,
   ): Promise<{ items: LocalAttentionAuditEvent[]; nextCursor: string | null }>;
+  reviewSignal(
+    signalId: string,
+    input: SubmitLocalAttentionReviewRequest,
+  ): Promise<LocalAttentionSignal>;
 }
 
 export function createLocalAttentionService(port: LocalAttentionPort) {
@@ -43,6 +49,13 @@ export function createLocalAttentionService(port: LocalAttentionPort) {
     updateSettings: port.updateSettings,
     listSignals: port.listSignals,
     listAudit: port.listAudit,
+    async reviewSignal(
+      signalId: string,
+      input: SubmitLocalAttentionReviewRequest,
+    ) {
+      validateLocalAttentionReview(input);
+      return port.reviewSignal(signalId, input);
+    },
     async evaluate(asOf = new Date()) {
       const settings = await port.getSettings();
       const [sources, metrics] = await Promise.all([

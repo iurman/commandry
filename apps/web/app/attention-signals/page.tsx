@@ -44,6 +44,7 @@ export default function AttentionSignalsPage() {
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [feedback, setFeedback] = useState<string | null>(null);
+  const [reviewNotes, setReviewNotes] = useState<Record<string, string>>({});
 
   useEffect(() => {
     let active = true;
@@ -168,6 +169,75 @@ export default function AttentionSignalsPage() {
     }
   }
 
+  async function reviewSignal(
+    signal: LocalAttentionSignal,
+    action: "useful" | "noisy" | "snooze" | "dismiss" | "restore",
+  ) {
+    if (busy) return;
+    setBusy(true);
+    setError(null);
+    setFeedback(null);
+    const quality =
+      action === "useful"
+        ? "useful"
+        : action === "noisy"
+          ? "noisy"
+          : (signal.review?.quality ?? null);
+    const disposition =
+      action === "snooze"
+        ? "snoozed"
+        : action === "dismiss"
+          ? "dismissed"
+          : action === "restore"
+            ? "visible"
+            : (signal.review?.effectiveDisposition ?? "visible");
+    const snoozedUntil =
+      action === "snooze"
+        ? new Date(Date.now() + 60 * 60_000).toISOString()
+        : disposition === "snoozed"
+          ? (signal.review?.snoozedUntil ?? null)
+          : null;
+    const note = reviewNotes[signal.id]?.trim() || signal.review?.note || null;
+    try {
+      await apiJson<LocalAttentionSignal>(
+        `/api/v1/attention-signals/${encodeURIComponent(signal.id)}/review`,
+        {
+          method: "POST",
+          body: JSON.stringify({
+            expectedEvidenceId: signal.evidenceId,
+            expectedReviewEventId: signal.review?.eventId ?? null,
+            quality,
+            disposition,
+            snoozedUntil,
+            note,
+          }),
+        },
+      );
+      const [signalPage, auditPage] = await Promise.all([
+        apiJson<PageResponse<LocalAttentionSignal>>(
+          signalPath(view, null, projectId, resourceId),
+        ),
+        apiJson<PageResponse<LocalAttentionAuditEvent>>(auditPath()),
+      ]);
+      setSignals(signalPage.items);
+      setSignalCursor(signalPage.nextCursor);
+      setAudit(auditPage.items);
+      setAuditCursor(auditPage.nextCursor);
+      setReviewNotes((current) => ({ ...current, [signal.id]: "" }));
+      setFeedback(
+        "Local review saved and audited for the selected synthetic evidence.",
+      );
+    } catch (cause) {
+      setError(
+        cause instanceof Error
+          ? cause.message
+          : "Could not save signal review.",
+      );
+    } finally {
+      setBusy(false);
+    }
+  }
+
   return (
     <AppShell current="Signals">
       <header className="cmd-page-header">
@@ -277,6 +347,12 @@ export default function AttentionSignalsPage() {
             Refresh signals
           </Button>
         </div>
+        <p>
+          Quality feedback is recorded locally and does not train an automatic
+          ranker. Snooze and dismiss hide only the current evidence from Active;
+          new worker evidence can surface again. All history keeps the signal
+          and its review audit so visibility can be restored.
+        </p>
         {!loading && signals.length === 0 && (
           <p>
             No {view === "active" ? "active" : "recorded"} synthetic source or
@@ -288,6 +364,65 @@ export default function AttentionSignalsPage() {
             {signals.map((signal) => (
               <li key={signal.id}>
                 <LocalAttentionSignalCard signal={signal} />
+                <div
+                  className="cmd-form"
+                  role="group"
+                  aria-label={`Review ${signal.ruleId.replaceAll("_", " ")} signal`}
+                >
+                  <label htmlFor={`signal-note-${signal.id}`}>
+                    Optional quality or noise note
+                  </label>
+                  <input
+                    id={`signal-note-${signal.id}`}
+                    maxLength={500}
+                    value={reviewNotes[signal.id] ?? ""}
+                    onChange={(event) =>
+                      setReviewNotes((current) => ({
+                        ...current,
+                        [signal.id]: event.target.value,
+                      }))
+                    }
+                  />
+                  <div className="cmd-attention-actions">
+                    <Button
+                      disabled={busy}
+                      onClick={() => void reviewSignal(signal, "useful")}
+                    >
+                      Mark useful
+                    </Button>
+                    <Button
+                      disabled={busy}
+                      onClick={() => void reviewSignal(signal, "noisy")}
+                    >
+                      Mark noisy
+                    </Button>
+                    {signal.state === "active" && (
+                      <>
+                        <Button
+                          disabled={busy}
+                          onClick={() => void reviewSignal(signal, "snooze")}
+                        >
+                          Snooze 1 hour
+                        </Button>
+                        <Button
+                          disabled={busy}
+                          onClick={() => void reviewSignal(signal, "dismiss")}
+                        >
+                          Dismiss this evidence
+                        </Button>
+                      </>
+                    )}
+                    {signal.review?.effectiveDisposition !== "visible" &&
+                      signal.review && (
+                        <Button
+                          disabled={busy}
+                          onClick={() => void reviewSignal(signal, "restore")}
+                        >
+                          Restore visibility
+                        </Button>
+                      )}
+                  </div>
+                </div>
               </li>
             ))}
           </ul>

@@ -238,6 +238,106 @@ test("local attention reconciles evidence, preferences, resolution, and paged hi
       `/api/v1/metrics/${latestMetric}`,
     );
     assert.equal(impact.realHealth, "unknown");
+    const metricSignal = signals.find(
+      (signal) => signal.ruleId === "metric_drop",
+    )!;
+    const snoozed = await service.reviewSignal(metricSignal.id, {
+      expectedEvidenceId: latestMetric,
+      expectedReviewEventId: null,
+      quality: "noisy",
+      disposition: "snoozed",
+      snoozedUntil: new Date(asOf.getTime() + 60 * 60_000).toISOString(),
+      note: "Expected local synthetic replay",
+    });
+    assert.equal(snoozed.review?.quality, "noisy");
+    assert.equal(snoozed.review?.effectiveDisposition, "snoozed");
+    assert.equal(
+      (await service.listSignals({ view: "active", resourceId, limit: 10 }))
+        .items.length,
+      0,
+    );
+    assert.equal(
+      (await service.listSignals({ view: "all", resourceId, limit: 10 }))
+        .items[0]?.review?.note,
+      "Expected local synthetic replay",
+    );
+    await assert.rejects(
+      service.reviewSignal(metricSignal.id, {
+        expectedEvidenceId: latestMetric,
+        expectedReviewEventId: null,
+        quality: "useful",
+        disposition: "visible",
+        snoozedUntil: null,
+        note: null,
+      }),
+      (error: unknown) =>
+        error instanceof Error &&
+        "code" in error &&
+        error.code === "SIGNAL_REVIEW_STALE",
+    );
+    const restored = await service.reviewSignal(metricSignal.id, {
+      expectedEvidenceId: latestMetric,
+      expectedReviewEventId: snoozed.review!.eventId,
+      quality: "noisy",
+      disposition: "visible",
+      snoozedUntil: null,
+      note: "Expected local synthetic replay",
+    });
+    assert.equal(restored.review?.effectiveDisposition, "visible");
+    assert.equal(
+      (await service.listSignals({ view: "active", resourceId, limit: 10 }))
+        .items.length,
+      1,
+    );
+    const dismissed = await service.reviewSignal(metricSignal.id, {
+      expectedEvidenceId: latestMetric,
+      expectedReviewEventId: restored.review!.eventId,
+      quality: "noisy",
+      disposition: "dismissed",
+      snoozedUntil: null,
+      note: "Suppress this synthetic sample only",
+    });
+    assert.equal(dismissed.review?.effectiveDisposition, "dismissed");
+    assert.equal(
+      (await service.listSignals({ view: "active", resourceId, limit: 10 }))
+        .items.length,
+      0,
+    );
+    const replacementMetric = await observation(
+      "operations",
+      metricIntegrationId,
+      new Date(asOf.getTime() + 60_000),
+      0,
+    );
+    await service.evaluate(new Date(asOf.getTime() + 60_000));
+    const refreshed = (
+      await service.listSignals({ view: "active", resourceId, limit: 10 })
+    ).items[0];
+    assert.equal(refreshed?.evidenceId, replacementMetric);
+    assert.equal(refreshed?.review, null);
+    await assert.rejects(
+      service.reviewSignal(metricSignal.id, {
+        expectedEvidenceId: latestMetric,
+        expectedReviewEventId: dismissed.review!.eventId,
+        quality: null,
+        disposition: "visible",
+        snoozedUntil: null,
+        note: null,
+      }),
+      (error: unknown) =>
+        error instanceof Error &&
+        "code" in error &&
+        error.code === "SIGNAL_REVIEW_STALE",
+    );
+    const useful = await service.reviewSignal(metricSignal.id, {
+      expectedEvidenceId: replacementMetric,
+      expectedReviewEventId: null,
+      quality: "useful",
+      disposition: "visible",
+      snoozedUntil: null,
+      note: "New evidence deserves review",
+    });
+    assert.equal(useful.review?.quality, "useful");
     await assert.rejects(
       service.updateSettings({
         expectedVersion: original.version,
@@ -287,6 +387,14 @@ test("local attention reconciles evidence, preferences, resolution, and paged hi
     );
     assert.ok(
       audit.items.some((item) => item.operation === "local_attention.resolved"),
+    );
+    assert.ok(
+      audit.items.some(
+        (item) =>
+          item.operation === "local_attention.reviewed" &&
+          item.details.evidenceId === latestMetric &&
+          item.details.disposition === "dismissed",
+      ),
     );
   } finally {
     const latest = await service.getSettings();

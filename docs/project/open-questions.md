@@ -126,6 +126,19 @@ samples when the latest is under 24 hours old. Local rule toggles and the drop
 threshold are audited. These defaults do not settle real-source noise budgets,
 notification routing, or production alert thresholds.
 
+The local signal screen now records a useful or noisy rating and an optional
+note against the exact synthetic evidence shown. It can snooze that evidence
+for up to seven days, dismiss it, or restore visibility. Active queries hide a
+currently suppressed observation; All history and the append-only review audit
+retain it. New worker evidence is visible again and can receive its own review.
+No rating changes a rule or trains an automatic ranker. This reversible local
+action is assigned the provisional capability
+`local_attention.signal.review`, requires no approval, performs no external
+action, and records `local_attention.reviewed` with the evidence ID. The local
+preview does not yet enforce human capability grants. Validate noise budgets,
+feedback vocabulary, suppression across repeated observations, reviewer
+identity, and critical-alert exceptions before production use.
+
 ### OQ-013: What data retention and deletion promises apply?
 
 Define source payload, event, metric, agent log, artifact, audit, and deleted

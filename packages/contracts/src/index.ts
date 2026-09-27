@@ -1976,6 +1976,27 @@ export const updateLocalAttentionSettingsRequestSchema = z.strictObject({
   metricDropPoints: z.number().int().min(1).max(100),
 });
 
+export const localAttentionReviewSchema = z.object({
+  eventId: z.uuid(),
+  evidenceId: z.uuid(),
+  quality: z.enum(["useful", "noisy"]).nullable(),
+  disposition: z.enum(["visible", "snoozed", "dismissed"]),
+  effectiveDisposition: z.enum(["visible", "snoozed", "dismissed"]),
+  snoozedUntil: z.iso.datetime({ offset: true }).nullable(),
+  note: z.string().nullable(),
+  reviewedAt: z.iso.datetime({ offset: true }),
+  sourceLabel: z.literal("Local review of synthetic evidence"),
+});
+
+export const submitLocalAttentionReviewRequestSchema = z.strictObject({
+  expectedEvidenceId: z.uuid(),
+  expectedReviewEventId: z.uuid().nullable(),
+  quality: z.enum(["useful", "noisy"]).nullable(),
+  disposition: z.enum(["visible", "snoozed", "dismissed"]),
+  snoozedUntil: z.iso.datetime({ offset: true }).nullable(),
+  note: z.string().trim().max(500).nullable(),
+});
+
 export const localAttentionSignalSchema = z.object({
   id: z.uuid(),
   key: z.string().min(1),
@@ -1987,6 +2008,7 @@ export const localAttentionSignalSchema = z.object({
   integrationName: z.string().nullable(),
   resourceId: z.uuid().nullable(),
   resourceName: z.string().nullable(),
+  evidenceId: z.uuid(),
   evidenceHref: z.string().startsWith("/api/v1/"),
   previousEvidenceHref: z.string().startsWith("/api/v1/").nullable(),
   reason: z.string().min(1),
@@ -2000,6 +2022,7 @@ export const localAttentionSignalSchema = z.object({
   sourceLabel: z.literal("Synthetic local attention"),
   isSynthetic: z.literal(true),
   realHealth: z.literal("unknown"),
+  review: localAttentionReviewSchema.nullable(),
 });
 
 export const listLocalAttentionSignalsQuerySchema =
@@ -3281,6 +3304,10 @@ export type UpdateLocalAttentionSettingsRequest = z.infer<
   typeof updateLocalAttentionSettingsRequestSchema
 >;
 export type LocalAttentionSignal = z.infer<typeof localAttentionSignalSchema>;
+export type LocalAttentionReview = z.infer<typeof localAttentionReviewSchema>;
+export type SubmitLocalAttentionReviewRequest = z.infer<
+  typeof submitLocalAttentionReviewRequestSchema
+>;
 export type LocalAttentionAuditEvent = z.infer<
   typeof localAttentionAuditEventSchema
 >;

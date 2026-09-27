@@ -34,10 +34,17 @@ export function localAttentionFailure(
   operation: string,
 ): Response {
   if (error instanceof LocalAttentionError) {
+    const status =
+      error.code === "SIGNAL_NOT_FOUND"
+        ? 404
+        : error.code === "SETTINGS_STALE" ||
+            error.code === "SIGNAL_REVIEW_STALE"
+          ? 409
+          : 400;
     return jsonResponse(
       request,
       { code: error.code, message: error.message },
-      error.code === "SETTINGS_STALE" ? 409 : 400,
+      status,
       `${operation}.rejected`,
     );
   }

@@ -245,6 +245,8 @@ import {
   listAttentionResponseSchema,
   localAttentionSettingsSchema,
   updateLocalAttentionSettingsRequestSchema,
+  localAttentionReviewSchema,
+  submitLocalAttentionReviewRequestSchema,
   localAttentionSignalSchema,
   listLocalAttentionSignalsResponseSchema,
   localAttentionAuditEventSchema,
@@ -4247,6 +4249,36 @@ export function generateOpenApi(): string {
           },
         },
       },
+      "/api/v1/attention-signals/{id}/review": {
+        post: {
+          operationId: "reviewLocalAttentionSignal",
+          summary:
+            "Record evidence-bound local quality feedback or reversible noise control",
+          parameters: [idParameter],
+          requestBody: {
+            required: true,
+            content: jsonContent("SubmitLocalAttentionReviewRequest"),
+          },
+          responses: {
+            "200": {
+              description: "Synthetic signal with its current local review",
+              content: jsonContent("LocalAttentionSignal"),
+            },
+            "400": {
+              description: "Invalid review or snooze window",
+              content: jsonContent("ErrorResponse"),
+            },
+            "404": {
+              description: "Signal not found",
+              content: jsonContent("ErrorResponse"),
+            },
+            "409": {
+              description: "Signal evidence or review changed",
+              content: jsonContent("ErrorResponse"),
+            },
+          },
+        },
+      },
       "/api/v1/attention-rules": {
         get: {
           operationId: "getLocalAttentionRules",
@@ -4794,6 +4826,10 @@ export function generateOpenApi(): string {
           updateLocalAttentionSettingsRequestSchema,
         ),
         LocalAttentionSignal: component(localAttentionSignalSchema),
+        LocalAttentionReview: component(localAttentionReviewSchema),
+        SubmitLocalAttentionReviewRequest: component(
+          submitLocalAttentionReviewRequestSchema,
+        ),
         ListLocalAttentionSignalsResponse: component(
           listLocalAttentionSignalsResponseSchema,
         ),

@@ -14,12 +14,53 @@ export const LOCAL_ATTENTION_POLICY = {
   externalActions: false,
 } as const;
 
+export const LOCAL_ATTENTION_REVIEW_POLICY = {
+  risk: "reversible",
+  capability: "local_attention.signal.review",
+  approvalRequired: false,
+  auditEvent: "local_attention.reviewed",
+  externalActions: false,
+} as const;
+
 export class LocalAttentionError extends Error {
   constructor(
-    public readonly code: "SETTINGS_STALE" | "INVALID_CURSOR",
+    public readonly code:
+      | "SETTINGS_STALE"
+      | "INVALID_CURSOR"
+      | "SIGNAL_NOT_FOUND"
+      | "SIGNAL_REVIEW_STALE"
+      | "INVALID_SNOOZE",
     message: string,
   ) {
     super(message);
+  }
+}
+
+export function validateLocalAttentionReview(
+  input: {
+    disposition: "visible" | "snoozed" | "dismissed";
+    snoozedUntil: string | null;
+  },
+  now = new Date(),
+) {
+  if (input.disposition !== "snoozed" && input.snoozedUntil !== null)
+    throw new LocalAttentionError(
+      "INVALID_SNOOZE",
+      "Only a snoozed signal may have a reminder time",
+    );
+  if (input.disposition === "snoozed") {
+    const until = input.snoozedUntil
+      ? new Date(input.snoozedUntil).getTime()
+      : Number.NaN;
+    if (
+      !Number.isFinite(until) ||
+      until <= now.getTime() ||
+      until > now.getTime() + 7 * 24 * 60 * 60_000
+    )
+      throw new LocalAttentionError(
+        "INVALID_SNOOZE",
+        "Snooze must end within the next seven days",
+      );
   }
 }
 

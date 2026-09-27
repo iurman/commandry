@@ -183,6 +183,48 @@ test("synthetic source and trend signals retain evidence and audited local prefe
   await expect(
     page.getByText("Real source and resource health remain unknown.").first(),
   ).toBeVisible();
+  const metricReview = page.getByRole("group", {
+    name: "Review metric drop signal",
+  });
+  await metricReview
+    .getByLabel("Optional quality or noise note")
+    .fill("Expected synthetic replay during local review");
+  await metricReview.getByRole("button", { name: "Mark noisy" }).click();
+  await expect(
+    page.getByRole("article", { name: "Synthetic attention metric drop" }),
+  ).toContainText("Local feedback: noisy; visible");
+  await metricReview.getByRole("button", { name: "Snooze 1 hour" }).click();
+  await expect(
+    page.getByRole("article", { name: "Synthetic attention metric drop" }),
+  ).toHaveCount(0);
+  await page.getByRole("button", { name: "All history" }).click();
+  await expect(
+    page.getByRole("article", { name: "Synthetic attention metric drop" }),
+  ).toContainText("Local feedback: noisy; snoozed");
+  await page
+    .getByRole("group", { name: "Review metric drop signal" })
+    .getByRole("button", { name: "Restore visibility" })
+    .click();
+  await page.getByRole("button", { name: "Active", exact: true }).click();
+  await expect(
+    page.getByRole("article", { name: "Synthetic attention metric drop" }),
+  ).toBeVisible();
+  await page
+    .getByRole("group", { name: "Review metric drop signal" })
+    .getByRole("button", { name: "Dismiss this evidence" })
+    .click();
+  await expect(
+    page.getByRole("article", { name: "Synthetic attention metric drop" }),
+  ).toHaveCount(0);
+  await page.getByRole("button", { name: "All history" }).click();
+  await expect(
+    page.getByRole("article", { name: "Synthetic attention metric drop" }),
+  ).toContainText("Local feedback: noisy; dismissed");
+  await page
+    .getByRole("group", { name: "Review metric drop signal" })
+    .getByRole("button", { name: "Restore visibility" })
+    .click();
+  await page.getByRole("button", { name: "Active", exact: true }).click();
   const rulesResponse = await request.get("/api/v1/attention-rules");
   const original = await rulesResponse.json();
   try {

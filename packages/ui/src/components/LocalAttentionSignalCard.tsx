@@ -13,6 +13,14 @@ export interface LocalAttentionSignalView {
   previousObservedAt: string | null;
   changedAt: string;
   evaluatedAt: string;
+  review?: {
+    quality: "useful" | "noisy" | null;
+    disposition: "visible" | "snoozed" | "dismissed";
+    effectiveDisposition: "visible" | "snoozed" | "dismissed";
+    snoozedUntil: string | null;
+    note: string | null;
+    reviewedAt: string;
+  } | null;
 }
 
 export function LocalAttentionSignalCard({
@@ -73,6 +81,17 @@ export function LocalAttentionSignalCard({
         <time dateTime={signal.evaluatedAt}>{signal.evaluatedAt}</time>. Real
         source and resource health remain unknown.
       </p>
+      {signal.review && (
+        <p>
+          Local feedback: {signal.review.quality ?? "unrated"};{" "}
+          {signal.review.effectiveDisposition}
+          {signal.review.snoozedUntil &&
+            signal.review.effectiveDisposition === "snoozed" && (
+              <> until {signal.review.snoozedUntil}</>
+            )}
+          .{signal.review.note ? ` Note: ${signal.review.note}` : ""}
+        </p>
+      )}
       {signal.resourceId && signal.ruleId === "metric_drop" && (
         <a href={`/resources/${signal.resourceId}#dependency-impact`}>
           Review potential dependency impact
