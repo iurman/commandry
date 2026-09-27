@@ -161,9 +161,10 @@ export default function HomePage() {
       <div className="cmd-notice cmd-synthetic-notice">
         <h2>Local simulation</h2>
         <p>
-          No live integrations are connected. Items below, when present, come
-          from fixed synthetic fixtures or local simulated runs. They do not
-          report project or resource health.
+          No live integrations are connected. Local captures and tasks are real
+          local records; development and operational signals use labeled
+          synthetic fixtures, and agent actions are simulated. This view does
+          not report live project or resource health.
         </p>
       </div>
 

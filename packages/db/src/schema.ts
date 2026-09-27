@@ -714,6 +714,10 @@ export const workItem = pgTable(
     sourceCaptureId: uuid("source_capture_id")
       .notNull()
       .references(() => capture.id, { onDelete: "restrict" }),
+    generatedFromWorkItemId: uuid("generated_from_work_item_id").references(
+      (): AnyPgColumn => workItem.id,
+      { onDelete: "restrict" },
+    ),
     title: text("title").notNull(),
     description: text("description").notNull(),
     workType: text("work_type", { enum: ["task", "initiative", "subtask"] })
@@ -735,8 +739,12 @@ export const workItem = pgTable(
     updatedAt: updatedAt(),
   },
   (table) => [
-    uniqueIndex("work_item_source_capture_unique_idx").on(
-      table.sourceCaptureId,
+    uniqueIndex("work_item_source_capture_unique_idx")
+      .on(table.sourceCaptureId)
+      .where(sql`${table.generatedFromWorkItemId} is null`),
+    index("work_item_generated_from_idx").on(
+      table.generatedFromWorkItemId,
+      table.id,
     ),
     index("work_item_project_id_idx").on(table.projectId, table.id),
     index("work_item_upcoming_idx").on(table.status, table.dueOn, table.id),
@@ -750,6 +758,10 @@ export const workItem = pgTable(
       sql`${table.workType} in ('task', 'initiative', 'subtask')`,
     ),
     check("work_item_status_valid", sql`${table.status} in ('open', 'done')`),
+    check(
+      "work_item_not_generated_from_self",
+      sql`${table.generatedFromWorkItemId} is null or ${table.generatedFromWorkItemId} <> ${table.id}`,
+    ),
     check(
       "work_item_priority_valid",
       sql`${table.priority} is null or ${table.priority} in ('low', 'normal', 'high')`,
@@ -802,6 +814,125 @@ export const workItemAssignmentEvent = pgTable(
     check(
       "work_item_assignment_event_actor_local",
       sql`${table.actor} = 'local-user:unattributed'`,
+    ),
+  ],
+);
+
+export const workRecurrenceDefinition = pgTable(
+  "work_recurrence_definition",
+  {
+    id: uuid("id").primaryKey(),
+    sourceWorkItemId: uuid("source_work_item_id")
+      .notNull()
+      .references(() => workItem.id, { onDelete: "restrict" }),
+    projectId: uuid("project_id")
+      .notNull()
+      .references(() => project.id, { onDelete: "restrict" }),
+    startAt: timestamp("start_at", { withTimezone: true }).notNull(),
+    everyMinutes: integer("every_minutes").notNull(),
+    nextOccurrenceAt: timestamp("next_occurrence_at", {
+      withTimezone: true,
+    }).notNull(),
+    enabled: boolean("enabled").notNull().default(true),
+    sourceOfTruth: text("source_of_truth").notNull().default("local-only"),
+    createdAt: createdAt(),
+    updatedAt: updatedAt(),
+  },
+  (table) => [
+    uniqueIndex("work_recurrence_source_unique_idx").on(table.sourceWorkItemId),
+    index("work_recurrence_due_idx").on(table.enabled, table.nextOccurrenceAt),
+    index("work_recurrence_project_idx").on(table.projectId, table.id),
+    check(
+      "work_recurrence_interval_valid",
+      sql`${table.everyMinutes} between 5 and 10080`,
+    ),
+    check(
+      "work_recurrence_source_local",
+      sql`${table.sourceOfTruth} = 'local-only'`,
+    ),
+  ],
+);
+
+export const workRecurrenceOccurrence = pgTable(
+  "work_recurrence_occurrence",
+  {
+    id: uuid("id").primaryKey(),
+    definitionId: uuid("definition_id")
+      .notNull()
+      .references(() => workRecurrenceDefinition.id, { onDelete: "restrict" }),
+    scheduledFor: timestamp("scheduled_for", { withTimezone: true }).notNull(),
+    state: text("state", { enum: ["queued", "running", "generated", "failed"] })
+      .notNull()
+      .default("queued"),
+    generatedWorkItemId: uuid("generated_work_item_id").references(
+      () => workItem.id,
+      { onDelete: "restrict" },
+    ),
+    attempts: integer("attempts").notNull().default(0),
+    lastError: text("last_error"),
+    createdAt: createdAt(),
+    completedAt: timestamp("completed_at", { withTimezone: true }),
+  },
+  (table) => [
+    uniqueIndex("work_recurrence_occurrence_due_idx").on(
+      table.definitionId,
+      table.scheduledFor,
+    ),
+    uniqueIndex("work_recurrence_occurrence_work_idx").on(
+      table.generatedWorkItemId,
+    ),
+    index("work_recurrence_occurrence_page_idx").on(
+      table.definitionId,
+      table.scheduledFor,
+      table.id,
+    ),
+    check(
+      "work_recurrence_occurrence_state_valid",
+      sql`${table.state} in ('queued', 'running', 'generated', 'failed')`,
+    ),
+    check(
+      "work_recurrence_occurrence_result_valid",
+      sql`(${table.state} = 'generated' and ${table.generatedWorkItemId} is not null and ${table.completedAt} is not null) or (${table.state} <> 'generated' and ${table.generatedWorkItemId} is null)`,
+    ),
+    check(
+      "work_recurrence_occurrence_attempts_valid",
+      sql`${table.attempts} >= 0`,
+    ),
+  ],
+);
+
+export const workRecurrenceAuditEvent = pgTable(
+  "work_recurrence_audit_event",
+  {
+    id: uuid("id").primaryKey(),
+    definitionId: uuid("definition_id")
+      .notNull()
+      .references(() => workRecurrenceDefinition.id, { onDelete: "restrict" }),
+    occurrenceId: uuid("occurrence_id").references(
+      () => workRecurrenceOccurrence.id,
+      { onDelete: "restrict" },
+    ),
+    operation: text("operation").notNull(),
+    actor: text("actor").notNull(),
+    details: jsonb("details")
+      .$type<Record<string, unknown>>()
+      .notNull()
+      .default({}),
+    createdAt: createdAt(),
+  },
+  (table) => [
+    index("work_recurrence_audit_page_idx").on(
+      table.definitionId,
+      table.createdAt,
+      table.id,
+    ),
+    check(
+      "work_recurrence_audit_operation_valid",
+      sql`${table.operation} in ('work.recurrence.created', 'work.recurrence.updated', 'work.recurrence.occurrence_queued', 'work.recurrence.occurrences_skipped', 'work.recurrence.attempt_started', 'work.recurrence.occurrence_generated', 'work.recurrence.attempt_failed')`,
+    ),
+    check(
+      "work_recurrence_audit_actor_valid",
+      sql`${table.actor} in ('local-user:unattributed', 'system:local-work-scheduler', 'system:local-work-worker')`,
     ),
   ],
 );

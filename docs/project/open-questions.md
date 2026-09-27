@@ -175,3 +175,15 @@ needs multiple assignees, project-specific assignees for shared Work, a real
 human identity, reassignment on project scope change, and a deliberate path
 from assignment to a governed run. Keep production identity and runner policy
 open under OQ-003 and OQ-006 through OQ-008.
+
+### OQ-027: What recurrence policy should govern Work in production?
+
+The local MVP can attach one interval definition to an original task and use
+the separate PostgreSQL worker to create unassigned task occurrences. Each
+occurrence retains a link to that task and its preserved original capture.
+The scheduler queues only the latest due slot after downtime and audits skipped
+slots. Pausing stops future queueing; already queued occurrences retain their
+history and may still complete. Validate calendar and time-zone semantics,
+catch-up limits, edits to a source task, cancellation of queued work, retention,
+source task completion, and how recurrence relates to assignment or approved
+execution. No occurrence automatically runs an agent or external action.

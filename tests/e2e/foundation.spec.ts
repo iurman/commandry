@@ -54,7 +54,7 @@ test("local shell labels simulated data without claiming live health", async ({
     page.getByRole("heading", { name: "Recent change" }),
   ).toBeVisible();
   await expect(
-    page.getByText(/They do not report project or resource health/),
+    page.getByText(/does not report live project or resource health/),
   ).toBeVisible();
   expect(
     await page.evaluate(

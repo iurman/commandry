@@ -11,6 +11,7 @@ export * from "./simulated-approvals";
 export * from "./work-item-status";
 export * from "./work-planning";
 export * from "./work-assignment";
+export * from "./work-recurrence";
 export * from "./knowledge-revisions";
 export * from "./resource-topology";
 export * from "./project-decisions";

@@ -10,6 +10,7 @@ import {
   createProjectBriefService,
   createSyntheticEventImportProcessor,
   createSyntheticRunProcessor,
+  createWorkRecurrenceProcessor,
 } from "@commandry/application";
 import { loadRuntimeConfig } from "@commandry/config";
 import {
@@ -20,6 +21,7 @@ import {
   simulatedApprovalJobV1Schema,
   syntheticEventImportJobV1Schema,
   syntheticJobV1Schema,
+  workRecurrenceJobV1Schema,
 } from "@commandry/contracts";
 import {
   createBriefRepository,
@@ -34,12 +36,14 @@ import {
   createSyntheticEventImportRepository,
   createSyntheticRunRepository,
   createWorkerHeartbeatRepository,
+  createWorkRecurrenceRepository,
 } from "@commandry/db";
 import {
   CAPTURE_TRIAGE_QUEUE,
   createPgBossProducer,
   createLocalAgentRunSubmission,
   createRecurringAutomationScheduler,
+  createWorkRecurrenceScheduler,
   createSyntheticEventAutomationReconciler,
   createSyntheticConditionAutomationReconciler,
   LOCAL_AGENT_RUN_QUEUE,
@@ -48,6 +52,7 @@ import {
   SIMULATED_APPROVAL_QUEUE,
   SYNTHETIC_EVENT_IMPORT_QUEUE,
   SYNTHETIC_QUEUE,
+  WORK_RECURRENCE_QUEUE,
 } from "@commandry/platform";
 
 const config = loadRuntimeConfig();
@@ -140,6 +145,14 @@ const processLocalAutomation = createLocalAutomationProcessor(
   syntheticEventRepository,
 );
 const recurringAutomationScheduler = createRecurringAutomationScheduler(
+  database.db,
+  transport.boss,
+);
+const workRecurrenceRepository = createWorkRecurrenceRepository(database.db);
+const processWorkRecurrence = createWorkRecurrenceProcessor(
+  workRecurrenceRepository,
+);
+const workRecurrenceScheduler = createWorkRecurrenceScheduler(
   database.db,
   transport.boss,
 );
@@ -346,6 +359,26 @@ await transport.boss.work(LOCAL_AUTOMATION_QUEUE, async ([job]) => {
     throw error;
   }
 });
+await transport.boss.work(WORK_RECURRENCE_QUEUE, async ([job]) => {
+  if (!job)
+    throw new Error("pg-boss delivered an empty Work recurrence job batch");
+  const input = workRecurrenceJobV1Schema.parse(job.data);
+  try {
+    const occurrence = await processWorkRecurrence(input);
+    log("info", "work_recurrence.processed", {
+      occurrenceId: occurrence.id,
+      state: occurrence.state,
+      jobId: job.id,
+    });
+  } catch (error) {
+    log("error", "work_recurrence.failed_attempt", {
+      occurrenceId: input.occurrenceId,
+      jobId: job.id,
+      error: error instanceof Error ? error.name : "unknown",
+    });
+    throw error;
+  }
+});
 let reconcilingRecurring = false;
 async function reconcileRecurringAutomations() {
   if (reconcilingRecurring) return;
@@ -368,6 +401,27 @@ const recurringTimer = setInterval(
   10_000,
 );
 recurringTimer.unref();
+let reconcilingWorkRecurrence = false;
+async function reconcileWorkRecurrences() {
+  if (reconcilingWorkRecurrence) return;
+  reconcilingWorkRecurrence = true;
+  try {
+    const count = await workRecurrenceScheduler.reconcile();
+    if (count > 0) log("info", "work_recurrence.occurrences_queued", { count });
+  } catch (error) {
+    log("error", "work_recurrence.reconciliation_failed", {
+      error: error instanceof Error ? error.name : "unknown",
+    });
+  } finally {
+    reconcilingWorkRecurrence = false;
+  }
+}
+await reconcileWorkRecurrences();
+const workRecurrenceTimer = setInterval(
+  () => void reconcileWorkRecurrences(),
+  10_000,
+);
+workRecurrenceTimer.unref();
 log("info", "worker.started", { workerId });
 
 let stopping = false;
@@ -377,6 +431,7 @@ async function shutdown(signal: string) {
   clearInterval(timer);
   clearInterval(approvalExpiryTimer);
   clearInterval(recurringTimer);
+  clearInterval(workRecurrenceTimer);
   log("info", "worker.stopping", { signal });
   try {
     await transport.close();

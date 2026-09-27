@@ -18,6 +18,7 @@ export function createRecordDetailRepository(db: CommandryDatabase) {
             title: row.title,
             description: row.description,
             workType: row.workType,
+            generatedFromWorkItemId: row.generatedFromWorkItemId,
             assigneeKind: row.assigneeKind,
             assigneeAgentId: row.assigneeAgentId,
             assigneeLabel: row.assigneeLabel,

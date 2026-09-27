@@ -17,6 +17,15 @@ import {
   workItemAssignmentEventSchema,
   listWorkAssignmentEventsResponseSchema,
   listProjectEligibleAgentsResponseSchema,
+  createWorkRecurrenceRequestSchema,
+  updateWorkRecurrenceRequestSchema,
+  workRecurrenceDefinitionSchema,
+  getWorkRecurrenceResponseSchema,
+  workRecurrenceOccurrenceSchema,
+  listWorkRecurrenceOccurrencesResponseSchema,
+  workRecurrenceAuditEventSchema,
+  listWorkRecurrenceAuditResponseSchema,
+  workRecurrenceJobV1Schema,
   workItemPlanningEventSchema,
   listWorkItemPlanningEventsResponseSchema,
   listUpcomingWorkResponseSchema,
@@ -1408,6 +1417,101 @@ export function generateOpenApi(): string {
             "200": {
               description: "Assignment history page",
               content: jsonContent("ListWorkAssignmentEventsResponse"),
+            },
+          },
+        },
+      },
+      "/api/v1/work-items/{id}/recurrence": {
+        get: {
+          operationId: "getWorkRecurrence",
+          summary:
+            "Read the local recurring definition for one source Work item",
+          parameters: [idParameter],
+          responses: {
+            "200": {
+              description: "Definition or null when this task is not recurring",
+              content: jsonContent("GetWorkRecurrenceResponse"),
+            },
+          },
+        },
+        post: {
+          operationId: "createWorkRecurrence",
+          summary: "Schedule local task occurrences from an original Work item",
+          parameters: [idParameter],
+          requestBody: {
+            required: true,
+            content: jsonContent("CreateWorkRecurrenceRequest"),
+          },
+          responses: {
+            "201": {
+              description: "Created local recurring Work definition",
+              content: jsonContent("WorkRecurrenceDefinition"),
+            },
+            "409": {
+              description: "Recurring definition already exists",
+              content: jsonContent("ErrorResponse"),
+            },
+          },
+        },
+        put: {
+          operationId: "updateWorkRecurrence",
+          summary: "Change cadence or pause/resume a local recurring task",
+          parameters: [idParameter],
+          requestBody: {
+            required: true,
+            content: jsonContent("UpdateWorkRecurrenceRequest"),
+          },
+          responses: {
+            "200": {
+              description: "Updated definition and next future occurrence",
+              content: jsonContent("WorkRecurrenceDefinition"),
+            },
+            "409": {
+              description: "Definition changed concurrently",
+              content: jsonContent("ErrorResponse"),
+            },
+          },
+        },
+      },
+      "/api/v1/work-items/{id}/recurrence/occurrences": {
+        get: {
+          operationId: "listWorkRecurrenceOccurrences",
+          summary:
+            "Page through queued, generated, and failed task occurrences",
+          parameters: [idParameter, ...pageParameters],
+          responses: {
+            "200": {
+              description: "Local recurring Work occurrence page",
+              content: jsonContent("ListWorkRecurrenceOccurrencesResponse"),
+            },
+          },
+        },
+      },
+      "/api/v1/work-items/{id}/recurrence/audit": {
+        get: {
+          operationId: "listWorkRecurrenceAudit",
+          summary: "Page through immutable recurring Work audit events",
+          parameters: [idParameter, ...pageParameters],
+          responses: {
+            "200": {
+              description: "Recurring Work audit page",
+              content: jsonContent("ListWorkRecurrenceAuditResponse"),
+            },
+          },
+        },
+      },
+      "/api/v1/work-recurrence-occurrences/{id}": {
+        get: {
+          operationId: "getWorkRecurrenceOccurrence",
+          parameters: [idParameter],
+          responses: {
+            "200": {
+              description: "Exact local task occurrence",
+              content: jsonContent("WorkRecurrenceOccurrence"),
+            },
+            "404": {
+              description: "Occurrence not found",
+              content: jsonContent("ErrorResponse"),
             },
           },
         },
@@ -3329,6 +3433,23 @@ export function generateOpenApi(): string {
         ListProjectEligibleAgentsResponse: component(
           listProjectEligibleAgentsResponseSchema,
         ),
+        CreateWorkRecurrenceRequest: component(
+          createWorkRecurrenceRequestSchema,
+        ),
+        UpdateWorkRecurrenceRequest: component(
+          updateWorkRecurrenceRequestSchema,
+        ),
+        WorkRecurrenceDefinition: component(workRecurrenceDefinitionSchema),
+        GetWorkRecurrenceResponse: component(getWorkRecurrenceResponseSchema),
+        WorkRecurrenceOccurrence: component(workRecurrenceOccurrenceSchema),
+        ListWorkRecurrenceOccurrencesResponse: component(
+          listWorkRecurrenceOccurrencesResponseSchema,
+        ),
+        WorkRecurrenceAuditEvent: component(workRecurrenceAuditEventSchema),
+        ListWorkRecurrenceAuditResponse: component(
+          listWorkRecurrenceAuditResponseSchema,
+        ),
+        WorkRecurrenceJobV1: component(workRecurrenceJobV1Schema),
         WorkItemPlanningEvent: component(workItemPlanningEventSchema),
         ListWorkItemPlanningEventsResponse: component(
           listWorkItemPlanningEventsResponseSchema,

@@ -491,6 +491,7 @@ export const workItemSchema = z.object({
   id: z.uuid(),
   projectId: z.uuid(),
   sourceCaptureId: z.uuid(),
+  generatedFromWorkItemId: z.uuid().nullable().optional(),
   title: z.string(),
   description: z.string(),
   workType: z.enum(["task", "initiative", "subtask"]).optional(),
@@ -584,6 +585,86 @@ export const workItemAssignmentEventSchema = z.object({
 export const listWorkAssignmentEventsResponseSchema = z.object({
   items: z.array(workItemAssignmentEventSchema),
   nextCursor: z.uuid().nullable(),
+});
+
+export const createWorkRecurrenceRequestSchema = z.strictObject({
+  startAt: z.iso.datetime({ offset: true }),
+  everyMinutes: z.number().int().min(5).max(10_080),
+});
+
+export const updateWorkRecurrenceRequestSchema =
+  createWorkRecurrenceRequestSchema.extend({
+    expectedUpdatedAt: z.iso.datetime({ offset: true }),
+    enabled: z.boolean(),
+  });
+
+export const workRecurrenceDefinitionSchema = z.object({
+  id: z.uuid(),
+  sourceWorkItemId: z.uuid(),
+  projectId: z.uuid(),
+  startAt: z.iso.datetime({ offset: true }),
+  everyMinutes: z.number().int(),
+  nextOccurrenceAt: z.iso.datetime({ offset: true }),
+  enabled: z.boolean(),
+  sourceOfTruth: z.literal("local-only"),
+  createdAt: z.iso.datetime({ offset: true }),
+  updatedAt: z.iso.datetime({ offset: true }),
+});
+
+export const getWorkRecurrenceResponseSchema = z.object({
+  definition: workRecurrenceDefinitionSchema.nullable(),
+});
+
+export const workRecurrenceOccurrenceSchema = z.object({
+  id: z.uuid(),
+  definitionId: z.uuid(),
+  scheduledFor: z.iso.datetime({ offset: true }),
+  state: z.enum(["queued", "running", "generated", "failed"]),
+  generatedWorkItemId: z.uuid().nullable(),
+  attempts: z.number().int().nonnegative(),
+  lastError: z.string().nullable(),
+  sourceLabel: z.literal("Local worker-created task"),
+  externalActions: z.array(z.never()).length(0),
+  createdAt: z.iso.datetime({ offset: true }),
+  completedAt: z.iso.datetime({ offset: true }).nullable(),
+});
+
+export const listWorkRecurrenceOccurrencesResponseSchema = z.object({
+  items: z.array(workRecurrenceOccurrenceSchema),
+  nextCursor: z.uuid().nullable(),
+});
+
+export const workRecurrenceAuditEventSchema = z.object({
+  id: z.uuid(),
+  definitionId: z.uuid(),
+  occurrenceId: z.uuid().nullable(),
+  operation: z.enum([
+    "work.recurrence.created",
+    "work.recurrence.updated",
+    "work.recurrence.occurrence_queued",
+    "work.recurrence.occurrences_skipped",
+    "work.recurrence.attempt_started",
+    "work.recurrence.occurrence_generated",
+    "work.recurrence.attempt_failed",
+  ]),
+  actor: z.enum([
+    "local-user:unattributed",
+    "system:local-work-scheduler",
+    "system:local-work-worker",
+  ]),
+  details: z.record(z.string(), z.unknown()),
+  createdAt: z.iso.datetime({ offset: true }),
+});
+
+export const listWorkRecurrenceAuditResponseSchema = z.object({
+  items: z.array(workRecurrenceAuditEventSchema),
+  nextCursor: z.uuid().nullable(),
+});
+
+export const workRecurrenceJobV1Schema = z.strictObject({
+  version: z.literal(1),
+  occurrenceId: z.uuid(),
+  definitionId: z.uuid(),
 });
 
 export const workItemPlanningEventSchema = z.object({
@@ -1360,6 +1441,7 @@ export const evidenceReferenceSchema = z.object({
     "project",
     "work_item",
     "work_item_assignment_event",
+    "work_recurrence_occurrence",
     "work_item_relation",
     "work_item_attachment",
     "work_item_acceptance_revision",
@@ -2282,6 +2364,22 @@ export type ChangeWorkAssignmentRequest = z.infer<
 export type WorkItemAssignmentEvent = z.infer<
   typeof workItemAssignmentEventSchema
 >;
+export type CreateWorkRecurrenceRequest = z.infer<
+  typeof createWorkRecurrenceRequestSchema
+>;
+export type UpdateWorkRecurrenceRequest = z.infer<
+  typeof updateWorkRecurrenceRequestSchema
+>;
+export type WorkRecurrenceDefinition = z.infer<
+  typeof workRecurrenceDefinitionSchema
+>;
+export type WorkRecurrenceOccurrence = z.infer<
+  typeof workRecurrenceOccurrenceSchema
+>;
+export type WorkRecurrenceAuditEvent = z.infer<
+  typeof workRecurrenceAuditEventSchema
+>;
+export type WorkRecurrenceJobV1 = z.infer<typeof workRecurrenceJobV1Schema>;
 export type ChangeWorkItemStatusRequest = z.infer<
   typeof changeWorkItemStatusRequestSchema
 >;

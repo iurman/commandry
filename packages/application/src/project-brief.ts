@@ -27,6 +27,12 @@ import {
 
 export type BriefPage<T> = { items: T[]; nextCursor: string | null };
 export type BriefWorkItem = WorkItem & {
+  recurrence?: {
+    occurrenceId: string;
+    scheduledFor: string;
+    createdAt: string;
+    sourceRecordedAt: string;
+  } | null;
   assignment?: {
     eventId: string;
     recordedAt: string;
@@ -139,16 +145,42 @@ export function assembleProjectBrief(
       id: item.id,
       kind: "work_item",
       title: item.title,
-      detail: `${item.workType === "initiative" ? "Initiative. " : item.workType === "subtask" ? "Subtask. " : ""}${workFactText(item.status)}. ${briefExcerpt(item.description)}${item.assignment ? ` Assigned to ${item.assignment.label}.` : ""}${item.openBlockers?.length ? ` Blocked by ${item.openBlockers.map((blocker) => blocker.title).join(", ")}.` : ""}${item.attachedDocuments?.length ? ` Attached documents: ${item.attachedDocuments.map((document) => document.title).join(", ")}.` : ""}${item.acceptance ? ` Acceptance criteria v${item.acceptance.version}: ${briefExcerpt(item.acceptance.criteria)}. ${item.acceptance.latestReview ? `Manual local review ${item.acceptance.latestReview.result} with ${item.acceptance.latestReview.documentTitle}.` : "No current review recorded."}` : ""}`,
+      detail: `${item.generatedFromWorkItemId ? "Local worker-created recurring task. " : item.workType === "initiative" ? "Initiative. " : item.workType === "subtask" ? "Subtask. " : ""}${workFactText(item.status)}. ${briefExcerpt(item.description)}${item.recurrence ? ` Scheduled for ${item.recurrence.scheduledFor}.` : ""}${item.assignment ? ` Assigned to ${item.assignment.label}.` : ""}${item.openBlockers?.length ? ` Blocked by ${item.openBlockers.map((blocker) => blocker.title).join(", ")}.` : ""}${item.attachedDocuments?.length ? ` Attached documents: ${item.attachedDocuments.map((document) => document.title).join(", ")}.` : ""}${item.acceptance ? ` Acceptance criteria v${item.acceptance.version}: ${briefExcerpt(item.acceptance.criteria)}. ${item.acceptance.latestReview ? `Manual local review ${item.acceptance.latestReview.result} with ${item.acceptance.latestReview.documentTitle}.` : "No current review recorded."}` : ""}`,
       evidence: [
         evidence(
           "work_item",
           item.id,
           `/api/v1/work-items/${item.id}`,
           item.updatedAt,
-          "Manual local capture",
+          item.generatedFromWorkItemId
+            ? "Local worker-created task"
+            : "Manual local capture",
           false,
         ),
+        ...(item.generatedFromWorkItemId
+          ? [
+              evidence(
+                "work_item",
+                item.generatedFromWorkItemId,
+                `/api/v1/work-items/${item.generatedFromWorkItemId}`,
+                item.recurrence?.sourceRecordedAt ?? item.createdAt,
+                "Original recurring Work definition source",
+                false,
+              ),
+            ]
+          : []),
+        ...(item.recurrence
+          ? [
+              evidence(
+                "work_recurrence_occurrence",
+                item.recurrence.occurrenceId,
+                `/api/v1/work-recurrence-occurrences/${item.recurrence.occurrenceId}`,
+                item.recurrence.createdAt,
+                "Local worker-created task occurrence",
+                false,
+              ),
+            ]
+          : []),
         ...(item.assignment
           ? [
               evidence(
@@ -218,7 +250,9 @@ export function assembleProjectBrief(
             ]
           : []),
       ],
-      sourceLabel: "Manual local capture",
+      sourceLabel: item.generatedFromWorkItemId
+        ? "Local worker-created task"
+        : "Manual local capture",
       isSynthetic: false,
     }),
   );

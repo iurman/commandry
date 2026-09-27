@@ -235,6 +235,7 @@ export function createCaptureTriageRepository(db: CommandryDatabase) {
               title: item.title,
               description: item.description,
               workType: item.workType,
+              generatedFromWorkItemId: item.generatedFromWorkItemId,
               assigneeKind: item.assigneeKind,
               assigneeAgentId: item.assigneeAgentId,
               assigneeLabel: item.assigneeLabel,

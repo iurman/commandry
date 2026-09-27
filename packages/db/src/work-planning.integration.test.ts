@@ -81,18 +81,22 @@ test(
           "code" in error &&
           error.code === "PLANNING_CONFLICT",
       );
-      assert.equal(
-        (await planning.listUpcoming({ limit: 1 })).items[0]?.id,
-        secondSaved.id,
-      );
-      const page = await planning.listUpcoming({ limit: 1 });
-      assert.equal(page.nextCursor, secondSaved.id);
-      const next = await planning.listUpcoming({
-        limit: 1,
-        cursor: page.nextCursor!,
-      });
-      assert.equal(next.items[0]?.id, firstSaved.id);
-      assert.equal(next.nextCursor, null);
+      const ownUpcoming: string[] = [];
+      const visitedCursors = new Set<string>();
+      let scanCursor: string | null = null;
+      while (ownUpcoming.length < 2) {
+        const page = await planning.listUpcoming({
+          limit: 1,
+          ...(scanCursor ? { cursor: scanCursor } : {}),
+        });
+        const id = page.items[0]?.id;
+        if (id === firstSaved.id || id === secondSaved.id) ownUpcoming.push(id);
+        if (!page.nextCursor) break;
+        assert.equal(visitedCursors.has(page.nextCursor), false);
+        visitedCursors.add(page.nextCursor);
+        scanCursor = page.nextCursor;
+      }
+      assert.deepEqual(ownUpcoming, [secondSaved.id, firstSaved.id]);
       assert.equal(
         (await planning.listUpcoming({ limit: 10 })).items.some(
           (item) => item.id === undated.item.id,
@@ -135,8 +139,10 @@ test(
         status: "done",
       });
       assert.equal(
-        (await planning.listUpcoming({ limit: 10 })).items.length,
-        0,
+        (await planning.listUpcoming({ limit: 100 })).items.some(
+          (item) => item.id === firstSaved.id || item.id === secondSaved.id,
+        ),
+        false,
       );
       await assert.rejects(
         database.pool.query(

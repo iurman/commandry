@@ -285,6 +285,17 @@ export default function WorkWorkspace({
                       .
                     </p>
                   )}
+                  {item.generatedFromWorkItemId && (
+                    <p className="cmd-record-identity">
+                      Local worker-created task from{" "}
+                      <a
+                        href={`/work-items/${encodeURIComponent(item.generatedFromWorkItemId)}`}
+                      >
+                        its recurring source
+                      </a>
+                      .
+                    </p>
+                  )}
                   {item.dueOn && (
                     <p>
                       Due <time dateTime={item.dueOn}>{item.dueOn}</time> UTC

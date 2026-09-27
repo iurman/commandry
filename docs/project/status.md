@@ -110,7 +110,13 @@ authentication is complete. There is no production deployment.
   knowledge links while preserving the original URL; the navigable link omits
   query and fragment text. Links appear in project and global Knowledge,
   search, live briefs, and packet selection. No captured URL is fetched by
-  this local flow. Recurring work definitions remain to be implemented.
+  this local flow.
+- An original local task can define an interval recurrence. PostgreSQL stores
+  one definition per source task, durable due occurrences, and an audit trail.
+  The separate worker creates an unassigned task linked to that source and the
+  same preserved original capture. The scheduler records skipped slots after
+  downtime, supports pause and resume, and never starts an agent run or external
+  action. This local recurrence policy remains provisional under OQ-027.
 - The Inbox accepts bounded local files and preserves exact bytes, original
   metadata, and a SHA-256 digest in PostgreSQL. A file can be filed as a
   project Knowledge document; its editable context remains separate from the

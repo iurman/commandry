@@ -14,6 +14,7 @@ interface WorkItem {
   id: string;
   projectId: string;
   sourceCaptureId: string;
+  generatedFromWorkItemId?: string | null;
   title: string;
   description: string;
   workType?: "task" | "initiative" | "subtask";
@@ -155,6 +156,17 @@ export default function ProjectContent({ projectId }: { projectId: string }) {
             Shared from its primary project through a{" "}
             <a href={`/api/v1/work-project-links/${item.contextLink.id}`}>
               typed relationship
+            </a>
+            .
+          </p>
+        )}
+        {item.generatedFromWorkItemId && (
+          <p className="cmd-record-identity">
+            Local worker-created task from{" "}
+            <a
+              href={`/work-items/${encodeURIComponent(item.generatedFromWorkItemId)}`}
+            >
+              its recurring source
             </a>
             .
           </p>

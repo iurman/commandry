@@ -156,8 +156,21 @@ export function buildExecutionPacketContents(
           task.id,
           `/api/v1/work-items/${task.id}`,
           task.updatedAt,
-          "Manual local capture",
+          task.generatedFromWorkItemId
+            ? "Local worker-created task"
+            : "Manual local capture",
         ),
+        ...(task.generatedFromWorkItemId
+          ? [
+              evidence(
+                "work_item",
+                task.generatedFromWorkItemId,
+                `/api/v1/work-items/${task.generatedFromWorkItemId}`,
+                task.createdAt,
+                "Original recurring Work definition source",
+              ),
+            ]
+          : []),
         evidence(
           "capture",
           bundle.sourceCapture.id,

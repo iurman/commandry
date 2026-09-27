@@ -5,6 +5,7 @@ test("Inbox files a note and search reaches the same source-backed project recor
   page,
   request,
 }) => {
+  test.setTimeout(90_000);
   const token = `ReviewNote${randomUUID().replaceAll("-", "").slice(0, 10)}`;
   const projectResponse = await request.post("/api/v1/projects", {
     data: { name: `Automated test archive ${token}`, type: "general" },

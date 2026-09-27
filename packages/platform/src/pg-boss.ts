@@ -33,6 +33,7 @@ import {
   dueRecurrence,
   firstRecurrenceAfter,
   localAutomationTrigger,
+  workRecurrenceDue,
   syntheticEventAutomationDecision,
   syntheticConditionAutomationDecision,
   LocalAgentError,
@@ -62,6 +63,9 @@ export const CAPTURE_TRIAGE_DEAD_LETTER_QUEUE = "commandry-capture-triage-dlq";
 export const LOCAL_AUTOMATION_QUEUE = "commandry-local-automation-v1";
 export const LOCAL_AUTOMATION_DEAD_LETTER_QUEUE =
   "commandry-local-automation-dlq";
+export const WORK_RECURRENCE_QUEUE = "commandry-work-recurrence-v1";
+export const WORK_RECURRENCE_DEAD_LETTER_QUEUE =
+  "commandry-work-recurrence-dlq";
 
 function bossOptions(connectionString: string, max: number, migrate: boolean) {
   return {
@@ -132,6 +136,13 @@ export async function installPgBossSchema(options: {
       retryDelay: 1,
       retryBackoff: true,
       deadLetter: LOCAL_AUTOMATION_DEAD_LETTER_QUEUE,
+    });
+    await boss.createQueue(WORK_RECURRENCE_DEAD_LETTER_QUEUE);
+    await boss.createQueue(WORK_RECURRENCE_QUEUE, {
+      retryLimit: 3,
+      retryDelay: 1,
+      retryBackoff: true,
+      deadLetter: WORK_RECURRENCE_DEAD_LETTER_QUEUE,
     });
   } finally {
     await boss.stop();
@@ -919,6 +930,104 @@ export function createRecurringAutomationScheduler(
         if (created) materialized += 1;
       }
       return materialized;
+    },
+  };
+}
+
+/** Queue one latest due task occurrence per definition, with bounded catch-up. */
+export function createWorkRecurrenceScheduler(
+  db: CommandryDatabase,
+  boss: PgBoss,
+) {
+  return {
+    async reconcile(now = new Date(), limit = 20): Promise<number> {
+      const candidates = await db
+        .select({ id: schema.workRecurrenceDefinition.id })
+        .from(schema.workRecurrenceDefinition)
+        .where(
+          and(
+            eq(schema.workRecurrenceDefinition.enabled, true),
+            lte(schema.workRecurrenceDefinition.nextOccurrenceAt, now),
+          ),
+        )
+        .orderBy(asc(schema.workRecurrenceDefinition.nextOccurrenceAt))
+        .limit(limit);
+      let queued = 0;
+      for (const candidate of candidates) {
+        const created = await db.transaction(async (tx) => {
+          const [definition] = await tx
+            .select()
+            .from(schema.workRecurrenceDefinition)
+            .where(eq(schema.workRecurrenceDefinition.id, candidate.id))
+            .for("update", { skipLocked: true })
+            .limit(1);
+          if (!definition?.enabled) return false;
+          const due = workRecurrenceDue(
+            definition.nextOccurrenceAt,
+            definition.everyMinutes,
+            now,
+          );
+          if (!due) return false;
+          const occurrenceId = recurringOccurrenceId(definition.id, due.dueAt);
+          const [occurrence] = await tx
+            .insert(schema.workRecurrenceOccurrence)
+            .values({
+              id: occurrenceId,
+              definitionId: definition.id,
+              scheduledFor: due.dueAt,
+              state: "queued",
+              createdAt: now,
+            })
+            .onConflictDoNothing({
+              target: [
+                schema.workRecurrenceOccurrence.definitionId,
+                schema.workRecurrenceOccurrence.scheduledFor,
+              ],
+            })
+            .returning();
+          await tx
+            .update(schema.workRecurrenceDefinition)
+            .set({ nextOccurrenceAt: due.nextAt })
+            .where(eq(schema.workRecurrenceDefinition.id, definition.id));
+          if (due.skipped > 0) {
+            await tx.insert(schema.workRecurrenceAuditEvent).values({
+              id: crypto.randomUUID(),
+              definitionId: definition.id,
+              operation: "work.recurrence.occurrences_skipped",
+              actor: "system:local-work-scheduler",
+              details: {
+                count: due.skipped,
+                reason: "bounded_catch_up",
+                latestDueAt: due.dueAt.toISOString(),
+              },
+              createdAt: now,
+            });
+          }
+          if (!occurrence) return false;
+          const jobId = await boss.send(
+            WORK_RECURRENCE_QUEUE,
+            { version: 1, occurrenceId, definitionId: definition.id },
+            { db: fromDrizzle(tx, sql) },
+          );
+          if (!jobId) throw new Error("Recurring Work job was not enqueued");
+          await tx.insert(schema.workRecurrenceAuditEvent).values({
+            id: crypto.randomUUID(),
+            definitionId: definition.id,
+            occurrenceId,
+            operation: "work.recurrence.occurrence_queued",
+            actor: "system:local-work-scheduler",
+            details: {
+              jobId,
+              scheduledFor: due.dueAt.toISOString(),
+              sourceWorkItemId: definition.sourceWorkItemId,
+            },
+            createdAt: now,
+          });
+          return true;
+        });
+        if (created) queued += 1;
+      }
+      return queued;
     },
   };
 }

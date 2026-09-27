@@ -16,6 +16,7 @@ import WorkAcceptance from "./WorkAcceptance";
 import WorkRelationships from "./WorkRelationships";
 import WorkProjectPanel from "./WorkProjectPanel";
 import WorkAssignmentPanel from "./WorkAssignmentPanel";
+import WorkRecurrencePanel from "./WorkRecurrencePanel";
 
 type WorkItemRecord = WorkItem;
 
@@ -464,7 +465,9 @@ export default function WorkItemWorkspace({
               </p>
               <h1>{item.title}</h1>
               <p className="cmd-lead">
-                This saved task links to the original capture that motivated it.
+                {item.generatedFromWorkItemId
+                  ? "This local worker-created task links to its recurring source and preserved original capture."
+                  : "This saved task links to the original capture that motivated it."}
               </p>
             </div>
             <span className="cmd-headline-mark">{item.status}</span>
@@ -501,6 +504,15 @@ export default function WorkItemWorkspace({
                   View exact original capture
                 </a>
               </p>
+              {item.generatedFromWorkItemId && (
+                <p>
+                  <a
+                    href={`/work-items/${encodeURIComponent(item.generatedFromWorkItemId)}`}
+                  >
+                    View recurring source task
+                  </a>
+                </p>
+              )}
               <dl className="cmd-detail-facts">
                 <div>
                   <dt>Status</dt>
@@ -551,6 +563,9 @@ export default function WorkItemWorkspace({
             primaryProjectId={item.projectId}
           />
           <WorkAssignmentPanel item={item} onChanged={setItem} />
+          {item.workType === "task" && !item.generatedFromWorkItemId && (
+            <WorkRecurrencePanel workItemId={item.id} />
+          )}
           <WorkRelationships
             workItemId={item.id}
             projectId={item.projectId}

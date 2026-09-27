@@ -253,6 +253,13 @@
       "when": 1790488247836,
       "tag": "0035_melted_gorgon",
       "breakpoints": true
+    },
+    {
+      "idx": 36,
+      "version": "7",
+      "when": 1790490009680,
+      "tag": "0036_wandering_justice",
+      "breakpoints": true
     }
   ]
 }

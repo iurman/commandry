@@ -26,6 +26,7 @@ import {
   workItemAcceptanceRevision,
   workItemRelation,
   workItemVerification,
+  workRecurrenceOccurrence,
 } from "./schema";
 
 type SourceLabel =
@@ -121,6 +122,40 @@ export function createBriefRepository(db: CommandryDatabase) {
             : [];
           const assignmentByWork = new Map(
             assignmentRows.map((event) => [event.workItemId, event]),
+          );
+          const recurrenceRows = visibleWorkIds.length
+            ? await tx
+                .select()
+                .from(workRecurrenceOccurrence)
+                .where(
+                  inArray(
+                    workRecurrenceOccurrence.generatedWorkItemId,
+                    visibleWorkIds,
+                  ),
+                )
+            : [];
+          const recurrenceByWork = new Map(
+            recurrenceRows.map((occurrence) => [
+              occurrence.generatedWorkItemId,
+              occurrence,
+            ]),
+          );
+          const recurringSourceIds = [
+            ...new Set(
+              openWorkRows
+                .slice(0, query.limit)
+                .map(({ item }) => item.generatedFromWorkItemId)
+                .filter((id): id is string => Boolean(id)),
+            ),
+          ];
+          const recurringSourceRows = recurringSourceIds.length
+            ? await tx
+                .select({ id: workItem.id, updatedAt: workItem.updatedAt })
+                .from(workItem)
+                .where(inArray(workItem.id, recurringSourceIds))
+            : [];
+          const recurringSourceById = new Map(
+            recurringSourceRows.map((source) => [source.id, source]),
           );
           const blockerRows = visibleWorkIds.length
             ? await tx
@@ -383,6 +418,23 @@ export function createBriefRepository(db: CommandryDatabase) {
                 title: item.title,
                 description: item.description,
                 workType: item.workType,
+                generatedFromWorkItemId: item.generatedFromWorkItemId,
+                recurrence: (() => {
+                  const occurrence = recurrenceByWork.get(item.id);
+                  return occurrence
+                    ? {
+                        occurrenceId: occurrence.id,
+                        scheduledFor: occurrence.scheduledFor.toISOString(),
+                        createdAt: occurrence.createdAt.toISOString(),
+                        sourceRecordedAt: item.generatedFromWorkItemId
+                          ? (recurringSourceById
+                              .get(item.generatedFromWorkItemId)
+                              ?.updatedAt.toISOString() ??
+                            item.createdAt.toISOString())
+                          : item.createdAt.toISOString(),
+                      }
+                    : null;
+                })(),
                 assigneeKind: item.assigneeKind,
                 assigneeAgentId: item.assigneeAgentId,
                 assigneeLabel: item.assigneeLabel,

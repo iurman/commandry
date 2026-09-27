@@ -444,6 +444,60 @@ async function runSmoke(postgres, adminUrl, runtimePassword) {
     assert.equal(savedPacketResponse.status, 200);
     assert.deepEqual(await savedPacketResponse.json(), packet);
 
+    const recurrenceResponse = await fetch(
+      `${origin}/api/v1/work-items/${task.record.id}/recurrence`,
+      {
+        method: "POST",
+        headers: { "content-type": "application/json" },
+        body: JSON.stringify({
+          startAt: new Date(Date.now() + 3_000).toISOString(),
+          everyMinutes: 5,
+        }),
+      },
+    );
+    assert.equal(recurrenceResponse.status, 201);
+    const recurringDefinition = await recurrenceResponse.json();
+    assert.equal(recurringDefinition.sourceWorkItemId, task.record.id);
+    let generatedOccurrence;
+    const recurrenceDeadline = Date.now() + 30_000;
+    while (Date.now() < recurrenceDeadline) {
+      const response = await fetch(
+        `${origin}/api/v1/work-items/${task.record.id}/recurrence/occurrences`,
+      );
+      assert.equal(response.status, 200);
+      const page = await response.json();
+      generatedOccurrence = page.items.find(
+        (occurrence) => occurrence.state === "generated",
+      );
+      if (generatedOccurrence) break;
+      for (const service of services) {
+        if (service.error || service.child.exitCode !== null)
+          throw new Error(
+            `${service.name} exited during recurring Work: ${service.tail}`,
+          );
+      }
+      await delay(200);
+    }
+    assert.ok(generatedOccurrence, "Worker did not create a recurring task");
+    assert.deepEqual(generatedOccurrence.externalActions, []);
+    const generatedTaskResponse = await fetch(
+      `${origin}/api/v1/work-items/${generatedOccurrence.generatedWorkItemId}`,
+    );
+    assert.equal(generatedTaskResponse.status, 200);
+    const generatedTask = await generatedTaskResponse.json();
+    assert.equal(generatedTask.generatedFromWorkItemId, task.record.id);
+    assert.equal(generatedTask.sourceCaptureId, task.capture.id);
+    assert.equal(generatedTask.assigneeKind, "unassigned");
+    const generatedDoneResponse = await fetch(
+      `${origin}/api/v1/work-items/${generatedTask.id}/status`,
+      {
+        method: "POST",
+        headers: { "content-type": "application/json" },
+        body: JSON.stringify({ expectedStatus: "open", status: "done" }),
+      },
+    );
+    assert.equal(generatedDoneResponse.status, 200);
+
     const agentResponse = await fetch(`${origin}/api/v1/agents`, {
       method: "POST",
       headers: { "content-type": "application/json" },

@@ -41,6 +41,8 @@ export { WorkProjectLinkCard } from "./components/WorkProjectLinkCard";
 export { WorkTypeBadge } from "./components/WorkTypeBadge";
 export { WorkAssigneeBadge } from "./components/WorkAssigneeBadge";
 export type { WorkAssigneeKind } from "./components/WorkAssigneeBadge";
+export { WorkRecurrenceCard } from "./components/WorkRecurrenceCard";
+export type { WorkRecurrenceCardView } from "./components/WorkRecurrenceCard";
 export {
   KnowledgeTypeBadge,
   knowledgeTypeLabel,
