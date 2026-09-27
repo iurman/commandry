@@ -25,6 +25,7 @@
     "compose:down": "node scripts/compose.mjs down",
     "recovery:rehearse": "node scripts/rehearse-recovery.mjs",
     "release:rehearse": "node scripts/rehearse-release.mjs",
+    "release:preflight": "tsx scripts/local-release-preflight.mjs",
     "backup:local": "node scripts/local-backup.mjs create",
     "backup:local:verify": "node scripts/local-backup.mjs verify",
     "auth:bootstrap:local": "node scripts/bootstrap-local-auth.mjs",

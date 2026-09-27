@@ -3,6 +3,7 @@
 import { useEffect, useState } from "react";
 import type {
   LocalBackupEvidence,
+  LocalReleasePreflight,
   LocalReleaseRehearsal,
   LocalRecoveryDrill,
   LocalRecoveryStatus,
@@ -11,6 +12,7 @@ import {
   AppShell,
   Button,
   LocalBackupCard,
+  LocalReleasePreflightCard,
   LocalReleaseRehearsalCard,
   LocalRecoveryDrillCard,
   RecordEmptyState,
@@ -38,31 +40,38 @@ export default function LocalRecoveryPage() {
   const [drills, setDrills] = useState<LocalRecoveryDrill[]>([]);
   const [backups, setBackups] = useState<LocalBackupEvidence[]>([]);
   const [releases, setReleases] = useState<LocalReleaseRehearsal[]>([]);
+  const [preflights, setPreflights] = useState<LocalReleasePreflight[]>([]);
   const [nextCursor, setNextCursor] = useState<string | null>(null);
   const [backupCursor, setBackupCursor] = useState<string | null>(null);
   const [releaseCursor, setReleaseCursor] = useState<string | null>(null);
+  const [preflightCursor, setPreflightCursor] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
   const [loadingMore, setLoadingMore] = useState(false);
   const [loadingMoreBackups, setLoadingMoreBackups] = useState(false);
   const [loadingMoreReleases, setLoadingMoreReleases] = useState(false);
+  const [loadingMorePreflights, setLoadingMorePreflights] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
   async function refresh() {
     setLoading(true);
     setError(null);
     try {
-      const [newStatus, page, backupPage, releasePage] = await Promise.all([
-        apiJson<LocalRecoveryStatus>("/api/v1/local-recovery-status"),
-        apiJson<PageResponse<LocalRecoveryDrill>>(
-          pagePath("/api/v1/local-recovery-drills"),
-        ),
-        apiJson<PageResponse<LocalBackupEvidence>>(
-          pagePath("/api/v1/local-backups"),
-        ),
-        apiJson<PageResponse<LocalReleaseRehearsal>>(
-          pagePath("/api/v1/local-release-rehearsals"),
-        ),
-      ]);
+      const [newStatus, page, backupPage, releasePage, preflightPage] =
+        await Promise.all([
+          apiJson<LocalRecoveryStatus>("/api/v1/local-recovery-status"),
+          apiJson<PageResponse<LocalRecoveryDrill>>(
+            pagePath("/api/v1/local-recovery-drills"),
+          ),
+          apiJson<PageResponse<LocalBackupEvidence>>(
+            pagePath("/api/v1/local-backups"),
+          ),
+          apiJson<PageResponse<LocalReleaseRehearsal>>(
+            pagePath("/api/v1/local-release-rehearsals"),
+          ),
+          apiJson<PageResponse<LocalReleasePreflight>>(
+            pagePath("/api/v1/local-release-preflights"),
+          ),
+        ]);
       setStatus(newStatus);
       setDrills(page.items);
       setNextCursor(page.nextCursor);
@@ -70,6 +79,8 @@ export default function LocalRecoveryPage() {
       setBackupCursor(backupPage.nextCursor);
       setReleases(releasePage.items);
       setReleaseCursor(releasePage.nextCursor);
+      setPreflights(preflightPage.items);
+      setPreflightCursor(preflightPage.nextCursor);
     } catch (cause) {
       setError(errorMessage(cause));
     } finally {
@@ -90,8 +101,11 @@ export default function LocalRecoveryPage() {
       apiJson<PageResponse<LocalReleaseRehearsal>>(
         pagePath("/api/v1/local-release-rehearsals"),
       ),
+      apiJson<PageResponse<LocalReleasePreflight>>(
+        pagePath("/api/v1/local-release-preflights"),
+      ),
     ])
-      .then(([newStatus, page, backupPage, releasePage]) => {
+      .then(([newStatus, page, backupPage, releasePage, preflightPage]) => {
         if (!active) return;
         setStatus(newStatus);
         setDrills(page.items);
@@ -100,6 +114,8 @@ export default function LocalRecoveryPage() {
         setBackupCursor(backupPage.nextCursor);
         setReleases(releasePage.items);
         setReleaseCursor(releasePage.nextCursor);
+        setPreflights(preflightPage.items);
+        setPreflightCursor(preflightPage.nextCursor);
       })
       .catch((cause: unknown) => {
         if (active) setError(errorMessage(cause));
@@ -178,6 +194,28 @@ export default function LocalRecoveryPage() {
     }
   }
 
+  async function loadMorePreflights() {
+    if (!preflightCursor || loadingMorePreflights) return;
+    setLoadingMorePreflights(true);
+    setError(null);
+    try {
+      const page = await apiJson<PageResponse<LocalReleasePreflight>>(
+        pagePath("/api/v1/local-release-preflights", preflightCursor),
+      );
+      setPreflights((current) => [
+        ...current,
+        ...page.items.filter(
+          (item) => !current.some((saved) => saved.id === item.id),
+        ),
+      ]);
+      setPreflightCursor(page.nextCursor);
+    } catch (cause) {
+      setError(errorMessage(cause));
+    } finally {
+      setLoadingMorePreflights(false);
+    }
+  }
+
   return (
     <AppShell current="Infrastructure">
       <header className="cmd-page-header cmd-workspace-heading">
@@ -185,8 +223,9 @@ export default function LocalRecoveryPage() {
           <p className="cmd-eyebrow">Infrastructure / Recovery evidence</p>
           <h1>Local recovery evidence</h1>
           <p className="cmd-lead">
-            Disposable restore, encrypted local backup, and isolated application
-            code rollback evidence. None verifies VPS or offsite recovery.
+            Local Compose preflight, disposable restore, encrypted backup, and
+            isolated code rollback evidence. None verifies VPS or offsite
+            recovery.
           </p>
           <p className="cmd-record-identity">
             <a href="/infrastructure">Return to infrastructure</a>
@@ -225,6 +264,44 @@ export default function LocalRecoveryPage() {
                 <code>pnpm recovery:rehearse</code>.
               </p>
             </div>
+          )}
+        </section>
+        <section
+          className="cmd-panel"
+          aria-labelledby="local-release-preflight"
+        >
+          <div className="cmd-panel-heading">
+            <h2 id="local-release-preflight">Local release preflight</h2>
+            <span className="cmd-panel-state">Local only</span>
+          </div>
+          <p>
+            Run <code>pnpm release:preflight</code> from this checkout after
+            starting Compose. The host command checks the current web, worker,
+            PostgreSQL, migrator, versioned read, heartbeat, and latest local
+            backup, restore, and rollback evidence. It records one immutable
+            result. It cannot establish VPS readiness or prove which checkout
+            revision built the local image.
+          </p>
+          {preflights.length === 0 && !loading && !error && (
+            <RecordEmptyState
+              title="No local preflight recorded"
+              description="Run the local preflight command to check the current Compose stack and record its evidence."
+            />
+          )}
+          {preflights.map((preflight) => (
+            <LocalReleasePreflightCard
+              preflight={preflight}
+              key={preflight.id}
+            />
+          ))}
+          {preflightCursor && (
+            <Button
+              disabled={loadingMorePreflights}
+              onClick={loadMorePreflights}
+              type="button"
+            >
+              {loadingMorePreflights ? "Loading..." : "Load more preflights"}
+            </Button>
           )}
         </section>
         <section className="cmd-panel" aria-labelledby="production-gates">

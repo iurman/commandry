@@ -3,6 +3,7 @@ export { ConnectionStatus } from "./components/ConnectionStatus";
 export type { ConnectionState } from "./components/ConnectionStatus";
 export { LocalBackupCard } from "./components/LocalBackupCard";
 export { LocalReleaseRehearsalCard } from "./components/LocalReleaseRehearsalCard";
+export { LocalReleasePreflightCard } from "./components/LocalReleasePreflightCard";
 export { Button } from "./components/Button";
 export { StatePanel } from "./components/StatePanel";
 export { StatusBadge } from "./components/StatusBadge";

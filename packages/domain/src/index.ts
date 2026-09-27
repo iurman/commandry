@@ -16,6 +16,7 @@ export * from "./work-planning";
 export * from "./work-assignment";
 export * from "./work-recurrence";
 export * from "./local-recovery";
+export * from "./local-release-preflight";
 export * from "./knowledge-revision";
 export * from "./resource-topology";
 export * from "./project-decision";

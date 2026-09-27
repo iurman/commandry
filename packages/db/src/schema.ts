@@ -1,6 +1,10 @@
 import { relations, sql } from "drizzle-orm";
 import type { SavedViewDefinition } from "@commandry/contracts";
-import type { ProjectMetadata, ProjectPresentation } from "@commandry/domain";
+import type {
+  LocalReleasePreflightChecks,
+  ProjectMetadata,
+  ProjectPresentation,
+} from "@commandry/domain";
 import {
   type AnyPgColumn,
   boolean,
@@ -3613,6 +3617,81 @@ export const localReleaseRehearsal = pgTable(
     check(
       "local_release_rehearsal_pass_valid",
       sql`${table.outcome} <> 'passed' or (${table.previousRevision} is not null and ${table.previousRevision} ~ '^[0-9a-f]{40}$' and ${table.candidateRevision} is not null and ${table.candidateRevision} ~ '^[0-9a-f]{40}$' and ${table.previousRevision} <> ${table.candidateRevision} and ${table.previousImageId} is not null and ${table.previousImageId} ~ '^sha256:[0-9a-f]{64}$' and ${table.candidateImageId} is not null and ${table.candidateImageId} ~ '^sha256:[0-9a-f]{64}$' and ${table.previousImageId} <> ${table.candidateImageId} and ${table.sourceSchemaTableCount} > 0 and ${table.sourceSchemaTableCount} = ${table.isolatedSchemaTableCount} and ((${table.sourceCaptureSha256} is null and ${table.isolatedCaptureSha256} is null) or (${table.sourceCaptureSha256} is not null and ${table.sourceCaptureSha256} ~ '^[0-9a-f]{64}$' and ${table.sourceCaptureSha256} = ${table.isolatedCaptureSha256})) and ${table.initialWebVerified} and ${table.initialWorkerVerified} and ${table.candidateWebVerified} and ${table.candidateWorkerVerified} and ${table.rollbackWebVerified} and ${table.rollbackWorkerVerified} and ${table.errorCode} is null)`,
+    ),
+  ],
+);
+
+export const localReleasePreflight = pgTable(
+  "local_release_preflight",
+  {
+    id: uuid("id").primaryKey(),
+    environment: text("environment").notNull().default("local"),
+    sourceLabel: text("source_label")
+      .notNull()
+      .default("Local Compose release preflight"),
+    outcome: text("outcome", { enum: ["passed", "failed"] }).notNull(),
+    checkoutRevision: text("checkout_revision"),
+    imageId: text("image_id"),
+    versionSha: text("version_sha"),
+    checks: jsonb("checks").$type<LocalReleasePreflightChecks>().notNull(),
+    backupEvidenceId: uuid("backup_evidence_id").references(
+      () => localBackupEvidence.id,
+    ),
+    recoveryEvidenceId: uuid("recovery_evidence_id").references(
+      () => localRecoveryDrill.id,
+    ),
+    releaseEvidenceId: uuid("release_evidence_id").references(
+      () => localReleaseRehearsal.id,
+    ),
+    errorCode: text("error_code"),
+    startedAt: timestamp("started_at", { withTimezone: true }).notNull(),
+    completedAt: timestamp("completed_at", { withTimezone: true }).notNull(),
+  },
+  (table) => [
+    index("local_release_preflight_page_idx").on(table.completedAt, table.id),
+    check(
+      "local_release_preflight_local_only",
+      sql`${table.environment} = 'local'`,
+    ),
+    check(
+      "local_release_preflight_source_label_valid",
+      sql`${table.sourceLabel} = 'Local Compose release preflight'`,
+    ),
+    check(
+      "local_release_preflight_outcome_valid",
+      sql`${table.outcome} in ('passed', 'failed')`,
+    ),
+    check(
+      "local_release_preflight_checks_valid",
+      sql`jsonb_typeof(${table.checks}) = 'object'
+        and ${table.checks} ?& array['postgresHealthy','webHealthy','workerHealthy','migrationExited','revisionKnown','sameImage','versionReachable','apiRead','heartbeatFresh','localEvidence']
+        and jsonb_typeof(${table.checks}->'postgresHealthy') = 'boolean'
+        and jsonb_typeof(${table.checks}->'webHealthy') = 'boolean'
+        and jsonb_typeof(${table.checks}->'workerHealthy') = 'boolean'
+        and jsonb_typeof(${table.checks}->'migrationExited') = 'boolean'
+        and jsonb_typeof(${table.checks}->'revisionKnown') = 'boolean'
+        and jsonb_typeof(${table.checks}->'sameImage') = 'boolean'
+        and jsonb_typeof(${table.checks}->'versionReachable') = 'boolean'
+        and jsonb_typeof(${table.checks}->'apiRead') = 'boolean'
+        and jsonb_typeof(${table.checks}->'heartbeatFresh') = 'boolean'
+        and jsonb_typeof(${table.checks}->'localEvidence') = 'boolean'`,
+    ),
+    check(
+      "local_release_preflight_pass_valid",
+      sql`${table.outcome} <> 'passed' or (
+        ${table.checkoutRevision} is not null
+        and ${table.checkoutRevision} ~ '^[0-9a-f]{40}$'
+        and ${table.imageId} is not null
+        and ${table.imageId} ~ '^sha256:[0-9a-f]{64}$'
+        and ${table.versionSha} is not null
+        and length(${table.versionSha}) between 1 and 128
+        and ${table.checks} @> '{"postgresHealthy":true,"webHealthy":true,"workerHealthy":true,"migrationExited":true,"revisionKnown":true,"sameImage":true,"versionReachable":true,"apiRead":true,"heartbeatFresh":true,"localEvidence":true}'::jsonb
+        and ${table.backupEvidenceId} is not null
+        and ${table.recoveryEvidenceId} is not null
+        and ${table.releaseEvidenceId} is not null
+        and ${table.errorCode} is null
+        and ${table.completedAt} >= ${table.startedAt}
+      )`,
     ),
   ],
 );

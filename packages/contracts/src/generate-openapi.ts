@@ -41,8 +41,10 @@ import {
   localRecoveryStatusSchema,
   localBackupEvidenceSchema,
   localReleaseRehearsalSchema,
+  localReleasePreflightSchema,
   listLocalBackupsResponseSchema,
   listLocalReleaseRehearsalsResponseSchema,
+  listLocalReleasePreflightsResponseSchema,
   workItemPlanningEventSchema,
   listWorkItemPlanningEventsResponseSchema,
   listUpcomingWorkResponseSchema,
@@ -860,6 +862,35 @@ export function generateOpenApi(): string {
             "200": {
               description: "An immutable local release rehearsal record",
               content: jsonContent("LocalReleaseRehearsal"),
+            },
+            "404": {
+              description: "Record not found",
+              content: jsonContent("ErrorResponse"),
+            },
+          },
+        },
+      },
+      "/api/v1/local-release-preflights": {
+        get: {
+          operationId: "listLocalReleasePreflights",
+          summary: "Page immutable local Compose release preflight evidence",
+          parameters: pageParameters,
+          responses: {
+            "200": {
+              description: "Local release preflight history",
+              content: jsonContent("ListLocalReleasePreflightsResponse"),
+            },
+          },
+        },
+      },
+      "/api/v1/local-release-preflights/{id}": {
+        get: {
+          operationId: "getLocalReleasePreflight",
+          parameters: [idParameter],
+          responses: {
+            "200": {
+              description: "An immutable local release preflight record",
+              content: jsonContent("LocalReleasePreflight"),
             },
             "404": {
               description: "Record not found",
@@ -4382,6 +4413,10 @@ export function generateOpenApi(): string {
         LocalReleaseRehearsal: component(localReleaseRehearsalSchema),
         ListLocalReleaseRehearsalsResponse: component(
           listLocalReleaseRehearsalsResponseSchema,
+        ),
+        LocalReleasePreflight: component(localReleasePreflightSchema),
+        ListLocalReleasePreflightsResponse: component(
+          listLocalReleasePreflightsResponseSchema,
         ),
         WorkItemPlanningEvent: component(workItemPlanningEventSchema),
         ListWorkItemPlanningEventsResponse: component(

@@ -196,6 +196,13 @@ and production prerequisites remain gates.
   candidate image, and prior image again after code rollback. The immutable
   record and responsive Recovery view label this local evidence; no database
   migration is reversed and no VPS deployment or production login is implied.
+- A host-run local release preflight checks the current Compose PostgreSQL,
+  web, worker, and migrator state, shared web/worker image identity, live and
+  versioned API reads, a recent worker heartbeat, and the latest passed local
+  backup, restore, and rollback records. PostgreSQL preserves each result and
+  its exact source links for the Recovery UI and versioned API. Its checkout
+  revision is descriptive; the local image is not proven to contain that
+  revision. Production gates remain unverified.
 - Work items have project-scoped, typed parent/subtask and blocking links with
   cycle prevention, audit-preserving archive, cursor-paged inverse views, and
   a responsive editor. Open blockers appear with exact relationship evidence
