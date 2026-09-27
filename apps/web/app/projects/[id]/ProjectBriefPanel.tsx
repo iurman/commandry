@@ -4,14 +4,17 @@ import { useEffect, useState } from "react";
 import {
   projectBriefSchema,
   type ProjectBrief as ProjectBriefRecord,
+  type ProjectPresentation,
 } from "@commandry/contracts";
 import { Button, ProjectBrief } from "@commandry/ui";
 import { apiJson } from "../api";
 
 export default function ProjectBriefPanel({
   projectId,
+  visibleAreas,
 }: {
   projectId: string;
+  visibleAreas: ProjectPresentation["visibleAreas"];
 }) {
   const [brief, setBrief] = useState<ProjectBriefRecord | null>(null);
   const [loading, setLoading] = useState(true);
@@ -72,11 +75,22 @@ export default function ProjectBriefPanel({
           <ProjectBrief
             brief={brief}
             sectionHrefs={{
-              work: `${projectHref}#work-heading`,
-              knowledge: `${projectHref}#knowledge-heading`,
-              decisions: `${projectHref}#decisions-heading`,
-              systems: `${projectHref}#project-systems-heading`,
-              resources: `${projectHref}#linked-resources-heading`,
+              work: visibleAreas.includes("work")
+                ? `${projectHref}#work-heading`
+                : `/work?projectId=${encodeURIComponent(projectId)}`,
+              knowledge: visibleAreas.includes("knowledge")
+                ? `${projectHref}#knowledge-heading`
+                : `/knowledge?projectId=${encodeURIComponent(projectId)}`,
+              decisions: visibleAreas.includes("decisions")
+                ? `${projectHref}#decisions-heading`
+                : brief.sections.decisions.fullListHref,
+              systems: visibleAreas.includes("systems")
+                ? `${projectHref}#project-systems-heading`
+                : (brief.sections.systems?.fullListHref ??
+                  `/api/v1/projects/${encodeURIComponent(projectId)}/systems`),
+              resources: visibleAreas.includes("resources")
+                ? `${projectHref}#linked-resources-heading`
+                : brief.sections.resources.fullListHref,
               activity: `/activity?projectId=${encodeURIComponent(projectId)}`,
               attention: `/activity?projectId=${encodeURIComponent(projectId)}#attention`,
             }}

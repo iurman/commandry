@@ -1,9 +1,13 @@
 import { and, desc, eq, gt, lt } from "drizzle-orm";
 import {
+  defaultProjectPresentation,
   prepareProjectMetadataRevision,
+  prepareProjectPresentationRevision,
   projectResourceRelationship,
   type ProjectMetadata,
   type ProjectMetadataRevision,
+  type ProjectPresentation,
+  type ProjectPresentationRevision,
 } from "@commandry/domain";
 import type { CommandryDatabase } from "./client";
 import {
@@ -11,6 +15,8 @@ import {
   project,
   projectDomainLink,
   projectMetadataEvent,
+  projectPresentation,
+  projectPresentationEvent,
   projectResourceLink,
   resource,
 } from "./schema";
@@ -55,6 +61,36 @@ function projectMetadataEventRecord(
     previous: row.previous,
     current: row.current,
     changedFields: row.changedFields,
+    createdAt: row.createdAt.toISOString(),
+  };
+}
+
+function projectPresentationRecord(
+  row: typeof projectPresentation.$inferSelect | undefined,
+): ProjectPresentation {
+  return row
+    ? {
+        version: row.version,
+        overviewCards: row.overviewCards,
+        visibleAreas: row.visibleAreas,
+      }
+    : {
+        version: defaultProjectPresentation.version,
+        overviewCards: [...defaultProjectPresentation.overviewCards],
+        visibleAreas: [...defaultProjectPresentation.visibleAreas],
+      };
+}
+
+function projectPresentationEventRecord(
+  row: typeof projectPresentationEvent.$inferSelect,
+) {
+  return {
+    id: row.id,
+    projectId: row.projectId,
+    version: row.version,
+    actor: row.actor,
+    previous: row.previous,
+    current: row.current,
     createdAt: row.createdAt.toISOString(),
   };
 }
@@ -231,6 +267,105 @@ export function createCatalogRepository(db: CommandryDatabase) {
         )
         .limit(1);
       return row ? projectMetadataEventRecord(row) : null;
+    },
+    async getProjectPresentation(projectId: string) {
+      const [exists] = await db
+        .select({ id: project.id })
+        .from(project)
+        .where(eq(project.id, projectId))
+        .limit(1);
+      if (!exists) return null;
+      const [row] = await db
+        .select()
+        .from(projectPresentation)
+        .where(eq(projectPresentation.projectId, projectId))
+        .limit(1);
+      return projectPresentationRecord(row);
+    },
+    async updateProjectPresentation(
+      projectId: string,
+      input: ProjectPresentationRevision,
+    ) {
+      return db.transaction(async (tx) => {
+        const [exists] = await tx
+          .select({ id: project.id })
+          .from(project)
+          .where(eq(project.id, projectId))
+          .for("update")
+          .limit(1);
+        if (!exists) return null;
+        const [row] = await tx
+          .select()
+          .from(projectPresentation)
+          .where(eq(projectPresentation.projectId, projectId))
+          .limit(1);
+        const previous = projectPresentationRecord(row);
+        const next = prepareProjectPresentationRevision(previous, input);
+        if (next.version === previous.version) return previous;
+        if (row) {
+          await tx
+            .update(projectPresentation)
+            .set({
+              version: next.version,
+              overviewCards: next.overviewCards,
+              visibleAreas: next.visibleAreas,
+              updatedAt: new Date(),
+            })
+            .where(eq(projectPresentation.projectId, projectId));
+        } else {
+          await tx.insert(projectPresentation).values({
+            projectId,
+            version: next.version,
+            overviewCards: next.overviewCards,
+            visibleAreas: next.visibleAreas,
+          });
+        }
+        await tx.insert(projectPresentationEvent).values({
+          id: crypto.randomUUID(),
+          projectId,
+          version: next.version,
+          previous,
+          current: next,
+        });
+        return next;
+      });
+    },
+    async listProjectPresentationEvents(
+      projectId: string,
+      input: { limit: number; beforeVersion?: number },
+    ) {
+      const rows = await db
+        .select()
+        .from(projectPresentationEvent)
+        .where(
+          and(
+            eq(projectPresentationEvent.projectId, projectId),
+            input.beforeVersion
+              ? lt(projectPresentationEvent.version, input.beforeVersion)
+              : undefined,
+          ),
+        )
+        .orderBy(desc(projectPresentationEvent.version))
+        .limit(input.limit + 1);
+      const page = rows.slice(0, input.limit);
+      return {
+        items: page.map(projectPresentationEventRecord),
+        nextCursor:
+          rows.length > input.limit ? (page.at(-1)?.version ?? null) : null,
+      };
+    },
+    async getProjectPresentationEvent(projectId: string, version: number) {
+      const [row] = await db
+        .select()
+        .from(projectPresentationEvent)
+        .where(
+          and(
+            eq(projectPresentationEvent.projectId, projectId),
+            eq(projectPresentationEvent.version, version),
+          ),
+        )
+        .limit(1);
+      return row ? projectPresentationEventRecord(row) : null;
     },
     async createResource(input: {
       id: string;

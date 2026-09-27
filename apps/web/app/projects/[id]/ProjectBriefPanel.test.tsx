@@ -1,6 +1,7 @@
 // @vitest-environment jsdom
 
 import { cleanup, render, screen, within } from "@testing-library/react";
+import { defaultProjectPresentation } from "@commandry/domain";
 import type { ProjectBrief } from "@commandry/contracts";
 import { afterEach, describe, expect, it, vi } from "vitest";
 import ProjectBriefPanel from "./ProjectBriefPanel";
@@ -127,7 +128,12 @@ describe("Project brief panel", () => {
       async () => new Response(JSON.stringify(brief), { status: 200 }),
     );
     vi.stubGlobal("fetch", fetchMock);
-    render(<ProjectBriefPanel projectId={projectId} />);
+    render(
+      <ProjectBriefPanel
+        projectId={projectId}
+        visibleAreas={defaultProjectPresentation.visibleAreas}
+      />,
+    );
     expect(
       await screen.findByRole("heading", { name: "Project brief" }),
     ).toBeTruthy();
@@ -171,7 +177,12 @@ describe("Project brief panel", () => {
           new Response(JSON.stringify({ id: projectId }), { status: 200 }),
       ),
     );
-    render(<ProjectBriefPanel projectId={projectId} />);
+    render(
+      <ProjectBriefPanel
+        projectId={projectId}
+        visibleAreas={defaultProjectPresentation.visibleAreas}
+      />,
+    );
     expect(await screen.findByRole("alert")).toHaveProperty(
       "textContent",
       "Project brief response is invalid.",

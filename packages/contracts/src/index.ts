@@ -339,6 +339,62 @@ export const listProjectMetadataEventsResponseSchema = z.object({
   nextCursor: z.number().int().min(2).nullable(),
 });
 
+export const projectOverviewCardIdSchema = z.enum([
+  "state",
+  "work",
+  "knowledge",
+  "decisions",
+  "systems",
+  "resources",
+  "activity",
+  "attention",
+]);
+
+export const projectAreaIdSchema = z.enum([
+  "systems",
+  "resources",
+  "metrics",
+  "work",
+  "knowledge",
+  "decisions",
+]);
+
+const uniqueOverviewCardsSchema = z
+  .array(projectOverviewCardIdSchema)
+  .max(8)
+  .refine((ids) => new Set(ids).size === ids.length);
+const uniqueProjectAreasSchema = z
+  .array(projectAreaIdSchema)
+  .max(6)
+  .refine((ids) => new Set(ids).size === ids.length);
+
+export const projectPresentationSchema = z.object({
+  version: z.number().int().min(1),
+  overviewCards: uniqueOverviewCardsSchema,
+  visibleAreas: uniqueProjectAreasSchema,
+});
+
+export const updateProjectPresentationRequestSchema = projectPresentationSchema
+  .omit({ version: true })
+  .extend({ expectedVersion: z.number().int().min(1) });
+
+export const projectPresentationEventSchema = z.object({
+  id: z.uuid(),
+  projectId: z.uuid(),
+  version: z.number().int().min(2),
+  actor: z.string().min(1),
+  previous: projectPresentationSchema,
+  current: projectPresentationSchema,
+  createdAt: z.iso.datetime({ offset: true }),
+});
+
+export const listProjectPresentationEventsQuerySchema =
+  listProjectMetadataEventsQuerySchema;
+export const listProjectPresentationEventsResponseSchema = z.object({
+  items: z.array(projectPresentationEventSchema),
+  nextCursor: z.number().int().min(2).nullable(),
+});
+
 export const listResourcesQuerySchema = z.object({
   limit: z.coerce.number().int().min(1).max(100).default(25),
   cursor: z.uuid().optional(),
@@ -2862,6 +2918,13 @@ export type ProjectResourceLinkDetail = z.infer<
 export type CreateProjectRequest = z.infer<typeof createProjectRequestSchema>;
 export type UpdateProjectRequest = z.infer<typeof updateProjectRequestSchema>;
 export type ProjectMetadataEvent = z.infer<typeof projectMetadataEventSchema>;
+export type ProjectPresentation = z.infer<typeof projectPresentationSchema>;
+export type UpdateProjectPresentationRequest = z.infer<
+  typeof updateProjectPresentationRequestSchema
+>;
+export type ProjectPresentationEvent = z.infer<
+  typeof projectPresentationEventSchema
+>;
 export type CreateResourceRequest = z.infer<typeof createResourceRequestSchema>;
 export type SetResourceParentRequest = z.infer<
   typeof setResourceParentRequestSchema

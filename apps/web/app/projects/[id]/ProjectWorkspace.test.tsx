@@ -9,6 +9,7 @@ import {
   within,
 } from "@testing-library/react";
 import { afterEach, describe, expect, it, vi } from "vitest";
+import { defaultProjectPresentation } from "@commandry/domain";
 import ProjectWorkspace from "./ProjectWorkspace";
 import type {
   ProjectRecord,
@@ -56,6 +57,8 @@ describe("Project workspace", () => {
     vi.stubGlobal(
       "fetch",
       vi.fn(async (path: string) => {
+        if (path.includes(`/projects/${project.id}/presentation`))
+          return json(defaultProjectPresentation);
         if (path.includes(`/projects/${project.id}/changes`))
           return json({ items: [], nextCursor: null });
         if (path.includes(`/projects/${project.id}/work`))
@@ -128,6 +131,8 @@ describe("Project workspace", () => {
     vi.stubGlobal(
       "fetch",
       vi.fn(async (path: string, init?: RequestInit) => {
+        if (path.includes(`/projects/${project.id}/presentation`))
+          return json(defaultProjectPresentation);
         if (path.includes(`/projects/${project.id}/changes`))
           return json({ items: [], nextCursor: null });
         if (
@@ -192,6 +197,8 @@ describe("Project workspace", () => {
   it("links an existing record without creating another resource", async () => {
     const relations: ProjectResourceLink[] = [];
     const fetchMock = vi.fn(async (path: string, init?: RequestInit) => {
+      if (path.includes(`/projects/${project.id}/presentation`))
+        return json(defaultProjectPresentation);
       if (path.includes(`/projects/${project.id}/changes`))
         return json({ items: [], nextCursor: null });
       if (

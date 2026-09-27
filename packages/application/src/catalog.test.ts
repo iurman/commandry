@@ -1,6 +1,10 @@
 import { describe, expect, it } from "vitest";
 import type { ProjectSummary, ResourceSummary } from "@commandry/contracts";
 import {
+  defaultProjectPresentation,
+  ProjectPresentationConflictError,
+} from "@commandry/domain";
+import {
   CatalogError,
   createCatalogService,
   type CatalogRepository,
@@ -34,6 +38,13 @@ function port(overrides: Partial<CatalogRepository> = {}): CatalogRepository {
     updateProject: async () => project,
     listProjectMetadataEvents: async () => ({ items: [], nextCursor: null }),
     getProjectMetadataEvent: async () => null,
+    getProjectPresentation: async () => defaultProjectPresentation,
+    updateProjectPresentation: async () => defaultProjectPresentation,
+    listProjectPresentationEvents: async () => ({
+      items: [],
+      nextCursor: null,
+    }),
+    getProjectPresentationEvent: async () => null,
     createResource: async () => resource,
     getResource: async () => resource,
     listResources: async () => ({ items: [resource], nextCursor: null }),
@@ -44,6 +55,36 @@ function port(overrides: Partial<CatalogRepository> = {}): CatalogRepository {
 }
 
 describe("catalog application", () => {
+  it("keeps project view conflicts distinct from missing projects", async () => {
+    const revision = {
+      expectedVersion: 1,
+      overviewCards: ["state"] as const,
+      visibleAreas: ["work"] as const,
+    };
+    const missing = createCatalogService(
+      port({ getProjectPresentation: async () => null }),
+    );
+    await expect(
+      missing.getProjectPresentation(project.id),
+    ).rejects.toMatchObject({
+      code: "PROJECT_NOT_FOUND",
+    });
+    const stale = createCatalogService(
+      port({
+        updateProjectPresentation: async () => {
+          throw new ProjectPresentationConflictError();
+        },
+      }),
+    );
+    await expect(
+      stale.updateProjectPresentation(project.id, {
+        ...revision,
+        overviewCards: [...revision.overviewCards],
+        visibleAreas: [...revision.visibleAreas],
+      }),
+    ).rejects.toMatchObject({ code: "PROJECT_VERSION_CONFLICT" });
+  });
+
   it("uses the registered direction and inverse for a resource supporting a project", async () => {
     let direction: unknown;
     const service = createCatalogService(

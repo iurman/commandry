@@ -3115,3 +3115,130 @@ textarea {
   margin: var(--cmd-space-1) 0 0;
   overflow-wrap: anywhere;
 }
+
+.cmd-project-overview-card {
+  min-width: 0;
+  padding: var(--cmd-space-4);
+  border: 1px solid var(--cmd-border);
+  border-radius: var(--cmd-radius);
+  background: var(--cmd-surface);
+  overflow-wrap: anywhere;
+}
+
+.cmd-project-overview-heading,
+.cmd-project-overview-footer,
+.cmd-project-overview-source {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: var(--cmd-space-2);
+}
+
+.cmd-project-overview-heading h3 {
+  margin: 0;
+}
+
+.cmd-project-overview-heading span,
+.cmd-project-overview-source span,
+.cmd-project-overview-card time {
+  color: var(--cmd-text-muted);
+  font-size: 0.78rem;
+}
+
+.cmd-project-overview-card ul {
+  list-style: none;
+  margin: var(--cmd-space-4) 0;
+  padding: 0;
+}
+
+.cmd-project-overview-card li + li {
+  border-top: 1px solid var(--cmd-border);
+  margin-top: var(--cmd-space-3);
+  padding-top: var(--cmd-space-3);
+}
+
+.cmd-project-overview-card li p {
+  margin: var(--cmd-space-1) 0 var(--cmd-space-2);
+}
+
+.cmd-project-overview-card a {
+  color: var(--cmd-accent);
+  font-weight: 700;
+}
+
+.cmd-project-overview-empty {
+  margin: var(--cmd-space-4) 0;
+}
+
+.cmd-project-overview-footer {
+  border-top: 1px solid var(--cmd-border);
+  padding-top: var(--cmd-space-3);
+}
+
+.cmd-project-overview-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: var(--cmd-space-4);
+  margin: var(--cmd-space-4) 0;
+}
+
+.cmd-project-view-settings {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: var(--cmd-space-4);
+  margin-top: var(--cmd-space-4);
+  padding: var(--cmd-space-4);
+  border: 1px solid var(--cmd-border);
+  border-radius: var(--cmd-radius);
+  background: var(--cmd-surface);
+}
+
+.cmd-project-view-settings > .cmd-inline-actions {
+  grid-column: 1 / -1;
+}
+
+.cmd-project-view-options {
+  list-style: none;
+  padding: 0;
+}
+
+.cmd-project-view-options li {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: space-between;
+  align-items: center;
+  gap: var(--cmd-space-2);
+  padding: var(--cmd-space-2) 0;
+  border-bottom: 1px solid var(--cmd-border);
+}
+
+.cmd-project-view-options label,
+.cmd-project-view-available {
+  display: flex;
+  align-items: center;
+  gap: var(--cmd-space-2);
+}
+
+.cmd-project-view-available {
+  margin: var(--cmd-space-2) 0;
+}
+
+.cmd-project-view-history {
+  margin-top: var(--cmd-space-4);
+}
+
+.cmd-project-view-history ul {
+  padding-left: var(--cmd-space-4);
+}
+
+.cmd-project-view-history li + li {
+  margin-top: var(--cmd-space-2);
+}
+
+@media (max-width: 44rem) {
+  .cmd-project-overview-grid,
+  .cmd-project-view-settings {
+    grid-template-columns: minmax(0, 1fr);
+  }
+}

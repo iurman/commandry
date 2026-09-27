@@ -133,6 +133,10 @@ import {
   updateProjectRequestSchema,
   projectMetadataEventSchema,
   listProjectMetadataEventsResponseSchema,
+  projectPresentationSchema,
+  updateProjectPresentationRequestSchema,
+  projectPresentationEventSchema,
+  listProjectPresentationEventsResponseSchema,
   createDomainRequestSchema,
   updateDomainRequestSchema,
   archiveDomainRequestSchema,
@@ -1332,6 +1336,120 @@ export function generateOpenApi(): string {
             },
             "404": {
               description: "Project revision not found",
+              content: jsonContent("ErrorResponse"),
+            },
+          },
+        },
+      },
+      "/api/v1/projects/{id}/presentation": {
+        get: {
+          operationId: "getProjectPresentation",
+          summary:
+            "Read project overview and area settings or provisional defaults",
+          parameters: [idParameter],
+          responses: {
+            "200": {
+              description: "Current project presentation",
+              content: jsonContent("ProjectPresentation"),
+            },
+            "404": {
+              description: "Project not found",
+              content: jsonContent("ErrorResponse"),
+            },
+          },
+        },
+        patch: {
+          operationId: "updateProjectPresentation",
+          summary: "Reorder overview cards and show or hide project areas",
+          parameters: [idParameter],
+          requestBody: {
+            required: true,
+            content: jsonContent("UpdateProjectPresentationRequest"),
+          },
+          responses: {
+            "200": {
+              description: "Current project presentation",
+              content: jsonContent("ProjectPresentation"),
+            },
+            "400": {
+              description: "Invalid view settings",
+              content: jsonContent("ErrorResponse"),
+            },
+            "404": {
+              description: "Project not found",
+              content: jsonContent("ErrorResponse"),
+            },
+            "409": {
+              description: "Presentation version changed",
+              content: jsonContent("ErrorResponse"),
+            },
+          },
+        },
+      },
+      "/api/v1/projects/{id}/presentation/changes": {
+        get: {
+          operationId: "listProjectPresentationEvents",
+          summary: "Page through immutable project view changes",
+          parameters: [
+            idParameter,
+            {
+              in: "query",
+              name: "limit",
+              required: false,
+              schema: {
+                type: "integer",
+                minimum: 1,
+                maximum: 100,
+                default: 25,
+              },
+            },
+            {
+              in: "query",
+              name: "beforeVersion",
+              required: false,
+              schema: { type: "integer", minimum: 2 },
+            },
+          ],
+          responses: {
+            "200": {
+              description: "View changes newest first",
+              content: jsonContent("ListProjectPresentationEventsResponse"),
+            },
+            "400": {
+              description: "Invalid page query",
+              content: jsonContent("ErrorResponse"),
+            },
+            "404": {
+              description: "Project not found",
+              content: jsonContent("ErrorResponse"),
+            },
+          },
+        },
+      },
+      "/api/v1/projects/{id}/presentation/changes/{version}": {
+        get: {
+          operationId: "getProjectPresentationEvent",
+          summary: "Read an exact immutable project view change",
+          parameters: [
+            idParameter,
+            {
+              in: "path",
+              name: "version",
+              required: true,
+              schema: { type: "integer", minimum: 2 },
+            },
+          ],
+          responses: {
+            "200": {
+              description: "Exact project view change",
+              content: jsonContent("ProjectPresentationEvent"),
+            },
+            "400": {
+              description: "Invalid project or version",
+              content: jsonContent("ErrorResponse"),
+            },
+            "404": {
+              description: "View change not found",
               content: jsonContent("ErrorResponse"),
             },
           },
@@ -4115,6 +4233,14 @@ export function generateOpenApi(): string {
         ProjectMetadataEvent: component(projectMetadataEventSchema),
         ListProjectMetadataEventsResponse: component(
           listProjectMetadataEventsResponseSchema,
+        ),
+        ProjectPresentation: component(projectPresentationSchema),
+        UpdateProjectPresentationRequest: component(
+          updateProjectPresentationRequestSchema,
+        ),
+        ProjectPresentationEvent: component(projectPresentationEventSchema),
+        ListProjectPresentationEventsResponse: component(
+          listProjectPresentationEventsResponseSchema,
         ),
         DomainSummary: component(domainSummarySchema),
         DomainAuditEvent: component(domainAuditEventSchema),

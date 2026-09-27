@@ -2,6 +2,10 @@
 
 import { useEffect, useState, type FormEvent } from "react";
 import {
+  projectPresentationSchema,
+  type ProjectPresentation,
+} from "@commandry/contracts";
+import {
   AppShell,
   Button,
   RecordEmptyState,
@@ -22,6 +26,7 @@ import ProjectDomainPanel from "./ProjectDomainPanel";
 import ProjectSystemsPanel from "./ProjectSystemsPanel";
 import ProjectDecisions from "./ProjectDecisions";
 import ProjectDetailsEditor from "./ProjectDetailsEditor";
+import ProjectOverviewPanel from "./ProjectOverviewPanel";
 import SyntheticMetricsPanel from "../../SyntheticMetricsPanel";
 
 type RelationshipType = "supports" | "relates_to";
@@ -55,6 +60,9 @@ function RelationshipTypeField({
 
 export default function ProjectWorkspace({ projectId }: { projectId: string }) {
   const [project, setProject] = useState<ProjectRecord | null>(null);
+  const [presentation, setPresentation] = useState<ProjectPresentation | null>(
+    null,
+  );
   const [briefVersion, setBriefVersion] = useState(0);
   const [links, setLinks] = useState<ProjectResourceLink[]>([]);
   const [nextLinkCursor, setNextLinkCursor] = useState<string | null>(null);
@@ -87,10 +95,15 @@ export default function ProjectWorkspace({ projectId }: { projectId: string }) {
         `/api/v1/projects/${encodeURIComponent(projectId)}`,
       ),
       apiJson<PageResponse<ProjectResourceLink>>(pagePath(relationPath)),
+      apiJson<unknown>(
+        `/api/v1/projects/${encodeURIComponent(projectId)}/presentation`,
+      ),
     ])
-      .then(([projectRecord, page]) => {
+      .then(([projectRecord, page, view]) => {
         if (!active) return;
+        const parsedView = projectPresentationSchema.parse(view);
         setProject(projectRecord);
+        setPresentation(parsedView);
         setLinks(page.items);
         setNextLinkCursor(page.nextCursor);
         setLoadError(null);
@@ -108,6 +121,10 @@ export default function ProjectWorkspace({ projectId }: { projectId: string }) {
       active = false;
     };
   }, [projectId, relationPath]);
+
+  function areaVisible(id: ProjectPresentation["visibleAreas"][number]) {
+    return presentation?.visibleAreas.includes(id) ?? false;
+  }
 
   useEffect(() => {
     if (!showExisting) return;
@@ -211,6 +228,7 @@ export default function ProjectWorkspace({ projectId }: { projectId: string }) {
         body: JSON.stringify({ resourceId: resource.id, type: createType }),
       });
       setLinks((current) => [link, ...current]);
+      setBriefVersion((current) => current + 1);
       setResourceName("");
       setResourceSubtype("");
       setExternalUrl("");
@@ -247,6 +265,7 @@ export default function ProjectWorkspace({ projectId }: { projectId: string }) {
         }),
       });
       setLinks((current) => [link, ...current]);
+      setBriefVersion((current) => current + 1);
       const resource = resources.find((item) => item.id === selectedResourceId);
       setFeedback(
         `Linked ${resource?.name ?? "resource"} to this project. Its record ID is unchanged.`,
@@ -278,7 +297,7 @@ export default function ProjectWorkspace({ projectId }: { projectId: string }) {
           {loadError}
         </p>
       )}
-      {project && (
+      {project && presentation && (
         <>
           <header className="cmd-page-header cmd-workspace-heading">
             <div>
@@ -319,220 +338,251 @@ export default function ProjectWorkspace({ projectId }: { projectId: string }) {
               setBriefVersion((current) => current + 1);
             }}
           />
-          <ProjectSystemsPanel
+          <ProjectOverviewPanel
             projectId={projectId}
-            onChange={() => setBriefVersion((current) => current + 1)}
+            presentation={presentation}
+            onPresentationChange={setPresentation}
+            briefVersion={briefVersion}
           />
-          <ProjectBriefPanel key={briefVersion} projectId={projectId} />
-          <SyntheticMetricsPanel projectId={projectId} />
+          {areaVisible("systems") && (
+            <ProjectSystemsPanel
+              projectId={projectId}
+              onChange={() => setBriefVersion((current) => current + 1)}
+            />
+          )}
+          <ProjectBriefPanel
+            key={briefVersion}
+            projectId={projectId}
+            visibleAreas={presentation.visibleAreas}
+          />
+          {areaVisible("metrics") && (
+            <SyntheticMetricsPanel projectId={projectId} />
+          )}
 
-          <div className="cmd-workspace-grid">
-            <section
-              className="cmd-workspace-section"
-              aria-labelledby="linked-resources-heading"
-            >
-              <div className="cmd-section-heading">
-                <div>
-                  <p className="cmd-eyebrow">Graph / Resources</p>
-                  <h2 id="linked-resources-heading">Linked resources</h2>
-                </div>
-                <span className="cmd-count">{links.length} shown</span>
-              </div>
-              <p className="cmd-section-intro">
-                Each edge states its meaning in both directions. A resource
-                keeps the same record ID wherever it is linked.
-              </p>
-              {loadError && (
-                <p className="cmd-inline-state cmd-error" role="alert">
-                  {loadError}
-                </p>
-              )}
-              {links.length === 0 && !loadError && (
-                <RecordEmptyState
-                  description="Create one here or link a resource that already exists."
-                  title="No linked resources"
-                />
-              )}
-              {links.length > 0 && (
-                <ul className="cmd-record-list" aria-label="Linked resources">
-                  {links.map((link) => (
-                    <RelationshipCard key={link.id} {...link} />
-                  ))}
-                </ul>
-              )}
-              {nextLinkCursor && (
-                <Button disabled={loadingMore} onClick={loadMoreLinks}>
-                  {loadingMore ? "Loading..." : "Load more linked resources"}
-                </Button>
-              )}
-            </section>
-
-            <div className="cmd-workspace-side">
+          {areaVisible("resources") && (
+            <div className="cmd-workspace-grid">
               <section
-                className="cmd-workspace-section cmd-create-panel"
-                aria-labelledby="create-resource-heading"
+                className="cmd-workspace-section"
+                aria-labelledby="linked-resources-heading"
               >
-                <p className="cmd-eyebrow">New record + edge</p>
-                <h2 id="create-resource-heading">Create a resource</h2>
-                <p className="cmd-form-intro">
-                  Manual records have unknown operational health until a source
-                  observes them.
+                <div className="cmd-section-heading">
+                  <div>
+                    <p className="cmd-eyebrow">Graph / Resources</p>
+                    <h2 id="linked-resources-heading">Linked resources</h2>
+                  </div>
+                  <span className="cmd-count">{links.length} shown</span>
+                </div>
+                <p className="cmd-section-intro">
+                  Each edge states its meaning in both directions. A resource
+                  keeps the same record ID wherever it is linked.
                 </p>
-                <form className="cmd-form" onSubmit={createResource}>
-                  <label htmlFor="resource-name">
-                    Name <span aria-hidden="true">*</span>
-                  </label>
-                  <input
-                    id="resource-name"
-                    maxLength={160}
-                    onChange={(event) => setResourceName(event.target.value)}
-                    required
-                    value={resourceName}
+                {loadError && (
+                  <p className="cmd-inline-state cmd-error" role="alert">
+                    {loadError}
+                  </p>
+                )}
+                {links.length === 0 && !loadError && (
+                  <RecordEmptyState
+                    description="Create one here or link a resource that already exists."
+                    title="No linked resources"
                   />
-                  <label htmlFor="resource-kind">
-                    Kind <span aria-hidden="true">*</span>
-                  </label>
-                  <input
-                    id="resource-kind"
-                    list="resource-kinds"
-                    maxLength={80}
-                    onChange={(event) => setResourceKind(event.target.value)}
-                    required
-                    value={resourceKind}
-                  />
-                  <datalist id="resource-kinds">
-                    <option value="service" />
-                    <option value="repository" />
-                    <option value="server" />
-                    <option value="domain" />
-                    <option value="document" />
-                    <option value="database" />
-                  </datalist>
-                  <label htmlFor="resource-subtype">
-                    Subtype <span className="cmd-optional">Optional</span>
-                  </label>
-                  <input
-                    id="resource-subtype"
-                    maxLength={80}
-                    onChange={(event) => setResourceSubtype(event.target.value)}
-                    value={resourceSubtype}
-                  />
-                  <label htmlFor="resource-url">
-                    Source URL <span className="cmd-optional">Optional</span>
-                  </label>
-                  <input
-                    id="resource-url"
-                    onChange={(event) => setExternalUrl(event.target.value)}
-                    placeholder="https://"
-                    type="url"
-                    value={externalUrl}
-                  />
-                  <RelationshipTypeField
-                    id="create-relationship-type"
-                    onChange={setCreateType}
-                    value={createType}
-                  />
-                  {formError && (
-                    <p className="cmd-form-error" role="alert">
-                      {formError}
-                    </p>
-                  )}
-                  {feedback && (
-                    <p className="cmd-form-success" role="status">
-                      {feedback}
-                    </p>
-                  )}
-                  <Button disabled={submitting} type="submit" variant="primary">
-                    {submitting ? "Saving..." : "Create and link resource"}
+                )}
+                {links.length > 0 && (
+                  <ul className="cmd-record-list" aria-label="Linked resources">
+                    {links.map((link) => (
+                      <RelationshipCard key={link.id} {...link} />
+                    ))}
+                  </ul>
+                )}
+                {nextLinkCursor && (
+                  <Button disabled={loadingMore} onClick={loadMoreLinks}>
+                    {loadingMore ? "Loading..." : "Load more linked resources"}
                   </Button>
-                </form>
+                )}
               </section>
 
-              <section
-                className="cmd-workspace-section cmd-create-panel"
-                aria-labelledby="link-resource-heading"
-              >
-                <p className="cmd-eyebrow">Existing record + new edge</p>
-                <h2 id="link-resource-heading">Link existing resource</h2>
-                <p className="cmd-form-intro">
-                  Choose a record already in Commandry. Linking does not
-                  duplicate it.
-                </p>
-                {!showExisting ? (
-                  <Button
-                    onClick={() => {
-                      setResourcesLoading(true);
-                      setShowExisting(true);
-                    }}
-                  >
-                    Choose an existing resource
-                  </Button>
-                ) : (
-                  <form className="cmd-form" onSubmit={linkExisting}>
-                    {resourcesLoading && (
-                      <p className="cmd-inline-state" role="status">
-                        Loading resources...
-                      </p>
-                    )}
-                    {resourcesError && (
+              <div className="cmd-workspace-side">
+                <section
+                  className="cmd-workspace-section cmd-create-panel"
+                  aria-labelledby="create-resource-heading"
+                >
+                  <p className="cmd-eyebrow">New record + edge</p>
+                  <h2 id="create-resource-heading">Create a resource</h2>
+                  <p className="cmd-form-intro">
+                    Manual records have unknown operational health until a
+                    source observes them.
+                  </p>
+                  <form className="cmd-form" onSubmit={createResource}>
+                    <label htmlFor="resource-name">
+                      Name <span aria-hidden="true">*</span>
+                    </label>
+                    <input
+                      id="resource-name"
+                      maxLength={160}
+                      onChange={(event) => setResourceName(event.target.value)}
+                      required
+                      value={resourceName}
+                    />
+                    <label htmlFor="resource-kind">
+                      Kind <span aria-hidden="true">*</span>
+                    </label>
+                    <input
+                      id="resource-kind"
+                      list="resource-kinds"
+                      maxLength={80}
+                      onChange={(event) => setResourceKind(event.target.value)}
+                      required
+                      value={resourceKind}
+                    />
+                    <datalist id="resource-kinds">
+                      <option value="service" />
+                      <option value="repository" />
+                      <option value="server" />
+                      <option value="domain" />
+                      <option value="document" />
+                      <option value="database" />
+                    </datalist>
+                    <label htmlFor="resource-subtype">
+                      Subtype <span className="cmd-optional">Optional</span>
+                    </label>
+                    <input
+                      id="resource-subtype"
+                      maxLength={80}
+                      onChange={(event) =>
+                        setResourceSubtype(event.target.value)
+                      }
+                      value={resourceSubtype}
+                    />
+                    <label htmlFor="resource-url">
+                      Source URL <span className="cmd-optional">Optional</span>
+                    </label>
+                    <input
+                      id="resource-url"
+                      onChange={(event) => setExternalUrl(event.target.value)}
+                      placeholder="https://"
+                      type="url"
+                      value={externalUrl}
+                    />
+                    <RelationshipTypeField
+                      id="create-relationship-type"
+                      onChange={setCreateType}
+                      value={createType}
+                    />
+                    {formError && (
                       <p className="cmd-form-error" role="alert">
-                        {resourcesError}
+                        {formError}
                       </p>
                     )}
-                    {!resourcesLoading &&
-                      resources.length === 0 &&
-                      !resourcesError && (
-                        <p>No existing resources are available yet.</p>
-                      )}
-                    {resources.length > 0 && (
-                      <>
-                        <label htmlFor="existing-resource">Resource</label>
-                        <select
-                          id="existing-resource"
-                          onChange={(event) =>
-                            setSelectedResourceId(event.target.value)
-                          }
-                          required
-                          value={selectedResourceId}
-                        >
-                          <option value="">Select a resource</option>
-                          {resources.map((resource) => (
-                            <option key={resource.id} value={resource.id}>
-                              {resource.name} ({resource.kind}) · {resource.id}
-                            </option>
-                          ))}
-                        </select>
-                        <RelationshipTypeField
-                          id="existing-relationship-type"
-                          onChange={setLinkType}
-                          value={linkType}
-                        />
-                      </>
-                    )}
-                    {nextResourceCursor && (
-                      <Button
-                        disabled={resourcesLoading}
-                        onClick={loadMoreResources}
-                      >
-                        {resourcesLoading
-                          ? "Loading..."
-                          : "Load more resources"}
-                      </Button>
+                    {feedback && (
+                      <p className="cmd-form-success" role="status">
+                        {feedback}
+                      </p>
                     )}
                     <Button
-                      disabled={!selectedResourceId || submitting}
+                      disabled={submitting}
                       type="submit"
                       variant="primary"
                     >
-                      {submitting ? "Linking..." : "Link resource"}
+                      {submitting ? "Saving..." : "Create and link resource"}
                     </Button>
                   </form>
-                )}
-              </section>
+                </section>
+
+                <section
+                  className="cmd-workspace-section cmd-create-panel"
+                  aria-labelledby="link-resource-heading"
+                >
+                  <p className="cmd-eyebrow">Existing record + new edge</p>
+                  <h2 id="link-resource-heading">Link existing resource</h2>
+                  <p className="cmd-form-intro">
+                    Choose a record already in Commandry. Linking does not
+                    duplicate it.
+                  </p>
+                  {!showExisting ? (
+                    <Button
+                      onClick={() => {
+                        setResourcesLoading(true);
+                        setShowExisting(true);
+                      }}
+                    >
+                      Choose an existing resource
+                    </Button>
+                  ) : (
+                    <form className="cmd-form" onSubmit={linkExisting}>
+                      {resourcesLoading && (
+                        <p className="cmd-inline-state" role="status">
+                          Loading resources...
+                        </p>
+                      )}
+                      {resourcesError && (
+                        <p className="cmd-form-error" role="alert">
+                          {resourcesError}
+                        </p>
+                      )}
+                      {!resourcesLoading &&
+                        resources.length === 0 &&
+                        !resourcesError && (
+                          <p>No existing resources are available yet.</p>
+                        )}
+                      {resources.length > 0 && (
+                        <>
+                          <label htmlFor="existing-resource">Resource</label>
+                          <select
+                            id="existing-resource"
+                            onChange={(event) =>
+                              setSelectedResourceId(event.target.value)
+                            }
+                            required
+                            value={selectedResourceId}
+                          >
+                            <option value="">Select a resource</option>
+                            {resources.map((resource) => (
+                              <option key={resource.id} value={resource.id}>
+                                {resource.name} ({resource.kind}) ·{" "}
+                                {resource.id}
+                              </option>
+                            ))}
+                          </select>
+                          <RelationshipTypeField
+                            id="existing-relationship-type"
+                            onChange={setLinkType}
+                            value={linkType}
+                          />
+                        </>
+                      )}
+                      {nextResourceCursor && (
+                        <Button
+                          disabled={resourcesLoading}
+                          onClick={loadMoreResources}
+                        >
+                          {resourcesLoading
+                            ? "Loading..."
+                            : "Load more resources"}
+                        </Button>
+                      )}
+                      <Button
+                        disabled={!selectedResourceId || submitting}
+                        type="submit"
+                        variant="primary"
+                      >
+                        {submitting ? "Linking..." : "Link resource"}
+                      </Button>
+                    </form>
+                  )}
+                </section>
+              </div>
             </div>
-          </div>
-          <ProjectContent projectId={projectId} />
-          <ProjectDecisions projectId={projectId} />
+          )}
+          {(areaVisible("work") || areaVisible("knowledge")) && (
+            <ProjectContent
+              projectId={projectId}
+              showWork={areaVisible("work")}
+              showKnowledge={areaVisible("knowledge")}
+            />
+          )}
+          {areaVisible("decisions") && (
+            <ProjectDecisions projectId={projectId} />
+          )}
         </>
       )}
     </AppShell>

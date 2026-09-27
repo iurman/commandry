@@ -39,7 +39,15 @@ interface KnowledgeItem {
   createdAt: string;
 }
 
-export default function ProjectContent({ projectId }: { projectId: string }) {
+export default function ProjectContent({
+  projectId,
+  showWork = true,
+  showKnowledge = true,
+}: {
+  projectId: string;
+  showWork?: boolean;
+  showKnowledge?: boolean;
+}) {
   const workPath = `/api/v1/projects/${encodeURIComponent(projectId)}/work`;
   const knowledgePath = `/api/v1/projects/${encodeURIComponent(projectId)}/knowledge`;
   const [work, setWork] = useState<WorkItem[]>([]);
@@ -207,7 +215,13 @@ export default function ProjectContent({ projectId }: { projectId: string }) {
       <div className="cmd-section-heading">
         <div>
           <p className="cmd-eyebrow">From capture to context</p>
-          <h2>Work and knowledge</h2>
+          <h2>
+            {showWork && showKnowledge
+              ? "Work and knowledge"
+              : showWork
+                ? "Work"
+                : "Knowledge"}
+          </h2>
         </div>
         <div className={styles.actions}>
           <a className={styles.captureLink} href="/inbox">
@@ -249,154 +263,158 @@ export default function ProjectContent({ projectId }: { projectId: string }) {
       )}
       {!loading && (
         <div className={styles.grid}>
-          <section
-            className="cmd-workspace-section"
-            aria-labelledby="work-heading"
-          >
-            <div className="cmd-section-heading">
-              <div>
-                <p className="cmd-eyebrow">Actionable</p>
-                <h3 id="work-heading">Work</h3>
-              </div>
-              <span className="cmd-count">{work.length} shown</span>
-            </div>
-            <div
-              className={styles.viewSwitch}
-              role="group"
-              aria-label="Work view"
+          {showWork && (
+            <section
+              className="cmd-workspace-section"
+              aria-labelledby="work-heading"
             >
-              <Button
-                aria-pressed={workView === "list"}
-                onClick={() => setWorkView("list")}
+              <div className="cmd-section-heading">
+                <div>
+                  <p className="cmd-eyebrow">Actionable</p>
+                  <h3 id="work-heading">Work</h3>
+                </div>
+                <span className="cmd-count">{work.length} shown</span>
+              </div>
+              <div
+                className={styles.viewSwitch}
+                role="group"
+                aria-label="Work view"
               >
-                List
-              </Button>
-              <Button
-                aria-pressed={workView === "board"}
-                onClick={() => setWorkView("board")}
-              >
-                Board
-              </Button>
-            </div>
-            {work.length === 0 && !error && (
-              <RecordEmptyState
-                title="No work yet"
-                description="File a capture as a task to start a traceable work list."
-              />
-            )}
-            {workView === "list" ? (
-              <ul className={styles.list} aria-label="Project work">
-                {work.map(taskCard)}
-              </ul>
-            ) : (
-              <div className={styles.board} aria-label="Project work board">
-                {(["open", "done"] as const).map((status) => (
-                  <section
-                    className={styles.boardColumn}
-                    key={status}
-                    aria-label={`${status} tasks`}
-                  >
-                    <h4>
-                      {status === "open" ? "Open" : "Done"}{" "}
-                      <span className="cmd-count">
-                        {work.filter((item) => item.status === status).length}{" "}
-                        shown
+                <Button
+                  aria-pressed={workView === "list"}
+                  onClick={() => setWorkView("list")}
+                >
+                  List
+                </Button>
+                <Button
+                  aria-pressed={workView === "board"}
+                  onClick={() => setWorkView("board")}
+                >
+                  Board
+                </Button>
+              </div>
+              {work.length === 0 && !error && (
+                <RecordEmptyState
+                  title="No work yet"
+                  description="File a capture as a task to start a traceable work list."
+                />
+              )}
+              {workView === "list" ? (
+                <ul className={styles.list} aria-label="Project work">
+                  {work.map(taskCard)}
+                </ul>
+              ) : (
+                <div className={styles.board} aria-label="Project work board">
+                  {(["open", "done"] as const).map((status) => (
+                    <section
+                      className={styles.boardColumn}
+                      key={status}
+                      aria-label={`${status} tasks`}
+                    >
+                      <h4>
+                        {status === "open" ? "Open" : "Done"}{" "}
+                        <span className="cmd-count">
+                          {work.filter((item) => item.status === status).length}{" "}
+                          shown
+                        </span>
+                      </h4>
+                      <ul className={styles.list}>
+                        {work
+                          .filter((item) => item.status === status)
+                          .map(taskCard)}
+                      </ul>
+                    </section>
+                  ))}
+                </div>
+              )}
+              {workCursor && (
+                <Button
+                  disabled={loadingMore !== null}
+                  onClick={() => loadMore("work")}
+                >
+                  {loadingMore === "work" ? "Loading..." : "Load more work"}
+                </Button>
+              )}
+            </section>
+          )}
+          {showKnowledge && (
+            <section
+              className="cmd-workspace-section"
+              aria-labelledby="knowledge-heading"
+            >
+              <div className="cmd-section-heading">
+                <div>
+                  <p className="cmd-eyebrow">Project memory</p>
+                  <h3 id="knowledge-heading">Knowledge</h3>
+                </div>
+                <span className="cmd-count">{knowledge.length} shown</span>
+              </div>
+              {knowledge.length === 0 && !error && (
+                <RecordEmptyState
+                  title="No knowledge yet"
+                  description="File a capture as a note, link, or document to retain its context here."
+                />
+              )}
+              <ul className={styles.list} aria-label="Project knowledge">
+                {knowledge.map((item) => (
+                  <li className={styles.record} key={item.id}>
+                    <div className={styles.recordTop}>
+                      <strong>{item.title}</strong>
+                      <span className={styles.meta}>
+                        {knowledgeTypeLabel(item.kind)}
                       </span>
-                    </h4>
-                    <ul className={styles.list}>
-                      {work
-                        .filter((item) => item.status === status)
-                        .map(taskCard)}
-                    </ul>
-                  </section>
+                    </div>
+                    {item.contextLink && (
+                      <p className="cmd-record-identity">
+                        Shared from its primary project through a{" "}
+                        <a
+                          href={`/api/v1/knowledge-project-links/${item.contextLink.id}`}
+                        >
+                          typed relationship
+                        </a>
+                        .
+                      </p>
+                    )}
+                    {item.content && <p>{item.content}</p>}
+                    {item.kind === "link" && item.url && (
+                      <p>
+                        <a href={item.url} rel="noreferrer" target="_blank">
+                          Open saved external link
+                        </a>
+                      </p>
+                    )}
+                    {item.kind === "document" && (
+                      <p>
+                        <a
+                          href={`/api/v1/captures/${encodeURIComponent(item.sourceCaptureId)}/original-file`}
+                        >
+                          Download exact original file
+                        </a>
+                      </p>
+                    )}
+                    <a href={`/knowledge-items/${encodeURIComponent(item.id)}`}>
+                      Open knowledge record
+                    </a>
+                    <a
+                      href={`/inbox?captureId=${encodeURIComponent(item.sourceCaptureId)}`}
+                    >
+                      View original capture
+                    </a>
+                  </li>
                 ))}
-              </div>
-            )}
-            {workCursor && (
-              <Button
-                disabled={loadingMore !== null}
-                onClick={() => loadMore("work")}
-              >
-                {loadingMore === "work" ? "Loading..." : "Load more work"}
-              </Button>
-            )}
-          </section>
-          <section
-            className="cmd-workspace-section"
-            aria-labelledby="knowledge-heading"
-          >
-            <div className="cmd-section-heading">
-              <div>
-                <p className="cmd-eyebrow">Project memory</p>
-                <h3 id="knowledge-heading">Knowledge</h3>
-              </div>
-              <span className="cmd-count">{knowledge.length} shown</span>
-            </div>
-            {knowledge.length === 0 && !error && (
-              <RecordEmptyState
-                title="No knowledge yet"
-                description="File a capture as a note, link, or document to retain its context here."
-              />
-            )}
-            <ul className={styles.list} aria-label="Project knowledge">
-              {knowledge.map((item) => (
-                <li className={styles.record} key={item.id}>
-                  <div className={styles.recordTop}>
-                    <strong>{item.title}</strong>
-                    <span className={styles.meta}>
-                      {knowledgeTypeLabel(item.kind)}
-                    </span>
-                  </div>
-                  {item.contextLink && (
-                    <p className="cmd-record-identity">
-                      Shared from its primary project through a{" "}
-                      <a
-                        href={`/api/v1/knowledge-project-links/${item.contextLink.id}`}
-                      >
-                        typed relationship
-                      </a>
-                      .
-                    </p>
-                  )}
-                  {item.content && <p>{item.content}</p>}
-                  {item.kind === "link" && item.url && (
-                    <p>
-                      <a href={item.url} rel="noreferrer" target="_blank">
-                        Open saved external link
-                      </a>
-                    </p>
-                  )}
-                  {item.kind === "document" && (
-                    <p>
-                      <a
-                        href={`/api/v1/captures/${encodeURIComponent(item.sourceCaptureId)}/original-file`}
-                      >
-                        Download exact original file
-                      </a>
-                    </p>
-                  )}
-                  <a href={`/knowledge-items/${encodeURIComponent(item.id)}`}>
-                    Open knowledge record
-                  </a>
-                  <a
-                    href={`/inbox?captureId=${encodeURIComponent(item.sourceCaptureId)}`}
-                  >
-                    View original capture
-                  </a>
-                </li>
-              ))}
-            </ul>
-            {knowledgeCursor && (
-              <Button
-                disabled={loadingMore !== null}
-                onClick={() => loadMore("knowledge")}
-              >
-                {loadingMore === "knowledge"
-                  ? "Loading..."
-                  : "Load more knowledge"}
-              </Button>
-            )}
-          </section>
+              </ul>
+              {knowledgeCursor && (
+                <Button
+                  disabled={loadingMore !== null}
+                  onClick={() => loadMore("knowledge")}
+                >
+                  {loadingMore === "knowledge"
+                    ? "Loading..."
+                    : "Load more knowledge"}
+                </Button>
+              )}
+            </section>
+          )}
         </div>
       )}
     </div>

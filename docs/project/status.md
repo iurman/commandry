@@ -68,6 +68,11 @@ and production prerequisites remain gates.
   before/after record with a direct versioned API link. The current portfolio
   and live brief read the updated project; existing packet snapshots remain
   unchanged. The local transition policy remains provisional under OQ-035.
+- Project overview cards can be selected and ordered from evidence in the live
+  brief. Project-specific visible areas are versioned and auditable; hiding an
+  area leaves all Work, Knowledge, relationships, and source records intact.
+  The universal defaults and presentation choices remain provisional under
+  OQ-035. Synthetic facts retain explicit source labels and exact evidence.
 - Systems are distinct local records for continuing operated capabilities. A
   system may have one owning Domain, relate to multiple Projects, and receive
   support from multiple canonical Resources through typed, auditable links.

@@ -1,6 +1,6 @@
 import { relations, sql } from "drizzle-orm";
 import type { SavedViewDefinition } from "@commandry/contracts";
-import type { ProjectMetadata } from "@commandry/domain";
+import type { ProjectMetadata, ProjectPresentation } from "@commandry/domain";
 import {
   type AnyPgColumn,
   boolean,
@@ -211,6 +211,63 @@ export const projectMetadataEvent = pgTable(
     check(
       "project_metadata_event_fields_array",
       sql`jsonb_typeof(${table.changedFields}) = 'array' and jsonb_array_length(${table.changedFields}) > 0`,
+    ),
+  ],
+);
+
+export const projectPresentation = pgTable(
+  "project_presentation",
+  {
+    projectId: uuid("project_id")
+      .primaryKey()
+      .references(() => project.id, { onDelete: "restrict" }),
+    version: integer("version").notNull(),
+    overviewCards: jsonb("overview_cards")
+      .$type<ProjectPresentation["overviewCards"]>()
+      .notNull(),
+    visibleAreas: jsonb("visible_areas")
+      .$type<ProjectPresentation["visibleAreas"]>()
+      .notNull(),
+    updatedAt: updatedAt(),
+  },
+  (table) => [
+    check("project_presentation_version_valid", sql`${table.version} >= 2`),
+    check(
+      "project_presentation_cards_array",
+      sql`jsonb_typeof(${table.overviewCards}) = 'array' and jsonb_array_length(${table.overviewCards}) <= 8`,
+    ),
+    check(
+      "project_presentation_areas_array",
+      sql`jsonb_typeof(${table.visibleAreas}) = 'array' and jsonb_array_length(${table.visibleAreas}) <= 6`,
+    ),
+  ],
+);
+
+export const projectPresentationEvent = pgTable(
+  "project_presentation_event",
+  {
+    id: uuid("id").primaryKey(),
+    projectId: uuid("project_id")
+      .notNull()
+      .references(() => project.id, { onDelete: "restrict" }),
+    version: integer("version").notNull(),
+    actor: text("actor").notNull().default("local-user:unattributed"),
+    previous: jsonb("previous").$type<ProjectPresentation>().notNull(),
+    current: jsonb("current").$type<ProjectPresentation>().notNull(),
+    createdAt: createdAt(),
+  },
+  (table) => [
+    uniqueIndex("project_presentation_event_version_idx").on(
+      table.projectId,
+      table.version,
+    ),
+    check(
+      "project_presentation_event_version_valid",
+      sql`${table.version} >= 2`,
+    ),
+    check(
+      "project_presentation_event_snapshots_object",
+      sql`jsonb_typeof(${table.previous}) = 'object' and jsonb_typeof(${table.current}) = 'object'`,
     ),
   ],
 );

@@ -38,3 +38,4 @@ export * from "./knowledge-link";
 export * from "./domain-portfolio";
 export * from "./system-context";
 export * from "./project-metadata";
+export * from "./project-presentation";

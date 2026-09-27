@@ -332,3 +332,12 @@ records `project_metadata_event` as its audit event. Its intended production
 capability is `commandry.project.update`; the current local UI does not issue
 or enforce that grant, and no approval is requested for this local action.
 Human attribution and production grants remain open under OQ-003 and OQ-007.
+The local MVP also offers one universal, user-editable overview card order and
+visible-area set. It does not infer defaults from free-text project type. Cards
+read the current evidence-linked brief; hiding an area only changes its
+presentation and never removes or limits the underlying records. This
+reversible local-only setting is version checked, requests no approval, and
+records `project_presentation_event` as its append-only audit event. Its
+intended production capability is `commandry.project.presentation.update`;
+local review does not enforce that grant. Validate type defaults, the canonical
+card catalog, layout flexibility, and any sharing model before production.

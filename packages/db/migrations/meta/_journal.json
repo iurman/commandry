@@ -365,6 +365,13 @@
       "when": 1790512627026,
       "tag": "0051_equal_swordsman",
       "breakpoints": true
+    },
+    {
+      "idx": 52,
+      "version": "7",
+      "when": 1790514125701,
+      "tag": "0052_burly_scream",
+      "breakpoints": true
     }
   ]
 }

@@ -25,6 +25,7 @@ The stylesheet respects system reduced motion and accepts
 | `LocalReleaseRehearsalCard` | Present one isolated code rollback result | Shows the prior, candidate, and rollback web and worker checks, the cloned table count, any failure phase, and an exact local evidence link. |
 | `LocalAgentCallbackTimeline` | Present fake local runner callbacks | Orders labeled heartbeat and bounded report evidence with an exact artifact download. It never describes the synthetic report as verified work. |
 | `ProjectChangeCard` | Explain one manual project revision | Shows the exact changed fields, before/after values, unattributed local actor, version, and durable audit link. |
+| `ProjectOverviewCard` | Scan a source-linked project brief section | Shows bounded facts, exact evidence and source list links, generated time, and explicit synthetic provenance. |
 | `StatePanel` | Present one section's data state | `normal`, `loading`, `empty`, `error`, `disabled`, and `permission-denied` are explicit text states. Loading sets `aria-busy`; error text uses an alert role. Non-normal states do not render stale children. |
 | `StatusBadge` | Label one state dimension | A visible dimension and label accompany the tone. Lifecycle, health, attention, sync, and execution remain separate. |
 | `Button` | Present an actual available action | Primary and secondary variants share focus and target sizing. Native `disabled` is supported. Do not render a button for an unfinished product action. |
