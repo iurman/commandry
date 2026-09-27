@@ -24,10 +24,18 @@ import {
 } from "@commandry/domain";
 
 export type BriefPage<T> = { items: T[]; nextCursor: string | null };
+export type BriefWorkItem = WorkItem & {
+  openBlockers?: {
+    relationId: string;
+    workItemId: string;
+    title: string;
+    recordedAt: string;
+  }[];
+};
 export type ProjectBriefSnapshot = {
   asOf: string;
   project: ProjectSummary;
-  work: BriefPage<WorkItem>;
+  work: BriefPage<BriefWorkItem>;
   knowledge: BriefPage<KnowledgeItem>;
   decisions: BriefPage<ProjectDecision>;
   resources: BriefPage<{ link: ProjectResourceLink; linkedAt: string }>;
@@ -91,7 +99,7 @@ export function assembleProjectBrief(
       id: item.id,
       kind: "work_item",
       title: item.title,
-      detail: `${workFactText(item.status)}. ${briefExcerpt(item.description)}`,
+      detail: `${workFactText(item.status)}. ${briefExcerpt(item.description)}${item.openBlockers?.length ? ` Blocked by ${item.openBlockers.map((blocker) => blocker.title).join(", ")}.` : ""}`,
       evidence: [
         evidence(
           "work_item",
@@ -100,6 +108,16 @@ export function assembleProjectBrief(
           item.updatedAt,
           "Manual local capture",
           false,
+        ),
+        ...(item.openBlockers ?? []).map((blocker) =>
+          evidence(
+            "work_item_relation",
+            blocker.relationId,
+            `/api/v1/work-item-relations/${blocker.relationId}`,
+            blocker.recordedAt,
+            "Manual local work relationship",
+            false,
+          ),
         ),
       ],
       sourceLabel: "Manual local capture",
@@ -218,7 +236,7 @@ export function assembleProjectBrief(
     }),
   );
   const nextActions = snapshot.work.items
-    .filter((item) => item.status === "open")
+    .filter((item) => item.status === "open" && !item.openBlockers?.length)
     .slice(0, 3)
     .map((item) => ({
       kind: "inference" as const,
@@ -287,7 +305,7 @@ export function assembleProjectBrief(
         "Structured open questions are not recorded in the local model.",
       ),
       blockers: briefMissing(
-        "Structured task blockers are not recorded in the local model.",
+        "Open blockers for previewed tasks are shown in Work facts; the full project work graph is available from each task.",
       ),
       acceptanceCriteria: briefMissing(
         "Task acceptance criteria are not recorded in the local model.",

@@ -41,6 +41,7 @@ function entry(
 const ready = {
   packetExists: true,
   packetWorkOpen: true,
+  packetWorkUnblocked: true,
   agentExists: true,
   agentAssigned: true,
 };
@@ -136,5 +137,34 @@ describe("synthetic overnight queue", () => {
     );
     expect(submitRun).not.toHaveBeenCalled();
     expect(overnightReadiness(ready).ready).toBe(true);
+    const blocked = overnightReadiness({
+      ...ready,
+      packetWorkUnblocked: false,
+    });
+    expect(blocked.ready).toBe(false);
+    expect(
+      blocked.checks.find((check) => check.key === "blockers")?.message,
+    ).toBe("An active open task blocks this work");
+  });
+
+  it("blocks a due entry when an open task becomes a blocker after scheduling", async () => {
+    const markBlocked = vi.fn(async () => undefined);
+    const submitRun = vi.fn(async () => ({ id: runId }));
+    const processor = createOvernightQueueProcessor(
+      {
+        getById: async () => entry(),
+        getContext: async () => ({ ...ready, packetWorkUnblocked: false }),
+        claimForDispatch: async () => true,
+        markBlocked,
+        markDispatched: async () => undefined,
+      },
+      submitRun,
+    );
+    await processor(entryId);
+    expect(markBlocked).toHaveBeenCalledWith(
+      entryId,
+      "An active open task blocks this work",
+    );
+    expect(submitRun).not.toHaveBeenCalled();
   });
 });

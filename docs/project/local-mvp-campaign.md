@@ -69,6 +69,14 @@ local experience lab.
   status as an expected value and append an immutable event. Live briefs will
   select currently open tasks, while already generated execution packets will
   keep their original task-status snapshot.
+- Filed tasks may be linked within one project through `parent_of` and `blocks`
+  relationships. A task may have one active parent, and neither link type may
+  form a cycle. Removing a link archives it and retains the audit record. An
+  open blocking task will pause a local Overnight Queue entry at scheduling or
+  dispatch; a completed blocker or archived link will not. The brief will cite
+  exact relationship records for previewed blocked work. These local meanings
+  do not decide cross-project work ownership, broader initiative types, or a
+  universal task dependency policy.
 - Local task priority (`low`, `normal`, `high`) and UTC calendar due date are
   optional, editable planning metadata. An edit requires the displayed task
   revision and appends an immutable local event. The cross-project upcoming

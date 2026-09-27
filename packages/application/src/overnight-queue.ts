@@ -18,6 +18,7 @@ export interface OvernightQueuePort {
   ): Promise<{
     packetExists: boolean;
     packetWorkOpen: boolean;
+    packetWorkUnblocked: boolean;
     agentExists: boolean;
     agentAssigned: boolean;
   }>;
@@ -55,6 +56,13 @@ export function overnightReadiness(
       message: context.packetWorkOpen
         ? "Packet work is open"
         : "Packet work is done or missing",
+    },
+    {
+      key: "blockers",
+      ok: context.packetWorkUnblocked,
+      message: context.packetWorkUnblocked
+        ? "No active open task blocks this work"
+        : "An active open task blocks this work",
     },
     {
       key: "agent",

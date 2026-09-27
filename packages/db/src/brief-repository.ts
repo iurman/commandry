@@ -14,6 +14,7 @@ import {
   projectResourceLink,
   resource,
   workItem,
+  workItemRelation,
 } from "./schema";
 
 type SourceLabel =
@@ -69,6 +70,46 @@ export function createBriefRepository(db: CommandryDatabase) {
             )
             .orderBy(desc(workItem.createdAt), desc(workItem.id))
             .limit(query.limit + 1);
+          const visibleWorkIds = openWorkRows
+            .slice(0, query.limit)
+            .map((item) => item.id);
+          const blockerRows = visibleWorkIds.length
+            ? await tx
+                .select({ relation: workItemRelation, blocker: workItem })
+                .from(workItemRelation)
+                .innerJoin(
+                  workItem,
+                  eq(workItem.id, workItemRelation.sourceWorkItemId),
+                )
+                .where(
+                  and(
+                    inArray(workItemRelation.targetWorkItemId, visibleWorkIds),
+                    eq(workItemRelation.type, "blocks"),
+                    eq(workItemRelation.state, "active"),
+                    eq(workItem.status, "open"),
+                  ),
+                )
+            : [];
+          const blockersByWork = new Map<
+            string,
+            {
+              relationId: string;
+              workItemId: string;
+              title: string;
+              recordedAt: string;
+            }[]
+          >();
+          for (const { relation, blocker } of blockerRows) {
+            const blockers =
+              blockersByWork.get(relation.targetWorkItemId) ?? [];
+            blockers.push({
+              relationId: relation.id,
+              workItemId: blocker.id,
+              title: blocker.title,
+              recordedAt: relation.createdAt.toISOString(),
+            });
+            blockersByWork.set(relation.targetWorkItemId, blockers);
+          }
           const noteRows = await tx
             .select()
             .from(knowledgeItem)
@@ -174,6 +215,7 @@ export function createBriefRepository(db: CommandryDatabase) {
                 status: row.status,
                 priority: row.priority,
                 dueOn: row.dueOn,
+                openBlockers: blockersByWork.get(row.id) ?? [],
                 createdAt: row.createdAt.toISOString(),
                 updatedAt: row.updatedAt.toISOString(),
               }),

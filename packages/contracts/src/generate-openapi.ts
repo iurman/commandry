@@ -26,6 +26,9 @@ import {
   createWorkItemCommentRequestSchema,
   workItemCommentSchema,
   listWorkItemCommentsResponseSchema,
+  createWorkItemRelationRequestSchema,
+  workItemRelationSchema,
+  listWorkItemRelationsResponseSchema,
   createLocalAgentRequestSchema,
   localAgentProfileSchema,
   listLocalAgentsResponseSchema,
@@ -811,6 +814,85 @@ export function generateOpenApi(): string {
             },
             "404": {
               description: "Task not found",
+              content: jsonContent("ErrorResponse"),
+            },
+          },
+        },
+      },
+      "/api/v1/work-items/{id}/relations": {
+        get: {
+          operationId: "listWorkItemRelations",
+          summary: "Page active incoming or outgoing work relationships",
+          parameters: [
+            idParameter,
+            {
+              in: "query",
+              name: "direction",
+              required: true,
+              schema: { type: "string", enum: ["outgoing", "incoming"] },
+            },
+            ...pageParameters,
+          ],
+          responses: {
+            "200": {
+              description: "Active typed work relationship page",
+              content: jsonContent("ListWorkItemRelationsResponse"),
+            },
+            "404": {
+              description: "Work item not found",
+              content: jsonContent("ErrorResponse"),
+            },
+          },
+        },
+      },
+      "/api/v1/work-item-relations": {
+        post: {
+          operationId: "createWorkItemRelation",
+          summary: "Link project work through parent or blocking meaning",
+          requestBody: {
+            required: true,
+            content: jsonContent("CreateWorkItemRelationRequest"),
+          },
+          responses: {
+            "201": {
+              description: "New typed work relationship",
+              content: jsonContent("WorkItemRelation"),
+            },
+            "409": {
+              description: "Project, parent, duplicate, or cycle conflict",
+              content: jsonContent("ErrorResponse"),
+            },
+          },
+        },
+      },
+      "/api/v1/work-item-relations/{id}": {
+        get: {
+          operationId: "getWorkItemRelation",
+          summary:
+            "Read one exact work relationship, including archived history",
+          parameters: [idParameter],
+          responses: {
+            "200": {
+              description: "Exact work relationship",
+              content: jsonContent("WorkItemRelation"),
+            },
+            "404": {
+              description: "Relationship not found",
+              content: jsonContent("ErrorResponse"),
+            },
+          },
+        },
+        delete: {
+          operationId: "archiveWorkItemRelation",
+          summary: "Archive one active work relationship with audit history",
+          parameters: [idParameter],
+          responses: {
+            "200": {
+              description: "Archived relationship",
+              content: jsonContent("WorkItemRelation"),
+            },
+            "404": {
+              description: "Relationship not found",
               content: jsonContent("ErrorResponse"),
             },
           },
@@ -2272,6 +2354,13 @@ export function generateOpenApi(): string {
         WorkItemComment: component(workItemCommentSchema),
         ListWorkItemCommentsResponse: component(
           listWorkItemCommentsResponseSchema,
+        ),
+        CreateWorkItemRelationRequest: component(
+          createWorkItemRelationRequestSchema,
+        ),
+        WorkItemRelation: component(workItemRelationSchema),
+        ListWorkItemRelationsResponse: component(
+          listWorkItemRelationsResponseSchema,
         ),
         KnowledgeItem: component(knowledgeItemSchema),
         WorkspaceKnowledgeItem: component(workspaceKnowledgeItemSchema),

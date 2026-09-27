@@ -1474,6 +1474,191 @@
         }
       }
     },
+    "/api/v1/work-items/{id}/relations": {
+      "get": {
+        "operationId": "listWorkItemRelations",
+        "summary": "Page active incoming or outgoing work relationships",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "id",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          },
+          {
+            "in": "query",
+            "name": "direction",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "enum": [
+                "outgoing",
+                "incoming"
+              ]
+            }
+          },
+          {
+            "in": "query",
+            "name": "limit",
+            "required": false,
+            "schema": {
+              "type": "integer",
+              "minimum": 1,
+              "maximum": 100,
+              "default": 25
+            }
+          },
+          {
+            "in": "query",
+            "name": "cursor",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Active typed work relationship page",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ListWorkItemRelationsResponse"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Work item not found",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/work-item-relations": {
+      "post": {
+        "operationId": "createWorkItemRelation",
+        "summary": "Link project work through parent or blocking meaning",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/CreateWorkItemRelationRequest"
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": "New typed work relationship",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/WorkItemRelation"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "Project, parent, duplicate, or cycle conflict",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/work-item-relations/{id}": {
+      "get": {
+        "operationId": "getWorkItemRelation",
+        "summary": "Read one exact work relationship, including archived history",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "id",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Exact work relationship",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/WorkItemRelation"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Relationship not found",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          }
+        }
+      },
+      "delete": {
+        "operationId": "archiveWorkItemRelation",
+        "summary": "Archive one active work relationship with audit history",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "id",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Archived relationship",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/WorkItemRelation"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Relationship not found",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/api/v1/knowledge-items/{id}": {
       "get": {
         "operationId": "getKnowledgeItem",
@@ -8393,6 +8578,251 @@
         ],
         "additionalProperties": false
       },
+      "CreateWorkItemRelationRequest": {
+        "type": "object",
+        "properties": {
+          "sourceWorkItemId": {
+            "type": "string",
+            "format": "uuid",
+            "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$"
+          },
+          "targetWorkItemId": {
+            "type": "string",
+            "format": "uuid",
+            "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$"
+          },
+          "type": {
+            "type": "string",
+            "enum": [
+              "parent_of",
+              "blocks"
+            ]
+          }
+        },
+        "required": [
+          "sourceWorkItemId",
+          "targetWorkItemId",
+          "type"
+        ],
+        "additionalProperties": false
+      },
+      "WorkItemRelation": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string",
+            "format": "uuid",
+            "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$"
+          },
+          "projectId": {
+            "type": "string",
+            "format": "uuid",
+            "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$"
+          },
+          "sourceWorkItemId": {
+            "type": "string",
+            "format": "uuid",
+            "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$"
+          },
+          "sourceTitle": {
+            "type": "string"
+          },
+          "sourceStatus": {
+            "type": "string",
+            "enum": [
+              "open",
+              "done"
+            ]
+          },
+          "targetWorkItemId": {
+            "type": "string",
+            "format": "uuid",
+            "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$"
+          },
+          "targetTitle": {
+            "type": "string"
+          },
+          "targetStatus": {
+            "type": "string",
+            "enum": [
+              "open",
+              "done"
+            ]
+          },
+          "type": {
+            "type": "string",
+            "enum": [
+              "parent_of",
+              "blocks"
+            ]
+          },
+          "state": {
+            "type": "string",
+            "enum": [
+              "active",
+              "archived"
+            ]
+          },
+          "sourceLabel": {
+            "type": "string",
+            "const": "Manual local work relationship"
+          },
+          "createdAt": {
+            "type": "string",
+            "format": "date-time",
+            "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))T(?:(?:[01]\\d|2[0-3]):[0-5]\\d:[0-5]\\d(?:\\.\\d+)?(?:Z|([+-](?:[01]\\d|2[0-3]):[0-5]\\d)))$"
+          },
+          "archivedAt": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "date-time",
+                "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))T(?:(?:[01]\\d|2[0-3]):[0-5]\\d:[0-5]\\d(?:\\.\\d+)?(?:Z|([+-](?:[01]\\d|2[0-3]):[0-5]\\d)))$"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          }
+        },
+        "required": [
+          "id",
+          "projectId",
+          "sourceWorkItemId",
+          "sourceTitle",
+          "sourceStatus",
+          "targetWorkItemId",
+          "targetTitle",
+          "targetStatus",
+          "type",
+          "state",
+          "sourceLabel",
+          "createdAt",
+          "archivedAt"
+        ],
+        "additionalProperties": false
+      },
+      "ListWorkItemRelationsResponse": {
+        "type": "object",
+        "properties": {
+          "items": {
+            "type": "array",
+            "items": {
+              "type": "object",
+              "properties": {
+                "id": {
+                  "type": "string",
+                  "format": "uuid",
+                  "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$"
+                },
+                "projectId": {
+                  "type": "string",
+                  "format": "uuid",
+                  "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$"
+                },
+                "sourceWorkItemId": {
+                  "type": "string",
+                  "format": "uuid",
+                  "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$"
+                },
+                "sourceTitle": {
+                  "type": "string"
+                },
+                "sourceStatus": {
+                  "type": "string",
+                  "enum": [
+                    "open",
+                    "done"
+                  ]
+                },
+                "targetWorkItemId": {
+                  "type": "string",
+                  "format": "uuid",
+                  "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$"
+                },
+                "targetTitle": {
+                  "type": "string"
+                },
+                "targetStatus": {
+                  "type": "string",
+                  "enum": [
+                    "open",
+                    "done"
+                  ]
+                },
+                "type": {
+                  "type": "string",
+                  "enum": [
+                    "parent_of",
+                    "blocks"
+                  ]
+                },
+                "state": {
+                  "type": "string",
+                  "enum": [
+                    "active",
+                    "archived"
+                  ]
+                },
+                "sourceLabel": {
+                  "type": "string",
+                  "const": "Manual local work relationship"
+                },
+                "createdAt": {
+                  "type": "string",
+                  "format": "date-time",
+                  "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))T(?:(?:[01]\\d|2[0-3]):[0-5]\\d:[0-5]\\d(?:\\.\\d+)?(?:Z|([+-](?:[01]\\d|2[0-3]):[0-5]\\d)))$"
+                },
+                "archivedAt": {
+                  "anyOf": [
+                    {
+                      "type": "string",
+                      "format": "date-time",
+                      "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))T(?:(?:[01]\\d|2[0-3]):[0-5]\\d:[0-5]\\d(?:\\.\\d+)?(?:Z|([+-](?:[01]\\d|2[0-3]):[0-5]\\d)))$"
+                    },
+                    {
+                      "type": "null"
+                    }
+                  ]
+                }
+              },
+              "required": [
+                "id",
+                "projectId",
+                "sourceWorkItemId",
+                "sourceTitle",
+                "sourceStatus",
+                "targetWorkItemId",
+                "targetTitle",
+                "targetStatus",
+                "type",
+                "state",
+                "sourceLabel",
+                "createdAt",
+                "archivedAt"
+              ],
+              "additionalProperties": false
+            }
+          },
+          "nextCursor": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "uuid",
+                "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          }
+        },
+        "required": [
+          "items",
+          "nextCursor"
+        ],
+        "additionalProperties": false
+      },
       "KnowledgeItem": {
         "type": "object",
         "properties": {
@@ -9627,6 +10057,7 @@
                   "enum": [
                     "project",
                     "work_item",
+                    "work_item_relation",
                     "knowledge_item",
                     "decision",
                     "resource",
@@ -9810,6 +10241,7 @@
                           "enum": [
                             "project",
                             "work_item",
+                            "work_item_relation",
                             "knowledge_item",
                             "decision",
                             "resource",
@@ -10621,6 +11053,7 @@
                                 "enum": [
                                   "project",
                                   "work_item",
+                                  "work_item_relation",
                                   "knowledge_item",
                                   "decision",
                                   "resource",
@@ -11823,6 +12256,7 @@
             "enum": [
               "project",
               "work_item",
+              "work_item_relation",
               "knowledge_item",
               "decision",
               "resource",
@@ -11915,6 +12349,7 @@
                   "enum": [
                     "project",
                     "work_item",
+                    "work_item_relation",
                     "knowledge_item",
                     "decision",
                     "resource",
@@ -12032,6 +12467,7 @@
                         "enum": [
                           "project",
                           "work_item",
+                          "work_item_relation",
                           "knowledge_item",
                           "decision",
                           "resource",
@@ -12184,6 +12620,7 @@
                   "enum": [
                     "project",
                     "work_item",
+                    "work_item_relation",
                     "knowledge_item",
                     "decision",
                     "resource",
@@ -12338,6 +12775,7 @@
                       "enum": [
                         "project",
                         "work_item",
+                        "work_item_relation",
                         "knowledge_item",
                         "decision",
                         "resource",
@@ -12446,6 +12884,7 @@
                                 "enum": [
                                   "project",
                                   "work_item",
+                                  "work_item_relation",
                                   "knowledge_item",
                                   "decision",
                                   "resource",
@@ -12596,6 +13035,7 @@
                                 "enum": [
                                   "project",
                                   "work_item",
+                                  "work_item_relation",
                                   "knowledge_item",
                                   "decision",
                                   "resource",
@@ -12746,6 +13186,7 @@
                                 "enum": [
                                   "project",
                                   "work_item",
+                                  "work_item_relation",
                                   "knowledge_item",
                                   "decision",
                                   "resource",
@@ -12896,6 +13337,7 @@
                                 "enum": [
                                   "project",
                                   "work_item",
+                                  "work_item_relation",
                                   "knowledge_item",
                                   "decision",
                                   "resource",
@@ -13046,6 +13488,7 @@
                                 "enum": [
                                   "project",
                                   "work_item",
+                                  "work_item_relation",
                                   "knowledge_item",
                                   "decision",
                                   "resource",
@@ -13196,6 +13639,7 @@
                                 "enum": [
                                   "project",
                                   "work_item",
+                                  "work_item_relation",
                                   "knowledge_item",
                                   "decision",
                                   "resource",
@@ -13411,6 +13855,7 @@
                             "enum": [
                               "project",
                               "work_item",
+                              "work_item_relation",
                               "knowledge_item",
                               "decision",
                               "resource",
@@ -13561,6 +14006,7 @@
                       "enum": [
                         "project",
                         "work_item",
+                        "work_item_relation",
                         "knowledge_item",
                         "decision",
                         "resource",
@@ -13666,6 +14112,7 @@
                     "enum": [
                       "project",
                       "work_item",
+                      "work_item_relation",
                       "knowledge_item",
                       "decision",
                       "resource",
@@ -13754,6 +14201,7 @@
                       "enum": [
                         "project",
                         "work_item",
+                        "work_item_relation",
                         "knowledge_item",
                         "decision",
                         "resource",
@@ -13848,6 +14296,7 @@
                       "enum": [
                         "project",
                         "work_item",
+                        "work_item_relation",
                         "knowledge_item",
                         "decision",
                         "resource",
@@ -14088,6 +14537,7 @@
                           "enum": [
                             "project",
                             "work_item",
+                            "work_item_relation",
                             "knowledge_item",
                             "decision",
                             "resource",
@@ -14193,6 +14643,7 @@
                         "enum": [
                           "project",
                           "work_item",
+                          "work_item_relation",
                           "knowledge_item",
                           "decision",
                           "resource",
@@ -14281,6 +14732,7 @@
                           "enum": [
                             "project",
                             "work_item",
+                            "work_item_relation",
                             "knowledge_item",
                             "decision",
                             "resource",
@@ -14375,6 +14827,7 @@
                           "enum": [
                             "project",
                             "work_item",
+                            "work_item_relation",
                             "knowledge_item",
                             "decision",
                             "resource",
@@ -14634,6 +15087,7 @@
                                 "enum": [
                                   "project",
                                   "work_item",
+                                  "work_item_relation",
                                   "knowledge_item",
                                   "decision",
                                   "resource",
@@ -14739,6 +15193,7 @@
                               "enum": [
                                 "project",
                                 "work_item",
+                                "work_item_relation",
                                 "knowledge_item",
                                 "decision",
                                 "resource",
@@ -14827,6 +15282,7 @@
                                 "enum": [
                                   "project",
                                   "work_item",
+                                  "work_item_relation",
                                   "knowledge_item",
                                   "decision",
                                   "resource",
@@ -14921,6 +15377,7 @@
                                 "enum": [
                                   "project",
                                   "work_item",
+                                  "work_item_relation",
                                   "knowledge_item",
                                   "decision",
                                   "resource",
@@ -15533,6 +15990,7 @@
                   "enum": [
                     "project",
                     "work_item",
+                    "work_item_relation",
                     "knowledge_item",
                     "decision",
                     "resource",
@@ -15793,6 +16251,7 @@
                           "enum": [
                             "project",
                             "work_item",
+                            "work_item_relation",
                             "knowledge_item",
                             "decision",
                             "resource",
@@ -16957,6 +17416,7 @@
                       "enum": [
                         "project",
                         "work_item",
+                        "work_item_relation",
                         "knowledge_item",
                         "decision",
                         "resource",
@@ -17104,6 +17564,7 @@
                                   "enum": [
                                     "project",
                                     "work_item",
+                                    "work_item_relation",
                                     "knowledge_item",
                                     "decision",
                                     "resource",
@@ -17212,6 +17673,7 @@
                                             "enum": [
                                               "project",
                                               "work_item",
+                                              "work_item_relation",
                                               "knowledge_item",
                                               "decision",
                                               "resource",
@@ -17362,6 +17824,7 @@
                                             "enum": [
                                               "project",
                                               "work_item",
+                                              "work_item_relation",
                                               "knowledge_item",
                                               "decision",
                                               "resource",
@@ -17512,6 +17975,7 @@
                                             "enum": [
                                               "project",
                                               "work_item",
+                                              "work_item_relation",
                                               "knowledge_item",
                                               "decision",
                                               "resource",
@@ -17662,6 +18126,7 @@
                                             "enum": [
                                               "project",
                                               "work_item",
+                                              "work_item_relation",
                                               "knowledge_item",
                                               "decision",
                                               "resource",
@@ -17812,6 +18277,7 @@
                                             "enum": [
                                               "project",
                                               "work_item",
+                                              "work_item_relation",
                                               "knowledge_item",
                                               "decision",
                                               "resource",
@@ -17962,6 +18428,7 @@
                                             "enum": [
                                               "project",
                                               "work_item",
+                                              "work_item_relation",
                                               "knowledge_item",
                                               "decision",
                                               "resource",
@@ -18177,6 +18644,7 @@
                                         "enum": [
                                           "project",
                                           "work_item",
+                                          "work_item_relation",
                                           "knowledge_item",
                                           "decision",
                                           "resource",
@@ -18519,6 +18987,7 @@
                   "enum": [
                     "project",
                     "work_item",
+                    "work_item_relation",
                     "knowledge_item",
                     "decision",
                     "resource",
@@ -18666,6 +19135,7 @@
                               "enum": [
                                 "project",
                                 "work_item",
+                                "work_item_relation",
                                 "knowledge_item",
                                 "decision",
                                 "resource",
@@ -18774,6 +19244,7 @@
                                         "enum": [
                                           "project",
                                           "work_item",
+                                          "work_item_relation",
                                           "knowledge_item",
                                           "decision",
                                           "resource",
@@ -18924,6 +19395,7 @@
                                         "enum": [
                                           "project",
                                           "work_item",
+                                          "work_item_relation",
                                           "knowledge_item",
                                           "decision",
                                           "resource",
@@ -19074,6 +19546,7 @@
                                         "enum": [
                                           "project",
                                           "work_item",
+                                          "work_item_relation",
                                           "knowledge_item",
                                           "decision",
                                           "resource",
@@ -19224,6 +19697,7 @@
                                         "enum": [
                                           "project",
                                           "work_item",
+                                          "work_item_relation",
                                           "knowledge_item",
                                           "decision",
                                           "resource",
@@ -19374,6 +19848,7 @@
                                         "enum": [
                                           "project",
                                           "work_item",
+                                          "work_item_relation",
                                           "knowledge_item",
                                           "decision",
                                           "resource",
@@ -19524,6 +19999,7 @@
                                         "enum": [
                                           "project",
                                           "work_item",
+                                          "work_item_relation",
                                           "knowledge_item",
                                           "decision",
                                           "resource",
@@ -19739,6 +20215,7 @@
                                     "enum": [
                                       "project",
                                       "work_item",
+                                      "work_item_relation",
                                       "knowledge_item",
                                       "decision",
                                       "resource",
@@ -19937,6 +20414,7 @@
                       "enum": [
                         "project",
                         "work_item",
+                        "work_item_relation",
                         "knowledge_item",
                         "decision",
                         "resource",
@@ -20084,6 +20562,7 @@
                                   "enum": [
                                     "project",
                                     "work_item",
+                                    "work_item_relation",
                                     "knowledge_item",
                                     "decision",
                                     "resource",
@@ -20192,6 +20671,7 @@
                                             "enum": [
                                               "project",
                                               "work_item",
+                                              "work_item_relation",
                                               "knowledge_item",
                                               "decision",
                                               "resource",
@@ -20342,6 +20822,7 @@
                                             "enum": [
                                               "project",
                                               "work_item",
+                                              "work_item_relation",
                                               "knowledge_item",
                                               "decision",
                                               "resource",
@@ -20492,6 +20973,7 @@
                                             "enum": [
                                               "project",
                                               "work_item",
+                                              "work_item_relation",
                                               "knowledge_item",
                                               "decision",
                                               "resource",
@@ -20642,6 +21124,7 @@
                                             "enum": [
                                               "project",
                                               "work_item",
+                                              "work_item_relation",
                                               "knowledge_item",
                                               "decision",
                                               "resource",
@@ -20792,6 +21275,7 @@
                                             "enum": [
                                               "project",
                                               "work_item",
+                                              "work_item_relation",
                                               "knowledge_item",
                                               "decision",
                                               "resource",
@@ -20942,6 +21426,7 @@
                                             "enum": [
                                               "project",
                                               "work_item",
+                                              "work_item_relation",
                                               "knowledge_item",
                                               "decision",
                                               "resource",
@@ -21157,6 +21642,7 @@
                                         "enum": [
                                           "project",
                                           "work_item",
+                                          "work_item_relation",
                                           "knowledge_item",
                                           "decision",
                                           "resource",

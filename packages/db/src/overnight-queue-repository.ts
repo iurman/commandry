@@ -10,6 +10,7 @@ import {
   overnightQueueEntry,
   project,
   workItem,
+  workItemRelation,
 } from "./schema";
 
 const columns = {
@@ -71,6 +72,7 @@ export function createOvernightQueueRepository(db: CommandryDatabase) {
         db
           .select({
             projectId: executionPacket.projectId,
+            workItemId: workItem.id,
             status: workItem.status,
           })
           .from(executionPacket)
@@ -85,6 +87,24 @@ export function createOvernightQueueRepository(db: CommandryDatabase) {
       ]);
       const packet = packetRows[0];
       const agent = agentRows[0];
+      const [openBlocker] = packet
+        ? await db
+            .select({ id: workItemRelation.id })
+            .from(workItemRelation)
+            .innerJoin(
+              workItem,
+              eq(workItem.id, workItemRelation.sourceWorkItemId),
+            )
+            .where(
+              and(
+                eq(workItemRelation.targetWorkItemId, packet.workItemId),
+                eq(workItemRelation.type, "blocks"),
+                eq(workItemRelation.state, "active"),
+                eq(workItem.status, "open"),
+              ),
+            )
+            .limit(1)
+        : [];
       const [assignment] =
         packet && agent
           ? await db
@@ -101,6 +121,7 @@ export function createOvernightQueueRepository(db: CommandryDatabase) {
       return {
         packetExists: Boolean(packet),
         packetWorkOpen: packet?.status === "open",
+        packetWorkUnblocked: !openBlocker,
         agentExists: Boolean(agent),
         agentAssigned: Boolean(assignment),
       };

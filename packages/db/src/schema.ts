@@ -504,6 +504,63 @@ export const workItemComment = pgTable(
   ],
 );
 
+export const workItemRelation = pgTable(
+  "work_item_relation",
+  {
+    id: uuid("id").primaryKey(),
+    projectId: uuid("project_id")
+      .notNull()
+      .references(() => project.id, { onDelete: "restrict" }),
+    sourceWorkItemId: uuid("source_work_item_id")
+      .notNull()
+      .references(() => workItem.id, { onDelete: "restrict" }),
+    targetWorkItemId: uuid("target_work_item_id")
+      .notNull()
+      .references(() => workItem.id, { onDelete: "restrict" }),
+    type: text("type", { enum: ["parent_of", "blocks"] }).notNull(),
+    state: text("state", { enum: ["active", "archived"] })
+      .notNull()
+      .default("active"),
+    actor: text("actor").notNull().default("local-user:unattributed"),
+    createdAt: createdAt(),
+    archivedAt: timestamp("archived_at", { withTimezone: true }),
+  },
+  (table) => [
+    uniqueIndex("work_item_relation_active_unique_idx")
+      .on(table.type, table.sourceWorkItemId, table.targetWorkItemId)
+      .where(sql`${table.state} = 'active'`),
+    uniqueIndex("work_item_relation_one_parent_idx")
+      .on(table.targetWorkItemId)
+      .where(sql`${table.type} = 'parent_of' and ${table.state} = 'active'`),
+    index("work_item_relation_source_page_idx").on(
+      table.sourceWorkItemId,
+      table.createdAt,
+      table.id,
+    ),
+    index("work_item_relation_target_page_idx").on(
+      table.targetWorkItemId,
+      table.createdAt,
+      table.id,
+    ),
+    check(
+      "work_item_relation_not_self",
+      sql`${table.sourceWorkItemId} <> ${table.targetWorkItemId}`,
+    ),
+    check(
+      "work_item_relation_type_valid",
+      sql`${table.type} in ('parent_of', 'blocks')`,
+    ),
+    check(
+      "work_item_relation_state_valid",
+      sql`(${table.state} = 'active' and ${table.archivedAt} is null) or (${table.state} = 'archived' and ${table.archivedAt} is not null)`,
+    ),
+    check(
+      "work_item_relation_actor_local",
+      sql`${table.actor} = 'local-user:unattributed'`,
+    ),
+  ],
+);
+
 export const knowledgeItem = pgTable(
   "knowledge_item",
   {

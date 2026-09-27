@@ -74,8 +74,13 @@ authentication is complete. There is no production deployment.
   knowledge links while preserving the original URL; the navigable link omits
   query and fragment text. Links appear in project and global Knowledge,
   search, live briefs, and packet selection. No captured URL is fetched by
-  this local flow. File attachments and richer work relationships remain to
-  be implemented.
+  this local flow. File attachments and broader work types remain to be
+  implemented.
+- Work items have project-scoped, typed parent/subtask and blocking links with
+  cycle prevention, audit-preserving archive, cursor-paged inverse views, and
+  a responsive editor. Open blockers appear with exact relationship evidence
+  in live briefs and pause local overnight readiness. Cross-project work links,
+  initiatives, acceptance criteria, and file attachments remain open.
 - Semantic CSS tokens, accessible responsive components, and representative
   Storybook states exist in the local-only lab. The lab is excluded from the
   production image.

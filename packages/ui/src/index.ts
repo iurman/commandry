@@ -28,6 +28,8 @@ export { LocalMcpSessionCard } from "./components/LocalMcpSessionCard";
 export type { LocalMcpSessionCardView } from "./components/LocalMcpSessionCard";
 export { WorkCommentCard } from "./components/WorkCommentCard";
 export type { WorkCommentCardView } from "./components/WorkCommentCard";
+export { WorkRelationCard } from "./components/WorkRelationCard";
+export type { WorkRelationCardView } from "./components/WorkRelationCard";
 export { KnowledgeLinkCard } from "./components/KnowledgeLinkCard";
 export type { KnowledgeLinkCardView } from "./components/KnowledgeLinkCard";
 export { MorningDigestCard } from "./components/MorningDigestCard";

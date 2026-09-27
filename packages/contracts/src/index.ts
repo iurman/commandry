@@ -281,6 +281,39 @@ export const listWorkItemCommentsResponseSchema = z.object({
   nextCursor: z.uuid().nullable(),
 });
 
+export const createWorkItemRelationRequestSchema = z.strictObject({
+  sourceWorkItemId: z.uuid(),
+  targetWorkItemId: z.uuid(),
+  type: z.enum(["parent_of", "blocks"]),
+});
+
+export const workItemRelationSchema = z.object({
+  id: z.uuid(),
+  projectId: z.uuid(),
+  sourceWorkItemId: z.uuid(),
+  sourceTitle: z.string(),
+  sourceStatus: z.enum(["open", "done"]),
+  targetWorkItemId: z.uuid(),
+  targetTitle: z.string(),
+  targetStatus: z.enum(["open", "done"]),
+  type: z.enum(["parent_of", "blocks"]),
+  state: z.enum(["active", "archived"]),
+  sourceLabel: z.literal("Manual local work relationship"),
+  createdAt: z.iso.datetime({ offset: true }),
+  archivedAt: z.iso.datetime({ offset: true }).nullable(),
+});
+
+export const listWorkItemRelationsQuerySchema = z.object({
+  direction: z.enum(["outgoing", "incoming"]),
+  limit: z.coerce.number().int().min(1).max(100).default(25),
+  cursor: z.uuid().optional(),
+});
+
+export const listWorkItemRelationsResponseSchema = z.object({
+  items: z.array(workItemRelationSchema),
+  nextCursor: z.uuid().nullable(),
+});
+
 export const knowledgeItemSchema = z.object({
   id: z.uuid(),
   projectId: z.uuid(),
@@ -772,6 +805,7 @@ export const evidenceReferenceSchema = z.object({
   kind: z.enum([
     "project",
     "work_item",
+    "work_item_relation",
     "knowledge_item",
     "decision",
     "resource",
@@ -1615,6 +1649,10 @@ export type CreateWorkItemCommentRequest = z.infer<
   typeof createWorkItemCommentRequestSchema
 >;
 export type WorkItemComment = z.infer<typeof workItemCommentSchema>;
+export type CreateWorkItemRelationRequest = z.infer<
+  typeof createWorkItemRelationRequestSchema
+>;
+export type WorkItemRelation = z.infer<typeof workItemRelationSchema>;
 export type KnowledgeItem = z.infer<typeof knowledgeItemSchema>;
 export type WorkspaceKnowledgeItem = z.infer<
   typeof workspaceKnowledgeItemSchema
