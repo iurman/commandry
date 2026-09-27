@@ -17,6 +17,7 @@ export function createRecordDetailRepository(db: CommandryDatabase) {
             sourceCaptureId: row.sourceCaptureId,
             title: row.title,
             description: row.description,
+            workType: row.workType,
             status: row.status,
             priority: row.priority,
             dueOn: row.dueOn,

@@ -73,6 +73,7 @@ export default function InboxPage() {
   const [captureFeedback, setCaptureFeedback] = useState<string | null>(null);
   const [projectId, setProjectId] = useState("");
   const [kind, setKind] = useState<FilingKind>("task");
+  const [workType, setWorkType] = useState<"task" | "initiative">("task");
   const [title, setTitle] = useState("");
   const [body, setBody] = useState("");
   const [filing, setFiling] = useState(false);
@@ -182,6 +183,7 @@ export default function InboxPage() {
           suggestionPrefilledFor.current !== review.suggestion.id
         ) {
           setKind(review.suggestion.kind);
+          setWorkType("task");
           setTitle(review.suggestion.title);
           setProjectId(review.suggestion.proposedProjectId ?? "");
           suggestionPrefilledFor.current = review.suggestion.id;
@@ -217,6 +219,7 @@ export default function InboxPage() {
     setDetail(null);
     setDetailError(null);
     setKind("task");
+    setWorkType("task");
     setTitle("");
     setBody("");
     setProjectId("");
@@ -423,6 +426,7 @@ export default function InboxPage() {
           body: JSON.stringify({
             projectId,
             kind,
+            ...(kind === "task" ? { workType } : {}),
             title: title.trim(),
             ...(body.trim() ? { body } : {}),
           }),
@@ -434,7 +438,10 @@ export default function InboxPage() {
           item.id === result.capture.id ? result.capture : item,
         ),
       );
-      setFilingFeedback(`Filed as a ${kind} in the selected project.`);
+      const filedType = kind === "task" ? workType : kind;
+      setFilingFeedback(
+        `Filed as ${filedType === "initiative" ? "an" : "a"} ${filedType} in the selected project.`,
+      );
     } catch (cause) {
       setFilingError(message(cause, "Could not file capture."));
     } finally {
@@ -744,10 +751,18 @@ export default function InboxPage() {
               {detail.state === "filed" && detail.filedRecord ? (
                 <div className="cmd-inbox-filed">
                   <p className="cmd-eyebrow">Connected record</p>
-                  <h3>Filed as {detail.filedRecord.kind}</h3>
+                  <h3>
+                    Filed as{" "}
+                    {detail.filedRecord.kind === "task"
+                      ? "Work"
+                      : detail.filedRecord.kind}
+                  </h3>
                   <p>
-                    The {detail.filedRecord.kind} links back to this unchanged
-                    capture.
+                    The{" "}
+                    {detail.filedRecord.kind === "task"
+                      ? "Work item"
+                      : detail.filedRecord.kind}{" "}
+                    links back to this unchanged capture.
                     {detail.filedAt ? ` Filed at ${detail.filedAt}.` : ""}
                   </p>
                   <p className="cmd-record-identity">
@@ -759,6 +774,13 @@ export default function InboxPage() {
                       href={`/projects/${encodeURIComponent(detail.projectId)}`}
                     >
                       Open {selectedProject?.name ?? "project"}
+                    </a>
+                  )}
+                  {detail.filedRecord.kind === "task" && (
+                    <a
+                      href={`/work-items/${encodeURIComponent(detail.filedRecord.id)}`}
+                    >
+                      Open saved Work item
                     </a>
                   )}
                   {(detail.filedRecord.kind === "link" ||
@@ -852,6 +874,29 @@ export default function InboxPage() {
                         </>
                       )}
                     </select>
+                    {kind === "task" && (
+                      <>
+                        <label htmlFor="file-work-type">Work type</label>
+                        <select
+                          id="file-work-type"
+                          onChange={(event) => {
+                            filingTouched.current = true;
+                            setWorkType(
+                              event.target.value as "task" | "initiative",
+                            );
+                          }}
+                          value={workType}
+                        >
+                          <option value="task">Task</option>
+                          <option value="initiative">Initiative</option>
+                        </select>
+                        <p className="cmd-form-hint">
+                          An initiative can organize tasks through the typed
+                          subtask relationship after filing. Subtasks keep their
+                          own original captures.
+                        </p>
+                      </>
+                    )}
                     <label htmlFor="file-title">
                       Title <span aria-hidden="true">*</span>
                     </label>
@@ -907,12 +952,15 @@ export default function InboxPage() {
                       type="submit"
                       variant="primary"
                     >
-                      {filing ? "Filing..." : `File as ${kind}`}
+                      {filing
+                        ? "Filing..."
+                        : `File as ${kind === "task" ? workType : kind}`}
                     </Button>
                     {triageReview?.suggestion &&
                       !triageReview.decision &&
                       kind !== "link" &&
-                      kind !== "document" && (
+                      kind !== "document" &&
+                      !(kind === "task" && workType === "initiative") && (
                         <Button
                           disabled={triageSaving || !projectId || !title.trim()}
                           onClick={() => reviewSuggestion("approve")}

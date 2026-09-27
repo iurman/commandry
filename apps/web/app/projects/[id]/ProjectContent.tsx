@@ -11,6 +11,7 @@ interface WorkItem {
   sourceCaptureId: string;
   title: string;
   description: string;
+  workType?: "task" | "initiative" | "subtask";
   status: "open" | "done";
   priority?: "low" | "normal" | "high" | null;
   dueOn?: string | null;
@@ -138,7 +139,9 @@ export default function ProjectContent({ projectId }: { projectId: string }) {
       <li className={styles.record} key={item.id}>
         <div className={styles.recordTop}>
           <strong>{item.title}</strong>
-          <span className={styles.meta}>{item.status}</span>
+          <span className={styles.meta}>
+            {item.workType ?? "task"} / {item.status}
+          </span>
         </div>
         {item.description && <p>{item.description}</p>}
         {item.contextLink && (
@@ -157,7 +160,9 @@ export default function ProjectContent({ projectId }: { projectId: string }) {
           </p>
         )}
         <div className={styles.recordActions}>
-          <a href={`/work-items/${encodeURIComponent(item.id)}`}>Open task</a>
+          <a href={`/work-items/${encodeURIComponent(item.id)}`}>
+            Open {item.workType ?? "task"}
+          </a>
           <a
             href={`/inbox?captureId=${encodeURIComponent(item.sourceCaptureId)}`}
           >

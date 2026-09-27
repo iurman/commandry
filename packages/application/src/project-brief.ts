@@ -131,7 +131,7 @@ export function assembleProjectBrief(
       id: item.id,
       kind: "work_item",
       title: item.title,
-      detail: `${workFactText(item.status)}. ${briefExcerpt(item.description)}${item.openBlockers?.length ? ` Blocked by ${item.openBlockers.map((blocker) => blocker.title).join(", ")}.` : ""}${item.attachedDocuments?.length ? ` Attached documents: ${item.attachedDocuments.map((document) => document.title).join(", ")}.` : ""}${item.acceptance ? ` Acceptance criteria v${item.acceptance.version}: ${briefExcerpt(item.acceptance.criteria)}. ${item.acceptance.latestReview ? `Manual local review ${item.acceptance.latestReview.result} with ${item.acceptance.latestReview.documentTitle}.` : "No current review recorded."}` : ""}`,
+      detail: `${item.workType === "initiative" ? "Initiative. " : item.workType === "subtask" ? "Subtask. " : ""}${workFactText(item.status)}. ${briefExcerpt(item.description)}${item.openBlockers?.length ? ` Blocked by ${item.openBlockers.map((blocker) => blocker.title).join(", ")}.` : ""}${item.attachedDocuments?.length ? ` Attached documents: ${item.attachedDocuments.map((document) => document.title).join(", ")}.` : ""}${item.acceptance ? ` Acceptance criteria v${item.acceptance.version}: ${briefExcerpt(item.acceptance.criteria)}. ${item.acceptance.latestReview ? `Manual local review ${item.acceptance.latestReview.result} with ${item.acceptance.latestReview.documentTitle}.` : "No current review recorded."}` : ""}`,
       evidence: [
         evidence(
           "work_item",

@@ -8,6 +8,7 @@ import {
   Button,
   RecordEmptyState,
   UpcomingWorkCard,
+  WorkTypeBadge,
 } from "@commandry/ui";
 import { apiJson, pagePath, type PageResponse } from "../projects/api";
 
@@ -255,9 +256,10 @@ export default function WorkWorkspace({
               <li key={item.id}>
                 <article className="cmd-record-card">
                   <div className="cmd-record-topline">
-                    <span className="cmd-record-kind">
-                      Local task / {item.status}
-                    </span>
+                    <WorkTypeBadge
+                      type={item.workType ?? "task"}
+                      status={item.status}
+                    />
                     <span className="cmd-count">
                       {item.priority
                         ? `${item.priority} priority`

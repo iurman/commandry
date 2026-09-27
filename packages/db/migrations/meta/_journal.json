@@ -232,6 +232,13 @@
       "when": 1790483329840,
       "tag": "0032_amazing_deathstrike",
       "breakpoints": true
+    },
+    {
+      "idx": 33,
+      "version": "7",
+      "when": 1790484979313,
+      "tag": "0033_spicy_wind_dancer",
+      "breakpoints": true
     }
   ]
 }

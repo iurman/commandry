@@ -6,6 +6,7 @@ export class WorkRelationError extends Error {
       | "RELATION_SELF"
       | "RELATION_EXISTS"
       | "PARENT_EXISTS"
+      | "INITIATIVE_CANNOT_BE_CHILD"
       | "RELATION_CYCLE"
       | "RELATION_NOT_FOUND"
       | "RELATION_ARCHIVED",

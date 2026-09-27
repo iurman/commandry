@@ -7,7 +7,13 @@ import { apiJson, pagePath, type PageResponse } from "../../projects/api";
 
 type Direction = "incoming" | "outgoing";
 type Mode = "parent" | "child" | "blocked_by" | "blocks";
-type Choice = { id: string; title: string; status: "open" | "done" };
+type Choice = {
+  id: string;
+  projectId: string;
+  title: string;
+  workType?: "task" | "initiative" | "subtask";
+  status: "open" | "done";
+};
 
 function relationPath(
   workItemId: string,
@@ -26,9 +32,13 @@ function message(cause: unknown, fallback: string) {
 export default function WorkRelationships({
   workItemId,
   projectId,
+  workType,
+  onStructureChanged,
 }: {
   workItemId: string;
   projectId: string;
+  workType: "task" | "initiative" | "subtask";
+  onStructureChanged: () => Promise<void>;
 }) {
   const [incoming, setIncoming] = useState<WorkItemRelation[]>([]);
   const [outgoing, setOutgoing] = useState<WorkItemRelation[]>([]);
@@ -36,7 +46,9 @@ export default function WorkRelationships({
   const [outgoingCursor, setOutgoingCursor] = useState<string | null>(null);
   const [choices, setChoices] = useState<Choice[]>([]);
   const [choiceCursor, setChoiceCursor] = useState<string | null>(null);
-  const [mode, setMode] = useState<Mode>("parent");
+  const [mode, setMode] = useState<Mode>(
+    workType === "initiative" ? "child" : "parent",
+  );
   const [selectedId, setSelectedId] = useState("");
   const [busy, setBusy] = useState(false);
   const [loadingMore, setLoadingMore] = useState<Direction | "choices" | null>(
@@ -64,7 +76,11 @@ export default function WorkRelationships({
         setIncomingCursor(incomingPage.nextCursor);
         setOutgoing(outgoingPage.items);
         setOutgoingCursor(outgoingPage.nextCursor);
-        setChoices(choicePage.items.filter((item) => item.id !== workItemId));
+        setChoices(
+          choicePage.items.filter(
+            (item) => item.id !== workItemId && item.projectId === projectId,
+          ),
+        );
         setChoiceCursor(choicePage.nextCursor);
       })
       .catch((cause: unknown) => {
@@ -74,7 +90,7 @@ export default function WorkRelationships({
     return () => {
       active = false;
     };
-  }, [workItemId, choicesPath]);
+  }, [workItemId, projectId, choicesPath]);
 
   async function refresh() {
     const [incomingPage, outgoingPage] = await Promise.all([
@@ -111,6 +127,7 @@ export default function WorkRelationships({
           ...page.items.filter(
             (item) =>
               item.id !== workItemId &&
+              item.projectId === projectId &&
               !current.some((saved) => saved.id === item.id),
           ),
         ]);
@@ -157,6 +174,7 @@ export default function WorkRelationships({
         }),
       });
       await refresh();
+      await onStructureChanged();
       setSelectedId("");
       setFeedback("Work relationship saved and audited.");
     } catch (cause) {
@@ -177,6 +195,7 @@ export default function WorkRelationships({
         { method: "DELETE" },
       );
       await refresh();
+      await onStructureChanged();
       setFeedback(
         "Work relationship removed from active context. Its audit history remains.",
       );
@@ -199,9 +218,9 @@ export default function WorkRelationships({
       <p className="cmd-eyebrow">Project work graph / Manual local links</p>
       <h2 id="work-relations-heading">Subtasks and blockers</h2>
       <p>
-        Relate tasks already filed in this project. A subtask has one active
-        parent. Blocking links affect overnight readiness while the blocker is
-        open.
+        Relate Work records whose primary project is this project. A subtask has
+        one active parent. Blocking links affect overnight readiness while the
+        blocker is open.
       </p>
       {openBlockers.length > 0 && (
         <p role="status">
@@ -214,14 +233,17 @@ export default function WorkRelationships({
         <select
           id="work-relation-mode"
           value={mode}
-          onChange={(event) => setMode(event.target.value as Mode)}
+          onChange={(event) => {
+            setMode(event.target.value as Mode);
+            setSelectedId("");
+          }}
         >
-          <option value="parent">
-            This task is a subtask of selected task
+          <option value="parent" disabled={workType === "initiative"}>
+            This Work item is a subtask of selected item
           </option>
-          <option value="child">Selected task is a subtask of this task</option>
-          <option value="blocked_by">Selected task blocks this task</option>
-          <option value="blocks">This task blocks selected task</option>
+          <option value="child">Selected item is a subtask of this item</option>
+          <option value="blocked_by">Selected item blocks this item</option>
+          <option value="blocks">This item blocks selected item</option>
         </select>
         <label htmlFor="work-relation-choice">Project task</label>
         <select
@@ -229,12 +251,16 @@ export default function WorkRelationships({
           value={selectedId}
           onChange={(event) => setSelectedId(event.target.value)}
         >
-          <option value="">Select a task</option>
-          {choices.map((choice) => (
-            <option key={choice.id} value={choice.id}>
-              {choice.title} ({choice.status})
-            </option>
-          ))}
+          <option value="">Select a Work item</option>
+          {choices
+            .filter(
+              (choice) => mode !== "child" || choice.workType !== "initiative",
+            )
+            .map((choice) => (
+              <option key={choice.id} value={choice.id}>
+                {choice.title} ({choice.workType ?? "task"}, {choice.status})
+              </option>
+            ))}
         </select>
         {choiceCursor && (
           <Button

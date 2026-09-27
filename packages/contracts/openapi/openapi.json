@@ -12493,6 +12493,13 @@
               "document"
             ]
           },
+          "workType": {
+            "type": "string",
+            "enum": [
+              "task",
+              "initiative"
+            ]
+          },
           "title": {
             "type": "string",
             "minLength": 1,
@@ -12689,6 +12696,14 @@
                   },
                   "description": {
                     "type": "string"
+                  },
+                  "workType": {
+                    "type": "string",
+                    "enum": [
+                      "task",
+                      "initiative",
+                      "subtask"
+                    ]
                   },
                   "status": {
                     "type": "string",
@@ -13666,6 +13681,14 @@
                       "description": {
                         "type": "string"
                       },
+                      "workType": {
+                        "type": "string",
+                        "enum": [
+                          "task",
+                          "initiative",
+                          "subtask"
+                        ]
+                      },
                       "status": {
                         "type": "string",
                         "enum": [
@@ -13919,6 +13942,14 @@
           "description": {
             "type": "string"
           },
+          "workType": {
+            "type": "string",
+            "enum": [
+              "task",
+              "initiative",
+              "subtask"
+            ]
+          },
           "status": {
             "type": "string",
             "enum": [
@@ -14032,6 +14063,14 @@
           },
           "description": {
             "type": "string"
+          },
+          "workType": {
+            "type": "string",
+            "enum": [
+              "task",
+              "initiative",
+              "subtask"
+            ]
           },
           "status": {
             "type": "string",
@@ -14156,6 +14195,14 @@
                 },
                 "description": {
                   "type": "string"
+                },
+                "workType": {
+                  "type": "string",
+                  "enum": [
+                    "task",
+                    "initiative",
+                    "subtask"
+                  ]
                 },
                 "status": {
                   "type": "string",
@@ -14546,6 +14593,14 @@
                 },
                 "description": {
                   "type": "string"
+                },
+                "workType": {
+                  "type": "string",
+                  "enum": [
+                    "task",
+                    "initiative",
+                    "subtask"
+                  ]
                 },
                 "status": {
                   "type": "string",
@@ -20385,6 +20440,14 @@
                 "description": {
                   "type": "string"
                 },
+                "workType": {
+                  "type": "string",
+                  "enum": [
+                    "task",
+                    "initiative",
+                    "subtask"
+                  ]
+                },
                 "status": {
                   "type": "string",
                   "enum": [
@@ -20637,6 +20700,8 @@
             "enum": [
               "capture",
               "task",
+              "initiative",
+              "subtask",
               "note",
               "link",
               "document",
@@ -20719,6 +20784,8 @@
                   "enum": [
                     "capture",
                     "task",
+                    "initiative",
+                    "subtask",
                     "note",
                     "link",
                     "document",
@@ -22888,6 +22955,14 @@
               "description": {
                 "type": "string"
               },
+              "workType": {
+                "type": "string",
+                "enum": [
+                  "task",
+                  "initiative",
+                  "subtask"
+                ]
+              },
               "status": {
                 "type": "string",
                 "enum": [
@@ -23761,6 +23836,14 @@
                   },
                   "description": {
                     "type": "string"
+                  },
+                  "workType": {
+                    "type": "string",
+                    "enum": [
+                      "task",
+                      "initiative",
+                      "subtask"
+                    ]
                   },
                   "status": {
                     "type": "string",
@@ -24654,6 +24737,14 @@
                         },
                         "description": {
                           "type": "string"
+                        },
+                        "workType": {
+                          "type": "string",
+                          "enum": [
+                            "task",
+                            "initiative",
+                            "subtask"
+                          ]
                         },
                         "status": {
                           "type": "string",

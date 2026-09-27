@@ -469,6 +469,7 @@ export const listCapturesResponseSchema = z.object({
 export const fileCaptureRequestSchema = z.object({
   projectId: z.uuid(),
   kind: z.enum(["task", "note", "link", "document"]),
+  workType: z.enum(["task", "initiative"]).optional(),
   title: z.string().trim().min(1).max(200),
   body: z.string().max(20_000).optional(),
 });
@@ -479,6 +480,7 @@ export const workItemSchema = z.object({
   sourceCaptureId: z.uuid(),
   title: z.string(),
   description: z.string(),
+  workType: z.enum(["task", "initiative", "subtask"]).optional(),
   status: z.enum(["open", "done"]),
   priority: z.enum(["low", "normal", "high"]).nullable().optional(),
   dueOn: z.iso.date().nullable().optional(),
@@ -1029,6 +1031,8 @@ export const searchResultSchema = z.object({
   kind: z.enum([
     "capture",
     "task",
+    "initiative",
+    "subtask",
     "note",
     "link",
     "document",
@@ -1583,6 +1587,7 @@ export const executionPacketSnapshotSchema = z.object({
   objective: z.object({
     title: z.string().min(1),
     description: z.string(),
+    workType: z.enum(["task", "initiative", "subtask"]).optional(),
     status: z.enum(["open", "done"]),
     evidence: z.array(evidenceReferenceSchema).min(2),
   }),

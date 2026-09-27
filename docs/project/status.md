@@ -102,7 +102,7 @@ authentication is complete. There is no production deployment.
   knowledge links while preserving the original URL; the navigable link omits
   query and fragment text. Links appear in project and global Knowledge,
   search, live briefs, and packet selection. No captured URL is fetched by
-  this local flow. Broader work types remain to be implemented.
+  this local flow. Recurring work definitions remain to be implemented.
 - The Inbox accepts bounded local files and preserves exact bytes, original
   metadata, and a SHA-256 digest in PostgreSQL. A file can be filed as a
   project Knowledge document; its editable context remains separate from the
@@ -133,7 +133,14 @@ authentication is complete. There is no production deployment.
   cycle prevention, audit-preserving archive, cursor-paged inverse views, and
   a responsive editor. Open blockers appear with exact relationship evidence
   in live briefs and pause local overnight readiness. Cross-project task
-  dependencies, initiatives and larger file handling remain open.
+  dependencies and larger file handling remain open.
+- Work records can be filed from an original capture as tasks or initiatives.
+  An active `parent_of` relation derives the subtask type and unlinking returns
+  it to task; existing parent links are backfilled. Lists, details, scoped
+  search, live briefs, and new packets show the type, while old packets keep
+  their saved snapshot.
+  The primary project bounds hierarchy links, and the local type semantics
+  remain provisional under OQ-024.
 - Semantic CSS tokens, accessible responsive components, and representative
   Storybook states exist in the local-only lab. The lab is excluded from the
   production image.

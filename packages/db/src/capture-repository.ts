@@ -55,6 +55,7 @@ function workRecord(
     sourceCaptureId: row.sourceCaptureId,
     title: row.title,
     description: row.description,
+    workType: row.workType,
     status: row.status,
     priority: row.priority,
     dueOn: row.dueOn,
@@ -119,6 +120,8 @@ type SearchRow = {
   kind:
     | "capture"
     | "task"
+    | "initiative"
+    | "subtask"
     | "note"
     | "link"
     | "document"
@@ -204,6 +207,7 @@ export function createCaptureRepository(db: CommandryDatabase) {
       projectId: string;
       title: string;
       description: string;
+      workType?: "task" | "initiative" | undefined;
     }) {
       return db.transaction(async (tx) => {
         const [updated] = await tx
@@ -233,6 +237,7 @@ export function createCaptureRepository(db: CommandryDatabase) {
             sourceCaptureId: input.captureId,
             title: input.title,
             description: input.description,
+            workType: input.workType ?? "task",
           })
           .returning();
         if (!record) throw new Error("Work item insert returned no row");
@@ -663,7 +668,7 @@ export function createCaptureRepository(db: CommandryDatabase) {
           inner join capture on capture.id = capture_file.capture_id
           where to_tsvector('simple', capture_file.original_name) @@ websearch_to_tsquery('simple', ${input.q})
           union all
-          select id, 'task'::text as kind, ${input.projectId ? sql`${input.projectId}::uuid` : sql`project_id`} as project_id, title,
+          select id, work_type::text as kind, ${input.projectId ? sql`${input.projectId}::uuid` : sql`project_id`} as project_id, title,
             left(description, 220) as excerpt, source_capture_id, null::uuid as target_id, created_at
           from work_item
           where to_tsvector('simple', title || ' ' || description) @@ websearch_to_tsquery('simple', ${input.q})
@@ -738,7 +743,9 @@ export function createCaptureRepository(db: CommandryDatabase) {
                     ? `/systems/${row.id}`
                     : row.kind === "project"
                       ? `/projects/${row.id}`
-                      : row.kind === "task"
+                      : row.kind === "task" ||
+                          row.kind === "initiative" ||
+                          row.kind === "subtask"
                         ? `/work-items/${row.id}`
                         : row.kind === "comment"
                           ? `/work-items/${row.target_id}#discussion`

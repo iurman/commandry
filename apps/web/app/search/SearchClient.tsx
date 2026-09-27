@@ -2,6 +2,7 @@
 
 import { useEffect, useRef, useState, type FormEvent } from "react";
 import { AppShell, Button, RecordEmptyState } from "@commandry/ui";
+import type { SearchResult } from "@commandry/contracts";
 import {
   apiJson,
   pagePath,
@@ -9,17 +10,6 @@ import {
   type ProjectRecord,
 } from "../projects/api";
 import styles from "./search.module.css";
-
-interface SearchResult {
-  id: string;
-  kind: "project" | "resource" | "capture" | "task" | "note" | "decision";
-  title: string;
-  excerpt: string;
-  href: string;
-  projectId: string | null;
-  sourceCaptureId: string | null;
-  createdAt: string;
-}
 
 function searchPath(query: string, projectId: string, cursor?: string | null) {
   const params = new URLSearchParams({ q: query, limit: "20" });

@@ -3,6 +3,19 @@ export type ManualCaptureInputType = "text" | "url";
 export const MANUAL_CAPTURE_SOURCE = "manual-local" as const;
 export const MANUAL_CAPTURE_AUTHOR = "local-user" as const;
 
+export function validateWorkFilingType(
+  kind: "task" | "note" | "link" | "document",
+  workType: "task" | "initiative" | undefined,
+): "task" | "initiative" {
+  if (workType && kind !== "task") {
+    throw new CaptureError(
+      "CAPTURE_KIND_INVALID",
+      "Only a Work capture may select a Work type",
+    );
+  }
+  return workType ?? "task";
+}
+
 export function validateOriginalCaptureContent(
   inputType: ManualCaptureInputType,
   originalContent: string,

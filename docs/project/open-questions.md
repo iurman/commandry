@@ -143,3 +143,13 @@ execution packets, direct agent work reads, and approval policy should treat
 secondary context. For now those operations remain owned by the primary
 project. A related project's brief includes the shared task, so its authorized
 brief readers can see that context; the link itself grants no capability.
+
+### OQ-024: What distinct workflow should initiatives and subtasks have?
+
+The local MVP files initiatives from original captures and derives a subtask
+type from one active, project-scoped parent relationship. It currently permits
+the same status, planning fields, packet creation, and fake local run path as a
+task. Validate whether initiative completion should depend on child work,
+whether initiatives should ever be executable, how reparenting should behave,
+and whether hierarchy may span secondary project context. The local type is a
+work organization aid, not a settled execution policy.

@@ -715,6 +715,9 @@ export const workItem = pgTable(
       .references(() => capture.id, { onDelete: "restrict" }),
     title: text("title").notNull(),
     description: text("description").notNull(),
+    workType: text("work_type", { enum: ["task", "initiative", "subtask"] })
+      .notNull()
+      .default("task"),
     status: text("status", { enum: ["open", "done"] })
       .notNull()
       .default("open"),
@@ -734,6 +737,10 @@ export const workItem = pgTable(
       sql`to_tsvector('simple', ${table.title} || ' ' || ${table.description})`,
     ),
     check("work_item_title_nonempty", sql`length(trim(${table.title})) > 0`),
+    check(
+      "work_item_type_valid",
+      sql`${table.workType} in ('task', 'initiative', 'subtask')`,
+    ),
     check("work_item_status_valid", sql`${table.status} in ('open', 'done')`),
     check(
       "work_item_priority_valid",

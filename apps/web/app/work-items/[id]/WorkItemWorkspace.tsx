@@ -22,6 +22,7 @@ interface WorkItemRecord {
   sourceCaptureId: string;
   title: string;
   description: string;
+  workType?: "task" | "initiative" | "subtask";
   status: "open" | "done";
   priority?: "low" | "normal" | "high" | null;
   dueOn?: string | null;
@@ -121,6 +122,14 @@ export default function WorkItemWorkspace({
   const planningPath = `/api/v1/work-items/${encodeURIComponent(workItemId)}/planning`;
   const planningHistoryPath = `/api/v1/work-items/${encodeURIComponent(workItemId)}/planning-events`;
   const currentItemId = item?.id;
+
+  async function refreshWorkRecord() {
+    setItem(
+      await apiJson<WorkItemRecord>(
+        `/api/v1/work-items/${encodeURIComponent(workItemId)}`,
+      ),
+    );
+  }
 
   useEffect(() => {
     let active = true;
@@ -461,7 +470,9 @@ export default function WorkItemWorkspace({
         <>
           <header className="cmd-page-header cmd-workspace-heading">
             <div>
-              <p className="cmd-eyebrow">Project work / Filed task</p>
+              <p className="cmd-eyebrow">
+                Project work / Filed {item.workType ?? "task"}
+              </p>
               <h1>{item.title}</h1>
               <p className="cmd-lead">
                 This saved task links to the original capture that motivated it.
@@ -475,7 +486,11 @@ export default function WorkItemWorkspace({
               aria-labelledby="work-body-heading"
             >
               <p className="cmd-eyebrow">Saved work</p>
-              <h2 id="work-body-heading">Task description</h2>
+              <h2 id="work-body-heading">
+                {item.workType === "initiative"
+                  ? "Initiative description"
+                  : "Task description"}
+              </h2>
               {item.description ? (
                 <div className="cmd-detail-body">{item.description}</div>
               ) : (
@@ -542,7 +557,12 @@ export default function WorkItemWorkspace({
             workItemId={item.id}
             primaryProjectId={item.projectId}
           />
-          <WorkRelationships workItemId={item.id} projectId={item.projectId} />
+          <WorkRelationships
+            workItemId={item.id}
+            projectId={item.projectId}
+            workType={item.workType ?? "task"}
+            onStructureChanged={refreshWorkRecord}
+          />
           <WorkAttachments workItemId={item.id} projectId={item.projectId} />
           <WorkAcceptance workItemId={item.id} status={item.status} />
           <WorkDiscussion workItemId={item.id} />
@@ -649,7 +669,11 @@ export default function WorkItemWorkspace({
             aria-labelledby="work-status-heading"
           >
             <p className="cmd-eyebrow">Local work state / Audited</p>
-            <h2 id="work-status-heading">Task status</h2>
+            <h2 id="work-status-heading">
+              {item.workType === "initiative"
+                ? "Initiative status"
+                : "Task status"}
+            </h2>
             <p>
               Current status: <strong>{item.status}</strong>. Changing it
               updates the live project brief; existing execution packets keep

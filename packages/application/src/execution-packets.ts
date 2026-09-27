@@ -117,6 +117,7 @@ export function buildExecutionPacketContents(
     objective: {
       title: task.title,
       description: task.description,
+      workType: task.workType ?? "task",
       status: task.status,
       evidence: [
         evidence(

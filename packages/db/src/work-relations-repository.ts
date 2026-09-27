@@ -53,6 +53,11 @@ function mappedError(cause: unknown): WorkRelationError | null {
         "CROSS_PROJECT",
         "Work relationships must stay within one project",
       );
+    if (detail.message.includes("An initiative cannot be linked as a subtask"))
+      return new WorkRelationError(
+        "INITIATIVE_CANNOT_BE_CHILD",
+        "An initiative cannot be linked as a subtask",
+      );
     current = detail.cause;
   }
   return null;
@@ -106,6 +111,11 @@ export function createWorkRelationsRepository(db: CommandryDatabase) {
             throw new WorkRelationError(
               "CROSS_PROJECT",
               "Work relationships must stay within one project",
+            );
+          if (input.type === "parent_of" && target.workType === "initiative")
+            throw new WorkRelationError(
+              "INITIATIVE_CANNOT_BE_CHILD",
+              "An initiative cannot be linked as a subtask",
             );
           const [row] = await tx
             .insert(workItemRelation)

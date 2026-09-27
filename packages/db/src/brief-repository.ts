@@ -365,6 +365,7 @@ export function createBriefRepository(db: CommandryDatabase) {
                 sourceCaptureId: item.sourceCaptureId,
                 title: item.title,
                 description: item.description,
+                workType: item.workType,
                 status: item.status,
                 priority: item.priority,
                 dueOn: item.dueOn,

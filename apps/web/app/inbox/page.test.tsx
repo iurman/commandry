@@ -74,6 +74,7 @@ describe("Inbox", () => {
       if (path.startsWith(`/api/v1/captures/${captureId}/file`)) {
         const request = JSON.parse(String(init?.body)) as {
           kind: string;
+          workType: string;
           projectId: string;
           title: string;
           body: string;
@@ -81,6 +82,7 @@ describe("Inbox", () => {
         expect(request).toEqual({
           projectId,
           kind: "task",
+          workType: "task",
           title: "Inspect stale jobs",
           body: "Check scheduled deployment jobs before cleanup.",
         });
@@ -147,7 +149,7 @@ describe("Inbox", () => {
       screen.getByRole("button", { name: "File as task" }).closest("form")!,
     );
 
-    expect(await screen.findByText("Filed as task")).toBeTruthy();
+    expect(await screen.findByText("Filed as Work")).toBeTruthy();
     expect(source.querySelector("pre")?.textContent).toBe(exactOriginal);
     expect(
       screen
@@ -157,7 +159,7 @@ describe("Inbox", () => {
 
     view.unmount();
     render(<InboxPage />);
-    expect(await screen.findByText("Filed as task")).toBeTruthy();
+    expect(await screen.findByText("Filed as Work")).toBeTruthy();
     expect(
       screen
         .getByRole("article", { name: "Original input" })
