@@ -274,6 +274,13 @@
       "when": 1790495549802,
       "tag": "0038_smooth_pepper_potts",
       "breakpoints": true
+    },
+    {
+      "idx": 39,
+      "version": "7",
+      "when": 1790496441944,
+      "tag": "0039_cold_sway",
+      "breakpoints": true
     }
   ]
 }

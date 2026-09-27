@@ -596,7 +596,12 @@ export function createCaptureRepository(db: CommandryDatabase) {
           rows.length > input.limit ? (page.at(-1)?.item.id ?? null) : null,
       };
     },
-    async listKnowledge(input: PageQuery & { projectId?: string | undefined }) {
+    async listKnowledge(
+      input: PageQuery & {
+        projectId?: string | undefined;
+        kind?: typeof knowledgeItem.$inferSelect.kind | undefined;
+      },
+    ) {
       const [anchor] = input.cursor
         ? await db
             .select({ createdAt: knowledgeItem.createdAt })
@@ -604,6 +609,7 @@ export function createCaptureRepository(db: CommandryDatabase) {
             .where(
               and(
                 eq(knowledgeItem.id, input.cursor),
+                input.kind ? eq(knowledgeItem.kind, input.kind) : undefined,
                 input.projectId
                   ? or(
                       eq(knowledgeItem.projectId, input.projectId),
@@ -641,6 +647,7 @@ export function createCaptureRepository(db: CommandryDatabase) {
                   isNotNull(knowledgeProjectLink.id),
                 )
               : undefined,
+            input.kind ? eq(knowledgeItem.kind, input.kind) : undefined,
             anchor
               ? sql`(${knowledgeItem.createdAt}, ${knowledgeItem.id}) < (${anchor.createdAt}, ${input.cursor}::uuid)`
               : undefined,

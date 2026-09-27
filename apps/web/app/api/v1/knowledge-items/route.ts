@@ -1,7 +1,7 @@
 import { loadRuntimeConfig } from "@commandry/config";
 import {
   listWorkspaceKnowledgeResponseSchema,
-  listWorkspaceRecordsQuerySchema,
+  listWorkspaceKnowledgeQuerySchema,
 } from "@commandry/contracts";
 import { captureFailure, getCaptureService } from "../../../../lib/capture";
 import { jsonResponse } from "../../../../lib/http";
@@ -11,7 +11,7 @@ export const dynamic = "force-dynamic";
 
 export async function GET(request: Request): Promise<Response> {
   loadRuntimeConfig();
-  const query = listWorkspaceRecordsQuerySchema.safeParse(
+  const query = listWorkspaceKnowledgeQuerySchema.safeParse(
     Object.fromEntries(new URL(request.url).searchParams),
   );
   if (!query.success) {

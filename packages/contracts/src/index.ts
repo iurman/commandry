@@ -953,6 +953,79 @@ export const knowledgeItemSchema = z.object({
   updatedAt: z.iso.datetime({ offset: true }),
 });
 
+export const listWorkspaceKnowledgeQuerySchema =
+  listWorkspaceRecordsQuerySchema.extend({
+    kind: knowledgeItemSchema.shape.kind.optional(),
+  });
+
+export const savedViewDefinitionSchema = z.discriminatedUnion("surface", [
+  z.strictObject({
+    surface: z.literal("work"),
+    projectId: z.uuid().nullable(),
+    presentation: z.enum(["list", "board"]),
+    status: z.enum(["all", "open", "done"]),
+    priority: z.enum(["all", "low", "normal", "high", "unset"]),
+    assignee: z.enum(["all", "unassigned", "local_user", "agent"]),
+    due: z.enum(["all", "overdue", "today", "upcoming", "undated"]),
+  }),
+  z.strictObject({
+    surface: z.literal("knowledge"),
+    projectId: z.uuid().nullable(),
+    kind: z.union([z.literal("all"), knowledgeItemSchema.shape.kind]),
+  }),
+]);
+
+export const createSavedViewRequestSchema = z.strictObject({
+  name: z.string().trim().min(1).max(80),
+  definition: savedViewDefinitionSchema,
+});
+
+export const updateSavedViewRequestSchema = createSavedViewRequestSchema.extend(
+  {
+    expectedVersion: z.number().int().positive(),
+  },
+);
+
+export const archiveSavedViewRequestSchema = z.strictObject({
+  expectedVersion: z.number().int().positive(),
+});
+
+export const savedViewSchema = createSavedViewRequestSchema.extend({
+  id: z.uuid(),
+  surface: z.enum(["work", "knowledge"]),
+  version: z.number().int().positive(),
+  actor: z.literal("local-user:unattributed"),
+  lifecycle: z.enum(["active", "archived"]),
+  createdAt: z.iso.datetime({ offset: true }),
+  updatedAt: z.iso.datetime({ offset: true }),
+  archivedAt: z.iso.datetime({ offset: true }).nullable(),
+});
+
+export const listSavedViewsQuerySchema = listResourcesQuerySchema.extend({
+  surface: z.enum(["work", "knowledge"]),
+});
+
+export const listSavedViewsResponseSchema = z.object({
+  items: z.array(savedViewSchema),
+  nextCursor: z.uuid().nullable(),
+});
+
+export const savedViewAuditEventSchema = z.object({
+  id: z.uuid(),
+  savedViewId: z.uuid(),
+  actor: z.literal("local-user:unattributed"),
+  operation: z.enum(["created", "updated", "archived"]),
+  version: z.number().int().positive(),
+  name: z.string(),
+  definition: savedViewDefinitionSchema,
+  createdAt: z.iso.datetime({ offset: true }),
+});
+
+export const listSavedViewAuditResponseSchema = z.object({
+  items: z.array(savedViewAuditEventSchema),
+  nextCursor: z.uuid().nullable(),
+});
+
 export const createKnowledgeProjectLinkRequestSchema = z.strictObject({
   projectId: z.uuid(),
 });
@@ -2479,6 +2552,9 @@ export type WorkItemAcceptanceRevision = z.infer<
 >;
 export type WorkItemVerification = z.infer<typeof workItemVerificationSchema>;
 export type KnowledgeItem = z.infer<typeof knowledgeItemSchema>;
+export type SavedViewDefinition = z.infer<typeof savedViewDefinitionSchema>;
+export type SavedView = z.infer<typeof savedViewSchema>;
+export type SavedViewAuditEvent = z.infer<typeof savedViewAuditEventSchema>;
 export type CreateKnowledgeProjectLinkRequest = z.infer<
   typeof createKnowledgeProjectLinkRequestSchema
 >;

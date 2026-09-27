@@ -28,6 +28,9 @@ export type CaptureSearchQuery = CapturePageQuery & {
 export type WorkspaceRecordQuery = CapturePageQuery & {
   projectId?: string | undefined;
 };
+export type WorkspaceKnowledgeQuery = WorkspaceRecordQuery & {
+  kind?: KnowledgeItem["kind"] | undefined;
+};
 export type WorkspaceWorkQuery = WorkspaceRecordQuery & {
   status?: "open" | "done" | undefined;
   priority?: "low" | "normal" | "high" | "unset" | undefined;
@@ -82,7 +85,7 @@ export interface CaptureRepository {
   ): Promise<CapturePage<KnowledgeItem>>;
   listWork(query: WorkspaceWorkQuery): Promise<CapturePage<WorkspaceWorkItem>>;
   listKnowledge(
-    query: WorkspaceRecordQuery,
+    query: WorkspaceKnowledgeQuery,
   ): Promise<CapturePage<WorkspaceKnowledgeItem>>;
   search(query: CaptureSearchQuery): Promise<CapturePage<SearchResult>>;
 }
@@ -198,7 +201,7 @@ export function createCaptureService(repository: CaptureRepository) {
     listWork(query: WorkspaceWorkQuery) {
       return repository.listWork(query);
     },
-    listKnowledge(query: WorkspaceRecordQuery) {
+    listKnowledge(query: WorkspaceKnowledgeQuery) {
       return repository.listKnowledge(query);
     },
     search(query: CaptureSearchQuery) {

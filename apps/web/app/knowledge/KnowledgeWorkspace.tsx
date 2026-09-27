@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from "react";
 import type {
+  SavedViewDefinition,
   WorkspaceDecision,
   WorkspaceKnowledgeItem,
 } from "@commandry/contracts";
@@ -12,9 +13,11 @@ import {
   KnowledgeDocumentCard,
   KnowledgeLinkCard,
   KnowledgeTypeBadge,
+  knowledgeTypeLabel,
   RecordEmptyState,
 } from "@commandry/ui";
 import { apiJson, type PageResponse } from "../projects/api";
+import SavedViewControls from "../components/SavedViewControls";
 
 const notesPath = "/api/v1/knowledge-items";
 const decisionsPath = "/api/v1/decisions";
@@ -23,18 +26,38 @@ function workspacePagePath(
   path: string,
   projectId: string | null,
   cursor?: string | null,
+  kind?: WorkspaceKnowledgeItem["kind"] | "all",
 ) {
   const params = new URLSearchParams({ limit: "20" });
   if (projectId) params.set("projectId", projectId);
   if (cursor) params.set("cursor", cursor);
+  if (kind && kind !== "all") params.set("kind", kind);
   return `${path}?${params}`;
 }
+
+const knowledgeKinds: WorkspaceKnowledgeItem["kind"][] = [
+  "note",
+  "idea",
+  "research",
+  "requirement",
+  "architecture_note",
+  "runbook",
+  "meeting_note",
+  "lesson_learned",
+  "instruction",
+  "link",
+  "document",
+];
 
 export default function KnowledgeWorkspace({
   projectId,
 }: {
   projectId: string | null;
 }) {
+  const [activeProjectId, setActiveProjectId] = useState(projectId);
+  const [kind, setKind] = useState<WorkspaceKnowledgeItem["kind"] | "all">(
+    "all",
+  );
   const [notes, setNotes] = useState<WorkspaceKnowledgeItem[]>([]);
   const [decisions, setDecisions] = useState<WorkspaceDecision[]>([]);
   const [notesCursor, setNotesCursor] = useState<string | null>(null);
@@ -49,10 +72,10 @@ export default function KnowledgeWorkspace({
     let active = true;
     Promise.all([
       apiJson<PageResponse<WorkspaceKnowledgeItem>>(
-        workspacePagePath(notesPath, projectId),
+        workspacePagePath(notesPath, activeProjectId, undefined, kind),
       ),
       apiJson<PageResponse<WorkspaceDecision>>(
-        workspacePagePath(decisionsPath, projectId),
+        workspacePagePath(decisionsPath, activeProjectId),
       ),
     ])
       .then(([notePage, decisionPage]) => {
@@ -77,23 +100,23 @@ export default function KnowledgeWorkspace({
     return () => {
       active = false;
     };
-  }, [projectId]);
+  }, [activeProjectId, kind]);
 
-  async function loadMore(kind: "notes" | "decisions") {
-    const cursor = kind === "notes" ? notesCursor : decisionsCursor;
+  async function loadMore(section: "notes" | "decisions") {
+    const cursor = section === "notes" ? notesCursor : decisionsCursor;
     if (!cursor || loadingMore) return;
-    setLoadingMore(kind);
+    setLoadingMore(section);
     setError(null);
     try {
-      if (kind === "notes") {
+      if (section === "notes") {
         const page = await apiJson<PageResponse<WorkspaceKnowledgeItem>>(
-          workspacePagePath(notesPath, projectId, cursor),
+          workspacePagePath(notesPath, activeProjectId, cursor, kind),
         );
         setNotes((current) => [...current, ...page.items]);
         setNotesCursor(page.nextCursor);
       } else {
         const page = await apiJson<PageResponse<WorkspaceDecision>>(
-          workspacePagePath(decisionsPath, projectId, cursor),
+          workspacePagePath(decisionsPath, activeProjectId, cursor),
         );
         setDecisions((current) => [...current, ...page.items]);
         setDecisionsCursor(page.nextCursor);
@@ -107,6 +130,30 @@ export default function KnowledgeWorkspace({
     } finally {
       setLoadingMore(null);
     }
+  }
+
+  const savedDefinition: SavedViewDefinition = {
+    surface: "knowledge",
+    projectId: activeProjectId,
+    kind,
+  };
+
+  function applySavedView(definition: SavedViewDefinition) {
+    if (definition.surface !== "knowledge") return;
+    if (activeProjectId === definition.projectId && kind === definition.kind)
+      return;
+    setActiveProjectId(definition.projectId);
+    setKind(definition.kind);
+    setNotes([]);
+    setNotesCursor(null);
+    setLoading(true);
+    window.history.replaceState(
+      null,
+      "",
+      definition.projectId
+        ? `/knowledge?projectId=${encodeURIComponent(definition.projectId)}`
+        : "/knowledge",
+    );
   }
 
   return (
@@ -130,10 +177,10 @@ export default function KnowledgeWorkspace({
           Capture knowledge
         </a>
       </header>
-      {projectId && (
+      {activeProjectId && (
         <p className="cmd-section-intro">
           Showing knowledge for{" "}
-          <a href={`/projects/${encodeURIComponent(projectId)}`}>
+          <a href={`/projects/${encodeURIComponent(activeProjectId)}`}>
             this project
           </a>
           . <a href="/knowledge">Show all projects</a>.
@@ -142,14 +189,45 @@ export default function KnowledgeWorkspace({
       <p className="cmd-section-intro">
         <a
           href={
-            projectId
-              ? `/search?projectId=${encodeURIComponent(projectId)}`
+            activeProjectId
+              ? `/search?projectId=${encodeURIComponent(activeProjectId)}`
               : "/search"
           }
         >
           Search across knowledge and source captures
         </a>
         . Record a new decision from its project workspace.
+      </p>
+      <SavedViewControls
+        definition={savedDefinition}
+        onApply={applySavedView}
+      />
+      <div className="cmd-work-focus" role="group" aria-label="Knowledge query">
+        <label>
+          Knowledge type
+          <select
+            value={kind}
+            onChange={(event) => {
+              const next = event.target.value as typeof kind;
+              if (next === kind) return;
+              setKind(next);
+              setNotes([]);
+              setNotesCursor(null);
+              setLoading(true);
+            }}
+          >
+            <option value="all">All knowledge types</option>
+            {knowledgeKinds.map((choice) => (
+              <option key={choice} value={choice}>
+                {knowledgeTypeLabel(choice)}
+              </option>
+            ))}
+          </select>
+        </label>
+      </div>
+      <p className="cmd-section-intro">
+        The type filter applies to Knowledge records. Decisions stay visible
+        within the selected project scope.
       </p>
       {loading && (
         <p className="cmd-inline-state" role="status">

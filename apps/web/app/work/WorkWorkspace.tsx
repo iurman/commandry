@@ -1,7 +1,11 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import type { WorkItem, WorkspaceWorkItem } from "@commandry/contracts";
+import type {
+  SavedViewDefinition,
+  WorkItem,
+  WorkspaceWorkItem,
+} from "@commandry/contracts";
 import { workDueLabel } from "@commandry/domain";
 import {
   AppShell,
@@ -11,6 +15,7 @@ import {
   WorkTypeBadge,
 } from "@commandry/ui";
 import { apiJson, pagePath, type PageResponse } from "../projects/api";
+import SavedViewControls from "../components/SavedViewControls";
 import WorkBoard from "./WorkBoard";
 import {
   initialWorkFocus,
@@ -26,6 +31,7 @@ export default function WorkWorkspace({
 }: {
   projectId: string | null;
 }) {
+  const [activeProjectId, setActiveProjectId] = useState(projectId);
   const [view, setView] = useState<"list" | "board">("list");
   const [filter, setFilter] = useState<WorkStatusFilter>("open");
   const [focus, setFocus] = useState<WorkFocus>(initialWorkFocus);
@@ -47,7 +53,7 @@ export default function WorkWorkspace({
     if (view === "board") return;
     let active = true;
     apiJson<PageResponse<WorkspaceWorkItem>>(
-      workPagePath({ status: filter, projectId, focus, asOf }),
+      workPagePath({ status: filter, projectId: activeProjectId, focus, asOf }),
     )
       .then((page) => {
         if (!active) return;
@@ -67,10 +73,10 @@ export default function WorkWorkspace({
     return () => {
       active = false;
     };
-  }, [filter, projectId, focus, asOf, view]);
+  }, [filter, activeProjectId, focus, asOf, view]);
 
   useEffect(() => {
-    if (projectId) return;
+    if (activeProjectId) return;
     let active = true;
     apiJson<PageResponse<WorkItem>>(pagePath(upcomingPath))
       .then((page) => {
@@ -93,7 +99,7 @@ export default function WorkWorkspace({
     return () => {
       active = false;
     };
-  }, [projectId]);
+  }, [activeProjectId]);
 
   async function loadMore() {
     if (!cursor || loadingMore) return;
@@ -122,7 +128,7 @@ export default function WorkWorkspace({
       const page = await apiJson<PageResponse<WorkspaceWorkItem>>(
         workPagePath({
           status: filter,
-          projectId,
+          projectId: activeProjectId,
           focus,
           asOf,
           cursor: workCursor,
@@ -155,7 +161,12 @@ export default function WorkWorkspace({
         },
       );
       const page = await apiJson<PageResponse<WorkspaceWorkItem>>(
-        workPagePath({ status: filter, projectId, focus, asOf }),
+        workPagePath({
+          status: filter,
+          projectId: activeProjectId,
+          focus,
+          asOf,
+        }),
       );
       setWork(page.items);
       setWorkCursor(page.nextCursor);
@@ -180,6 +191,46 @@ export default function WorkWorkspace({
     setFocus((current) => ({ ...current, [key]: value }));
   }
 
+  const savedDefinition: SavedViewDefinition = {
+    surface: "work",
+    projectId: activeProjectId,
+    presentation: view,
+    status: filter,
+    priority: focus.priority,
+    assignee: focus.assignee,
+    due: focus.due,
+  };
+
+  function applySavedView(definition: SavedViewDefinition) {
+    if (definition.surface !== "work") return;
+    const changed =
+      activeProjectId !== definition.projectId ||
+      view !== definition.presentation ||
+      filter !== definition.status ||
+      focus.priority !== definition.priority ||
+      focus.assignee !== definition.assignee ||
+      focus.due !== definition.due;
+    if (!changed) return;
+    setActiveProjectId(definition.projectId);
+    setView(definition.presentation);
+    setFilter(definition.status);
+    setFocus({
+      priority: definition.priority,
+      assignee: definition.assignee,
+      due: definition.due,
+    });
+    setWork([]);
+    setWorkCursor(null);
+    setWorkLoading(true);
+    window.history.replaceState(
+      null,
+      "",
+      definition.projectId
+        ? `/work?projectId=${encodeURIComponent(definition.projectId)}`
+        : "/work",
+    );
+  }
+
   return (
     <AppShell current="Work">
       <nav className="cmd-breadcrumb" aria-label="Breadcrumb">
@@ -200,15 +251,19 @@ export default function WorkWorkspace({
           Capture new work
         </a>
       </header>
-      {projectId && (
+      {activeProjectId && (
         <p className="cmd-section-intro">
           Showing tasks for{" "}
-          <a href={`/projects/${encodeURIComponent(projectId)}`}>
+          <a href={`/projects/${encodeURIComponent(activeProjectId)}`}>
             this project
           </a>
           . <a href="/work">Show all projects</a>.
         </p>
       )}
+      <SavedViewControls
+        definition={savedDefinition}
+        onApply={applySavedView}
+      />
       <section
         className="cmd-workspace-section cmd-global-work-section"
         aria-labelledby="all-work-heading"
@@ -310,8 +365,8 @@ export default function WorkWorkspace({
         )}
         {view === "board" ? (
           <WorkBoard
-            key={`${projectId ?? "all"}:${focus.priority}:${focus.assignee}:${focus.due}`}
-            projectId={projectId}
+            key={`${activeProjectId ?? "all"}:${focus.priority}:${focus.assignee}:${focus.due}`}
+            projectId={activeProjectId}
             focus={focus}
             asOf={asOf}
           />
@@ -449,7 +504,7 @@ export default function WorkWorkspace({
           </>
         )}
       </section>
-      {!projectId && (
+      {!activeProjectId && (
         <section
           className="cmd-workspace-section"
           aria-labelledby="upcoming-work-heading"

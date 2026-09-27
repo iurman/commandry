@@ -4,6 +4,14 @@ import { fileURLToPath } from "node:url";
 import { z } from "zod";
 import {
   captureSchema,
+  savedViewDefinitionSchema,
+  savedViewSchema,
+  createSavedViewRequestSchema,
+  updateSavedViewRequestSchema,
+  archiveSavedViewRequestSchema,
+  listSavedViewsResponseSchema,
+  savedViewAuditEventSchema,
+  listSavedViewAuditResponseSchema,
   localFileTextProjectionSchema,
   localFileTextJobV1Schema,
   captureFileMetadataSchema,
@@ -2633,11 +2641,132 @@ export function generateOpenApi(): string {
           },
         },
       },
+      "/api/v1/saved-views": {
+        get: {
+          operationId: "listSavedViews",
+          summary: "Page through active local saved Work or Knowledge queries",
+          parameters: [
+            ...pageParameters,
+            {
+              in: "query",
+              name: "surface",
+              required: true,
+              schema: { type: "string", enum: ["work", "knowledge"] },
+            },
+          ],
+          responses: {
+            "200": {
+              description: "Saved view page",
+              content: jsonContent("ListSavedViewsResponse"),
+            },
+          },
+        },
+        post: {
+          operationId: "createSavedView",
+          summary: "Save the current local query definition",
+          requestBody: {
+            required: true,
+            content: jsonContent("CreateSavedViewRequest"),
+          },
+          responses: {
+            "201": {
+              description: "Created saved view",
+              content: jsonContent("SavedView"),
+            },
+          },
+        },
+      },
+      "/api/v1/saved-views/{id}": {
+        get: {
+          operationId: "getSavedView",
+          parameters: [idParameter],
+          responses: {
+            "200": {
+              description: "Current saved query definition",
+              content: jsonContent("SavedView"),
+            },
+          },
+        },
+        patch: {
+          operationId: "updateSavedView",
+          summary: "Replace a saved query with optimistic version checking",
+          parameters: [idParameter],
+          requestBody: {
+            required: true,
+            content: jsonContent("UpdateSavedViewRequest"),
+          },
+          responses: {
+            "200": {
+              description: "Updated saved view",
+              content: jsonContent("SavedView"),
+            },
+            "409": {
+              description: "Saved view version changed",
+              content: jsonContent("ErrorResponse"),
+            },
+          },
+        },
+      },
+      "/api/v1/saved-views/{id}/archive": {
+        post: {
+          operationId: "archiveSavedView",
+          summary:
+            "Remove a saved view from active choices while keeping audit",
+          parameters: [idParameter],
+          requestBody: {
+            required: true,
+            content: jsonContent("ArchiveSavedViewRequest"),
+          },
+          responses: {
+            "200": {
+              description: "Archived saved view",
+              content: jsonContent("SavedView"),
+            },
+          },
+        },
+      },
+      "/api/v1/saved-views/{id}/audit": {
+        get: {
+          operationId: "listSavedViewAudit",
+          summary: "Page through local saved view changes",
+          parameters: [idParameter, ...pageParameters],
+          responses: {
+            "200": {
+              description: "Saved view change history",
+              content: jsonContent("ListSavedViewAuditResponse"),
+            },
+          },
+        },
+      },
       "/api/v1/knowledge-items": {
         get: {
           operationId: "listWorkspaceKnowledge",
           summary: "Page through source-linked notes across projects",
-          parameters: [...pageParameters, projectFilterParameter],
+          parameters: [
+            ...pageParameters,
+            projectFilterParameter,
+            {
+              in: "query",
+              name: "kind",
+              required: false,
+              schema: {
+                type: "string",
+                enum: [
+                  "note",
+                  "idea",
+                  "research",
+                  "requirement",
+                  "architecture_note",
+                  "runbook",
+                  "meeting_note",
+                  "lesson_learned",
+                  "instruction",
+                  "link",
+                  "document",
+                ],
+              },
+            },
+          ],
           responses: {
             "200": {
               description: "Knowledge note page with project names",
@@ -3504,6 +3633,14 @@ export function generateOpenApi(): string {
         ),
         CreateCaptureRequest: component(createCaptureRequestSchema),
         Capture: component(captureSchema),
+        SavedViewDefinition: component(savedViewDefinitionSchema),
+        SavedView: component(savedViewSchema),
+        CreateSavedViewRequest: component(createSavedViewRequestSchema),
+        UpdateSavedViewRequest: component(updateSavedViewRequestSchema),
+        ArchiveSavedViewRequest: component(archiveSavedViewRequestSchema),
+        ListSavedViewsResponse: component(listSavedViewsResponseSchema),
+        SavedViewAuditEvent: component(savedViewAuditEventSchema),
+        ListSavedViewAuditResponse: component(listSavedViewAuditResponseSchema),
         LocalFileTextProjection: component(localFileTextProjectionSchema),
         LocalFileTextJobV1: component(localFileTextJobV1Schema),
         CaptureFileMetadata: component(captureFileMetadataSchema),

@@ -546,6 +546,30 @@ textarea {
   background: var(--cmd-surface-muted);
 }
 
+.cmd-saved-view-controls {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: var(--cmd-space-4);
+}
+
+.cmd-saved-view-controls label {
+  display: grid;
+  gap: var(--cmd-space-2);
+  min-width: 0;
+}
+
+.cmd-saved-view-controls input,
+.cmd-saved-view-controls select {
+  width: 100%;
+  min-width: 0;
+}
+
+@media (max-width: 640px) {
+  .cmd-saved-view-controls {
+    grid-template-columns: 1fr;
+  }
+}
+
 .cmd-work-board-column {
   min-width: 0;
   padding: var(--cmd-space-4);

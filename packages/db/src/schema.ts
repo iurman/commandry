@@ -1,4 +1,5 @@
 import { relations, sql } from "drizzle-orm";
+import type { SavedViewDefinition } from "@commandry/contracts";
 import {
   type AnyPgColumn,
   boolean,
@@ -1191,6 +1192,79 @@ export const knowledgeItem = pgTable(
       sql`(${table.kind} <> 'link' and ${table.url} is null) or (${table.kind} = 'link' and ${table.url} is not null and length(trim(${table.url})) > 0)`,
     ),
     check("knowledge_item_version_positive", sql`${table.version} > 0`),
+  ],
+);
+
+export const savedView = pgTable(
+  "saved_view",
+  {
+    id: uuid("id").primaryKey(),
+    surface: text("surface", { enum: ["work", "knowledge"] }).notNull(),
+    name: text("name").notNull(),
+    definition: jsonb("definition").$type<SavedViewDefinition>().notNull(),
+    version: integer("version").notNull().default(1),
+    actor: text("actor").notNull().default("local-user:unattributed"),
+    lifecycle: text("lifecycle", { enum: ["active", "archived"] })
+      .notNull()
+      .default("active"),
+    createdAt: createdAt(),
+    updatedAt: updatedAt(),
+    archivedAt: timestamp("archived_at", { withTimezone: true }),
+  },
+  (table) => [
+    index("saved_view_surface_created_idx").on(
+      table.surface,
+      table.lifecycle,
+      table.createdAt,
+      table.id,
+    ),
+    check(
+      "saved_view_name_valid",
+      sql`length(trim(${table.name})) between 1 and 80`,
+    ),
+    check("saved_view_version_positive", sql`${table.version} > 0`),
+    check(
+      "saved_view_definition_surface_valid",
+      sql`${table.definition}->>'surface' = ${table.surface}`,
+    ),
+    check(
+      "saved_view_actor_local",
+      sql`${table.actor} = 'local-user:unattributed'`,
+    ),
+    check(
+      "saved_view_lifecycle_valid",
+      sql`(${table.lifecycle} = 'active' and ${table.archivedAt} is null) or (${table.lifecycle} = 'archived' and ${table.archivedAt} is not null)`,
+    ),
+  ],
+);
+
+export const savedViewAuditEvent = pgTable(
+  "saved_view_audit_event",
+  {
+    id: uuid("id").primaryKey(),
+    savedViewId: uuid("saved_view_id")
+      .notNull()
+      .references(() => savedView.id, { onDelete: "restrict" }),
+    actor: text("actor").notNull(),
+    operation: text("operation", {
+      enum: ["created", "updated", "archived"],
+    }).notNull(),
+    version: integer("version").notNull(),
+    name: text("name").notNull(),
+    definition: jsonb("definition").$type<SavedViewDefinition>().notNull(),
+    createdAt: createdAt(),
+  },
+  (table) => [
+    index("saved_view_audit_event_view_created_idx").on(
+      table.savedViewId,
+      table.createdAt,
+      table.id,
+    ),
+    check(
+      "saved_view_audit_event_actor_local",
+      sql`${table.actor} = 'local-user:unattributed'`,
+    ),
+    check("saved_view_audit_event_version_positive", sql`${table.version} > 0`),
   ],
 );
 

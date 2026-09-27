@@ -30,6 +30,7 @@ export * from "./work-attachments";
 export * from "./work-acceptance";
 export * from "./file-capture";
 export * from "./local-file-text";
+export * from "./saved-view";
 export * from "./knowledge-link";
 export * from "./domain-portfolio";
 export * from "./system-context";

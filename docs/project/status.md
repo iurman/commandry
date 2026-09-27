@@ -187,6 +187,13 @@ and production prerequisites remain gates.
   UTC due buckets filter in the versioned API and across both views without
   replacing project scope, typed context links, or original captures. The UI
   keeps every matching task reachable through cursor continuation.
+- Work and Knowledge can save named project and filter definitions in
+  PostgreSQL, reopen them against current records, update them with version
+  checks, and archive them without deleting change history. Work views retain
+  list or board presentation, status, priority, assignment, and relative UTC
+  due focus; Knowledge views retain a type filter, while Decisions continue
+  to follow project scope. Saved queries use provisional unattributed local
+  ownership and do not grant access or freeze source evidence (OQ-029).
 - Semantic CSS tokens, accessible responsive components, and representative
   Storybook states exist in the local-only lab. The lab is excluded from the
   production image.

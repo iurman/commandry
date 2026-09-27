@@ -198,3 +198,13 @@ larger blob storage, extraction of PDF and images, reprocessing after extractor
 changes, retention, access controls, and whether derived text may enter agent
 packets. This local extractor is a provisional implementation, not a canonical
 production content policy.
+
+### OQ-029: Which saved-view semantics and ownership should ship?
+
+The local MVP saves a named Work or Knowledge query definition for the
+unattributed local user. It re-runs current records when reopened, uses relative
+UTC due buckets, and archives removed views with an audit history. Validate
+sharing, default views, ordering, pinned views, per-project ownership,
+retention, identity and access rules, and whether Knowledge Decisions should
+have a separate type filter. This local persistence does not settle a
+multi-user or canonical view taxonomy.
