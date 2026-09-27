@@ -323,6 +323,20 @@
       "when": 1790503639664,
       "tag": "0045_brief_ogun",
       "breakpoints": true
+    },
+    {
+      "idx": 46,
+      "version": "7",
+      "when": 1790506633832,
+      "tag": "0046_lumpy_magik",
+      "breakpoints": true
+    },
+    {
+      "idx": 47,
+      "version": "7",
+      "when": 1790507497943,
+      "tag": "0047_special_pretty_boy",
+      "breakpoints": true
     }
   ]
 }

@@ -39,6 +39,8 @@ import {
   localRecoveryDrillSchema,
   listLocalRecoveryDrillsResponseSchema,
   localRecoveryStatusSchema,
+  localBackupEvidenceSchema,
+  listLocalBackupsResponseSchema,
   workItemPlanningEventSchema,
   listWorkItemPlanningEventsResponseSchema,
   listUpcomingWorkResponseSchema,
@@ -787,6 +789,35 @@ export function generateOpenApi(): string {
             "200": {
               description: "An immutable local restore rehearsal record",
               content: jsonContent("LocalRecoveryDrill"),
+            },
+            "404": {
+              description: "Record not found",
+              content: jsonContent("ErrorResponse"),
+            },
+          },
+        },
+      },
+      "/api/v1/local-backups": {
+        get: {
+          operationId: "listLocalBackups",
+          summary: "Page immutable encrypted local backup and restore evidence",
+          parameters: pageParameters,
+          responses: {
+            "200": {
+              description: "Local-only encrypted backup history",
+              content: jsonContent("ListLocalBackupsResponse"),
+            },
+          },
+        },
+      },
+      "/api/v1/local-backups/{id}": {
+        get: {
+          operationId: "getLocalBackup",
+          parameters: [idParameter],
+          responses: {
+            "200": {
+              description: "An immutable local backup verification record",
+              content: jsonContent("LocalBackupEvidence"),
             },
             "404": {
               description: "Record not found",
@@ -3978,6 +4009,8 @@ export function generateOpenApi(): string {
           listLocalRecoveryDrillsResponseSchema,
         ),
         LocalRecoveryStatus: component(localRecoveryStatusSchema),
+        LocalBackupEvidence: component(localBackupEvidenceSchema),
+        ListLocalBackupsResponse: component(listLocalBackupsResponseSchema),
         WorkItemPlanningEvent: component(workItemPlanningEventSchema),
         ListWorkItemPlanningEventsResponse: component(
           listWorkItemPlanningEventsResponseSchema,

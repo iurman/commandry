@@ -15,6 +15,11 @@ sign-in and recovery. The other deployment gates in
 VPS inventory and capacity, encrypted offsite backup with an actual restore,
 and constrained deployment controls. The local rehearsal at
 `pnpm recovery:rehearse` proves only a disposable local logical restore.
+`pnpm backup:local` encrypts the current local PostgreSQL archive and verifies
+it in a disposable database. Its ignored `.agent/local-backups/` file stays on
+the same machine and requires the local application encryption key. The
+recovery screen reports the result at creation, not current file availability.
+This command does not meet the offsite backup or VPS restore gate.
 
 `production.env.example` contains invalid example values. A later controlled
 deployment will read the real root-owned

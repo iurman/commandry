@@ -39,7 +39,7 @@ test("local recovery evidence stays distinct from production readiness", async (
     })
     .click();
   await expect(
-    page.getByRole("heading", { name: "Local recovery rehearsal" }),
+    page.getByRole("heading", { name: "Local recovery evidence" }),
   ).toBeVisible();
   await expect(
     page.getByRole("heading", { name: "Production gates" }),

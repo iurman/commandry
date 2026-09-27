@@ -2,12 +2,14 @@
 
 import { useEffect, useState } from "react";
 import type {
+  LocalBackupEvidence,
   LocalRecoveryDrill,
   LocalRecoveryStatus,
 } from "@commandry/contracts";
 import {
   AppShell,
   Button,
+  LocalBackupCard,
   LocalRecoveryDrillCard,
   RecordEmptyState,
 } from "@commandry/ui";
@@ -32,24 +34,32 @@ function errorMessage(error: unknown) {
 export default function LocalRecoveryPage() {
   const [status, setStatus] = useState<LocalRecoveryStatus | null>(null);
   const [drills, setDrills] = useState<LocalRecoveryDrill[]>([]);
+  const [backups, setBackups] = useState<LocalBackupEvidence[]>([]);
   const [nextCursor, setNextCursor] = useState<string | null>(null);
+  const [backupCursor, setBackupCursor] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
   const [loadingMore, setLoadingMore] = useState(false);
+  const [loadingMoreBackups, setLoadingMoreBackups] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
   async function refresh() {
     setLoading(true);
     setError(null);
     try {
-      const [newStatus, page] = await Promise.all([
+      const [newStatus, page, backupPage] = await Promise.all([
         apiJson<LocalRecoveryStatus>("/api/v1/local-recovery-status"),
         apiJson<PageResponse<LocalRecoveryDrill>>(
           pagePath("/api/v1/local-recovery-drills"),
+        ),
+        apiJson<PageResponse<LocalBackupEvidence>>(
+          pagePath("/api/v1/local-backups"),
         ),
       ]);
       setStatus(newStatus);
       setDrills(page.items);
       setNextCursor(page.nextCursor);
+      setBackups(backupPage.items);
+      setBackupCursor(backupPage.nextCursor);
     } catch (cause) {
       setError(errorMessage(cause));
     } finally {
@@ -64,12 +74,17 @@ export default function LocalRecoveryPage() {
       apiJson<PageResponse<LocalRecoveryDrill>>(
         pagePath("/api/v1/local-recovery-drills"),
       ),
+      apiJson<PageResponse<LocalBackupEvidence>>(
+        pagePath("/api/v1/local-backups"),
+      ),
     ])
-      .then(([newStatus, page]) => {
+      .then(([newStatus, page, backupPage]) => {
         if (!active) return;
         setStatus(newStatus);
         setDrills(page.items);
         setNextCursor(page.nextCursor);
+        setBackups(backupPage.items);
+        setBackupCursor(backupPage.nextCursor);
       })
       .catch((cause: unknown) => {
         if (active) setError(errorMessage(cause));
@@ -104,15 +119,38 @@ export default function LocalRecoveryPage() {
     }
   }
 
+  async function loadMoreBackups() {
+    if (!backupCursor || loadingMoreBackups) return;
+    setLoadingMoreBackups(true);
+    setError(null);
+    try {
+      const page = await apiJson<PageResponse<LocalBackupEvidence>>(
+        pagePath("/api/v1/local-backups", backupCursor),
+      );
+      setBackups((current) => [
+        ...current,
+        ...page.items.filter(
+          (item) => !current.some((saved) => saved.id === item.id),
+        ),
+      ]);
+      setBackupCursor(page.nextCursor);
+    } catch (cause) {
+      setError(errorMessage(cause));
+    } finally {
+      setLoadingMoreBackups(false);
+    }
+  }
+
   return (
     <AppShell current="Infrastructure">
       <header className="cmd-page-header cmd-workspace-heading">
         <div>
           <p className="cmd-eyebrow">Infrastructure / Recovery evidence</p>
-          <h1>Local recovery rehearsal</h1>
+          <h1>Local recovery evidence</h1>
           <p className="cmd-lead">
-            A disposable PostgreSQL backup and restore exercise with an original
-            capture fixture. This page reports local evidence only.
+            A disposable schema and fixture rehearsal, plus an encrypted backup
+            of the current local PostgreSQL database. Neither verifies VPS or
+            offsite recovery.
           </p>
           <p className="cmd-record-identity">
             <a href="/infrastructure">Return to infrastructure</a>
@@ -187,6 +225,40 @@ export default function LocalRecoveryPage() {
           {nextCursor && (
             <Button disabled={loadingMore} onClick={loadMore} type="button">
               {loadingMore ? "Loading..." : "Load more rehearsals"}
+            </Button>
+          )}
+        </section>
+        <section className="cmd-panel" aria-labelledby="local-backup-history">
+          <div className="cmd-panel-heading">
+            <h2 id="local-backup-history">Encrypted local backups</h2>
+          </div>
+          <p>
+            A local CLI encrypts the actual PostgreSQL archive and verifies it
+            by restoring into a disposable database. Evidence records the result
+            at creation. This page does not recheck the file or establish an
+            offsite copy, a VPS restore, or production readiness.
+          </p>
+          <p>
+            From this checkout run <code>pnpm backup:local</code>. Recheck an
+            archive with <code>pnpm backup:local:verify &lt;backup-id&gt;</code>
+            . Keep the local encryption key to open it later.
+          </p>
+          {backups.length === 0 && !loading && !error && (
+            <RecordEmptyState
+              title="No local backup recorded"
+              description="Run the local backup command to encrypt the current database and record its disposable restore result."
+            />
+          )}
+          {backups.map((backup) => (
+            <LocalBackupCard backup={backup} key={backup.id} />
+          ))}
+          {backupCursor && (
+            <Button
+              disabled={loadingMoreBackups}
+              onClick={loadMoreBackups}
+              type="button"
+            >
+              {loadingMoreBackups ? "Loading..." : "Load more backups"}
             </Button>
           )}
         </section>

@@ -3322,6 +3322,60 @@ export const localRecoveryDrill = pgTable(
   ],
 );
 
+export const localBackupEvidence = pgTable(
+  "local_backup_evidence",
+  {
+    id: uuid("id").primaryKey(),
+    environment: text("environment").notNull().default("local"),
+    sourceLabel: text("source_label")
+      .notNull()
+      .default("Encrypted local PostgreSQL archive"),
+    formatVersion: integer("format_version").notNull().default(1),
+    outcome: text("outcome", { enum: ["passed", "failed"] }).notNull(),
+    archiveSha256: text("archive_sha256"),
+    archiveBytes: integer("archive_bytes").notNull().default(0),
+    sourceSchemaTableCount: integer("source_schema_table_count")
+      .notNull()
+      .default(0),
+    restoredSchemaTableCount: integer("restored_schema_table_count")
+      .notNull()
+      .default(0),
+    captureId: uuid("capture_id"),
+    sourceCaptureSha256: text("source_capture_sha256"),
+    restoredCaptureSha256: text("restored_capture_sha256"),
+    errorCode: text("error_code"),
+    startedAt: timestamp("started_at", { withTimezone: true }).notNull(),
+    completedAt: timestamp("completed_at", { withTimezone: true }).notNull(),
+  },
+  (table) => [
+    index("local_backup_evidence_page_idx").on(table.completedAt, table.id),
+    check(
+      "local_backup_evidence_local_only",
+      sql`${table.environment} = 'local'`,
+    ),
+    check(
+      "local_backup_evidence_source_label_valid",
+      sql`${table.sourceLabel} = 'Encrypted local PostgreSQL archive'`,
+    ),
+    check(
+      "local_backup_evidence_format_valid",
+      sql`${table.formatVersion} = 1`,
+    ),
+    check(
+      "local_backup_evidence_outcome_valid",
+      sql`${table.outcome} in ('passed', 'failed')`,
+    ),
+    check(
+      "local_backup_evidence_counts_valid",
+      sql`${table.archiveBytes} >= 0 and ${table.sourceSchemaTableCount} >= 0 and ${table.restoredSchemaTableCount} >= 0`,
+    ),
+    check(
+      "local_backup_evidence_pass_valid",
+      sql`${table.outcome} <> 'passed' or (${table.archiveSha256} is not null and ${table.archiveSha256} ~ '^[0-9a-f]{64}$' and ${table.archiveBytes} > 0 and ${table.sourceSchemaTableCount} > 0 and ${table.sourceSchemaTableCount} = ${table.restoredSchemaTableCount} and ${table.errorCode} is null and ((${table.captureId} is null and ${table.sourceCaptureSha256} is null and ${table.restoredCaptureSha256} is null) or (${table.captureId} is not null and ${table.sourceCaptureSha256} is not null and ${table.restoredCaptureSha256} is not null and ${table.sourceCaptureSha256} ~ '^[0-9a-f]{64}$' and ${table.sourceCaptureSha256} = ${table.restoredCaptureSha256})))`,
+    ),
+  ],
+);
+
 export const syntheticRunRelations = relations(
   syntheticRun,
   ({ many, one }) => ({

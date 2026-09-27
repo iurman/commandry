@@ -282,3 +282,19 @@ origin installation or service-worker offline help. Validate real-device
 installation, authentication, cached-data privacy, conflict handling, source
 freshness, and the smallest useful offline read/write scope before expanding
 this behavior.
+
+### OQ-034: What backup retention and key policy should ship?
+
+The local MVP can explicitly invoke a sensitive CLI operation to read the
+current local PostgreSQL database, encrypt a bounded custom-format archive
+under `.agent/local-backups/`, and verify it by restoring into a disposable
+database. The CLI derives a separate AES-256-GCM key from the local application
+encryption key with a per-archive salt. An immutable PostgreSQL evidence row
+records the local result, but no web action creates a backup. Invocation by a
+local operator is the provisional approval behavior; no product capability is
+granted. The evidence is the audit record, and verification never writes to an
+external system or restores over the live database. Its 128 MiB in-memory limit,
+reuse of the local application key, capture-sample check, file location, and
+manual retention are local-only choices. Decide dedicated key custody and
+rotation, backup role, size and streaming, schedule, retention, encrypted offsite
+storage, restore target, recovery point, and recovery time before production.

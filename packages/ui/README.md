@@ -21,6 +21,7 @@ The stylesheet respects system reduced motion and accepts
 | --- | --- | --- |
 | `AppShell` | Frame the responsive product navigation | Active destinations are links, a skip link reaches main content, and the web application mounts its local connection control in the sidebar slot. |
 | `ConnectionStatus` | Explain browser-to-app connectivity | Text distinguishes checking, reachable, device-offline, and server-unreachable states. Reachability makes no claim about source freshness or database health. |
+| `LocalBackupCard` | Present one local backup result | Shows encrypted archive size, source and restored table counts, an original-capture check when available, and an exact evidence link. The record describes verification at creation, not current file availability. |
 | `StatePanel` | Present one section's data state | `normal`, `loading`, `empty`, `error`, `disabled`, and `permission-denied` are explicit text states. Loading sets `aria-busy`; error text uses an alert role. Non-normal states do not render stale children. |
 | `StatusBadge` | Label one state dimension | A visible dimension and label accompany the tone. Lifecycle, health, attention, sync, and execution remain separate. |
 | `Button` | Present an actual available action | Primary and secondary variants share focus and target sizing. Native `disabled` is supported. Do not render a button for an unfinished product action. |

@@ -739,6 +739,43 @@ export const localRecoveryStatusSchema = z.object({
   ),
 });
 
+export const localBackupEvidenceSchema = z.object({
+  id: z.uuid(),
+  environment: z.literal("local"),
+  sourceLabel: z.literal("Encrypted local PostgreSQL archive"),
+  formatVersion: z.literal(1),
+  outcome: z.enum(["passed", "failed"]),
+  archiveSha256: z
+    .string()
+    .regex(/^[0-9a-f]{64}$/)
+    .nullable(),
+  archiveBytes: z.number().int().nonnegative(),
+  sourceSchemaTableCount: z.number().int().nonnegative(),
+  restoredSchemaTableCount: z.number().int().nonnegative(),
+  captureId: z.uuid().nullable(),
+  sourceCaptureSha256: z
+    .string()
+    .regex(/^[0-9a-f]{64}$/)
+    .nullable(),
+  restoredCaptureSha256: z
+    .string()
+    .regex(/^[0-9a-f]{64}$/)
+    .nullable(),
+  errorCode: z.string().nullable(),
+  startedAt: z.iso.datetime({ offset: true }),
+  completedAt: z.iso.datetime({ offset: true }),
+});
+
+export const listLocalBackupsResponseSchema = z.object({
+  items: z.array(localBackupEvidenceSchema),
+  nextCursor: z.uuid().nullable(),
+});
+
+export const listLocalBackupsQuerySchema = z.object({
+  limit: z.coerce.number().int().min(1).max(100).default(20),
+  cursor: z.uuid().optional(),
+});
+
 export const workItemPlanningEventSchema = z.object({
   id: z.uuid(),
   workItemId: z.uuid(),
@@ -2735,6 +2772,7 @@ export type WorkRecurrenceAuditEvent = z.infer<
 export type WorkRecurrenceJobV1 = z.infer<typeof workRecurrenceJobV1Schema>;
 export type LocalRecoveryDrill = z.infer<typeof localRecoveryDrillSchema>;
 export type LocalRecoveryStatus = z.infer<typeof localRecoveryStatusSchema>;
+export type LocalBackupEvidence = z.infer<typeof localBackupEvidenceSchema>;
 export type ChangeWorkItemStatusRequest = z.infer<
   typeof changeWorkItemStatusRequestSchema
 >;

@@ -30,6 +30,8 @@ may evolve, but an agent should not need to reverse-engineer routine work.
 | `pnpm deploy:preview` | Create or update an isolated preview and print its URL; unavailable until a preview target is configured |
 | `pnpm deploy` | Deploy an approved image digest through the constrained production deployment path |
 | `pnpm logs` | Stream redacted structured logs for an explicitly named environment and service |
+| `pnpm backup:local` | Encrypt a bounded current local PostgreSQL archive, verify a disposable restore, and retain local evidence; never address production |
+| `pnpm backup:local:verify <backup-id>` | Recheck one retained encrypted local archive and disposable restore without exposing contents |
 | `pnpm backup:verify` | Check backup freshness and integrity without exposing backup credentials or contents |
 
 Commands must fail with actionable messages and non-zero exit codes. No script
