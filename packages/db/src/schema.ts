@@ -3376,6 +3376,74 @@ export const localBackupEvidence = pgTable(
   ],
 );
 
+export const localReleaseRehearsal = pgTable(
+  "local_release_rehearsal",
+  {
+    id: uuid("id").primaryKey(),
+    environment: text("environment").notNull().default("local"),
+    sourceLabel: text("source_label")
+      .notNull()
+      .default("Isolated local application rollback rehearsal"),
+    outcome: text("outcome", { enum: ["passed", "failed"] }).notNull(),
+    previousRevision: text("previous_revision"),
+    candidateRevision: text("candidate_revision"),
+    previousImageId: text("previous_image_id"),
+    candidateImageId: text("candidate_image_id"),
+    sourceSchemaTableCount: integer("source_schema_table_count")
+      .notNull()
+      .default(0),
+    isolatedSchemaTableCount: integer("isolated_schema_table_count")
+      .notNull()
+      .default(0),
+    sourceCaptureSha256: text("source_capture_sha256"),
+    isolatedCaptureSha256: text("isolated_capture_sha256"),
+    initialWebVerified: boolean("initial_web_verified")
+      .notNull()
+      .default(false),
+    initialWorkerVerified: boolean("initial_worker_verified")
+      .notNull()
+      .default(false),
+    candidateWebVerified: boolean("candidate_web_verified")
+      .notNull()
+      .default(false),
+    candidateWorkerVerified: boolean("candidate_worker_verified")
+      .notNull()
+      .default(false),
+    rollbackWebVerified: boolean("rollback_web_verified")
+      .notNull()
+      .default(false),
+    rollbackWorkerVerified: boolean("rollback_worker_verified")
+      .notNull()
+      .default(false),
+    errorCode: text("error_code"),
+    startedAt: timestamp("started_at", { withTimezone: true }).notNull(),
+    completedAt: timestamp("completed_at", { withTimezone: true }).notNull(),
+  },
+  (table) => [
+    index("local_release_rehearsal_page_idx").on(table.completedAt, table.id),
+    check(
+      "local_release_rehearsal_local_only",
+      sql`${table.environment} = 'local'`,
+    ),
+    check(
+      "local_release_rehearsal_source_label_valid",
+      sql`${table.sourceLabel} = 'Isolated local application rollback rehearsal'`,
+    ),
+    check(
+      "local_release_rehearsal_outcome_valid",
+      sql`${table.outcome} in ('passed', 'failed')`,
+    ),
+    check(
+      "local_release_rehearsal_counts_valid",
+      sql`${table.sourceSchemaTableCount} >= 0 and ${table.isolatedSchemaTableCount} >= 0`,
+    ),
+    check(
+      "local_release_rehearsal_pass_valid",
+      sql`${table.outcome} <> 'passed' or (${table.previousRevision} is not null and ${table.previousRevision} ~ '^[0-9a-f]{40}$' and ${table.candidateRevision} is not null and ${table.candidateRevision} ~ '^[0-9a-f]{40}$' and ${table.previousRevision} <> ${table.candidateRevision} and ${table.previousImageId} is not null and ${table.previousImageId} ~ '^sha256:[0-9a-f]{64}$' and ${table.candidateImageId} is not null and ${table.candidateImageId} ~ '^sha256:[0-9a-f]{64}$' and ${table.previousImageId} <> ${table.candidateImageId} and ${table.sourceSchemaTableCount} > 0 and ${table.sourceSchemaTableCount} = ${table.isolatedSchemaTableCount} and ((${table.sourceCaptureSha256} is null and ${table.isolatedCaptureSha256} is null) or (${table.sourceCaptureSha256} is not null and ${table.sourceCaptureSha256} ~ '^[0-9a-f]{64}$' and ${table.sourceCaptureSha256} = ${table.isolatedCaptureSha256})) and ${table.initialWebVerified} and ${table.initialWorkerVerified} and ${table.candidateWebVerified} and ${table.candidateWorkerVerified} and ${table.rollbackWebVerified} and ${table.rollbackWorkerVerified} and ${table.errorCode} is null)`,
+    ),
+  ],
+);
+
 export const syntheticRunRelations = relations(
   syntheticRun,
   ({ many, one }) => ({

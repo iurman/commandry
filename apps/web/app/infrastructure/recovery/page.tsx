@@ -3,6 +3,7 @@
 import { useEffect, useState } from "react";
 import type {
   LocalBackupEvidence,
+  LocalReleaseRehearsal,
   LocalRecoveryDrill,
   LocalRecoveryStatus,
 } from "@commandry/contracts";
@@ -10,6 +11,7 @@ import {
   AppShell,
   Button,
   LocalBackupCard,
+  LocalReleaseRehearsalCard,
   LocalRecoveryDrillCard,
   RecordEmptyState,
 } from "@commandry/ui";
@@ -35,18 +37,21 @@ export default function LocalRecoveryPage() {
   const [status, setStatus] = useState<LocalRecoveryStatus | null>(null);
   const [drills, setDrills] = useState<LocalRecoveryDrill[]>([]);
   const [backups, setBackups] = useState<LocalBackupEvidence[]>([]);
+  const [releases, setReleases] = useState<LocalReleaseRehearsal[]>([]);
   const [nextCursor, setNextCursor] = useState<string | null>(null);
   const [backupCursor, setBackupCursor] = useState<string | null>(null);
+  const [releaseCursor, setReleaseCursor] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
   const [loadingMore, setLoadingMore] = useState(false);
   const [loadingMoreBackups, setLoadingMoreBackups] = useState(false);
+  const [loadingMoreReleases, setLoadingMoreReleases] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
   async function refresh() {
     setLoading(true);
     setError(null);
     try {
-      const [newStatus, page, backupPage] = await Promise.all([
+      const [newStatus, page, backupPage, releasePage] = await Promise.all([
         apiJson<LocalRecoveryStatus>("/api/v1/local-recovery-status"),
         apiJson<PageResponse<LocalRecoveryDrill>>(
           pagePath("/api/v1/local-recovery-drills"),
@@ -54,12 +59,17 @@ export default function LocalRecoveryPage() {
         apiJson<PageResponse<LocalBackupEvidence>>(
           pagePath("/api/v1/local-backups"),
         ),
+        apiJson<PageResponse<LocalReleaseRehearsal>>(
+          pagePath("/api/v1/local-release-rehearsals"),
+        ),
       ]);
       setStatus(newStatus);
       setDrills(page.items);
       setNextCursor(page.nextCursor);
       setBackups(backupPage.items);
       setBackupCursor(backupPage.nextCursor);
+      setReleases(releasePage.items);
+      setReleaseCursor(releasePage.nextCursor);
     } catch (cause) {
       setError(errorMessage(cause));
     } finally {
@@ -77,14 +87,19 @@ export default function LocalRecoveryPage() {
       apiJson<PageResponse<LocalBackupEvidence>>(
         pagePath("/api/v1/local-backups"),
       ),
+      apiJson<PageResponse<LocalReleaseRehearsal>>(
+        pagePath("/api/v1/local-release-rehearsals"),
+      ),
     ])
-      .then(([newStatus, page, backupPage]) => {
+      .then(([newStatus, page, backupPage, releasePage]) => {
         if (!active) return;
         setStatus(newStatus);
         setDrills(page.items);
         setNextCursor(page.nextCursor);
         setBackups(backupPage.items);
         setBackupCursor(backupPage.nextCursor);
+        setReleases(releasePage.items);
+        setReleaseCursor(releasePage.nextCursor);
       })
       .catch((cause: unknown) => {
         if (active) setError(errorMessage(cause));
@@ -141,6 +156,28 @@ export default function LocalRecoveryPage() {
     }
   }
 
+  async function loadMoreReleases() {
+    if (!releaseCursor || loadingMoreReleases) return;
+    setLoadingMoreReleases(true);
+    setError(null);
+    try {
+      const page = await apiJson<PageResponse<LocalReleaseRehearsal>>(
+        pagePath("/api/v1/local-release-rehearsals", releaseCursor),
+      );
+      setReleases((current) => [
+        ...current,
+        ...page.items.filter(
+          (item) => !current.some((saved) => saved.id === item.id),
+        ),
+      ]);
+      setReleaseCursor(page.nextCursor);
+    } catch (cause) {
+      setError(errorMessage(cause));
+    } finally {
+      setLoadingMoreReleases(false);
+    }
+  }
+
   return (
     <AppShell current="Infrastructure">
       <header className="cmd-page-header cmd-workspace-heading">
@@ -148,9 +185,8 @@ export default function LocalRecoveryPage() {
           <p className="cmd-eyebrow">Infrastructure / Recovery evidence</p>
           <h1>Local recovery evidence</h1>
           <p className="cmd-lead">
-            A disposable schema and fixture rehearsal, plus an encrypted backup
-            of the current local PostgreSQL database. Neither verifies VPS or
-            offsite recovery.
+            Disposable restore, encrypted local backup, and isolated application
+            code rollback evidence. None verifies VPS or offsite recovery.
           </p>
           <p className="cmd-record-identity">
             <a href="/infrastructure">Return to infrastructure</a>
@@ -259,6 +295,43 @@ export default function LocalRecoveryPage() {
               type="button"
             >
               {loadingMoreBackups ? "Loading..." : "Load more backups"}
+            </Button>
+          )}
+        </section>
+        <section className="cmd-panel" aria-labelledby="local-release-history">
+          <div className="cmd-panel-heading">
+            <h2 id="local-release-history">Local release and rollback</h2>
+          </div>
+          <p>
+            A CLI builds two committed application images, clones local data
+            into a disposable PostgreSQL container, verifies web reads and
+            worker heartbeats across an application switch and code rollback,
+            then removes the isolated containers. It leaves the database schema
+            forward. This does not rehearse a VPS deploy or production login.
+          </p>
+          <p>
+            From this checkout run <code>pnpm release:rehearse</code>. The
+            source data stays local and the test containers publish no ports.
+          </p>
+          {releases.length === 0 && !loading && !error && (
+            <RecordEmptyState
+              title="No local release rehearsal recorded"
+              description="Run the local release command to record a code rollback result."
+            />
+          )}
+          {releases.map((rehearsal) => (
+            <LocalReleaseRehearsalCard
+              rehearsal={rehearsal}
+              key={rehearsal.id}
+            />
+          ))}
+          {releaseCursor && (
+            <Button
+              disabled={loadingMoreReleases}
+              onClick={loadMoreReleases}
+              type="button"
+            >
+              {loadingMoreReleases ? "Loading..." : "Load more release drills"}
             </Button>
           )}
         </section>

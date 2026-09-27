@@ -21,6 +21,14 @@ the same machine and requires the local application encryption key. The
 recovery screen reports the result at creation, not current file availability.
 This command does not meet the offsite backup or VPS restore gate.
 
+`pnpm release:rehearse` builds the prior and current committed application
+images, clones local PostgreSQL into an isolated container, and verifies the
+web read path and worker heartbeat before an image switch, after it, and after
+rolling application code back. It publishes no ports and removes its network,
+containers, and volume after the drill. The Recovery screen shows immutable
+local evidence. This does not exercise production deployment controls, a VPS
+host, human sign-in, or a down migration. Database migrations remain forward.
+
 `production.env.example` contains invalid example values. A later controlled
 deployment will read the real root-owned
 `/etc/commandry/commandry.env` with mode `0600`. The named Tunnel

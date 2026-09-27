@@ -44,7 +44,7 @@ test("local recovery evidence stays distinct from production readiness", async (
   await expect(
     page.getByRole("heading", { name: "Production gates" }),
   ).toBeVisible();
-  await expect(page.getByText("Not verified")).toBeVisible();
+  await expect(page.getByText("Not verified", { exact: true })).toBeVisible();
   await expect(
     page.getByText("Human sign-in and account recovery"),
   ).toBeVisible();

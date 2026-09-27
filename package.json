@@ -24,6 +24,7 @@
     "compose:up": "node scripts/compose.mjs up",
     "compose:down": "node scripts/compose.mjs down",
     "recovery:rehearse": "node scripts/rehearse-recovery.mjs",
+    "release:rehearse": "node scripts/rehearse-release.mjs",
     "backup:local": "node scripts/local-backup.mjs create",
     "backup:local:verify": "node scripts/local-backup.mjs verify",
     "production:config:check": "node scripts/check-production-config.mjs",

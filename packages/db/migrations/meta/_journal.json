@@ -337,6 +337,13 @@
       "when": 1790507497943,
       "tag": "0047_special_pretty_boy",
       "breakpoints": true
+    },
+    {
+      "idx": 48,
+      "version": "7",
+      "when": 1790508264167,
+      "tag": "0048_curved_proemial_gods",
+      "breakpoints": true
     }
   ]
 }

@@ -16,6 +16,7 @@ export * from "./work-assignment";
 export * from "./work-recurrence";
 export * from "./local-recovery";
 export * from "./local-backup";
+export * from "./local-release-rehearsal";
 export * from "./knowledge-revisions";
 export * from "./resource-topology";
 export * from "./project-decisions";

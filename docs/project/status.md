@@ -163,6 +163,12 @@ and production prerequisites remain gates.
   Caddy, and outbound Tunnel services with one required app image digest and
   no published application or database port; production startup remains gated
   by OQ-003 and the deployment prerequisites.
+- A separate local release rehearsal builds two committed application images,
+  clones current local data into disposable PostgreSQL, and verifies the web
+  read path, release identity, and fresh worker heartbeat on the prior image,
+  candidate image, and prior image again after code rollback. The immutable
+  record and responsive Recovery view label this local evidence; no database
+  migration is reversed and no VPS deployment or production login is implied.
 - Work items have project-scoped, typed parent/subtask and blocking links with
   cycle prevention, audit-preserving archive, cursor-paged inverse views, and
   a responsive editor. Open blockers appear with exact relationship evidence

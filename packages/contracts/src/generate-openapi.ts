@@ -40,7 +40,9 @@ import {
   listLocalRecoveryDrillsResponseSchema,
   localRecoveryStatusSchema,
   localBackupEvidenceSchema,
+  localReleaseRehearsalSchema,
   listLocalBackupsResponseSchema,
+  listLocalReleaseRehearsalsResponseSchema,
   workItemPlanningEventSchema,
   listWorkItemPlanningEventsResponseSchema,
   listUpcomingWorkResponseSchema,
@@ -818,6 +820,36 @@ export function generateOpenApi(): string {
             "200": {
               description: "An immutable local backup verification record",
               content: jsonContent("LocalBackupEvidence"),
+            },
+            "404": {
+              description: "Record not found",
+              content: jsonContent("ErrorResponse"),
+            },
+          },
+        },
+      },
+      "/api/v1/local-release-rehearsals": {
+        get: {
+          operationId: "listLocalReleaseRehearsals",
+          summary:
+            "Page immutable isolated local release and code rollback evidence",
+          parameters: pageParameters,
+          responses: {
+            "200": {
+              description: "Local release rehearsal history",
+              content: jsonContent("ListLocalReleaseRehearsalsResponse"),
+            },
+          },
+        },
+      },
+      "/api/v1/local-release-rehearsals/{id}": {
+        get: {
+          operationId: "getLocalReleaseRehearsal",
+          parameters: [idParameter],
+          responses: {
+            "200": {
+              description: "An immutable local release rehearsal record",
+              content: jsonContent("LocalReleaseRehearsal"),
             },
             "404": {
               description: "Record not found",
@@ -4011,6 +4043,10 @@ export function generateOpenApi(): string {
         LocalRecoveryStatus: component(localRecoveryStatusSchema),
         LocalBackupEvidence: component(localBackupEvidenceSchema),
         ListLocalBackupsResponse: component(listLocalBackupsResponseSchema),
+        LocalReleaseRehearsal: component(localReleaseRehearsalSchema),
+        ListLocalReleaseRehearsalsResponse: component(
+          listLocalReleaseRehearsalsResponseSchema,
+        ),
         WorkItemPlanningEvent: component(workItemPlanningEventSchema),
         ListWorkItemPlanningEventsResponse: component(
           listWorkItemPlanningEventsResponseSchema,

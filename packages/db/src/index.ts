@@ -20,6 +20,7 @@ export * from "./work-assignment-repository";
 export * from "./work-recurrence-repository";
 export * from "./local-recovery-repository";
 export * from "./local-backup-repository";
+export * from "./local-release-rehearsal-repository";
 export * from "./knowledge-revision-repository";
 export * from "./resource-topology-repository";
 export * from "./project-decision-repository";
