@@ -1,17 +1,53 @@
+import { createHash } from "node:crypto";
 import { and, asc, desc, eq, sql } from "drizzle-orm";
-import type { AgentRunAuditEvent } from "@commandry/contracts";
+import type {
+  AgentRunAuditEvent,
+  LocalAgentCallbackEvent,
+  LocalAgentCallbackRequest,
+} from "@commandry/contracts";
 import {
+  evaluateLocalRunnerCallback,
+  LocalRunnerCallbackError,
   sanitizeLocalAgentAuditReason,
+  type LocalRunnerCallbackCode,
   type LocalAgentProgressStage,
 } from "@commandry/domain";
 import type { CommandryDatabase } from "./client";
 import {
   auditEvent,
+  localAgentCallbackEvent,
   localAgentRun,
   localAgentRunAttempt,
   localAgentRunGrant,
   workItem,
 } from "./schema";
+
+function callbackRecord(
+  row: typeof localAgentCallbackEvent.$inferSelect,
+): LocalAgentCallbackEvent {
+  return {
+    id: row.id,
+    runId: row.runId,
+    attemptId: row.attemptId,
+    sequence: row.sequence,
+    kind: row.kind,
+    stage: row.stage as LocalAgentCallbackEvent["stage"],
+    artifactName: row.artifactName as LocalAgentCallbackEvent["artifactName"],
+    artifactMimeType:
+      row.artifactMimeType as LocalAgentCallbackEvent["artifactMimeType"],
+    artifactBytes: row.artifactBytes,
+    artifactSha256: row.artifactSha256,
+    sourceLabel: "Synthetic local runner callback",
+    isSynthetic: true,
+    createdAt: row.createdAt.toISOString(),
+  };
+}
+
+export class LocalAgentCallbackCursorError extends Error {
+  constructor() {
+    super("Callback cursor does not identify a stored event for this run");
+  }
+}
 
 function workRecord(row: typeof workItem.$inferSelect) {
   return {
@@ -136,6 +172,189 @@ export function createLocalAgentRunRepository(db: CommandryDatabase) {
 
   return {
     getById,
+    async listCallbacks(
+      runId: string,
+      query: { limit: number; cursor?: string | undefined },
+    ) {
+      const limit = checkedLimit(query.limit);
+      if (query.cursor) {
+        const [cursor] = await db
+          .select({ id: localAgentCallbackEvent.id })
+          .from(localAgentCallbackEvent)
+          .where(
+            and(
+              eq(localAgentCallbackEvent.id, query.cursor),
+              eq(localAgentCallbackEvent.runId, runId),
+            ),
+          )
+          .limit(1);
+        if (!cursor) throw new LocalAgentCallbackCursorError();
+      }
+      const rows = await db
+        .select()
+        .from(localAgentCallbackEvent)
+        .where(
+          and(
+            eq(localAgentCallbackEvent.runId, runId),
+            query.cursor
+              ? sql`(${localAgentCallbackEvent.createdAt}, ${localAgentCallbackEvent.id}) < (select created_at, id from local_agent_callback_event where id = ${query.cursor}::uuid and run_id = ${runId}::uuid)`
+              : undefined,
+          ),
+        )
+        .orderBy(
+          desc(localAgentCallbackEvent.createdAt),
+          desc(localAgentCallbackEvent.id),
+        )
+        .limit(limit + 1);
+      const visible = rows.slice(0, limit);
+      return {
+        items: visible.map(callbackRecord),
+        nextCursor: rows.length > limit ? (visible.at(-1)?.id ?? null) : null,
+      };
+    },
+    async getCallbackArtifact(runId: string, eventId: string) {
+      const [row] = await db
+        .select()
+        .from(localAgentCallbackEvent)
+        .where(
+          and(
+            eq(localAgentCallbackEvent.id, eventId),
+            eq(localAgentCallbackEvent.runId, runId),
+            eq(localAgentCallbackEvent.kind, "artifact"),
+          ),
+        )
+        .limit(1);
+      return row && row.artifactContent
+        ? { event: callbackRecord(row), content: row.artifactContent }
+        : null;
+    },
+    async reportCallback(input: {
+      runId: string;
+      tokenDigest: string;
+      callback: LocalAgentCallbackRequest;
+      now?: Date;
+    }): Promise<LocalAgentCallbackEvent> {
+      const result = await db.transaction(async (tx) => {
+        const [run] = await tx
+          .select()
+          .from(localAgentRun)
+          .where(eq(localAgentRun.id, input.runId))
+          .for("update")
+          .limit(1);
+        if (!run) throw new LocalRunnerCallbackError("CALLBACK_SCOPE_DENIED");
+        async function deny(code: LocalRunnerCallbackCode) {
+          await tx.insert(auditEvent).values({
+            id: crypto.randomUUID(),
+            actor: "system:local-runner-callback",
+            operation: "local_agent_run.callback.denied",
+            targetAgentRunId: run!.id,
+            details: {
+              decision: "denied",
+              code,
+              projectId: run!.projectId,
+              attemptId: input.callback.attemptId,
+              sequence: input.callback.sequence,
+            },
+          });
+          return { denied: code } as const;
+        }
+        const [attempt] = await tx
+          .select()
+          .from(localAgentRunAttempt)
+          .where(eq(localAgentRunAttempt.id, input.callback.attemptId))
+          .for("update")
+          .limit(1);
+        if (!attempt) return deny("CALLBACK_SCOPE_DENIED");
+        const [grant] = await tx
+          .select({ expiresAt: localAgentRunGrant.expiresAt })
+          .from(localAgentRunGrant)
+          .where(eq(localAgentRunGrant.runId, input.runId))
+          .limit(1);
+        if (!grant) return deny("CALLBACK_SCOPE_DENIED");
+        const decision = evaluateLocalRunnerCallback(
+          {
+            runId: attempt.runId,
+            attemptId: attempt.id,
+            runState: run.state,
+            attemptState: attempt.state,
+            tokenDigest: attempt.callbackTokenDigest,
+            tokenExpiresAt: attempt.callbackExpiresAt,
+            grantExpiresAt: grant.expiresAt,
+            lastSequence: attempt.lastCallbackSequence,
+          },
+          {
+            runId: input.runId,
+            attemptId: input.callback.attemptId,
+            tokenDigest: input.tokenDigest,
+            sequence: input.callback.sequence,
+            kind: input.callback.kind,
+            stage:
+              input.callback.kind === "heartbeat" ? input.callback.stage : null,
+            artifactName:
+              input.callback.kind === "artifact"
+                ? input.callback.artifactName
+                : null,
+            artifactContent:
+              input.callback.kind === "artifact"
+                ? input.callback.artifactContent
+                : null,
+          },
+          input.now ?? new Date(),
+        );
+        if (decision !== "ALLOWED") return deny(decision);
+        const content =
+          input.callback.kind === "artifact"
+            ? input.callback.artifactContent
+            : null;
+        const [inserted] = await tx
+          .insert(localAgentCallbackEvent)
+          .values({
+            id: crypto.randomUUID(),
+            runId: input.runId,
+            attemptId: attempt.id,
+            sequence: input.callback.sequence,
+            kind: input.callback.kind,
+            stage:
+              input.callback.kind === "heartbeat" ? input.callback.stage : null,
+            artifactName:
+              input.callback.kind === "artifact"
+                ? input.callback.artifactName
+                : null,
+            artifactMimeType:
+              input.callback.kind === "artifact"
+                ? input.callback.artifactMimeType
+                : null,
+            artifactContent: content,
+            artifactBytes: content ? Buffer.byteLength(content, "utf8") : null,
+            artifactSha256: content
+              ? createHash("sha256").update(content).digest("hex")
+              : null,
+          })
+          .returning();
+        if (!inserted) throw new Error("Local callback event was not inserted");
+        await tx
+          .update(localAgentRunAttempt)
+          .set({ lastCallbackSequence: input.callback.sequence })
+          .where(eq(localAgentRunAttempt.id, attempt.id));
+        await tx.insert(auditEvent).values({
+          id: crypto.randomUUID(),
+          actor: `synthetic-agent:${run.agentId}`,
+          operation: `local_agent_run.callback.${input.callback.kind}`,
+          targetAgentRunId: run.id,
+          details: {
+            projectId: run.projectId,
+            attemptId: attempt.id,
+            sequence: input.callback.sequence,
+            stage:
+              input.callback.kind === "heartbeat" ? input.callback.stage : null,
+            callbackEventId: inserted.id,
+          },
+        });
+        return { event: callbackRecord(inserted) } as const;
+      });
+      if ("denied" in result) throw new LocalRunnerCallbackError(result.denied);
+      return result.event;
+    },
     async cancel(runId: string) {
       await db.transaction(async (tx) => {
         const [run] = await tx
@@ -300,7 +519,10 @@ export function createLocalAgentRunRepository(db: CommandryDatabase) {
         nextCursor: rows.length > limit ? (visible.at(-1)?.id ?? null) : null,
       };
     },
-    async beginAttempt(runId: string) {
+    async beginAttempt(
+      runId: string,
+      callbackLease?: { tokenDigest: string; expiresAt: Date },
+    ) {
       return db.transaction(async (tx) => {
         const [run] = await tx
           .select()
@@ -342,6 +564,8 @@ export function createLocalAgentRunRepository(db: CommandryDatabase) {
           number,
           state: "running",
           startedAt: now,
+          callbackTokenDigest: callbackLease?.tokenDigest ?? null,
+          callbackExpiresAt: callbackLease?.expiresAt ?? null,
         });
         await tx.insert(auditEvent).values({
           id: crypto.randomUUID(),

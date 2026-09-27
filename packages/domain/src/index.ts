@@ -8,6 +8,7 @@ export * from "./synthetic-flow-replay";
 export * from "./project-brief";
 export * from "./execution-packet";
 export * from "./local-agent-policy";
+export * from "./local-runner-callback";
 export * from "./local-attention";
 export * from "./simulated-approval";
 export * from "./work-item-status";

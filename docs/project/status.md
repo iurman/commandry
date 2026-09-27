@@ -110,6 +110,12 @@ and production prerequisites remain gates.
   history. The endpoint has no write or external action tools. Its provisional
   local session policy does not settle human sign-in, machine identity, or the
   production capability model.
+- Fake local agent attempts can record ordered synthetic runner heartbeats and
+  one bounded JSON report with an exact digest and download. A short-lived
+  per-attempt token digest, active run and grant checks, and sequence checks
+  reject wrong scope, replay, expiry, and post-cancellation callbacks. The
+  versioned callback route is local-only; events and audit records are durable.
+  It does not choose or connect an external runtime or authorize external work.
 - Work items now have append-only, cursor-paged local comments with immutable
   bodies and source-labeled search results. URL captures can be filed as
   knowledge links while preserving the original URL; the navigable link omits

@@ -2461,6 +2461,23 @@ textarea {
   overflow-wrap: anywhere;
 }
 
+.cmd-local-run-audit .cmd-runner-callback-list {
+  gap: var(--cmd-space-3);
+}
+
+.cmd-local-run-audit .cmd-runner-callback-list li {
+  display: block;
+  min-width: 0;
+  padding: var(--cmd-space-3);
+  border: 1px solid var(--cmd-border);
+  border-radius: var(--cmd-radius);
+  background: var(--cmd-surface-muted);
+}
+
+.cmd-runner-callback-list li code {
+  overflow-wrap: anywhere;
+}
+
 @media (max-width: 70rem) {
   .cmd-agent-workbench {
     grid-template-columns: minmax(0, 1fr);

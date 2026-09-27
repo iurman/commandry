@@ -93,6 +93,7 @@ export type {
   ExecutionPacketProps,
 } from "./components/ExecutionPacket";
 export { LocalAgentCard } from "./components/LocalAgent";
+export { LocalAgentCallbackTimeline } from "./components/LocalAgentCallbackTimeline";
 export type {
   LocalAgentProfileView,
   LocalAgentAssignmentView,

@@ -2573,6 +2573,13 @@ export const localAgentRunAttempt = pgTable(
       enum: ["running", "succeeded", "failed", "canceled"],
     }).notNull(),
     error: text("error"),
+    callbackTokenDigest: text("callback_token_digest"),
+    callbackExpiresAt: timestamp("callback_expires_at", {
+      withTimezone: true,
+    }),
+    lastCallbackSequence: integer("last_callback_sequence")
+      .notNull()
+      .default(0),
     startedAt: timestamp("started_at", { withTimezone: true })
       .notNull()
       .defaultNow(),
@@ -2592,6 +2599,64 @@ export const localAgentRunAttempt = pgTable(
     check(
       "local_agent_run_attempt_state_valid",
       sql`${table.state} in ('running', 'succeeded', 'failed', 'canceled')`,
+    ),
+    check(
+      "local_agent_run_attempt_callback_lease_valid",
+      sql`((${table.callbackTokenDigest} is null and ${table.callbackExpiresAt} is null) or (${table.callbackTokenDigest} is not null and ${table.callbackTokenDigest} ~ '^[0-9a-f]{64}$' and ${table.callbackExpiresAt} is not null))`,
+    ),
+    check(
+      "local_agent_run_attempt_callback_sequence_valid",
+      sql`${table.lastCallbackSequence} >= 0`,
+    ),
+  ],
+);
+
+export const localAgentCallbackEvent = pgTable(
+  "local_agent_callback_event",
+  {
+    id: uuid("id").primaryKey(),
+    runId: uuid("run_id")
+      .notNull()
+      .references(() => localAgentRun.id, { onDelete: "restrict" }),
+    attemptId: uuid("attempt_id")
+      .notNull()
+      .references(() => localAgentRunAttempt.id, { onDelete: "restrict" }),
+    sequence: integer("sequence").notNull(),
+    kind: text("kind", { enum: ["heartbeat", "artifact"] }).notNull(),
+    stage: text("stage"),
+    artifactName: text("artifact_name"),
+    artifactMimeType: text("artifact_mime_type"),
+    artifactContent: text("artifact_content"),
+    artifactBytes: integer("artifact_bytes"),
+    artifactSha256: text("artifact_sha256"),
+    sourceLabel: text("source_label")
+      .notNull()
+      .default("Synthetic local runner callback"),
+    isSynthetic: boolean("is_synthetic").notNull().default(true),
+    createdAt: createdAt(),
+  },
+  (table) => [
+    uniqueIndex("local_agent_callback_attempt_sequence_idx").on(
+      table.attemptId,
+      table.sequence,
+    ),
+    index("local_agent_callback_run_page_idx").on(
+      table.runId,
+      table.createdAt,
+      table.id,
+    ),
+    check("local_agent_callback_sequence_positive", sql`${table.sequence} > 0`),
+    check(
+      "local_agent_callback_kind_valid",
+      sql`${table.kind} in ('heartbeat', 'artifact')`,
+    ),
+    check(
+      "local_agent_callback_source_valid",
+      sql`${table.sourceLabel} = 'Synthetic local runner callback' and ${table.isSynthetic} = true`,
+    ),
+    check(
+      "local_agent_callback_payload_valid",
+      sql`(${table.kind} = 'heartbeat' and ${table.stage} is not null and ${table.stage} in ('started', 'brief_read', 'work_read', 'result_prepared') and ${table.artifactName} is null and ${table.artifactMimeType} is null and ${table.artifactContent} is null and ${table.artifactBytes} is null and ${table.artifactSha256} is null) or (${table.kind} = 'artifact' and ${table.stage} is null and ${table.artifactName} is not null and ${table.artifactName} = 'synthetic-run-report.json' and ${table.artifactMimeType} is not null and ${table.artifactMimeType} = 'application/json' and ${table.artifactContent} is not null and octet_length(${table.artifactContent}) between 1 and 16384 and ${table.artifactBytes} is not null and ${table.artifactBytes} = octet_length(${table.artifactContent}) and ${table.artifactSha256} is not null and ${table.artifactSha256} ~ '^[0-9a-f]{64}$')`,
     ),
   ],
 );

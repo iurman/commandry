@@ -1,4 +1,5 @@
 import assert from "node:assert/strict";
+import { createHash } from "node:crypto";
 import { test } from "node:test";
 import { setTimeout as delay } from "node:timers/promises";
 import { eq } from "drizzle-orm";
@@ -23,7 +24,7 @@ import {
   createLocalAgentRunRepository,
   schema,
 } from "@commandry/db";
-import { LocalAgentError } from "@commandry/domain";
+import { LocalAgentError, LocalRunnerCallbackError } from "@commandry/domain";
 import {
   createLocalAgentRunSubmission,
   createPgBossProducer,
@@ -305,6 +306,35 @@ test(
           assert.deepEqual(completed.result?.externalActions, []);
           assert.equal(completed.result?.contextReadIds.length, 2);
           assert.ok(completed.result?.evidence.length);
+          const callbacks = await runs.listCallbacks(run.id, { limit: 20 });
+          assert.equal(callbacks.items.length, 6);
+          assert.equal(callbacks.nextCursor, null);
+          assert.deepEqual(
+            new Set(
+              callbacks.items
+                .filter((event) => event.kind === "heartbeat")
+                .map((event) => event.stage),
+            ),
+            new Set(["started", "brief_read", "work_read", "result_prepared"]),
+          );
+          const artifactEvent = callbacks.items.find(
+            (event) => event.kind === "artifact",
+          );
+          assert.ok(artifactEvent);
+          const artifact = await runs.getCallbackArtifact(
+            run.id,
+            artifactEvent.id,
+          );
+          assert.ok(artifact);
+          assert.equal(
+            createHash("sha256").update(artifact.content).digest("hex"),
+            artifactEvent.artifactSha256,
+          );
+          assert.equal(
+            JSON.parse(artifact.content).sourceLabel,
+            "Synthetic local runner report",
+          );
+          assert.equal(JSON.parse(artifact.content).externalActions.length, 0);
           const audits = await runs.listAudit(run.id, { limit: 100 });
           assert.deepEqual(
             new Set(
@@ -335,6 +365,138 @@ test(
           assert.equal(repeated.id, run.id);
           assert.equal(repeated.attempts, 2);
           assert.deepEqual(repeated.result, completed.result);
+        },
+      );
+
+      await t.test(
+        "attempt callback lease rejects wrong scope, token, replay, expiry, and cancellation",
+        async () => {
+          const prepared = prepare(
+            `local-agent-callback:${crypto.randomUUID()}`,
+          );
+          const run = await submission.submitOnce(prepared);
+          const token = "a".repeat(64);
+          const tokenDigest = createHash("sha256").update(token).digest("hex");
+          const expiresAt = new Date(Date.now() + 30_000);
+          const attemptId = await runs.beginAttempt(run.id, {
+            tokenDigest,
+            expiresAt,
+          });
+          assert.ok(attemptId);
+          const callback = {
+            version: 1 as const,
+            attemptId,
+            sequence: 1,
+            kind: "heartbeat" as const,
+            stage: "started" as const,
+          };
+          const accepted = await runs.reportCallback({
+            runId: run.id,
+            tokenDigest,
+            callback,
+          });
+          assert.equal(accepted.sequence, 1);
+          assert.equal(accepted.sourceLabel, "Synthetic local runner callback");
+          const rejected = async (
+            input: Parameters<typeof runs.reportCallback>[0],
+            code: string,
+          ) =>
+            assert.rejects(
+              runs.reportCallback(input),
+              (error: unknown) =>
+                error instanceof LocalRunnerCallbackError &&
+                error.code === code,
+            );
+          await rejected(
+            { runId: run.id, tokenDigest, callback },
+            "CALLBACK_SEQUENCE_CONFLICT",
+          );
+          await rejected(
+            {
+              runId: run.id,
+              tokenDigest: "b".repeat(64),
+              callback: { ...callback, sequence: 2 },
+            },
+            "CALLBACK_AUTH_DENIED",
+          );
+          await rejected(
+            {
+              runId: run.id,
+              tokenDigest,
+              callback: {
+                ...callback,
+                attemptId: crypto.randomUUID(),
+                sequence: 2,
+              },
+            },
+            "CALLBACK_SCOPE_DENIED",
+          );
+          await rejected(
+            {
+              runId: run.id,
+              tokenDigest,
+              callback: { ...callback, sequence: 2 },
+              now: new Date(expiresAt.getTime()),
+            },
+            "CALLBACK_EXPIRED",
+          );
+          const denials = (
+            await runs.listAudit(run.id, { limit: 100 })
+          ).items.filter(
+            (item) => item.operation === "local_agent_run.callback.denied",
+          );
+          assert.deepEqual(
+            new Set(denials.map((item) => item.code)),
+            new Set([
+              "CALLBACK_SEQUENCE_CONFLICT",
+              "CALLBACK_AUTH_DENIED",
+              "CALLBACK_SCOPE_DENIED",
+              "CALLBACK_EXPIRED",
+            ]),
+          );
+          await assert.rejects(
+            admin.query(
+              "update local_agent_callback_event set stage = 'work_read' where id = $1",
+              [accepted.id],
+            ),
+            { code: "23514" },
+          );
+          await assert.rejects(
+            admin.query(
+              `insert into local_agent_callback_event
+               (id, run_id, attempt_id, sequence, kind, artifact_name,
+                artifact_mime_type, artifact_content, artifact_bytes)
+               values ($1, $2, $3, 2, 'artifact', 'synthetic-run-report.json',
+                       'application/json', '{}', 2)`,
+              [crypto.randomUUID(), run.id, attemptId],
+            ),
+            { code: "23514" },
+          );
+          await assert.rejects(
+            admin.query(
+              `insert into local_agent_callback_event
+               (id, run_id, attempt_id, sequence, kind)
+               values ($1, $2, $3, 2, 'heartbeat')`,
+              [crypto.randomUUID(), run.id, attemptId],
+            ),
+            { code: "23514" },
+          );
+          await assert.rejects(
+            admin.query(
+              "delete from local_agent_callback_event where id = $1",
+              [accepted.id],
+            ),
+            { code: "23514" },
+          );
+          assert.equal((await runs.cancel(run.id))?.state, "canceled");
+          await rejected(
+            {
+              runId: run.id,
+              tokenDigest,
+              callback: { ...callback, sequence: 2 },
+            },
+            "CALLBACK_RUN_NOT_ACTIVE",
+          );
         },
       );
 

@@ -7,6 +7,7 @@ export * from "./project-brief";
 export * from "./execution-packets";
 export * from "./local-agents";
 export * from "./local-agent-runs";
+export * from "./local-runner-callback";
 export * from "./local-attention";
 export * from "./agent-context";
 export * from "./simulated-approvals";

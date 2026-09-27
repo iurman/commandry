@@ -11,6 +11,8 @@ import {
   type LocalAgentProfile,
   type LocalAgentRun,
   type LocalAgentRunJobV1,
+  type LocalAgentCallbackEvent,
+  type LocalAgentCallbackRequest,
 } from "@commandry/contracts";
 import {
   LOCAL_AGENT_GRANT_TTL_SECONDS,
@@ -18,6 +20,10 @@ import {
   LocalAgentError,
   type LocalAgentProgressStage,
 } from "@commandry/domain";
+import {
+  buildSyntheticRunnerReport,
+  createLocalRunnerCallbackLease,
+} from "./local-runner-callback";
 
 export type LocalAgentRunPacket = Pick<
   ExecutionPacket,
@@ -124,7 +130,15 @@ export function createLocalAgentRunControlService(port: {
 
 export interface LocalAgentRunProcessingPort {
   getById(id: string): Promise<StoredLocalAgentRun | null>;
-  beginAttempt(runId: string): Promise<string | null>;
+  beginAttempt(
+    runId: string,
+    callbackLease?: { tokenDigest: string; expiresAt: Date },
+  ): Promise<string | null>;
+  reportCallback?(input: {
+    runId: string;
+    tokenDigest: string;
+    callback: LocalAgentCallbackRequest;
+  }): Promise<LocalAgentCallbackEvent>;
   complete(
     runId: string,
     attemptId: string,
@@ -183,14 +197,53 @@ export function createLocalAgentRunProcessor(
     }
     if (existing.state === "succeeded" || existing.state === "canceled")
       return localAgentRunSchema.parse(existing);
-    const attemptId = await port.beginAttempt(existing.id);
+    const lease = createLocalRunnerCallbackLease(existing.grant.expiresAt);
+    const attemptId = await port.beginAttempt(existing.id, {
+      tokenDigest: lease.tokenDigest,
+      expiresAt: lease.expiresAt,
+    });
     if (!attemptId) {
       const current = await port.getById(existing.id);
       if (!current)
         throw new LocalAgentError("RUN_NOT_FOUND", "Local agent run not found");
       return localAgentRunSchema.parse(current);
     }
+    let callbackSequence = 0;
+    async function callback(
+      item:
+        | {
+            kind: "heartbeat";
+            stage: "started" | "brief_read" | "work_read" | "result_prepared";
+          }
+        | { kind: "artifact"; artifactContent: string },
+    ) {
+      if (!port.reportCallback) return;
+      callbackSequence += 1;
+      await port.reportCallback({
+        runId: existing!.id,
+        tokenDigest: lease.tokenDigest,
+        callback:
+          item.kind === "heartbeat"
+            ? {
+                version: 1,
+                attemptId: attemptId!,
+                sequence: callbackSequence,
+                kind: "heartbeat",
+                stage: item.stage,
+              }
+            : {
+                version: 1,
+                attemptId: attemptId!,
+                sequence: callbackSequence,
+                kind: "artifact",
+                artifactName: "synthetic-run-report.json",
+                artifactMimeType: "application/json",
+                artifactContent: item.artifactContent,
+              },
+      });
+    }
     try {
+      await callback({ kind: "heartbeat", stage: "started" });
       await options.beforeContextReads?.();
       const currentBeforeRead = await port.getById(existing.id);
       if (currentBeforeRead?.state === "canceled")
@@ -209,6 +262,7 @@ export function createLocalAgentRunProcessor(
           );
         return localAgentRunSchema.parse(current);
       }
+      await callback({ kind: "heartbeat", stage: "brief_read" });
       const work = await context.read(existing.id, {
         projectId: existing.projectId,
         operation: "work.read",
@@ -223,6 +277,7 @@ export function createLocalAgentRunProcessor(
           );
         return localAgentRunSchema.parse(current);
       }
+      await callback({ kind: "heartbeat", stage: "work_read" });
       const result = buildFakeLocalAgentRunResult(brief, work);
       if (
         !(await port.reportProgress(existing.id, attemptId, "result_prepared"))
@@ -235,6 +290,17 @@ export function createLocalAgentRunProcessor(
           );
         return localAgentRunSchema.parse(current);
       }
+      await callback({ kind: "heartbeat", stage: "result_prepared" });
+      await callback({
+        kind: "artifact",
+        artifactContent: buildSyntheticRunnerReport({
+          runId: existing.id,
+          attemptId,
+          packetId: existing.packetId,
+          packetDigest: existing.packetDigest,
+          result,
+        }),
+      });
       return localAgentRunSchema.parse(
         await port.complete(existing.id, attemptId, result),
       );

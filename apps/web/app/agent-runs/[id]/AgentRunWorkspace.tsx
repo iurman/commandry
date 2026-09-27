@@ -1,10 +1,12 @@
 "use client";
 
 import { useCallback, useEffect, useState, type FormEvent } from "react";
+import type { LocalAgentCallbackEvent } from "@commandry/contracts";
 import {
   AppShell,
   Button,
   LocalAgentAuditList,
+  LocalAgentCallbackTimeline,
   LocalAgentReadReceipt,
   LocalAgentRunPanel,
   type ExecutionPacketView,
@@ -29,6 +31,10 @@ export default function AgentRunWorkspace({ runId }: { runId: string }) {
   const [auditCursor, setAuditCursor] = useState<string | null>(null);
   const [auditLoading, setAuditLoading] = useState(true);
   const [auditError, setAuditError] = useState<string | null>(null);
+  const [callbacks, setCallbacks] = useState<LocalAgentCallbackEvent[]>([]);
+  const [callbackCursor, setCallbackCursor] = useState<string | null>(null);
+  const [callbackLoading, setCallbackLoading] = useState(true);
+  const [callbackError, setCallbackError] = useState<string | null>(null);
   const [projectId, setProjectId] = useState("");
   const [operation, setOperation] = useState("project.brief.read");
   const [reason, setReason] = useState("");
@@ -82,6 +88,37 @@ export default function AgentRunWorkspace({ runId }: { runId: string }) {
     [runId],
   );
 
+  const loadCallbacks = useCallback(
+    async (cursor?: string | null) => {
+      setCallbackLoading(true);
+      setCallbackError(null);
+      try {
+        const page = await apiJson<PageResponse<LocalAgentCallbackEvent>>(
+          pagePath(
+            `/api/v1/agent-runs/${encodeURIComponent(runId)}/callbacks`,
+            cursor,
+          ),
+        );
+        setCallbacks((current) =>
+          cursor
+            ? [
+                ...current,
+                ...page.items.filter(
+                  (item) => !current.some((saved) => saved.id === item.id),
+                ),
+              ]
+            : page.items,
+        );
+        setCallbackCursor(page.nextCursor);
+      } catch (cause) {
+        setCallbackError(message(cause, "Could not load runner callbacks."));
+      } finally {
+        setCallbackLoading(false);
+      }
+    },
+    [runId],
+  );
+
   useEffect(() => {
     let active = true;
     let timer: ReturnType<typeof setTimeout> | undefined;
@@ -98,6 +135,7 @@ export default function AgentRunWorkspace({ runId }: { runId: string }) {
           timer = setTimeout(() => void poll(), 2000);
         }
         void loadAudit();
+        void loadCallbacks();
       } catch (cause) {
         if (active) setError(message(cause, "Agent run is unavailable."));
       } finally {
@@ -109,7 +147,7 @@ export default function AgentRunWorkspace({ runId }: { runId: string }) {
       active = false;
       if (timer) clearTimeout(timer);
     };
-  }, [runId, loadAudit]);
+  }, [runId, loadAudit, loadCallbacks]);
 
   useEffect(() => {
     if (!run?.agentId) return;
@@ -216,6 +254,7 @@ export default function AgentRunWorkspace({ runId }: { runId: string }) {
     } finally {
       setReading(false);
       await loadAudit();
+      await loadCallbacks();
     }
   }
 
@@ -265,6 +304,26 @@ export default function AgentRunWorkspace({ runId }: { runId: string }) {
             run={run}
             {...(agent ? { agentName: agent.name } : {})}
           />
+          {callbackError && (
+            <p className="cmd-inline-state cmd-error" role="alert">
+              {callbackError}
+            </p>
+          )}
+          {callbackLoading && callbacks.length === 0 && (
+            <p className="cmd-inline-state" role="status">
+              Loading local runner callbacks...
+            </p>
+          )}
+          <LocalAgentCallbackTimeline runId={run.id} events={callbacks} />
+          {callbackCursor && (
+            <Button
+              type="button"
+              disabled={callbackLoading}
+              onClick={() => void loadCallbacks(callbackCursor)}
+            >
+              {callbackLoading ? "Loading..." : "Load more runner callbacks"}
+            </Button>
+          )}
           <section className="cmd-local-run-audit" aria-label="Run control">
             <h2>Local run control</h2>
             <p>

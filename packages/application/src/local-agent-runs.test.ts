@@ -50,7 +50,7 @@ const run: LocalAgentRun = {
   grant: {
     projectId,
     operations: ["project.brief.read", "work.read"],
-    expiresAt: "2026-09-26T10:30:00.000Z",
+    expiresAt: new Date(Date.now() + 30 * 60_000).toISOString(),
   },
   result: null,
   error: null,

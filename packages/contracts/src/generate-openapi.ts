@@ -93,6 +93,9 @@ import {
   localMcpAuditEventSchema,
   listLocalMcpAuditResponseSchema,
   localAgentRunJobV1Schema,
+  localAgentCallbackRequestSchema,
+  localAgentCallbackEventSchema,
+  listLocalAgentCallbacksResponseSchema,
   localAgentRunGrantSchema,
   localAgentRunAttemptSchema,
   fakeLocalAgentRunResultSchema,
@@ -2371,6 +2374,73 @@ export function generateOpenApi(): string {
           },
         },
       },
+      "/api/v1/agent-runs/{id}/callbacks": {
+        get: {
+          operationId: "listLocalAgentCallbacks",
+          summary:
+            "Page labeled synthetic local runner heartbeats and artifacts",
+          parameters: [idParameter, ...pageParameters],
+          responses: {
+            "200": {
+              description: "Immutable local runner callback events",
+              content: jsonContent("ListLocalAgentCallbacksResponse"),
+            },
+          },
+        },
+        post: {
+          operationId: "reportLocalAgentCallback",
+          summary: "Report a scoped local-only runner heartbeat or artifact",
+          parameters: [idParameter],
+          security: [{ localRunnerBearer: [] }],
+          requestBody: {
+            required: true,
+            content: jsonContent("LocalAgentCallbackRequest"),
+          },
+          responses: {
+            "201": {
+              description: "Accepted immutable callback event",
+              content: jsonContent("LocalAgentCallbackEvent"),
+            },
+            "403": {
+              description: "Callback token, scope, or lease rejected",
+              content: jsonContent("ErrorResponse"),
+            },
+            "409": {
+              description: "Callback sequence already used or out of order",
+              content: jsonContent("ErrorResponse"),
+            },
+          },
+        },
+      },
+      "/api/v1/agent-runs/{id}/callbacks/{eventId}/artifact": {
+        get: {
+          operationId: "downloadLocalAgentCallbackArtifact",
+          summary: "Download one bounded synthetic local runner report",
+          parameters: [
+            idParameter,
+            {
+              in: "path",
+              name: "eventId",
+              required: true,
+              schema: { type: "string", format: "uuid" },
+            },
+          ],
+          responses: {
+            "200": {
+              description: "Stored synthetic JSON report as an attachment",
+              content: {
+                "application/json": {
+                  schema: { type: "string", format: "binary" },
+                },
+              },
+            },
+            "404": {
+              description: "Artifact not found for this run",
+              content: jsonContent("ErrorResponse"),
+            },
+          },
+        },
+      },
       "/api/v1/overnight": {
         get: {
           operationId: "listOvernightQueue",
@@ -3919,6 +3989,12 @@ export function generateOpenApi(): string {
           description:
             "Local synthetic receiver rehearsal token, not product authentication",
         },
+        localRunnerBearer: {
+          type: "http",
+          scheme: "bearer",
+          description:
+            "Short-lived per-attempt synthetic local runner token, not product authentication",
+        },
       },
       schemas: {
         HealthResponse: component(healthResponseSchema),
@@ -4220,6 +4296,11 @@ export function generateOpenApi(): string {
         ),
         CreateLocalAgentRunRequest: component(createLocalAgentRunRequestSchema),
         LocalAgentRunJobV1: component(localAgentRunJobV1Schema),
+        LocalAgentCallbackRequest: component(localAgentCallbackRequestSchema),
+        LocalAgentCallbackEvent: component(localAgentCallbackEventSchema),
+        ListLocalAgentCallbacksResponse: component(
+          listLocalAgentCallbacksResponseSchema,
+        ),
         LocalAgentRunGrant: component(localAgentRunGrantSchema),
         LocalAgentRunAttempt: component(localAgentRunAttemptSchema),
         FakeLocalAgentRunResult: component(fakeLocalAgentRunResultSchema),

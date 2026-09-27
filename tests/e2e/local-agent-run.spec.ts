@@ -135,6 +135,62 @@ test("a synthetic local agent reads only its run scope and reports an unverified
       200,
     );
   }
+  const callbackEvents: {
+    id: string;
+    kind: string;
+    stage: string | null;
+    artifactSha256: string | null;
+    sourceLabel: string;
+  }[] = [];
+  let callbackCursor: string | null = null;
+  do {
+    const query = new URLSearchParams({ limit: "2" });
+    if (callbackCursor) query.set("cursor", callbackCursor);
+    const response = await request.get(
+      `/api/v1/agent-runs/${started.id}/callbacks?${query}`,
+    );
+    expect(response.status()).toBe(200);
+    const callbackPage = await response.json();
+    callbackEvents.push(...callbackPage.items);
+    callbackCursor = callbackPage.nextCursor;
+  } while (callbackCursor);
+  expect(callbackEvents).toHaveLength(5);
+  expect(
+    new Set(
+      callbackEvents
+        .filter((event) => event.kind === "heartbeat")
+        .map((event) => event.stage),
+    ),
+  ).toEqual(new Set(["started", "brief_read", "work_read", "result_prepared"]));
+  const artifactEvent = callbackEvents.find(
+    (event) => event.kind === "artifact",
+  );
+  expect(artifactEvent?.sourceLabel).toBe("Synthetic local runner callback");
+  expect(artifactEvent?.artifactSha256).toMatch(/^[0-9a-f]{64}$/);
+  const artifactResponse = await request.get(
+    `/api/v1/agent-runs/${started.id}/callbacks/${artifactEvent?.id}/artifact`,
+  );
+  expect(artifactResponse.status()).toBe(200);
+  expect(artifactResponse.headers()["content-disposition"]).toContain(
+    "attachment",
+  );
+  expect((await artifactResponse.json()).sourceLabel).toBe(
+    "Synthetic local runner report",
+  );
+  const unauthorizedCallback = await request.post(
+    `/api/v1/agent-runs/${started.id}/callbacks`,
+    {
+      data: {
+        version: 1,
+        attemptId: run.attemptHistory[0].id,
+        sequence: 6,
+        kind: "heartbeat",
+        stage: "started",
+      },
+    },
+  );
+  expect(unauthorizedCallback.status()).toBe(403);
+  expect((await unauthorizedCallback.json()).code).toBe("CALLBACK_AUTH_DENIED");
 
   const terminalRead = await request.post(
     `/api/v1/agent-runs/${started.id}/context-reads`,
@@ -307,6 +363,12 @@ test("a synthetic local agent reads only its run scope and reports an unverified
   ).toBeVisible();
   await expect(
     page.getByRole("heading", { name: "Run timeline and audit" }),
+  ).toBeVisible();
+  await expect(
+    page.getByRole("heading", { name: "Runner heartbeats and artifacts" }),
+  ).toBeVisible();
+  await expect(
+    page.getByRole("link", { name: "Download synthetic-run-report.json" }),
   ).toBeVisible();
   await expect(
     page.getByText("Synthetic worker: result prepared"),

@@ -45,6 +45,16 @@ an audited state transition. This is a provisional protocol rehearsal. It does
 not select an external runtime, callback authentication, workspace ownership,
 artifact transfer, or retry policy for a real runner.
 
+The local worker also uses a per-attempt, ten-minute maximum callback lease.
+Only its digest is stored. A local-only versioned endpoint accepts ordered
+heartbeats and one bounded synthetic JSON report; replay, wrong scope, expiry,
+and closed runs are rejected. The report is immutable and downloadable from the
+run timeline. This is a low-risk Commandry-owned evidence write requiring the
+exact attempt token, no approval, and an immutable callback event plus audit
+record. It performs no external action. Token distribution to an external
+runner, callback transport trust, real workspace/log/artifact ownership,
+heartbeat loss policy, and retries remain undecided.
+
 ### OQ-007: What is the first capability and policy representation?
 
 Define operations, scopes, environments, expiry, delegation, and approval

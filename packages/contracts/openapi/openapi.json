@@ -6188,6 +6188,166 @@
         }
       }
     },
+    "/api/v1/agent-runs/{id}/callbacks": {
+      "get": {
+        "operationId": "listLocalAgentCallbacks",
+        "summary": "Page labeled synthetic local runner heartbeats and artifacts",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "id",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          },
+          {
+            "in": "query",
+            "name": "limit",
+            "required": false,
+            "schema": {
+              "type": "integer",
+              "minimum": 1,
+              "maximum": 100,
+              "default": 25
+            }
+          },
+          {
+            "in": "query",
+            "name": "cursor",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Immutable local runner callback events",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ListLocalAgentCallbacksResponse"
+                }
+              }
+            }
+          }
+        }
+      },
+      "post": {
+        "operationId": "reportLocalAgentCallback",
+        "summary": "Report a scoped local-only runner heartbeat or artifact",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "id",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          }
+        ],
+        "security": [
+          {
+            "localRunnerBearer": []
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/LocalAgentCallbackRequest"
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": "Accepted immutable callback event",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/LocalAgentCallbackEvent"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Callback token, scope, or lease rejected",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "Callback sequence already used or out of order",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/agent-runs/{id}/callbacks/{eventId}/artifact": {
+      "get": {
+        "operationId": "downloadLocalAgentCallbackArtifact",
+        "summary": "Download one bounded synthetic local runner report",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "id",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          },
+          {
+            "in": "path",
+            "name": "eventId",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Stored synthetic JSON report as an attachment",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "string",
+                  "format": "binary"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Artifact not found for this run",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/api/v1/overnight": {
       "get": {
         "operationId": "listOvernightQueue",
@@ -9986,6 +10146,11 @@
         "type": "http",
         "scheme": "bearer",
         "description": "Local synthetic receiver rehearsal token, not product authentication"
+      },
+      "localRunnerBearer": {
+        "type": "http",
+        "scheme": "bearer",
+        "description": "Short-lived per-attempt synthetic local runner token, not product authentication"
       }
     },
     "schemas": {
@@ -32727,6 +32892,365 @@
           "version",
           "runId",
           "occurrenceId"
+        ],
+        "additionalProperties": false
+      },
+      "LocalAgentCallbackRequest": {
+        "oneOf": [
+          {
+            "type": "object",
+            "properties": {
+              "version": {
+                "type": "number",
+                "const": 1
+              },
+              "attemptId": {
+                "type": "string",
+                "format": "uuid",
+                "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$"
+              },
+              "sequence": {
+                "type": "integer",
+                "exclusiveMinimum": 0,
+                "maximum": 9007199254740991
+              },
+              "kind": {
+                "type": "string",
+                "const": "heartbeat"
+              },
+              "stage": {
+                "type": "string",
+                "enum": [
+                  "started",
+                  "brief_read",
+                  "work_read",
+                  "result_prepared"
+                ]
+              }
+            },
+            "required": [
+              "version",
+              "attemptId",
+              "sequence",
+              "kind",
+              "stage"
+            ],
+            "additionalProperties": false
+          },
+          {
+            "type": "object",
+            "properties": {
+              "version": {
+                "type": "number",
+                "const": 1
+              },
+              "attemptId": {
+                "type": "string",
+                "format": "uuid",
+                "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$"
+              },
+              "sequence": {
+                "type": "integer",
+                "exclusiveMinimum": 0,
+                "maximum": 9007199254740991
+              },
+              "kind": {
+                "type": "string",
+                "const": "artifact"
+              },
+              "artifactName": {
+                "type": "string",
+                "const": "synthetic-run-report.json"
+              },
+              "artifactMimeType": {
+                "type": "string",
+                "const": "application/json"
+              },
+              "artifactContent": {
+                "type": "string",
+                "minLength": 1,
+                "maxLength": 16384
+              }
+            },
+            "required": [
+              "version",
+              "attemptId",
+              "sequence",
+              "kind",
+              "artifactName",
+              "artifactMimeType",
+              "artifactContent"
+            ],
+            "additionalProperties": false
+          }
+        ]
+      },
+      "LocalAgentCallbackEvent": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string",
+            "format": "uuid",
+            "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$"
+          },
+          "runId": {
+            "type": "string",
+            "format": "uuid",
+            "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$"
+          },
+          "attemptId": {
+            "type": "string",
+            "format": "uuid",
+            "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$"
+          },
+          "sequence": {
+            "type": "integer",
+            "exclusiveMinimum": 0,
+            "maximum": 9007199254740991
+          },
+          "kind": {
+            "type": "string",
+            "enum": [
+              "heartbeat",
+              "artifact"
+            ]
+          },
+          "stage": {
+            "anyOf": [
+              {
+                "type": "string",
+                "enum": [
+                  "started",
+                  "brief_read",
+                  "work_read",
+                  "result_prepared"
+                ]
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "artifactName": {
+            "anyOf": [
+              {
+                "type": "string",
+                "const": "synthetic-run-report.json"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "artifactMimeType": {
+            "anyOf": [
+              {
+                "type": "string",
+                "const": "application/json"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "artifactBytes": {
+            "anyOf": [
+              {
+                "type": "integer",
+                "minimum": 1,
+                "maximum": 16384
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "artifactSha256": {
+            "anyOf": [
+              {
+                "type": "string",
+                "pattern": "^[0-9a-f]{64}$"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "sourceLabel": {
+            "type": "string",
+            "const": "Synthetic local runner callback"
+          },
+          "isSynthetic": {
+            "type": "boolean",
+            "const": true
+          },
+          "createdAt": {
+            "type": "string",
+            "format": "date-time",
+            "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))T(?:(?:[01]\\d|2[0-3]):[0-5]\\d:[0-5]\\d(?:\\.\\d+)?(?:Z|([+-](?:[01]\\d|2[0-3]):[0-5]\\d)))$"
+          }
+        },
+        "required": [
+          "id",
+          "runId",
+          "attemptId",
+          "sequence",
+          "kind",
+          "stage",
+          "artifactName",
+          "artifactMimeType",
+          "artifactBytes",
+          "artifactSha256",
+          "sourceLabel",
+          "isSynthetic",
+          "createdAt"
+        ],
+        "additionalProperties": false
+      },
+      "ListLocalAgentCallbacksResponse": {
+        "type": "object",
+        "properties": {
+          "items": {
+            "type": "array",
+            "items": {
+              "type": "object",
+              "properties": {
+                "id": {
+                  "type": "string",
+                  "format": "uuid",
+                  "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$"
+                },
+                "runId": {
+                  "type": "string",
+                  "format": "uuid",
+                  "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$"
+                },
+                "attemptId": {
+                  "type": "string",
+                  "format": "uuid",
+                  "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$"
+                },
+                "sequence": {
+                  "type": "integer",
+                  "exclusiveMinimum": 0,
+                  "maximum": 9007199254740991
+                },
+                "kind": {
+                  "type": "string",
+                  "enum": [
+                    "heartbeat",
+                    "artifact"
+                  ]
+                },
+                "stage": {
+                  "anyOf": [
+                    {
+                      "type": "string",
+                      "enum": [
+                        "started",
+                        "brief_read",
+                        "work_read",
+                        "result_prepared"
+                      ]
+                    },
+                    {
+                      "type": "null"
+                    }
+                  ]
+                },
+                "artifactName": {
+                  "anyOf": [
+                    {
+                      "type": "string",
+                      "const": "synthetic-run-report.json"
+                    },
+                    {
+                      "type": "null"
+                    }
+                  ]
+                },
+                "artifactMimeType": {
+                  "anyOf": [
+                    {
+                      "type": "string",
+                      "const": "application/json"
+                    },
+                    {
+                      "type": "null"
+                    }
+                  ]
+                },
+                "artifactBytes": {
+                  "anyOf": [
+                    {
+                      "type": "integer",
+                      "minimum": 1,
+                      "maximum": 16384
+                    },
+                    {
+                      "type": "null"
+                    }
+                  ]
+                },
+                "artifactSha256": {
+                  "anyOf": [
+                    {
+                      "type": "string",
+                      "pattern": "^[0-9a-f]{64}$"
+                    },
+                    {
+                      "type": "null"
+                    }
+                  ]
+                },
+                "sourceLabel": {
+                  "type": "string",
+                  "const": "Synthetic local runner callback"
+                },
+                "isSynthetic": {
+                  "type": "boolean",
+                  "const": true
+                },
+                "createdAt": {
+                  "type": "string",
+                  "format": "date-time",
+                  "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))T(?:(?:[01]\\d|2[0-3]):[0-5]\\d:[0-5]\\d(?:\\.\\d+)?(?:Z|([+-](?:[01]\\d|2[0-3]):[0-5]\\d)))$"
+                }
+              },
+              "required": [
+                "id",
+                "runId",
+                "attemptId",
+                "sequence",
+                "kind",
+                "stage",
+                "artifactName",
+                "artifactMimeType",
+                "artifactBytes",
+                "artifactSha256",
+                "sourceLabel",
+                "isSynthetic",
+                "createdAt"
+              ],
+              "additionalProperties": false
+            }
+          },
+          "nextCursor": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "uuid",
+                "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          }
+        },
+        "required": [
+          "items",
+          "nextCursor"
         ],
         "additionalProperties": false
       },

@@ -2305,6 +2305,56 @@ export const localAgentRunJobV1Schema = z.object({
   occurrenceId: z.string().min(1).max(180),
 });
 
+export const localAgentCallbackRequestSchema = z.discriminatedUnion("kind", [
+  z.strictObject({
+    version: z.literal(1),
+    attemptId: z.uuid(),
+    sequence: z.number().int().positive(),
+    kind: z.literal("heartbeat"),
+    stage: z.enum(["started", "brief_read", "work_read", "result_prepared"]),
+  }),
+  z.strictObject({
+    version: z.literal(1),
+    attemptId: z.uuid(),
+    sequence: z.number().int().positive(),
+    kind: z.literal("artifact"),
+    artifactName: z.literal("synthetic-run-report.json"),
+    artifactMimeType: z.literal("application/json"),
+    artifactContent: z.string().min(1).max(16_384),
+  }),
+]);
+
+export const localAgentCallbackEventSchema = z.object({
+  id: z.uuid(),
+  runId: z.uuid(),
+  attemptId: z.uuid(),
+  sequence: z.number().int().positive(),
+  kind: z.enum(["heartbeat", "artifact"]),
+  stage: z
+    .enum(["started", "brief_read", "work_read", "result_prepared"])
+    .nullable(),
+  artifactName: z.literal("synthetic-run-report.json").nullable(),
+  artifactMimeType: z.literal("application/json").nullable(),
+  artifactBytes: z.number().int().min(1).max(16_384).nullable(),
+  artifactSha256: z
+    .string()
+    .regex(/^[0-9a-f]{64}$/)
+    .nullable(),
+  sourceLabel: z.literal("Synthetic local runner callback"),
+  isSynthetic: z.literal(true),
+  createdAt: z.iso.datetime({ offset: true }),
+});
+
+export const listLocalAgentCallbacksResponseSchema = z.object({
+  items: z.array(localAgentCallbackEventSchema),
+  nextCursor: z.uuid().nullable(),
+});
+
+export const listLocalAgentCallbacksQuerySchema = z.object({
+  limit: z.coerce.number().int().min(1).max(100).default(20),
+  cursor: z.uuid().optional(),
+});
+
 export const createOvernightQueueEntryRequestSchema = z.strictObject({
   packetId: z.uuid(),
   agentId: z.uuid(),
@@ -2986,6 +3036,12 @@ export type CreateLocalAgentRunRequest = z.infer<
   typeof createLocalAgentRunRequestSchema
 >;
 export type LocalAgentRunJobV1 = z.infer<typeof localAgentRunJobV1Schema>;
+export type LocalAgentCallbackRequest = z.infer<
+  typeof localAgentCallbackRequestSchema
+>;
+export type LocalAgentCallbackEvent = z.infer<
+  typeof localAgentCallbackEventSchema
+>;
 export type CreateOvernightQueueEntryRequest = z.infer<
   typeof createOvernightQueueEntryRequestSchema
 >;
