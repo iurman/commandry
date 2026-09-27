@@ -61,6 +61,12 @@ describe("Project workspace", () => {
           return json(defaultProjectPresentation);
         if (path.includes(`/projects/${project.id}/changes`))
           return json({ items: [], nextCursor: null });
+        if (path.includes(`/projects/${project.id}/agent-findings`))
+          return json({
+            items: [],
+            nextCursor: null,
+            asOf: new Date().toISOString(),
+          });
         if (path.includes(`/projects/${project.id}/work`))
           return json({
             items: [
@@ -135,6 +141,12 @@ describe("Project workspace", () => {
           return json(defaultProjectPresentation);
         if (path.includes(`/projects/${project.id}/changes`))
           return json({ items: [], nextCursor: null });
+        if (path.includes(`/projects/${project.id}/agent-findings`))
+          return json({
+            items: [],
+            nextCursor: null,
+            asOf: new Date().toISOString(),
+          });
         if (
           path.includes(`/projects/${project.id}/work`) ||
           path.includes(`/projects/${project.id}/knowledge`)
@@ -201,6 +213,12 @@ describe("Project workspace", () => {
         return json(defaultProjectPresentation);
       if (path.includes(`/projects/${project.id}/changes`))
         return json({ items: [], nextCursor: null });
+      if (path.includes(`/projects/${project.id}/agent-findings`))
+        return json({
+          items: [],
+          nextCursor: null,
+          asOf: new Date().toISOString(),
+        });
       if (
         path.includes(`/projects/${project.id}/work`) ||
         path.includes(`/projects/${project.id}/knowledge`)

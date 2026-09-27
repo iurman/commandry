@@ -2785,6 +2785,38 @@ export const cachedLocalAgentResultResponseSchema = z.object({
   nextCursor: z.number().int().min(0).nullable(),
 });
 
+export const projectAgentFindingSchema = z.object({
+  runId: z.uuid(),
+  projectId: z.uuid(),
+  agentId: z.uuid(),
+  agentName: z.string().min(1),
+  workItemId: z.uuid(),
+  workTitle: z.string().min(1),
+  packetId: z.uuid(),
+  packetDigest: z.string().regex(/^[a-f0-9]{64}$/),
+  completedAt: z.iso.datetime({ offset: true }),
+  summary: z.string().min(1),
+  evidence: z.array(evidenceReferenceSchema).max(3),
+  evidenceCount: z.number().int().min(1),
+  sourceHref: z.string().startsWith("/api/v1/agent-runs/"),
+  packetHref: z.string().startsWith("/api/v1/execution-packets/"),
+  sourceLabel: z.literal("Saved synthetic local fake-run result"),
+  isSynthetic: z.literal(true),
+  verificationStatus: z.literal("unverified"),
+});
+
+export const listProjectAgentFindingsQuerySchema = z.object({
+  limit: z.coerce.number().int().min(1).max(50).default(10),
+  cursor: z.uuid().optional(),
+});
+
+export const listProjectAgentFindingsResponseSchema = z.object({
+  projectId: z.uuid(),
+  asOf: z.iso.datetime({ offset: true }),
+  items: z.array(projectAgentFindingSchema),
+  nextCursor: z.uuid().nullable(),
+});
+
 export const localAgentRunAttemptSchema = z.object({
   id: z.uuid(),
   number: z.number().int().min(1),
@@ -3425,6 +3457,10 @@ export type FakeLocalAgentRunResult = z.infer<
 >;
 export type CachedLocalAgentResultResponse = z.infer<
   typeof cachedLocalAgentResultResponseSchema
+>;
+export type ProjectAgentFinding = z.infer<typeof projectAgentFindingSchema>;
+export type ListProjectAgentFindingsResponse = z.infer<
+  typeof listProjectAgentFindingsResponseSchema
 >;
 export type LocalAgentRun = z.infer<typeof localAgentRunSchema>;
 export type AgentContextReadRequest = z.infer<

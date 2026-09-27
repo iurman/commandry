@@ -174,6 +174,28 @@ test("a synthetic local agent reads only its run scope and reports an unverified
   expect(cachedEvidence.map((item) => item.id)).toEqual(
     run.result.evidence.map((item: { id: string }) => item.id),
   );
+  const projectFindingsResponse = await request.get(
+    `/api/v1/projects/${project.id}/agent-findings?limit=1`,
+  );
+  expect(projectFindingsResponse.status()).toBe(200);
+  const projectFindings = await projectFindingsResponse.json();
+  expect(projectFindings.items[0]).toMatchObject({
+    runId: started.id,
+    projectId: project.id,
+    packetId: packet.id,
+    packetDigest: packet.contentDigest,
+    isSynthetic: true,
+    verificationStatus: "unverified",
+    sourceHref: `/api/v1/agent-runs/${started.id}`,
+  });
+  expect(projectFindings.items[0].evidenceCount).toBe(
+    run.result.evidence.length,
+  );
+  const otherProjectCursor = await request.get(
+    `/api/v1/projects/${otherProject.id}/agent-findings?cursor=${started.id}`,
+  );
+  expect(otherProjectCursor.status()).toBe(400);
+  expect((await otherProjectCursor.json()).code).toBe("INVALID_CURSOR");
   const deniedCached = await request.get(
     `/api/v1/execution-packets/${packet.id}/cached-local-result?agentId=${unassigned.id}`,
   );
@@ -433,6 +455,25 @@ test("a synthetic local agent reads only its run scope and reports an unverified
   expect(terminalCancel.status()).toBe(200);
   expect((await terminalCancel.json()).state).toBe("succeeded");
   await expect(page.getByText("Unverified").first()).toBeVisible();
+  expect(
+    await page.evaluate(
+      () => document.documentElement.scrollWidth <= window.innerWidth,
+    ),
+  ).toBe(true);
+  await page.goto(`/projects/${project.id}`);
+  await expect(
+    page.getByRole("heading", { name: "Saved local agent findings" }),
+  ).toBeVisible();
+  const savedFinding = page
+    .getByRole("article", { name: "saved fake agent finding" })
+    .filter({
+      has: page.locator(`a[href="/agent-runs/${started.id}"]`),
+    });
+  await expect(savedFinding).toBeVisible();
+  await expect(savedFinding).toContainText(task.title);
+  await expect(
+    savedFinding.getByRole("link", { name: "Review fake run and evidence" }),
+  ).toHaveAttribute("href", `/agent-runs/${started.id}`);
   expect(
     await page.evaluate(
       () => document.documentElement.scrollWidth <= window.innerWidth,

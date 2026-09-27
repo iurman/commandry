@@ -23,6 +23,7 @@ export * from "./local-release-preflight";
 export * from "./knowledge-revisions";
 export * from "./resource-topology";
 export * from "./project-flow";
+export * from "./project-agent-findings";
 export * from "./project-decisions";
 export * from "./local-automations";
 export * from "./automation-review";

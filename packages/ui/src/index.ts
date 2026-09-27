@@ -34,6 +34,7 @@ export { ResourceImpactCard } from "./components/ResourceImpactCard";
 export { ProjectFlowCard } from "./components/ProjectFlowCard";
 export { FeedbackSettingsPanel } from "./components/FeedbackSettingsPanel";
 export type { FeedbackSettingsPanelValue } from "./components/FeedbackSettingsPanel";
+export { ProjectAgentFindingCard } from "./components/ProjectAgentFindingCard";
 export type { ProjectFlowCardView } from "./components/ProjectFlowCard";
 export type { ResourceImpactCardView } from "./components/ResourceImpactCard";
 export { SyntheticFlowTimeline } from "./components/SyntheticFlowTimeline";

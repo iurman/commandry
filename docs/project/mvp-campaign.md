@@ -20,6 +20,11 @@ explicitly labeled.
 | Proactive experience               | Deterministic attention and morning digest, evidence-linked synthetic source staleness and metric trend signals, audited local rule preferences, per-evidence quality review with reversible snooze and dismiss, bounded persisted synthetic import-flow replay and project-scoped historical flow, installable manifest and generic offline help on secure origins, responsive screens and local Storybook lab; device-local mute, motion, quiet-hour and haptic controls with an explicit opt-in acknowledgement preview                                                                     | Evaluate a bounded isolated local browser action rehearsal                     | Real signal quality, installed-device testing, and sound/haptic device validation                                       |
 | Delivery and recovery              | Local Compose web, worker and PostgreSQL; checked API contracts; disposable schema/fixture restore rehearsal; bounded encrypted backup of current local data with disposable restore and immutable evidence; isolated two-image application switch and code rollback drill with cloned local data, web reads, worker heartbeats, and immutable evidence; host-run local release preflight with versioned, source-linked evidence and a clean committed checkout to local-image label comparison; opt-in single-user Better Auth password/session experiment; unactivated VPS topology template | Production authentication decision and a registry digest or signed build chain | OQ-003 recovery and production activation, OQ-019, offsite encrypted restore and constrained VPS deployment             |
 
+The Project workspace now pages saved fake agent findings produced by the
+separate worker. Each finding shows its unverified synthetic status, exact
+packet digest, linked run and packet, and source evidence. This is a historical
+read over local run results, not an agent-generated live dashboard widget.
+
 No local simulation satisfies a real-source, production-authentication, or VPS
 recovery exit signal. A feature reaches local MVP depth when its UI, versioned
 API, PostgreSQL state, worker behavior where relevant, provenance, and a

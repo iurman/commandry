@@ -80,6 +80,9 @@ import {
   cachedLocalAgentResultQuerySchema,
   cachedLocalAgentResultSchema,
   cachedLocalAgentResultResponseSchema,
+  projectAgentFindingSchema,
+  listProjectAgentFindingsQuerySchema,
+  listProjectAgentFindingsResponseSchema,
   createLocalAgentProjectAssignmentRequestSchema,
   localAgentProjectAssignmentSchema,
   listLocalAgentProjectAssignmentsResponseSchema,
@@ -1558,6 +1561,41 @@ export function generateOpenApi(): string {
             },
             "400": {
               description: "Invalid flow cursor or page",
+              content: jsonContent("ErrorResponse"),
+            },
+            "404": {
+              description: "Project not found",
+              content: jsonContent("ErrorResponse"),
+            },
+          },
+        },
+      },
+      "/api/v1/projects/{id}/agent-findings": {
+        get: {
+          operationId: "listProjectAgentFindings",
+          summary:
+            "Page saved synthetic unverified fake-agent findings for one project",
+          parameters: [
+            idParameter,
+            {
+              name: "limit",
+              in: "query",
+              schema: { type: "integer", minimum: 1, maximum: 50 },
+            },
+            {
+              name: "cursor",
+              in: "query",
+              schema: { type: "string", format: "uuid" },
+            },
+          ],
+          responses: {
+            "200": {
+              description:
+                "Project-scoped saved fake-agent results with exact evidence",
+              content: jsonContent("ListProjectAgentFindingsResponse"),
+            },
+            "400": {
+              description: "Invalid project or page cursor",
               content: jsonContent("ErrorResponse"),
             },
             "404": {
@@ -4725,6 +4763,13 @@ export function generateOpenApi(): string {
         ProjectFlowItem: component(projectFlowItemSchema),
         ListProjectFlowQuery: component(listProjectFlowQuerySchema),
         ListProjectFlowResponse: component(listProjectFlowResponseSchema),
+        ProjectAgentFinding: component(projectAgentFindingSchema),
+        ListProjectAgentFindingsQuery: component(
+          listProjectAgentFindingsQuerySchema,
+        ),
+        ListProjectAgentFindingsResponse: component(
+          listProjectAgentFindingsResponseSchema,
+        ),
         CreateExecutionPacketRequest: component(
           createExecutionPacketRequestSchema,
         ),

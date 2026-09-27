@@ -27,6 +27,7 @@ import ProjectSystemsPanel from "./ProjectSystemsPanel";
 import ProjectDecisions from "./ProjectDecisions";
 import ProjectDetailsEditor from "./ProjectDetailsEditor";
 import ProjectOverviewPanel from "./ProjectOverviewPanel";
+import ProjectAgentFindingsPanel from "./ProjectAgentFindingsPanel";
 import SyntheticMetricsPanel from "../../SyntheticMetricsPanel";
 
 type RelationshipType = "supports" | "relates_to";
@@ -349,6 +350,7 @@ export default function ProjectWorkspace({ projectId }: { projectId: string }) {
             onPresentationChange={setPresentation}
             briefVersion={briefVersion}
           />
+          <ProjectAgentFindingsPanel key={projectId} projectId={projectId} />
           {areaVisible("systems") && (
             <ProjectSystemsPanel
               projectId={projectId}

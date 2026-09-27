@@ -61,6 +61,10 @@ and production prerequisites remain gates.
   The same screen can page a saved, unverified fake-run result tied to the exact
   packet digest and current project assignment, with evidence and a run-audit
   link. This is manual local selection, not automatic or external dispatch.
+- Project workspaces page saved fake agent findings from completed worker runs.
+  Each result is synthetic and unverified, names its exact packet digest, and
+  links to the run, packet, and source evidence. The project view is historical
+  and does not imply an external agent or browser action occurred.
 - A resource impact view and versioned API page recorded downstream depends-on
   paths up to six hops, active supporting Project links, and the latest active
   synthetic metric-drop evidence from the worker. The signal card links to the
