@@ -3,6 +3,7 @@ import { AppShell } from "@commandry/ui";
 import { headers } from "next/headers";
 import { getAuth } from "../../lib/auth";
 import SignOutButton from "./SignOutButton";
+import FeedbackSettings from "./FeedbackSettings";
 
 export const dynamic = "force-dynamic";
 
@@ -40,6 +41,7 @@ export default async function AccountPage() {
           </p>
         )}
       </section>
+      <FeedbackSettings />
     </AppShell>
   );
 }

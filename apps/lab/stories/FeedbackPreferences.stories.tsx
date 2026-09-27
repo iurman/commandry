@@ -1,71 +1,84 @@
 import type { Meta, StoryObj } from "@storybook/react";
 import { useState } from "react";
 import {
-  defaultFeedbackPreferences,
+  defaultDeviceFeedbackSettings,
+  quietHoursActive,
   resolveFeedbackChannels,
-  type FeedbackPreferences,
+  type DeviceFeedbackSettings,
 } from "@commandry/experience";
+import {
+  FeedbackSettingsPanel,
+  type FeedbackSettingsPanelValue,
+} from "@commandry/ui";
 
-function PreferencePreview() {
-  const [preferences, setPreferences] = useState<FeedbackPreferences>({
-    ...defaultFeedbackPreferences,
+function PreferencePreview({ startQuiet = false }: { startQuiet?: boolean }) {
+  const [settings, setSettings] = useState<DeviceFeedbackSettings>({
+    version: 1,
+    preferences: { ...defaultDeviceFeedbackSettings.preferences },
+    quietHours: {
+      ...defaultDeviceFeedbackSettings.quietHours,
+      enabled: startQuiet,
+    },
   });
-  const [quietHoursActive, setQuietHoursActive] = useState(false);
-  const channels = resolveFeedbackChannels(preferences, {
+  const [status, setStatus] = useState(
+    "Lab simulation only; no sound or vibration occurs.",
+  );
+  const value: FeedbackSettingsPanelValue = {
+    ...settings.preferences,
+    quietHoursEnabled: settings.quietHours.enabled,
+    quietHoursStart: settings.quietHours.start,
+    quietHoursEnd: settings.quietHours.end,
+  };
+  const quiet = quietHoursActive(
+    settings.quietHours,
+    new Date(2026, 8, 27, 23, 0),
+  );
+  const channels = resolveFeedbackChannels(settings.preferences, {
     audioAvailable: true,
     hapticsAvailable: true,
     userActivation: true,
-    quietHoursActive,
+    quietHoursActive: quiet,
   });
 
-  function updatePreference(key: keyof FeedbackPreferences, value: boolean) {
-    setPreferences((current) => ({ ...current, [key]: value }));
+  function change(next: FeedbackSettingsPanelValue) {
+    setSettings({
+      version: 1,
+      preferences: {
+        reducedMotion: next.reducedMotion,
+        reducedSensory: next.reducedSensory,
+        soundEnabled: next.soundEnabled,
+        hapticsEnabled: next.hapticsEnabled,
+      },
+      quietHours: {
+        enabled: next.quietHoursEnabled,
+        start: next.quietHoursStart,
+        end: next.quietHoursEnd,
+      },
+    });
+    setStatus("Lab settings changed. No device preference was saved.");
   }
 
   return (
     <div className="lab-preference-preview">
-      <h2>Feedback preference preview</h2>
-      <p>
-        This simulates channel availability. It never plays sound or triggers
-        vibration.
-      </p>
-      <fieldset>
-        <legend>Preferences</legend>
-        {(
-          [
-            ["reducedMotion", "Reduce motion"],
-            ["reducedSensory", "Reduce sensory feedback"],
-            ["soundEnabled", "Enable sound"],
-            ["hapticsEnabled", "Enable haptics"],
-          ] as const
-        ).map(([key, label]) => (
-          <label key={key}>
-            <input
-              checked={preferences[key]}
-              onChange={(event) => updatePreference(key, event.target.checked)}
-              type="checkbox"
-            />
-            {label}
-          </label>
-        ))}
-        <label>
-          <input
-            checked={quietHoursActive}
-            onChange={(event) => setQuietHoursActive(event.target.checked)}
-            type="checkbox"
-          />
-          Quiet hours active
-        </label>
-      </fieldset>
-      <output aria-live="polite">
-        Visual: {channels.visual ? "available" : "unavailable"}
-        {"\n"}
-        Motion: {channels.motion ? "available" : "suppressed"}
-        {"\n"}
-        Sound: {channels.sound ? "eligible" : "suppressed"}
-        {"\n"}
-        Haptics: {channels.haptics ? "eligible" : "suppressed"}
-      </output>
+      <p>Lab capabilities below are simulated; playback is disabled here.</p>
+      <FeedbackSettingsPanel
+        value={value}
+        audioAvailable
+        hapticsAvailable
+        quietHoursActive={quiet}
+        status={
+          status +
+          " Sound " +
+          (channels.sound ? "eligible" : "suppressed") +
+          "; vibration " +
+          (channels.haptics ? "eligible" : "suppressed") +
+          "."
+        }
+        onChange={change}
+        onPreview={() =>
+          setStatus("Lab preview requested. No sound or vibration occurred.")
+        }
+      />
     </div>
   );
 }
@@ -79,3 +92,4 @@ export default meta;
 type Story = StoryObj<typeof meta>;
 
 export const ChannelAvailability: Story = {};
+export const QuietHours: Story = { args: { startQuiet: true } };

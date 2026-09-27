@@ -164,6 +164,14 @@ hours, event rate limits, browser/native capability matrix, generated-asset
 review/provenance, and accessibility tests. Do not treat “make it haptic” as
 permission to vibrate or play sound for every event.
 
+The local MVP now stores optional controls only in each browser. Sound and
+vibration default off, and reduced sensory mode or device-local quiet hours
+suppresses both. A direct preview click and a deliberate synthetic signal
+review can use one short, rate-limited acknowledgement; background events never
+autoplay. The procedurally generated tone is a local prototype, not an accepted
+asset. Validate categories, volume, real device behavior, accessibility,
+cross-device preferences, and which future semantic events deserve a cue.
+
 ### OQ-017: What is the first useful agent/system-flow visualization?
 
 Choose a narrow question and real data source for the first viewport—likely one

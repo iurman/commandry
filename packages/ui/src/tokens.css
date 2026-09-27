@@ -217,6 +217,7 @@
   }
 }
 
+:root[data-reduced-motion="true"],
 :root[data-reduced-sensory="true"] {
   --cmd-motion-duration: 0ms;
 }

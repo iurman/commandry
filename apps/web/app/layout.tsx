@@ -1,6 +1,7 @@
 import type { Metadata } from "next";
 import type { ReactNode } from "react";
 import { PwaStatus } from "./components/PwaStatus";
+import { FeedbackPreferenceBridge } from "./components/FeedbackPreferenceBridge";
 import "./globals.css";
 
 export const metadata: Metadata = {
@@ -16,6 +17,7 @@ export default function RootLayout({ children }: { children: ReactNode }) {
     <html lang="en">
       <body>
         {children}
+        <FeedbackPreferenceBridge />
         <PwaStatus />
       </body>
     </html>

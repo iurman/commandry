@@ -7,6 +7,7 @@ import type {
   LocalAttentionSignal,
 } from "@commandry/contracts";
 import { AppShell, Button, LocalAttentionSignalCard } from "@commandry/ui";
+import { playLocalAcknowledgement } from "../../lib/device-feedback";
 import { apiJson, type PageResponse } from "../projects/api";
 
 function signalPath(
@@ -174,6 +175,7 @@ export default function AttentionSignalsPage() {
     action: "useful" | "noisy" | "snooze" | "dismiss" | "restore",
   ) {
     if (busy) return;
+    void playLocalAcknowledgement();
     setBusy(true);
     setError(null);
     setFeedback(null);
@@ -351,7 +353,9 @@ export default function AttentionSignalsPage() {
           Quality feedback is recorded locally and does not train an automatic
           ranker. Snooze and dismiss hide only the current evidence from Active;
           new worker evidence can surface again. All history keeps the signal
-          and its review audit so visibility can be restored.
+          and its review audit so visibility can be restored. If enabled in
+          Account, a direct review may play one local acknowledgement cue;
+          background signals remain silent.
         </p>
         {!loading && signals.length === 0 && (
           <p>

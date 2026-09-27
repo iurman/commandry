@@ -79,6 +79,13 @@ and production prerequisites remain gates.
   and related records, distinguishes synthetic evidence, and states its read
   time. It is a historical projection, not live agent traffic or a health
   claim; correlation and presentation remain provisional under OQ-017.
+- Account now has device-local, versioned feedback settings for motion, optional
+  sound and vibration, and quiet hours. Visual status remains present. One
+  direct acknowledgement preview and deliberate synthetic signal reviews can
+  use a restrained, rate-limited cue when the browser supports it and the user
+  opted in. Background events remain silent. The Storybook controls simulate
+  capabilities and do not play cues; sound assets and real-device behavior
+  remain provisional under OQ-016.
 - Portfolio Domains are distinct local records with editable details and one
   active typed `owned_by` relationship per project. Moving or unlinking a
   project archives the old edge while retaining exact link and audit reads.
