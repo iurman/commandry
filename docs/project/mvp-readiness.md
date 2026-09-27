@@ -60,6 +60,9 @@ replace the production gates.
 1. **VPS and recovery facts.** An initial read-only inventory under
    [OQ-019](open-questions.md#oq-019-can-the-existing-vps-safely-host-the-initial-database) found four vCPUs, about 5 GiB of available memory,
    180 GiB of free disk, existing Docker workloads, and a working SSH path.
+   After the owner-authorized Hermes and Paperclip retirement on 2026-09-27,
+   Ephemera was the only remaining Compose project and remained healthy;
+   about 187 GiB of disk was free.
    Provider, recovery-console, snapshot, firewall, and backup details still
    need validation. ADR 0009 requires an offsite encrypted backup and a clean
    VPS restore, plus a constrained deployment identity. Local backup and

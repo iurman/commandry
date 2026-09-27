@@ -24,9 +24,13 @@ a deployment or a change to an existing VPS service.
   `.agent/VPS_INVENTORY.md` note.
 - An initial read-only inventory found Ubuntu 24.04, four vCPUs, about 5 GiB
   of available memory, 180 GiB of free disk, and existing Docker and user
-  services. The full host inventory is in that local-only note; provider,
-  recovery-console, snapshot, offsite backup, and firewall-policy facts remain
-  unverified. No existing VPS service has been changed by Codex.
+  services. On 2026-09-27 the owner authorized removing the Hermes and
+  Paperclip stacks. Their services, containers, dedicated images, network,
+  data, and installed configuration were removed after encrypted local cold
+  copies passed archive and database checks. Ephemera stayed running and
+  healthy, with about 187 GiB of disk free afterward. The exact retirement
+  record is in ignored `.agent/VPS_RETIREMENT.md`; provider, recovery-console,
+  snapshot, offsite backup, and firewall-policy facts remain unverified.
 - The owner usually buys domains through Namecheap, but the registrar for
   `commandry.site` and the other domains has not been verified.
 
