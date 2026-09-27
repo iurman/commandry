@@ -11,6 +11,7 @@ import {
   DecisionCard,
   KnowledgeDocumentCard,
   KnowledgeLinkCard,
+  KnowledgeTypeBadge,
   RecordEmptyState,
 } from "@commandry/ui";
 import { apiJson, type PageResponse } from "../projects/api";
@@ -120,8 +121,9 @@ export default function KnowledgeWorkspace({
           <p className="cmd-eyebrow">Knowledge / Across projects</p>
           <h1>Knowledge</h1>
           <p className="cmd-lead">
-            Read local notes, saved links, documents, and decisions in project
-            context. Originals stay separate from editable Knowledge records.
+            Read local ideas, research, runbooks, notes, links, documents, and
+            decisions in project context. Originals stay separate from editable
+            Knowledge records.
           </p>
         </div>
         <a className="cmd-headline-mark" href="/inbox">
@@ -168,7 +170,7 @@ export default function KnowledgeWorkspace({
             <div className="cmd-section-heading">
               <div>
                 <p className="cmd-eyebrow">Source preserving</p>
-                <h2 id="notes-heading">Notes, links, and documents</h2>
+                <h2 id="notes-heading">Knowledge records</h2>
               </div>
               <span className="cmd-count">{notes.length} shown</span>
             </div>
@@ -178,10 +180,7 @@ export default function KnowledgeWorkspace({
                 description="Capture text, a URL, or a file in the Inbox and file it as knowledge."
               />
             )}
-            <ul
-              className="cmd-record-list"
-              aria-label="Knowledge notes, links, and documents"
-            >
+            <ul className="cmd-record-list" aria-label="Knowledge records">
               {notes.map((note) => (
                 <li key={note.id}>
                   {note.contextLink && (
@@ -223,7 +222,7 @@ export default function KnowledgeWorkspace({
                   ) : (
                     <article className="cmd-record-card">
                       <div className="cmd-record-topline">
-                        <span className="cmd-record-kind">Local note</span>
+                        <KnowledgeTypeBadge kind={note.kind} />
                         <span className="cmd-count">
                           Version {note.version ?? 1}
                         </span>

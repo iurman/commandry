@@ -13,6 +13,7 @@ import type {
 } from "@commandry/contracts";
 import {
   briefExcerpt,
+  knowledgeKindLabel,
   briefMissing,
   NEXT_ACTION_RULE,
   nextActionForOpenWork,
@@ -203,6 +204,7 @@ export function assembleProjectBrief(
     }),
   );
   const knowledge = snapshot.knowledge.items.map((item) => {
+    const category = knowledgeKindLabel(item.kind).toLowerCase();
     const sourceLabel =
       item.kind === "link"
         ? "Manual local knowledge link"
@@ -211,8 +213,8 @@ export function assembleProjectBrief(
             ? "Locally revised knowledge document"
             : "Manual local knowledge document"
           : (item.version ?? 1) > 1
-            ? "Locally revised knowledge note"
-            : "Manual local capture";
+            ? `Locally revised knowledge ${category}`
+            : `Manual local knowledge ${category}`;
     return fact({
       id: item.id,
       kind: "knowledge_item",
@@ -222,7 +224,7 @@ export function assembleProjectBrief(
           ? `Saved reference: ${item.url ?? "URL unavailable"}. ${briefExcerpt(item.content)}`
           : item.kind === "document"
             ? `Original file preserved separately. ${briefExcerpt(item.content)}`
-            : briefExcerpt(item.content),
+            : `${knowledgeKindLabel(item.kind)}. ${briefExcerpt(item.content)}`,
       evidence: [
         evidence(
           "knowledge_item",
@@ -430,7 +432,7 @@ export function assembleProjectBrief(
         knowledge,
         snapshot.knowledge.nextCursor,
         `/api/v1/projects/${projectId}/knowledge`,
-        "No knowledge notes are recorded in this preview.",
+        "No knowledge records are recorded in this preview.",
       ),
       decisions: section(
         decisions,

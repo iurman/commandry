@@ -129,12 +129,12 @@ describe("Execution packet review", () => {
     expect(within(knowledge).getByText("Venue note")).toBeTruthy();
     expect(
       within(knowledge)
-        .getByRole("link", { name: "View current knowledge note" })
+        .getByRole("link", { name: "View current Knowledge item" })
         .getAttribute("href"),
     ).toBe(`/knowledge-items/${noteId}`);
     expect(
       within(knowledge).getByText(
-        /Only the note identity and source reference/,
+        /Only the Knowledge identity and source reference/,
       ),
     ).toBeTruthy();
     const resources = screen.getByRole("region", {

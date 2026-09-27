@@ -1,0 +1,4 @@
+ALTER TABLE "knowledge_item" DROP CONSTRAINT "knowledge_item_kind_valid";--> statement-breakpoint
+ALTER TABLE "knowledge_item" DROP CONSTRAINT "knowledge_item_url_valid";--> statement-breakpoint
+ALTER TABLE "knowledge_item" ADD CONSTRAINT "knowledge_item_kind_valid" CHECK ("knowledge_item"."kind" in ('note', 'idea', 'research', 'requirement', 'architecture_note', 'runbook', 'meeting_note', 'lesson_learned', 'instruction', 'link', 'document'));--> statement-breakpoint
+ALTER TABLE "knowledge_item" ADD CONSTRAINT "knowledge_item_url_valid" CHECK (("knowledge_item"."kind" <> 'link' and "knowledge_item"."url" is null) or ("knowledge_item"."kind" = 'link' and "knowledge_item"."url" is not null and length(trim("knowledge_item"."url")) > 0));

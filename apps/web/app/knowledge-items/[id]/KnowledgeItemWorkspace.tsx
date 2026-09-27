@@ -1,7 +1,13 @@
 "use client";
 
 import { useEffect, useState, type FormEvent } from "react";
-import { AppShell, Button, KnowledgeRevisionCard } from "@commandry/ui";
+import {
+  AppShell,
+  Button,
+  knowledgeTypeLabel,
+  KnowledgeRevisionCard,
+  type KnowledgeKind,
+} from "@commandry/ui";
 import { apiJson, pagePath, type PageResponse } from "../../projects/api";
 import DocumentWorkLinks from "./DocumentWorkLinks";
 import KnowledgeProjectPanel from "./KnowledgeProjectPanel";
@@ -10,7 +16,7 @@ export interface KnowledgeItemRecord {
   id: string;
   projectId: string;
   sourceCaptureId: string;
-  kind: "note" | "link" | "document";
+  kind: KnowledgeKind;
   title: string;
   content: string;
   url?: string | null;
@@ -123,7 +129,7 @@ export default function KnowledgeItemWorkspace({
           ? "Knowledge link saved. The exact original capture and saved link target are unchanged."
           : updated.kind === "document"
             ? "Knowledge document saved. The exact original file is unchanged."
-            : "Knowledge note saved. The exact original capture is unchanged.",
+            : `Knowledge ${knowledgeTypeLabel(updated.kind).toLowerCase()} saved. The exact original capture is unchanged.`,
       );
     } catch (cause) {
       setSaveError(
@@ -183,7 +189,9 @@ export default function KnowledgeItemWorkspace({
           </a>
         )}
         {item && <span aria-hidden="true">/</span>}
-        <span>{item ? `Knowledge ${item.kind}` : "Knowledge"}</span>
+        <span>
+          {item ? `Knowledge ${knowledgeTypeLabel(item.kind)}` : "Knowledge"}
+        </span>
       </nav>
       {loading && (
         <p className="cmd-inline-state" role="status">
@@ -200,11 +208,12 @@ export default function KnowledgeItemWorkspace({
           <header className="cmd-page-header cmd-workspace-heading">
             <div>
               <p className="cmd-eyebrow">
-                Project knowledge / Filed {item.kind}
+                Project knowledge / Filed {knowledgeTypeLabel(item.kind)}
               </p>
               <h1>{item.title}</h1>
               <p className="cmd-lead">
-                This saved {item.kind} links to the exact original capture.
+                This saved {knowledgeTypeLabel(item.kind).toLowerCase()} links
+                to the exact original capture.
               </p>
             </div>
             <span className="cmd-headline-mark" aria-hidden="true">
@@ -222,7 +231,9 @@ export default function KnowledgeItemWorkspace({
                   ? "Link context"
                   : item.kind === "document"
                     ? "Document context"
-                    : "Note body"}
+                    : item.kind === "note"
+                      ? "Note body"
+                      : `${knowledgeTypeLabel(item.kind)} content`}
               </h2>
               {item.kind === "link" && item.url && (
                 <p>
@@ -251,7 +262,9 @@ export default function KnowledgeItemWorkspace({
                     ? "link context"
                     : item.kind === "document"
                       ? "document context"
-                      : "note body"}{" "}
+                      : item.kind === "note"
+                        ? "note body"
+                        : `${knowledgeTypeLabel(item.kind).toLowerCase()} content`}{" "}
                   was recorded.
                 </p>
               )}
@@ -272,7 +285,7 @@ export default function KnowledgeItemWorkspace({
               <dl className="cmd-detail-facts">
                 <div>
                   <dt>Kind</dt>
-                  <dd>Knowledge {item.kind}</dd>
+                  <dd>Knowledge {knowledgeTypeLabel(item.kind)}</dd>
                 </div>
                 <div>
                   <dt>Version</dt>
@@ -317,7 +330,9 @@ export default function KnowledgeItemWorkspace({
             aria-labelledby="knowledge-edit-heading"
           >
             <p className="cmd-eyebrow">Local knowledge / Audited</p>
-            <h2 id="knowledge-edit-heading">Revise this {item.kind}</h2>
+            <h2 id="knowledge-edit-heading">
+              Revise this {knowledgeTypeLabel(item.kind).toLowerCase()}
+            </h2>
             <p>
               Edits update the current project knowledge, search, and live
               brief. The original capture

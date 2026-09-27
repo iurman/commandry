@@ -2,10 +2,15 @@
 
 import { useEffect, useRef, useState, type FormEvent } from "react";
 import {
+  KNOWLEDGE_TEXT_TYPES,
+  type KnowledgeTextType,
+} from "@commandry/domain";
+import {
   AppShell,
   Button,
   CaptureOriginal,
   CaptureTriageSummary,
+  knowledgeTypeLabel,
   RecordEmptyState,
   StatusBadge,
 } from "@commandry/ui";
@@ -74,6 +79,7 @@ export default function InboxPage() {
   const [projectId, setProjectId] = useState("");
   const [kind, setKind] = useState<FilingKind>("task");
   const [workType, setWorkType] = useState<"task" | "initiative">("task");
+  const [knowledgeType, setKnowledgeType] = useState<KnowledgeTextType>("note");
   const [title, setTitle] = useState("");
   const [body, setBody] = useState("");
   const [filing, setFiling] = useState(false);
@@ -184,6 +190,7 @@ export default function InboxPage() {
         ) {
           setKind(review.suggestion.kind);
           setWorkType("task");
+          setKnowledgeType("note");
           setTitle(review.suggestion.title);
           setProjectId(review.suggestion.proposedProjectId ?? "");
           suggestionPrefilledFor.current = review.suggestion.id;
@@ -220,6 +227,7 @@ export default function InboxPage() {
     setDetailError(null);
     setKind("task");
     setWorkType("task");
+    setKnowledgeType("note");
     setTitle("");
     setBody("");
     setProjectId("");
@@ -427,6 +435,7 @@ export default function InboxPage() {
             projectId,
             kind,
             ...(kind === "task" ? { workType } : {}),
+            ...(kind === "note" ? { knowledgeType } : {}),
             title: title.trim(),
             ...(body.trim() ? { body } : {}),
           }),
@@ -438,9 +447,14 @@ export default function InboxPage() {
           item.id === result.capture.id ? result.capture : item,
         ),
       );
-      const filedType = kind === "task" ? workType : kind;
+      const filedType =
+        kind === "task"
+          ? workType
+          : kind === "note"
+            ? knowledgeTypeLabel(knowledgeType).toLowerCase()
+            : kind;
       setFilingFeedback(
-        `Filed as ${filedType === "initiative" ? "an" : "a"} ${filedType} in the selected project.`,
+        `Filed as ${/^[aeiou]/.test(filedType) ? "an" : "a"} ${filedType} in the selected project.`,
       );
     } catch (cause) {
       setFilingError(message(cause, "Could not file capture."));
@@ -755,13 +769,17 @@ export default function InboxPage() {
                     Filed as{" "}
                     {detail.filedRecord.kind === "task"
                       ? "Work"
-                      : detail.filedRecord.kind}
+                      : detail.filedRecord.kind === "note"
+                        ? "Knowledge"
+                        : detail.filedRecord.kind}
                   </h3>
                   <p>
                     The{" "}
                     {detail.filedRecord.kind === "task"
                       ? "Work item"
-                      : detail.filedRecord.kind}{" "}
+                      : detail.filedRecord.kind === "note"
+                        ? "Knowledge item"
+                        : detail.filedRecord.kind}{" "}
                     links back to this unchanged capture.
                     {detail.filedAt ? ` Filed at ${detail.filedAt}.` : ""}
                   </p>
@@ -783,12 +801,15 @@ export default function InboxPage() {
                       Open saved Work item
                     </a>
                   )}
-                  {(detail.filedRecord.kind === "link" ||
+                  {(detail.filedRecord.kind === "note" ||
+                    detail.filedRecord.kind === "link" ||
                     detail.filedRecord.kind === "document") && (
                     <a
                       href={`/knowledge-items/${encodeURIComponent(detail.filedRecord.id)}`}
                     >
-                      Open saved knowledge {detail.filedRecord.kind}
+                      {detail.filedRecord.kind === "note"
+                        ? "Open saved Knowledge"
+                        : `Open saved knowledge ${detail.filedRecord.kind}`}
                     </a>
                   )}
                   {filingFeedback && (
@@ -897,6 +918,33 @@ export default function InboxPage() {
                         </p>
                       </>
                     )}
+                    {kind === "note" && (
+                      <>
+                        <label htmlFor="file-knowledge-type">
+                          Knowledge type
+                        </label>
+                        <select
+                          id="file-knowledge-type"
+                          onChange={(event) => {
+                            filingTouched.current = true;
+                            setKnowledgeType(
+                              event.target.value as KnowledgeTextType,
+                            );
+                          }}
+                          value={knowledgeType}
+                        >
+                          {KNOWLEDGE_TEXT_TYPES.map((type) => (
+                            <option key={type} value={type}>
+                              {knowledgeTypeLabel(type)}
+                            </option>
+                          ))}
+                        </select>
+                        <p className="cmd-form-hint">
+                          This label organizes a preserved original capture;
+                          saved content can be revised separately.
+                        </p>
+                      </>
+                    )}
                     <label htmlFor="file-title">
                       Title <span aria-hidden="true">*</span>
                     </label>
@@ -917,7 +965,7 @@ export default function InboxPage() {
                           ? "Link context"
                           : kind === "document"
                             ? "Document context"
-                            : "Note body"}
+                            : "Content"}
                       <span className="cmd-optional"> Optional</span>
                     </label>
                     <textarea
@@ -954,13 +1002,14 @@ export default function InboxPage() {
                     >
                       {filing
                         ? "Filing..."
-                        : `File as ${kind === "task" ? workType : kind}`}
+                        : `File as ${kind === "task" ? workType : kind === "note" ? knowledgeTypeLabel(knowledgeType).toLowerCase() : kind}`}
                     </Button>
                     {triageReview?.suggestion &&
                       !triageReview.decision &&
                       kind !== "link" &&
                       kind !== "document" &&
-                      !(kind === "task" && workType === "initiative") && (
+                      !(kind === "task" && workType === "initiative") &&
+                      !(kind === "note" && knowledgeType !== "note") && (
                         <Button
                           disabled={triageSaving || !projectId || !title.trim()}
                           onClick={() => reviewSuggestion("approve")}

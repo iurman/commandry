@@ -3,6 +3,50 @@ export type ManualCaptureInputType = "text" | "url";
 export const MANUAL_CAPTURE_SOURCE = "manual-local" as const;
 export const MANUAL_CAPTURE_AUTHOR = "local-user" as const;
 
+export const KNOWLEDGE_TEXT_TYPES = [
+  "note",
+  "idea",
+  "research",
+  "requirement",
+  "architecture_note",
+  "runbook",
+  "meeting_note",
+  "lesson_learned",
+  "instruction",
+] as const;
+export type KnowledgeTextType = (typeof KNOWLEDGE_TEXT_TYPES)[number];
+
+export function knowledgeKindLabel(
+  kind: KnowledgeTextType | "link" | "document",
+): string {
+  return {
+    note: "Note",
+    idea: "Idea",
+    research: "Research",
+    requirement: "Requirement",
+    architecture_note: "Architecture note",
+    runbook: "Runbook",
+    meeting_note: "Meeting note",
+    lesson_learned: "Lesson learned",
+    instruction: "Instruction",
+    link: "Link",
+    document: "Document",
+  }[kind];
+}
+
+export function validateKnowledgeFilingType(
+  kind: "task" | "note" | "link" | "document",
+  knowledgeType: KnowledgeTextType | undefined,
+): KnowledgeTextType {
+  if (knowledgeType && kind !== "note") {
+    throw new CaptureError(
+      "CAPTURE_KIND_INVALID",
+      "Only a text Knowledge capture may select a Knowledge type",
+    );
+  }
+  return knowledgeType ?? "note";
+}
+
 export function validateWorkFilingType(
   kind: "task" | "note" | "link" | "document",
   workType: "task" | "initiative" | undefined,

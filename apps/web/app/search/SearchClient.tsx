@@ -177,8 +177,9 @@ export default function SearchClient({
           <p className="cmd-eyebrow">Find context</p>
           <h1>Search</h1>
           <p className="cmd-lead">
-            Find projects, resources, captures, tasks, and notes stored in this
-            local Commandry workspace. Results link to the underlying record.
+            Find projects, resources, captures, Work, and Knowledge stored in
+            this local Commandry workspace. Results link to the underlying
+            record.
           </p>
         </div>
       </header>
@@ -188,7 +189,7 @@ export default function SearchClient({
           <input
             id="search-query"
             onChange={(event) => setQuery(event.target.value)}
-            placeholder="Search projects, resources, captures, tasks, and notes"
+            placeholder="Search projects, resources, captures, Work, and Knowledge"
             required
             type="search"
             value={query}
@@ -267,7 +268,7 @@ export default function SearchClient({
             {results.map((result) => (
               <li className={styles.result} key={`${result.kind}:${result.id}`}>
                 <div className={styles.resultMeta}>
-                  <span>{result.kind}</span>
+                  <span>{result.kind.replaceAll("_", " ")}</span>
                   <time dateTime={result.createdAt}>
                     {new Date(result.createdAt).toLocaleDateString()}
                   </time>

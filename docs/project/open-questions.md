@@ -153,3 +153,13 @@ task. Validate whether initiative completion should depend on child work,
 whether initiatives should ever be executable, how reparenting should behave,
 and whether hierarchy may span secondary project context. The local type is a
 work organization aid, not a settled execution policy.
+
+### OQ-025: Which Knowledge types and changes should be canonical?
+
+The local MVP uses the proposed text categories of note, idea, research,
+requirement, architecture note, runbook, meeting note, lesson learned, and
+instruction. Link and document keep distinct source rules, and structured
+Decisions remain separate. Validate the vocabulary, whether type changes need
+their own audited revision, whether templates or required fields belong to
+specific types, and how imported sources should map into these categories.
+The current type is fixed at filing and does not assert a canonical taxonomy.

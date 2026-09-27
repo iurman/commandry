@@ -12500,6 +12500,20 @@
               "initiative"
             ]
           },
+          "knowledgeType": {
+            "type": "string",
+            "enum": [
+              "note",
+              "idea",
+              "research",
+              "requirement",
+              "architecture_note",
+              "runbook",
+              "meeting_note",
+              "lesson_learned",
+              "instruction"
+            ]
+          },
           "title": {
             "type": "string",
             "minLength": 1,
@@ -12817,6 +12831,14 @@
                     "type": "string",
                     "enum": [
                       "note",
+                      "idea",
+                      "research",
+                      "requirement",
+                      "architecture_note",
+                      "runbook",
+                      "meeting_note",
+                      "lesson_learned",
+                      "instruction",
                       "link",
                       "document"
                     ]
@@ -13801,6 +13823,14 @@
                         "type": "string",
                         "enum": [
                           "note",
+                          "idea",
+                          "research",
+                          "requirement",
+                          "architecture_note",
+                          "runbook",
+                          "meeting_note",
+                          "lesson_learned",
+                          "instruction",
                           "link",
                           "document"
                         ]
@@ -15922,6 +15952,14 @@
             "type": "string",
             "enum": [
               "note",
+              "idea",
+              "research",
+              "requirement",
+              "architecture_note",
+              "runbook",
+              "meeting_note",
+              "lesson_learned",
+              "instruction",
               "link",
               "document"
             ]
@@ -17216,6 +17254,14 @@
             "type": "string",
             "enum": [
               "note",
+              "idea",
+              "research",
+              "requirement",
+              "architecture_note",
+              "runbook",
+              "meeting_note",
+              "lesson_learned",
+              "instruction",
               "link",
               "document"
             ]
@@ -17330,6 +17376,14 @@
                   "type": "string",
                   "enum": [
                     "note",
+                    "idea",
+                    "research",
+                    "requirement",
+                    "architecture_note",
+                    "runbook",
+                    "meeting_note",
+                    "lesson_learned",
+                    "instruction",
                     "link",
                     "document"
                   ]
@@ -20585,6 +20639,14 @@
                   "type": "string",
                   "enum": [
                     "note",
+                    "idea",
+                    "research",
+                    "requirement",
+                    "architecture_note",
+                    "runbook",
+                    "meeting_note",
+                    "lesson_learned",
+                    "instruction",
                     "link",
                     "document"
                   ]
@@ -20703,6 +20765,14 @@
               "initiative",
               "subtask",
               "note",
+              "idea",
+              "research",
+              "requirement",
+              "architecture_note",
+              "runbook",
+              "meeting_note",
+              "lesson_learned",
+              "instruction",
               "link",
               "document",
               "comment",
@@ -20787,6 +20857,14 @@
                     "initiative",
                     "subtask",
                     "note",
+                    "idea",
+                    "research",
+                    "requirement",
+                    "architecture_note",
+                    "runbook",
+                    "meeting_note",
+                    "lesson_learned",
+                    "instruction",
                     "link",
                     "document",
                     "comment",
@@ -23192,6 +23270,22 @@
                   "type": "string",
                   "minLength": 1
                 },
+                "kind": {
+                  "type": "string",
+                  "enum": [
+                    "note",
+                    "idea",
+                    "research",
+                    "requirement",
+                    "architecture_note",
+                    "runbook",
+                    "meeting_note",
+                    "lesson_learned",
+                    "instruction",
+                    "link",
+                    "document"
+                  ]
+                },
                 "evidence": {
                   "type": "object",
                   "properties": {
@@ -24073,6 +24167,22 @@
                     "title": {
                       "type": "string",
                       "minLength": 1
+                    },
+                    "kind": {
+                      "type": "string",
+                      "enum": [
+                        "note",
+                        "idea",
+                        "research",
+                        "requirement",
+                        "architecture_note",
+                        "runbook",
+                        "meeting_note",
+                        "lesson_learned",
+                        "instruction",
+                        "link",
+                        "document"
+                      ]
                     },
                     "evidence": {
                       "type": "object",
@@ -24974,6 +25084,22 @@
                           "title": {
                             "type": "string",
                             "minLength": 1
+                          },
+                          "kind": {
+                            "type": "string",
+                            "enum": [
+                              "note",
+                              "idea",
+                              "research",
+                              "requirement",
+                              "architecture_note",
+                              "runbook",
+                              "meeting_note",
+                              "lesson_learned",
+                              "instruction",
+                              "link",
+                              "document"
+                            ]
                           },
                           "evidence": {
                             "type": "object",

@@ -121,7 +121,7 @@ test("Work and Knowledge connect task state, notes, decisions, projects, and ori
     page.getByRole("link", { name: "Knowledge", exact: true }),
   ).toHaveAttribute("aria-current", "page");
   const noteLink = page
-    .getByRole("list", { name: "Knowledge notes" })
+    .getByRole("list", { name: "Knowledge records" })
     .getByRole("link", { name: note.record.title });
   await expect(noteLink).toBeVisible();
   const noteCard = noteLink.locator("xpath=ancestor::article");

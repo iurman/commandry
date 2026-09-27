@@ -216,6 +216,7 @@ describe("Inbox", () => {
         expect(JSON.parse(String(init.body))).toEqual({
           projectId,
           kind: "note",
+          knowledgeType: "note",
           title: "Meeting ideas",
           body: "Compare the options before deciding.",
         });
@@ -249,14 +250,16 @@ describe("Inbox", () => {
     fireEvent.change(screen.getByLabelText("Title *"), {
       target: { value: "Meeting ideas" },
     });
-    fireEvent.change(screen.getByLabelText("Note body Optional"), {
+    fireEvent.change(screen.getByLabelText("Content Optional"), {
       target: { value: "Compare the options before deciding." },
     });
     fireEvent.submit(
       screen.getByRole("button", { name: "File as note" }).closest("form")!,
     );
 
-    expect(await screen.findByText("Filed as note")).toBeTruthy();
+    expect(
+      await screen.findByText("Filed as a note in the selected project."),
+    ).toBeTruthy();
     expect(source.querySelector("pre")?.textContent).toBe(exactOriginal);
     expect(screen.getByText(noteId)).toBeTruthy();
   });

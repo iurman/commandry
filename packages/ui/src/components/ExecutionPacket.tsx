@@ -1,4 +1,5 @@
 import type { BriefEvidenceLink } from "./ProjectBrief";
+import { knowledgeTypeLabel, type KnowledgeKind } from "./KnowledgeTypeBadge";
 
 export interface ExecutionPacketView {
   id: string;
@@ -13,6 +14,7 @@ export interface ExecutionPacketView {
     objective: {
       title: string;
       description: string;
+      workType?: "task" | "initiative" | "subtask" | undefined;
       status: string;
       evidence: BriefEvidenceLink[];
     };
@@ -27,6 +29,7 @@ export interface ExecutionPacketView {
     selectedKnowledge: {
       id: string;
       title: string;
+      kind?: KnowledgeKind | undefined;
       evidence: BriefEvidenceLink;
     }[];
     selectedResources: {
@@ -138,6 +141,9 @@ export function ExecutionPacket({ packet }: ExecutionPacketProps) {
               "No task description was recorded."}
           </p>
           <p>Saved status: {snapshot.objective.status}</p>
+          {snapshot.objective.workType && (
+            <p>Saved work type: {snapshot.objective.workType}</p>
+          )}
           <a href={`/work-items/${encodeURIComponent(packet.workItemId)}`}>
             View current work item
           </a>
@@ -198,12 +204,17 @@ export function ExecutionPacket({ packet }: ExecutionPacketProps) {
               {snapshot.selectedKnowledge.map((item) => (
                 <li key={item.id}>
                   <h3>{item.title}</h3>
+                  {item.kind && (
+                    <p>Saved type: {knowledgeTypeLabel(item.kind)}</p>
+                  )}
                   <p>
-                    Only the note identity and source reference are included in
-                    this packet. Open the saved note for its content.
+                    Only the Knowledge identity
+                    {item.kind ? ", type, and" : " and"} source reference are
+                    included in this packet. Open the current record for its
+                    content.
                   </p>
                   <a href={`/knowledge-items/${encodeURIComponent(item.id)}`}>
-                    View current knowledge note
+                    View current Knowledge item
                   </a>
                   <Source source={item.evidence} />
                 </li>

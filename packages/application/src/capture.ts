@@ -13,8 +13,10 @@ import {
   KnowledgeLinkError,
   manualFilingContent,
   safeKnowledgeLinkUrl,
+  validateKnowledgeFilingType,
   validateOriginalCaptureContent,
   validateWorkFilingType,
+  type KnowledgeTextType,
 } from "@commandry/domain";
 
 export type CapturePage<T> = { items: T[]; nextCursor: string | null };
@@ -49,6 +51,7 @@ export interface CaptureRepository {
     projectId: string;
     title: string;
     content: string;
+    knowledgeType?: KnowledgeTextType | undefined;
   }): Promise<FileCaptureResponse>;
   fileAsLink(input: {
     captureId: string;
@@ -105,6 +108,7 @@ export function createCaptureService(repository: CaptureRepository) {
         projectId: string;
         kind: "task" | "note" | "link" | "document";
         workType?: "task" | "initiative" | undefined;
+        knowledgeType?: KnowledgeTextType | undefined;
         title: string;
         body?: string | undefined;
       },
@@ -121,6 +125,10 @@ export function createCaptureService(repository: CaptureRepository) {
       }
       await requireProject(input.projectId);
       const workType = validateWorkFilingType(input.kind, input.workType);
+      const knowledgeType = validateKnowledgeFilingType(
+        input.kind,
+        input.knowledgeType,
+      );
       if (capture.inputType === "file" && input.kind !== "document")
         throw new CaptureError(
           "CAPTURE_KIND_INVALID",
@@ -172,6 +180,7 @@ export function createCaptureService(repository: CaptureRepository) {
         projectId: input.projectId,
         title: input.title,
         content,
+        knowledgeType,
       });
     },
     async listProjectWork(projectId: string, query: CapturePageQuery) {

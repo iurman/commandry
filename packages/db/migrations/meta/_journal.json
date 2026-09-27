@@ -239,6 +239,13 @@
       "when": 1790484979313,
       "tag": "0033_spicy_wind_dancer",
       "breakpoints": true
+    },
+    {
+      "idx": 34,
+      "version": "7",
+      "when": 1790486703069,
+      "tag": "0034_eager_vanisher",
+      "breakpoints": true
     }
   ]
 }

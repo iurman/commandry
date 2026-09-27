@@ -13,6 +13,7 @@ import {
 import {
   canonicalPacketJson,
   ExecutionPacketError,
+  knowledgeKindLabel,
   validatePacketSelection,
 } from "@commandry/domain";
 
@@ -155,16 +156,13 @@ export function buildExecutionPacketContents(
       .map((note) => ({
         id: note.id,
         title: note.title,
+        kind: note.kind,
         evidence: evidence(
           "knowledge_item",
           note.id,
           `/api/v1/knowledge-items/${note.id}`,
           note.updatedAt,
-          note.kind === "document"
-            ? "Manual local knowledge document"
-            : note.kind === "link"
-              ? "Manual local knowledge link"
-              : "Manual local capture",
+          `Manual local knowledge ${knowledgeKindLabel(note.kind).toLowerCase()}`,
         ),
         ...(note.contextLink
           ? {

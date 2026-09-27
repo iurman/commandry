@@ -71,6 +71,14 @@ authentication is complete. There is no production deployment.
   and removes current context without rewriting existing packets or the
   original capture. The local relationship policy remains provisional under
   OQ-022 and does not grant access.
+- Text captures can be filed as source-backed notes, ideas, research,
+  requirements, architecture notes, runbooks, meeting notes, lessons learned,
+  or instructions. The chosen type appears in project and global Knowledge,
+  search, live briefs, and new packet snapshots. Current content can be
+  revised without changing the original or previous packets. Links and
+  documents keep their distinct source handling; structured Decisions remain
+  separate. This local taxonomy and retyping policy remain provisional under
+  OQ-025.
 - A Work item can retain one original capture and primary Project while gaining
   explicit, auditable secondary Project context. All related projects show the
   same persisted task and status. Project Work lists, scoped search, and live

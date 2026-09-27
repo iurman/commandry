@@ -1,7 +1,12 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { Button, RecordEmptyState } from "@commandry/ui";
+import {
+  Button,
+  knowledgeTypeLabel,
+  RecordEmptyState,
+  type KnowledgeKind,
+} from "@commandry/ui";
 import { apiJson, pagePath, type PageResponse } from "../api";
 import styles from "./ProjectContent.module.css";
 
@@ -24,7 +29,7 @@ interface KnowledgeItem {
   id: string;
   projectId: string;
   sourceCaptureId: string;
-  kind: "note" | "link" | "document";
+  kind: KnowledgeKind;
   title: string;
   content: string;
   url?: string | null;
@@ -215,7 +220,7 @@ export default function ProjectContent({ projectId }: { projectId: string }) {
         </div>
       </div>
       <p className="cmd-section-intro">
-        File a capture into this project to create a task, note, or link. Each
+        File a capture into this project to create Work or typed Knowledge. Each
         record keeps a path back to its original source.
       </p>
       {loading && (
@@ -324,7 +329,9 @@ export default function ProjectContent({ projectId }: { projectId: string }) {
                 <li className={styles.record} key={item.id}>
                   <div className={styles.recordTop}>
                     <strong>{item.title}</strong>
-                    <span className={styles.meta}>{item.kind}</span>
+                    <span className={styles.meta}>
+                      {knowledgeTypeLabel(item.kind)}
+                    </span>
                   </div>
                   {item.contextLink && (
                     <p className="cmd-record-identity">

@@ -921,7 +921,21 @@ export const knowledgeItem = pgTable(
     sourceCaptureId: uuid("source_capture_id")
       .notNull()
       .references(() => capture.id, { onDelete: "restrict" }),
-    kind: text("kind", { enum: ["note", "link", "document"] })
+    kind: text("kind", {
+      enum: [
+        "note",
+        "idea",
+        "research",
+        "requirement",
+        "architecture_note",
+        "runbook",
+        "meeting_note",
+        "lesson_learned",
+        "instruction",
+        "link",
+        "document",
+      ],
+    })
       .notNull()
       .default("note"),
     title: text("title").notNull(),
@@ -946,11 +960,11 @@ export const knowledgeItem = pgTable(
     ),
     check(
       "knowledge_item_kind_valid",
-      sql`${table.kind} in ('note', 'link', 'document')`,
+      sql`${table.kind} in ('note', 'idea', 'research', 'requirement', 'architecture_note', 'runbook', 'meeting_note', 'lesson_learned', 'instruction', 'link', 'document')`,
     ),
     check(
       "knowledge_item_url_valid",
-      sql`(${table.kind} in ('note', 'document') and ${table.url} is null) or (${table.kind} = 'link' and ${table.url} is not null and length(trim(${table.url})) > 0)`,
+      sql`(${table.kind} <> 'link' and ${table.url} is null) or (${table.kind} = 'link' and ${table.url} is not null and length(trim(${table.url})) > 0)`,
     ),
     check("knowledge_item_version_positive", sql`${table.version} > 0`),
   ],

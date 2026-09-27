@@ -3,6 +3,7 @@ import {
   CaptureError,
   MANUAL_CAPTURE_AUTHOR,
   MANUAL_CAPTURE_SOURCE,
+  type KnowledgeTextType,
 } from "@commandry/domain";
 import type { CommandryDatabase } from "./client";
 import {
@@ -123,6 +124,14 @@ type SearchRow = {
     | "initiative"
     | "subtask"
     | "note"
+    | "idea"
+    | "research"
+    | "requirement"
+    | "architecture_note"
+    | "runbook"
+    | "meeting_note"
+    | "lesson_learned"
+    | "instruction"
     | "link"
     | "document"
     | "comment"
@@ -250,6 +259,7 @@ export function createCaptureRepository(db: CommandryDatabase) {
       projectId: string;
       title: string;
       content: string;
+      knowledgeType?: KnowledgeTextType | undefined;
     }) {
       return db.transaction(async (tx) => {
         const [updated] = await tx
@@ -277,7 +287,7 @@ export function createCaptureRepository(db: CommandryDatabase) {
             id: input.recordId,
             projectId: input.projectId,
             sourceCaptureId: input.captureId,
-            kind: "note",
+            kind: input.knowledgeType ?? "note",
             title: input.title,
             content: input.content,
           })
