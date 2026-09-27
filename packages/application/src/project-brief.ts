@@ -108,14 +108,19 @@ export function assembleProjectBrief(
   );
   const knowledge = snapshot.knowledge.items.map((item) => {
     const sourceLabel =
-      (item.version ?? 1) > 1
-        ? "Locally revised knowledge note"
-        : "Manual local capture";
+      item.kind === "link"
+        ? "Manual local knowledge link"
+        : (item.version ?? 1) > 1
+          ? "Locally revised knowledge note"
+          : "Manual local capture";
     return fact({
       id: item.id,
       kind: "knowledge_item",
       title: item.title,
-      detail: briefExcerpt(item.content),
+      detail:
+        item.kind === "link"
+          ? `Saved reference: ${item.url ?? "URL unavailable"}. ${briefExcerpt(item.content)}`
+          : briefExcerpt(item.content),
       evidence: [
         evidence(
           "knowledge_item",

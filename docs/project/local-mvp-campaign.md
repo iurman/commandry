@@ -57,6 +57,14 @@ local experience lab.
   retain their original snapshot. The `local-user:unattributed` edit label is
   provisional until OQ-003 establishes human identity. Deletion, merge, and
   retention policy remain open under OQ-013.
+- A URL capture may be filed as a `link` knowledge record. The saved link target
+  will omit query and fragment text and refuse embedded user credentials;
+  the original capture remains exact and separate. Link title and context can
+  be revised, while the target remains tied to its original. The local UI will
+  not fetch the URL. Work comments will be append-only manual records with
+  audit and search links to their task. This is a narrow reference and
+  discussion slice; file storage, external sync, multi-project ownership, and
+  richer work types remain open for later implementation.
 - A local task may be completed and reopened. Each change will use the displayed
   status as an expected value and append an immutable event. Live briefs will
   select currently open tasks, while already generated execution packets will

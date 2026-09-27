@@ -10,6 +10,7 @@ import {
   type PageResponse,
   type ProjectResourceLink,
 } from "../../projects/api";
+import WorkDiscussion from "./WorkDiscussion";
 
 interface WorkItemRecord {
   id: string;
@@ -530,6 +531,8 @@ export default function WorkItemWorkspace({
               </dl>
             </aside>
           </div>
+
+          <WorkDiscussion workItemId={item.id} />
 
           <section
             className="cmd-detail-document"

@@ -39,6 +39,9 @@ function port(overrides: Partial<CaptureRepository> = {}): CaptureRepository {
     fileAsNote: async () => {
       throw new Error("unused");
     },
+    fileAsLink: async () => {
+      throw new Error("unused");
+    },
     listProjectWork: async () => ({ items: [work], nextCursor: null }),
     listProjectKnowledge: async () => ({ items: [], nextCursor: null }),
     listWork: async () => ({
@@ -104,5 +107,49 @@ describe("manual capture application", () => {
       }),
     ).rejects.toMatchObject({ code: "PROJECT_NOT_FOUND" });
     expect(writes).toBe(0);
+  });
+
+  it("files a URL as a link with a safe display target and preserved original", async () => {
+    const urlCapture: Capture = {
+      ...capture,
+      inputType: "url",
+      originalContent: "https://example.test/guide?token=private#chapter",
+    };
+    let savedUrl = "";
+    const service = createCaptureService(
+      port({
+        getCapture: async () => urlCapture,
+        fileAsLink: async (input) => {
+          savedUrl = input.url;
+          return {
+            capture: {
+              ...urlCapture,
+              state: "filed",
+              filedRecord: { kind: "link", id: work.id },
+            },
+            record: {
+              id: work.id,
+              projectId: work.projectId,
+              sourceCaptureId: urlCapture.id,
+              kind: "link",
+              title: "Guide",
+              content: "Read before planning",
+              url: input.url,
+              createdAt: work.createdAt,
+              updatedAt: work.updatedAt,
+            },
+          };
+        },
+      }),
+    );
+    const filed = await service.fileCapture(urlCapture.id, {
+      projectId: work.projectId,
+      kind: "link",
+      title: "Guide",
+      body: "Read before planning",
+    });
+    expect(savedUrl).toBe("https://example.test/guide");
+    expect(filed.capture.originalContent).toBe(urlCapture.originalContent);
+    expect(filed.record).toMatchObject({ kind: "link", url: savedUrl });
   });
 });

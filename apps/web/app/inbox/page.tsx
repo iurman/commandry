@@ -21,7 +21,7 @@ import type {
   FiledCaptureResponse,
 } from "./api";
 
-type FilingKind = "task" | "note";
+type FilingKind = "task" | "note" | "link";
 
 function preview(content: string) {
   return content.replace(/\s+/g, " ").trim();
@@ -689,6 +689,13 @@ export default function InboxPage() {
                       Open {selectedProject?.name ?? "project"}
                     </a>
                   )}
+                  {detail.filedRecord.kind === "link" && (
+                    <a
+                      href={`/knowledge-items/${encodeURIComponent(detail.filedRecord.id)}`}
+                    >
+                      Open saved knowledge link
+                    </a>
+                  )}
                   {filingFeedback && (
                     <p className="cmd-form-success" role="status">
                       {filingFeedback}
@@ -762,6 +769,9 @@ export default function InboxPage() {
                     >
                       <option value="task">Task</option>
                       <option value="note">Knowledge note</option>
+                      {detail.inputType === "url" && (
+                        <option value="link">Knowledge link</option>
+                      )}
                     </select>
                     <label htmlFor="file-title">
                       Title <span aria-hidden="true">*</span>
@@ -777,7 +787,11 @@ export default function InboxPage() {
                       value={title}
                     />
                     <label htmlFor="file-body">
-                      {kind === "task" ? "Description" : "Note body"}
+                      {kind === "task"
+                        ? "Description"
+                        : kind === "link"
+                          ? "Link context"
+                          : "Note body"}
                       <span className="cmd-optional"> Optional</span>
                     </label>
                     <textarea
@@ -789,6 +803,13 @@ export default function InboxPage() {
                       rows={4}
                       value={body}
                     />
+                    {kind === "link" && (
+                      <p className="cmd-form-hint">
+                        The original URL stays unchanged in this capture. The
+                        saved link removes query and fragment text and never
+                        fetches the page.
+                      </p>
+                    )}
                     {filingError && (
                       <p className="cmd-form-error" role="alert">
                         {filingError}
@@ -801,17 +822,19 @@ export default function InboxPage() {
                     >
                       {filing ? "Filing..." : `File as ${kind}`}
                     </Button>
-                    {triageReview?.suggestion && !triageReview.decision && (
-                      <Button
-                        disabled={triageSaving || !projectId || !title.trim()}
-                        onClick={() => reviewSuggestion("approve")}
-                        type="button"
-                      >
-                        {triageSaving
-                          ? "Saving review..."
-                          : "Approve reviewed suggestion"}
-                      </Button>
-                    )}
+                    {triageReview?.suggestion &&
+                      !triageReview.decision &&
+                      kind !== "link" && (
+                        <Button
+                          disabled={triageSaving || !projectId || !title.trim()}
+                          onClick={() => reviewSuggestion("approve")}
+                          type="button"
+                        >
+                          {triageSaving
+                            ? "Saving review..."
+                            : "Approve reviewed suggestion"}
+                        </Button>
+                      )}
                   </form>
                 </div>
               )}

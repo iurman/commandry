@@ -10,7 +10,9 @@ import type {
 } from "@commandry/contracts";
 import {
   CaptureError,
+  KnowledgeLinkError,
   manualFilingContent,
+  safeKnowledgeLinkUrl,
   validateOriginalCaptureContent,
 } from "@commandry/domain";
 
@@ -45,6 +47,14 @@ export interface CaptureRepository {
     projectId: string;
     title: string;
     content: string;
+  }): Promise<FileCaptureResponse>;
+  fileAsLink(input: {
+    captureId: string;
+    recordId: string;
+    projectId: string;
+    title: string;
+    content: string;
+    url: string;
   }): Promise<FileCaptureResponse>;
   listProjectWork(
     projectId: string,
@@ -84,7 +94,7 @@ export function createCaptureService(repository: CaptureRepository) {
       captureId: string,
       input: {
         projectId: string;
-        kind: "task" | "note";
+        kind: "task" | "note" | "link";
         title: string;
         body?: string | undefined;
       },
@@ -109,6 +119,21 @@ export function createCaptureService(repository: CaptureRepository) {
           projectId: input.projectId,
           title: input.title,
           description: content,
+        });
+      }
+      if (input.kind === "link") {
+        if (capture.inputType !== "url")
+          throw new KnowledgeLinkError(
+            "CAPTURE_NOT_URL",
+            "Only an original URL capture can be filed as a knowledge link",
+          );
+        return repository.fileAsLink({
+          captureId,
+          recordId,
+          projectId: input.projectId,
+          title: input.title,
+          content: input.body?.trim() ?? "",
+          url: safeKnowledgeLinkUrl(capture.originalContent),
         });
       }
       return repository.fileAsNote({

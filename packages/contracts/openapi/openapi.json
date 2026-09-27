@@ -1378,6 +1378,102 @@
         }
       }
     },
+    "/api/v1/work-items/{id}/comments": {
+      "get": {
+        "operationId": "listWorkItemComments",
+        "summary": "Page through immutable local task discussion",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "id",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          },
+          {
+            "in": "query",
+            "name": "limit",
+            "required": false,
+            "schema": {
+              "type": "integer",
+              "minimum": 1,
+              "maximum": 100,
+              "default": 25
+            }
+          },
+          {
+            "in": "query",
+            "name": "cursor",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Task comments with source identity",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ListWorkItemCommentsResponse"
+                }
+              }
+            }
+          }
+        }
+      },
+      "post": {
+        "operationId": "createWorkItemComment",
+        "summary": "Append a local comment to the exact task",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "id",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/CreateWorkItemCommentRequest"
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": "Preserved local task comment",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/WorkItemComment"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Task not found",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/api/v1/knowledge-items/{id}": {
       "get": {
         "operationId": "getKnowledgeItem",
@@ -6010,7 +6106,8 @@
                     "type": "string",
                     "enum": [
                       "task",
-                      "note"
+                      "note",
+                      "link"
                     ]
                   },
                   "id": {
@@ -6121,7 +6218,8 @@
                           "type": "string",
                           "enum": [
                             "task",
-                            "note"
+                            "note",
+                            "link"
                           ]
                         },
                         "id": {
@@ -6205,7 +6303,8 @@
             "type": "string",
             "enum": [
               "task",
-              "note"
+              "note",
+              "link"
             ]
           },
           "title": {
@@ -6282,7 +6381,8 @@
                         "type": "string",
                         "enum": [
                           "task",
-                          "note"
+                          "note",
+                          "link"
                         ]
                       },
                       "id": {
@@ -6437,13 +6537,27 @@
                   },
                   "kind": {
                     "type": "string",
-                    "const": "note"
+                    "enum": [
+                      "note",
+                      "link"
+                    ]
                   },
                   "title": {
                     "type": "string"
                   },
                   "content": {
                     "type": "string"
+                  },
+                  "url": {
+                    "anyOf": [
+                      {
+                        "type": "string",
+                        "format": "uri"
+                      },
+                      {
+                        "type": "null"
+                      }
+                    ]
                   },
                   "version": {
                     "type": "integer",
@@ -6959,7 +7073,8 @@
                         "type": "string",
                         "enum": [
                           "task",
-                          "note"
+                          "note",
+                          "link"
                         ]
                       },
                       "id": {
@@ -7287,13 +7402,27 @@
                       },
                       "kind": {
                         "type": "string",
-                        "const": "note"
+                        "enum": [
+                          "note",
+                          "link"
+                        ]
                       },
                       "title": {
                         "type": "string"
                       },
                       "content": {
                         "type": "string"
+                      },
+                      "url": {
+                        "anyOf": [
+                          {
+                            "type": "string",
+                            "format": "uri"
+                          },
+                          {
+                            "type": "null"
+                          }
+                        ]
                       },
                       "version": {
                         "type": "integer",
@@ -8131,6 +8260,139 @@
         ],
         "additionalProperties": false
       },
+      "CreateWorkItemCommentRequest": {
+        "type": "object",
+        "properties": {
+          "body": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 5000
+          }
+        },
+        "required": [
+          "body"
+        ],
+        "additionalProperties": false
+      },
+      "WorkItemComment": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string",
+            "format": "uuid",
+            "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$"
+          },
+          "workItemId": {
+            "type": "string",
+            "format": "uuid",
+            "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$"
+          },
+          "projectId": {
+            "type": "string",
+            "format": "uuid",
+            "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$"
+          },
+          "body": {
+            "type": "string",
+            "minLength": 1
+          },
+          "actor": {
+            "type": "string",
+            "const": "local-user:unattributed"
+          },
+          "sourceLabel": {
+            "type": "string",
+            "const": "Manual local work comment"
+          },
+          "createdAt": {
+            "type": "string",
+            "format": "date-time",
+            "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))T(?:(?:[01]\\d|2[0-3]):[0-5]\\d:[0-5]\\d(?:\\.\\d+)?(?:Z|([+-](?:[01]\\d|2[0-3]):[0-5]\\d)))$"
+          }
+        },
+        "required": [
+          "id",
+          "workItemId",
+          "projectId",
+          "body",
+          "actor",
+          "sourceLabel",
+          "createdAt"
+        ],
+        "additionalProperties": false
+      },
+      "ListWorkItemCommentsResponse": {
+        "type": "object",
+        "properties": {
+          "items": {
+            "type": "array",
+            "items": {
+              "type": "object",
+              "properties": {
+                "id": {
+                  "type": "string",
+                  "format": "uuid",
+                  "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$"
+                },
+                "workItemId": {
+                  "type": "string",
+                  "format": "uuid",
+                  "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$"
+                },
+                "projectId": {
+                  "type": "string",
+                  "format": "uuid",
+                  "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$"
+                },
+                "body": {
+                  "type": "string",
+                  "minLength": 1
+                },
+                "actor": {
+                  "type": "string",
+                  "const": "local-user:unattributed"
+                },
+                "sourceLabel": {
+                  "type": "string",
+                  "const": "Manual local work comment"
+                },
+                "createdAt": {
+                  "type": "string",
+                  "format": "date-time",
+                  "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))T(?:(?:[01]\\d|2[0-3]):[0-5]\\d:[0-5]\\d(?:\\.\\d+)?(?:Z|([+-](?:[01]\\d|2[0-3]):[0-5]\\d)))$"
+                }
+              },
+              "required": [
+                "id",
+                "workItemId",
+                "projectId",
+                "body",
+                "actor",
+                "sourceLabel",
+                "createdAt"
+              ],
+              "additionalProperties": false
+            }
+          },
+          "nextCursor": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "uuid",
+                "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          }
+        },
+        "required": [
+          "items",
+          "nextCursor"
+        ],
+        "additionalProperties": false
+      },
       "KnowledgeItem": {
         "type": "object",
         "properties": {
@@ -8151,13 +8413,27 @@
           },
           "kind": {
             "type": "string",
-            "const": "note"
+            "enum": [
+              "note",
+              "link"
+            ]
           },
           "title": {
             "type": "string"
           },
           "content": {
             "type": "string"
+          },
+          "url": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "uri"
+              },
+              {
+                "type": "null"
+              }
+            ]
           },
           "version": {
             "type": "integer",
@@ -8207,13 +8483,27 @@
           },
           "kind": {
             "type": "string",
-            "const": "note"
+            "enum": [
+              "note",
+              "link"
+            ]
           },
           "title": {
             "type": "string"
           },
           "content": {
             "type": "string"
+          },
+          "url": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "uri"
+              },
+              {
+                "type": "null"
+              }
+            ]
           },
           "version": {
             "type": "integer",
@@ -8273,13 +8563,27 @@
                 },
                 "kind": {
                   "type": "string",
-                  "const": "note"
+                  "enum": [
+                    "note",
+                    "link"
+                  ]
                 },
                 "title": {
                   "type": "string"
                 },
                 "content": {
                   "type": "string"
+                },
+                "url": {
+                  "anyOf": [
+                    {
+                      "type": "string",
+                      "format": "uri"
+                    },
+                    {
+                      "type": "null"
+                    }
+                  ]
                 },
                 "version": {
                   "type": "integer",
@@ -11268,13 +11572,27 @@
                 },
                 "kind": {
                   "type": "string",
-                  "const": "note"
+                  "enum": [
+                    "note",
+                    "link"
+                  ]
                 },
                 "title": {
                   "type": "string"
                 },
                 "content": {
                   "type": "string"
+                },
+                "url": {
+                  "anyOf": [
+                    {
+                      "type": "string",
+                      "format": "uri"
+                    },
+                    {
+                      "type": "null"
+                    }
+                  ]
                 },
                 "version": {
                   "type": "integer",
@@ -11338,6 +11656,8 @@
               "capture",
               "task",
               "note",
+              "link",
+              "comment",
               "decision",
               "project",
               "resource"
@@ -11415,6 +11735,8 @@
                     "capture",
                     "task",
                     "note",
+                    "link",
+                    "comment",
                     "decision",
                     "project",
                     "resource"

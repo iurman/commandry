@@ -24,4 +24,5 @@ export * from "./morning-digest-repository";
 export * from "./integration-repository";
 export * from "./overnight-queue-repository";
 export * from "./local-mcp-repository";
+export * from "./work-discussion-repository";
 export * as schema from "./schema";

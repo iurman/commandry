@@ -9,6 +9,7 @@ import {
   AppShell,
   Button,
   DecisionCard,
+  KnowledgeLinkCard,
   RecordEmptyState,
 } from "@commandry/ui";
 import { apiJson, type PageResponse } from "../projects/api";
@@ -118,13 +119,13 @@ export default function KnowledgeWorkspace({
           <p className="cmd-eyebrow">Knowledge / Across projects</p>
           <h1>Knowledge</h1>
           <p className="cmd-lead">
-            Read local notes and decisions in their project context. Notes
-            retain their exact original capture, and decisions retain their
-            revisions.
+            Read local notes, saved links, and decisions in project context.
+            Notes and links retain their exact original capture; decisions
+            retain their revisions.
           </p>
         </div>
         <a className="cmd-headline-mark" href="/inbox">
-          Capture a note
+          Capture a note or link
         </a>
       </header>
       {projectId && (
@@ -167,53 +168,70 @@ export default function KnowledgeWorkspace({
             <div className="cmd-section-heading">
               <div>
                 <p className="cmd-eyebrow">Source preserving</p>
-                <h2 id="notes-heading">Notes</h2>
+                <h2 id="notes-heading">Notes and links</h2>
               </div>
               <span className="cmd-count">{notes.length} shown</span>
             </div>
             {notes.length === 0 && !error && (
               <RecordEmptyState
-                title="No notes yet"
-                description="Capture text or a URL in the Inbox and file it as a note."
+                title="No notes or links yet"
+                description="Capture text or a URL in the Inbox and file it as knowledge."
               />
             )}
-            <ul className="cmd-record-list" aria-label="Knowledge notes">
+            <ul
+              className="cmd-record-list"
+              aria-label="Knowledge notes and links"
+            >
               {notes.map((note) => (
                 <li key={note.id}>
-                  <article className="cmd-record-card">
-                    <div className="cmd-record-topline">
-                      <span className="cmd-record-kind">Local note</span>
-                      <span className="cmd-count">
-                        Version {note.version ?? 1}
-                      </span>
-                    </div>
-                    <h3 className="cmd-record-title">
-                      <a
-                        href={`/knowledge-items/${encodeURIComponent(note.id)}`}
-                      >
-                        {note.title}
-                      </a>
-                    </h3>
-                    {note.content && (
-                      <p className="cmd-record-description">
-                        {note.content.length > 240
-                          ? `${note.content.slice(0, 240)}…`
-                          : note.content}
+                  {note.kind === "link" && note.url ? (
+                    <KnowledgeLinkCard
+                      link={{
+                        id: note.id,
+                        projectId: note.projectId,
+                        projectName: note.projectName,
+                        sourceCaptureId: note.sourceCaptureId,
+                        title: note.title,
+                        content: note.content,
+                        url: note.url,
+                      }}
+                    />
+                  ) : (
+                    <article className="cmd-record-card">
+                      <div className="cmd-record-topline">
+                        <span className="cmd-record-kind">Local note</span>
+                        <span className="cmd-count">
+                          Version {note.version ?? 1}
+                        </span>
+                      </div>
+                      <h3 className="cmd-record-title">
+                        <a
+                          href={`/knowledge-items/${encodeURIComponent(note.id)}`}
+                        >
+                          {note.title}
+                        </a>
+                      </h3>
+                      {note.content && (
+                        <p className="cmd-record-description">
+                          {note.content.length > 240
+                            ? `${note.content.slice(0, 240)}…`
+                            : note.content}
+                        </p>
+                      )}
+                      <p className="cmd-record-identity">
+                        <a
+                          href={`/projects/${encodeURIComponent(note.projectId)}`}
+                        >
+                          {note.projectName}
+                        </a>
+                        <a
+                          href={`/inbox?captureId=${encodeURIComponent(note.sourceCaptureId)}`}
+                        >
+                          Exact original capture
+                        </a>
                       </p>
-                    )}
-                    <p className="cmd-record-identity">
-                      <a
-                        href={`/projects/${encodeURIComponent(note.projectId)}`}
-                      >
-                        {note.projectName}
-                      </a>
-                      <a
-                        href={`/inbox?captureId=${encodeURIComponent(note.sourceCaptureId)}`}
-                      >
-                        Exact original capture
-                      </a>
-                    </p>
-                  </article>
+                    </article>
+                  )}
                 </li>
               ))}
             </ul>
@@ -222,7 +240,7 @@ export default function KnowledgeWorkspace({
                 disabled={loadingMore !== null}
                 onClick={() => loadMore("notes")}
               >
-                {loadingMore === "notes" ? "Loading..." : "Load more notes"}
+                {loadingMore === "notes" ? "Loading..." : "Load more knowledge"}
               </Button>
             )}
           </section>

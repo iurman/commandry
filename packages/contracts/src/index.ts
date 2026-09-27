@@ -185,7 +185,7 @@ export const captureSchema = z.object({
   state: z.enum(["unfiled", "filed"]),
   projectId: z.uuid().nullable(),
   filedRecord: z
-    .object({ kind: z.enum(["task", "note"]), id: z.uuid() })
+    .object({ kind: z.enum(["task", "note", "link"]), id: z.uuid() })
     .nullable(),
   createdAt: z.iso.datetime({ offset: true }),
   filedAt: z.iso.datetime({ offset: true }).nullable(),
@@ -198,7 +198,7 @@ export const listCapturesResponseSchema = z.object({
 
 export const fileCaptureRequestSchema = z.object({
   projectId: z.uuid(),
-  kind: z.enum(["task", "note"]),
+  kind: z.enum(["task", "note", "link"]),
   title: z.string().trim().min(1).max(200),
   body: z.string().max(20_000).optional(),
 });
@@ -262,13 +262,33 @@ export const listWorkItemStatusEventsResponseSchema = z.object({
   nextCursor: z.uuid().nullable(),
 });
 
+export const createWorkItemCommentRequestSchema = z.strictObject({
+  body: z.string().trim().min(1).max(5_000),
+});
+
+export const workItemCommentSchema = z.object({
+  id: z.uuid(),
+  workItemId: z.uuid(),
+  projectId: z.uuid(),
+  body: z.string().min(1),
+  actor: z.literal("local-user:unattributed"),
+  sourceLabel: z.literal("Manual local work comment"),
+  createdAt: z.iso.datetime({ offset: true }),
+});
+
+export const listWorkItemCommentsResponseSchema = z.object({
+  items: z.array(workItemCommentSchema),
+  nextCursor: z.uuid().nullable(),
+});
+
 export const knowledgeItemSchema = z.object({
   id: z.uuid(),
   projectId: z.uuid(),
   sourceCaptureId: z.uuid(),
-  kind: z.literal("note"),
+  kind: z.enum(["note", "link"]),
   title: z.string(),
   content: z.string(),
+  url: z.url().nullable().optional(),
   version: z.number().int().positive().optional(),
   createdAt: z.iso.datetime({ offset: true }),
   updatedAt: z.iso.datetime({ offset: true }),
@@ -492,7 +512,16 @@ export const searchQuerySchema = listResourcesQuerySchema.extend({
 
 export const searchResultSchema = z.object({
   id: z.uuid(),
-  kind: z.enum(["capture", "task", "note", "decision", "project", "resource"]),
+  kind: z.enum([
+    "capture",
+    "task",
+    "note",
+    "link",
+    "comment",
+    "decision",
+    "project",
+    "resource",
+  ]),
   title: z.string(),
   excerpt: z.string(),
   href: z.string().startsWith("/"),
@@ -1582,6 +1611,10 @@ export type ChangeWorkItemStatusRequest = z.infer<
   typeof changeWorkItemStatusRequestSchema
 >;
 export type WorkItemStatusEvent = z.infer<typeof workItemStatusEventSchema>;
+export type CreateWorkItemCommentRequest = z.infer<
+  typeof createWorkItemCommentRequestSchema
+>;
+export type WorkItemComment = z.infer<typeof workItemCommentSchema>;
 export type KnowledgeItem = z.infer<typeof knowledgeItemSchema>;
 export type WorkspaceKnowledgeItem = z.infer<
   typeof workspaceKnowledgeItemSchema

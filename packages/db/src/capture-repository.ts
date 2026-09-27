@@ -45,9 +45,10 @@ function knowledgeRecord(row: typeof knowledgeItem.$inferSelect) {
     id: row.id,
     projectId: row.projectId,
     sourceCaptureId: row.sourceCaptureId,
-    kind: "note" as const,
+    kind: row.kind,
     title: row.title,
     content: row.content,
+    url: row.url,
     version: row.version,
     createdAt: row.createdAt.toISOString(),
     updatedAt: row.updatedAt.toISOString(),
@@ -67,11 +68,20 @@ async function captureCursor(db: CommandryDatabase, cursor: string) {
 
 type SearchRow = {
   id: string;
-  kind: "capture" | "task" | "note" | "decision" | "project" | "resource";
+  kind:
+    | "capture"
+    | "task"
+    | "note"
+    | "link"
+    | "comment"
+    | "decision"
+    | "project"
+    | "resource";
   project_id: string | null;
   title: string;
   excerpt: string;
   source_capture_id: string | null;
+  target_id: string | null;
   created_at: Date | string;
 };
 
@@ -215,6 +225,52 @@ export function createCaptureRepository(db: CommandryDatabase) {
           })
           .returning();
         if (!record) throw new Error("Knowledge insert returned no row");
+        return {
+          capture: captureRecord(updated),
+          record: knowledgeRecord(record),
+        };
+      });
+    },
+    async fileAsLink(input: {
+      captureId: string;
+      recordId: string;
+      projectId: string;
+      title: string;
+      content: string;
+      url: string;
+    }) {
+      return db.transaction(async (tx) => {
+        const [updated] = await tx
+          .update(capture)
+          .set({
+            state: "filed",
+            projectId: input.projectId,
+            filedRecordKind: "link",
+            filedRecordId: input.recordId,
+            filedAt: new Date(),
+          })
+          .where(
+            and(eq(capture.id, input.captureId), eq(capture.state, "unfiled")),
+          )
+          .returning();
+        if (!updated)
+          throw new CaptureError(
+            "CAPTURE_ALREADY_FILED",
+            "Capture is already filed",
+          );
+        const [record] = await tx
+          .insert(knowledgeItem)
+          .values({
+            id: input.recordId,
+            projectId: input.projectId,
+            sourceCaptureId: input.captureId,
+            kind: "link",
+            title: input.title,
+            content: input.content,
+            url: input.url,
+          })
+          .returning();
+        if (!record) throw new Error("Knowledge link insert returned no row");
         return {
           capture: captureRecord(updated),
           record: knowledgeRecord(record),
@@ -393,41 +449,46 @@ export function createCaptureRepository(db: CommandryDatabase) {
           select id, 'capture'::text as kind, project_id,
             left(original_content, 100) as title,
             left(original_content, 220) as excerpt,
-            null::uuid as source_capture_id, created_at
+            null::uuid as source_capture_id, null::uuid as target_id, created_at
           from capture
           where to_tsvector('simple', original_content) @@ websearch_to_tsquery('simple', ${input.q})
           union all
           select id, 'task'::text as kind, project_id, title,
-            left(description, 220) as excerpt, source_capture_id, created_at
+            left(description, 220) as excerpt, source_capture_id, null::uuid as target_id, created_at
           from work_item
           where to_tsvector('simple', title || ' ' || description) @@ websearch_to_tsquery('simple', ${input.q})
           union all
-          select id, 'note'::text as kind, project_id, title,
-            left(content, 220) as excerpt, source_capture_id, created_at
+          select id, kind, project_id, title,
+            left(content || ' ' || coalesce(url, ''), 220) as excerpt, source_capture_id, null::uuid as target_id, created_at
           from knowledge_item
-          where to_tsvector('simple', title || ' ' || content) @@ websearch_to_tsquery('simple', ${input.q})
+          where to_tsvector('simple', title || ' ' || content || ' ' || coalesce(url, '')) @@ websearch_to_tsquery('simple', ${input.q})
+          union all
+          select id, 'comment'::text as kind, project_id, 'Work comment'::text as title,
+            left(body, 220) as excerpt, null::uuid as source_capture_id, work_item_id as target_id, created_at
+          from work_item_comment
+          where to_tsvector('simple', body) @@ websearch_to_tsquery('simple', ${input.q})
           union all
           select id, 'decision'::text as kind, project_id, question as title,
             left(outcome || ' ' || rationale, 220) as excerpt,
-            null::uuid as source_capture_id, created_at
+            null::uuid as source_capture_id, null::uuid as target_id, created_at
           from project_decision
           where to_tsvector('simple', question || ' ' || outcome || ' ' || rationale) @@ websearch_to_tsquery('simple', ${input.q})
           union all
           select id, 'project'::text as kind, id as project_id, name as title,
             left(coalesce(summary, ''), 220) as excerpt,
-            null::uuid as source_capture_id, created_at
+            null::uuid as source_capture_id, null::uuid as target_id, created_at
           from project
           where to_tsvector('simple', name || ' ' || coalesce(summary, '')) @@ websearch_to_tsquery('simple', ${input.q})
           union all
           select resource.id, 'resource'::text as kind,
             ${resourceProjectId} as project_id, resource.name as title,
             left(resource.kind || coalesce(' · ' || resource.subtype, ''), 220) as excerpt,
-            null::uuid as source_capture_id, resource.created_at
+            null::uuid as source_capture_id, null::uuid as target_id, resource.created_at
           from resource
           where to_tsvector('simple', resource.name || ' ' || resource.kind || ' ' || coalesce(resource.subtype, '')) @@ websearch_to_tsquery('simple', ${input.q})
             and ${resourceScope}
         )
-        select id, kind, project_id, title, excerpt, source_capture_id, created_at
+        select id, kind, project_id, title, excerpt, source_capture_id, target_id, created_at
         from hits
         where ${scope} and ${continuation}
         order by created_at desc, id desc
@@ -449,9 +510,11 @@ export function createCaptureRepository(db: CommandryDatabase) {
                   ? `/projects/${row.id}`
                   : row.kind === "task"
                     ? `/work-items/${row.id}`
-                    : row.kind === "decision"
-                      ? `/projects/${row.project_id}#decisions-heading`
-                      : `/knowledge-items/${row.id}`,
+                    : row.kind === "comment"
+                      ? `/work-items/${row.target_id}#discussion`
+                      : row.kind === "decision"
+                        ? `/projects/${row.project_id}#decisions-heading`
+                        : `/knowledge-items/${row.id}`,
           projectId: row.project_id,
           sourceCaptureId: row.source_capture_id,
           createdAt: new Date(row.created_at).toISOString(),

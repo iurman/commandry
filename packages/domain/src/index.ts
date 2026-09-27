@@ -19,3 +19,5 @@ export * from "./morning-digest";
 export * from "./integrations";
 export * from "./overnight-queue";
 export * from "./local-mcp";
+export * from "./work-discussion";
+export * from "./knowledge-link";

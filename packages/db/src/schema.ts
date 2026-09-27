@@ -240,7 +240,7 @@ export const capture = pgTable(
       onDelete: "restrict",
     }),
     filedRecordKind: text("filed_record_kind", {
-      enum: ["task", "note"],
+      enum: ["task", "note", "link"],
     }),
     filedRecordId: uuid("filed_record_id"),
     createdAt: createdAt(),
@@ -265,7 +265,7 @@ export const capture = pgTable(
     check("capture_author_local", sql`${table.author} = 'local-user'`),
     check(
       "capture_filing_state_valid",
-      sql`(${table.state} = 'unfiled' and ${table.filedAt} is null and ${table.filedRecordKind} is null and ${table.filedRecordId} is null) or (${table.state} = 'filed' and ${table.filedAt} is not null and ${table.projectId} is not null and ${table.filedRecordKind} in ('task', 'note') and ${table.filedRecordId} is not null)`,
+      sql`(${table.state} = 'unfiled' and ${table.filedAt} is null and ${table.filedRecordKind} is null and ${table.filedRecordId} is null) or (${table.state} = 'filed' and ${table.filedAt} is not null and ${table.projectId} is not null and ${table.filedRecordKind} in ('task', 'note', 'link') and ${table.filedRecordId} is not null)`,
     ),
   ],
 );
@@ -469,6 +469,41 @@ export const workItemStatusEvent = pgTable(
   ],
 );
 
+export const workItemComment = pgTable(
+  "work_item_comment",
+  {
+    id: uuid("id").primaryKey(),
+    workItemId: uuid("work_item_id")
+      .notNull()
+      .references(() => workItem.id, { onDelete: "restrict" }),
+    projectId: uuid("project_id")
+      .notNull()
+      .references(() => project.id, { onDelete: "restrict" }),
+    body: text("body").notNull(),
+    actor: text("actor").notNull(),
+    createdAt: createdAt(),
+  },
+  (table) => [
+    index("work_item_comment_page_idx").on(
+      table.workItemId,
+      table.createdAt,
+      table.id,
+    ),
+    index("work_item_comment_search_idx").using(
+      "gin",
+      sql`to_tsvector('simple', ${table.body})`,
+    ),
+    check(
+      "work_item_comment_body_nonempty",
+      sql`length(trim(${table.body})) > 0`,
+    ),
+    check(
+      "work_item_comment_actor_local",
+      sql`${table.actor} = 'local-user:unattributed'`,
+    ),
+  ],
+);
+
 export const knowledgeItem = pgTable(
   "knowledge_item",
   {
@@ -479,11 +514,12 @@ export const knowledgeItem = pgTable(
     sourceCaptureId: uuid("source_capture_id")
       .notNull()
       .references(() => capture.id, { onDelete: "restrict" }),
-    kind: text("kind", { enum: ["note"] })
+    kind: text("kind", { enum: ["note", "link"] })
       .notNull()
       .default("note"),
     title: text("title").notNull(),
     content: text("content").notNull(),
+    url: text("url"),
     version: integer("version").notNull().default(1),
     createdAt: createdAt(),
     updatedAt: updatedAt(),
@@ -495,13 +531,17 @@ export const knowledgeItem = pgTable(
     index("knowledge_item_project_id_idx").on(table.projectId, table.id),
     index("knowledge_item_search_idx").using(
       "gin",
-      sql`to_tsvector('simple', ${table.title} || ' ' || ${table.content})`,
+      sql`to_tsvector('simple', ${table.title} || ' ' || ${table.content} || ' ' || coalesce(${table.url}, ''))`,
     ),
     check(
       "knowledge_item_title_nonempty",
       sql`length(trim(${table.title})) > 0`,
     ),
-    check("knowledge_item_kind_valid", sql`${table.kind} = 'note'`),
+    check("knowledge_item_kind_valid", sql`${table.kind} in ('note', 'link')`),
+    check(
+      "knowledge_item_url_valid",
+      sql`(${table.kind} = 'note' and ${table.url} is null) or (${table.kind} = 'link' and ${table.url} is not null and length(trim(${table.url})) > 0)`,
+    ),
     check("knowledge_item_version_positive", sql`${table.version} > 0`),
   ],
 );

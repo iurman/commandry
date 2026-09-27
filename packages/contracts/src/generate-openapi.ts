@@ -23,6 +23,9 @@ import {
   workspaceDecisionSchema,
   workItemStatusEventSchema,
   listWorkItemStatusEventsResponseSchema,
+  createWorkItemCommentRequestSchema,
+  workItemCommentSchema,
+  listWorkItemCommentsResponseSchema,
   createLocalAgentRequestSchema,
   localAgentProfileSchema,
   listLocalAgentsResponseSchema,
@@ -776,6 +779,38 @@ export function generateOpenApi(): string {
             },
             "404": {
               description: "Work item not found",
+              content: jsonContent("ErrorResponse"),
+            },
+          },
+        },
+      },
+      "/api/v1/work-items/{id}/comments": {
+        get: {
+          operationId: "listWorkItemComments",
+          summary: "Page through immutable local task discussion",
+          parameters: [idParameter, ...pageParameters],
+          responses: {
+            "200": {
+              description: "Task comments with source identity",
+              content: jsonContent("ListWorkItemCommentsResponse"),
+            },
+          },
+        },
+        post: {
+          operationId: "createWorkItemComment",
+          summary: "Append a local comment to the exact task",
+          parameters: [idParameter],
+          requestBody: {
+            required: true,
+            content: jsonContent("CreateWorkItemCommentRequest"),
+          },
+          responses: {
+            "201": {
+              description: "Preserved local task comment",
+              content: jsonContent("WorkItemComment"),
+            },
+            "404": {
+              description: "Task not found",
               content: jsonContent("ErrorResponse"),
             },
           },
@@ -2230,6 +2265,13 @@ export function generateOpenApi(): string {
         WorkItemStatusEvent: component(workItemStatusEventSchema),
         ListWorkItemStatusEventsResponse: component(
           listWorkItemStatusEventsResponseSchema,
+        ),
+        CreateWorkItemCommentRequest: component(
+          createWorkItemCommentRequestSchema,
+        ),
+        WorkItemComment: component(workItemCommentSchema),
+        ListWorkItemCommentsResponse: component(
+          listWorkItemCommentsResponseSchema,
         ),
         KnowledgeItem: component(knowledgeItemSchema),
         WorkspaceKnowledgeItem: component(workspaceKnowledgeItemSchema),

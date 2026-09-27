@@ -69,6 +69,13 @@ authentication is complete. There is no production deployment.
   history. The endpoint has no write or external action tools. Its provisional
   local session policy does not settle human sign-in, machine identity, or the
   production capability model.
+- Work items now have append-only, cursor-paged local comments with immutable
+  bodies and source-labeled search results. URL captures can be filed as
+  knowledge links while preserving the original URL; the navigable link omits
+  query and fragment text. Links appear in project and global Knowledge,
+  search, live briefs, and packet selection. No captured URL is fetched by
+  this local flow. File attachments and richer work relationships remain to
+  be implemented.
 - Semantic CSS tokens, accessible responsive components, and representative
   Storybook states exist in the local-only lab. The lab is excluded from the
   production image.

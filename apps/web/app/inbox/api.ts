@@ -6,7 +6,7 @@ export interface CaptureRecord {
   author: string;
   state: "unfiled" | "filed";
   projectId: string | null;
-  filedRecord: { kind: "task" | "note"; id: string } | null;
+  filedRecord: { kind: "task" | "note" | "link"; id: string } | null;
   createdAt: string;
   filedAt: string | null;
 }

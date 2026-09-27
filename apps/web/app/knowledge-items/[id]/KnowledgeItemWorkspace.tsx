@@ -8,9 +8,10 @@ export interface KnowledgeItemRecord {
   id: string;
   projectId: string;
   sourceCaptureId: string;
-  kind: "note";
+  kind: "note" | "link";
   title: string;
   content: string;
+  url?: string | null;
   version?: number;
   createdAt: string;
   updatedAt: string;
@@ -116,7 +117,9 @@ export default function KnowledgeItemWorkspace({
       setTitleDraft(updated.title);
       setContentDraft(updated.content);
       setSaveFeedback(
-        "Knowledge note saved. The exact original capture is unchanged.",
+        updated.kind === "link"
+          ? "Knowledge link saved. The exact original capture and saved link target are unchanged."
+          : "Knowledge note saved. The exact original capture is unchanged.",
       );
     } catch (cause) {
       setSaveError(
@@ -176,11 +179,13 @@ export default function KnowledgeItemWorkspace({
           </a>
         )}
         {item && <span aria-hidden="true">/</span>}
-        <span>Knowledge note</span>
+        <span>
+          {item?.kind === "link" ? "Knowledge link" : "Knowledge note"}
+        </span>
       </nav>
       {loading && (
         <p className="cmd-inline-state" role="status">
-          Loading knowledge note...
+          Loading knowledge...
         </p>
       )}
       {error && (
@@ -192,10 +197,12 @@ export default function KnowledgeItemWorkspace({
         <>
           <header className="cmd-page-header cmd-workspace-heading">
             <div>
-              <p className="cmd-eyebrow">Project knowledge / Filed note</p>
+              <p className="cmd-eyebrow">
+                Project knowledge / Filed {item.kind}
+              </p>
               <h1>{item.title}</h1>
               <p className="cmd-lead">
-                This saved note links to the original capture that motivated it.
+                This saved {item.kind} links to the exact original capture.
               </p>
             </div>
             <span className="cmd-headline-mark" aria-hidden="true">
@@ -208,11 +215,25 @@ export default function KnowledgeItemWorkspace({
               aria-labelledby="knowledge-body-heading"
             >
               <p className="cmd-eyebrow">Saved knowledge</p>
-              <h2 id="knowledge-body-heading">Note body</h2>
+              <h2 id="knowledge-body-heading">
+                {item.kind === "link" ? "Link context" : "Note body"}
+              </h2>
+              {item.kind === "link" && item.url && (
+                <p>
+                  <a href={item.url} rel="noreferrer" target="_blank">
+                    Open saved external link
+                  </a>
+                  <br />
+                  <code>{item.url}</code>
+                </p>
+              )}
               {item.content ? (
                 <div className="cmd-detail-body">{item.content}</div>
               ) : (
-                <p className="cmd-inline-state">No note body was recorded.</p>
+                <p className="cmd-inline-state">
+                  No {item.kind === "link" ? "link context" : "note body"} was
+                  recorded.
+                </p>
               )}
             </article>
             <aside
@@ -231,7 +252,7 @@ export default function KnowledgeItemWorkspace({
               <dl className="cmd-detail-facts">
                 <div>
                   <dt>Kind</dt>
-                  <dd>Knowledge note</dd>
+                  <dd>Knowledge {item.kind}</dd>
                 </div>
                 <div>
                   <dt>Version</dt>
@@ -269,11 +290,12 @@ export default function KnowledgeItemWorkspace({
             aria-labelledby="knowledge-edit-heading"
           >
             <p className="cmd-eyebrow">Local knowledge / Audited</p>
-            <h2 id="knowledge-edit-heading">Revise this note</h2>
+            <h2 id="knowledge-edit-heading">Revise this {item.kind}</h2>
             <p>
-              Edits update the current project note, search, and live brief. The
-              original capture and previously saved execution packets stay as
-              recorded.
+              Edits update the current project knowledge, search, and live
+              brief. The original capture
+              {item.kind === "link" ? ", saved link target" : ""}, and previous
+              execution packets stay as recorded.
             </p>
             <form className="cmd-form" onSubmit={saveRevision}>
               <label htmlFor="knowledge-title">Title</label>
@@ -284,7 +306,9 @@ export default function KnowledgeItemWorkspace({
                 value={titleDraft}
                 onChange={(event) => setTitleDraft(event.target.value)}
               />
-              <label htmlFor="knowledge-content">Content</label>
+              <label htmlFor="knowledge-content">
+                {item.kind === "link" ? "Link context" : "Content"}
+              </label>
               <textarea
                 id="knowledge-content"
                 maxLength={20_000}
@@ -301,7 +325,9 @@ export default function KnowledgeItemWorkspace({
                     contentDraft === item.content)
                 }
               >
-                {saving ? "Saving note..." : "Save note revision"}
+                {saving
+                  ? `Saving ${item.kind}...`
+                  : `Save ${item.kind} revision`}
               </Button>
             </form>
             {saveFeedback && (
@@ -321,7 +347,7 @@ export default function KnowledgeItemWorkspace({
               </p>
             )}
             {revisions.length === 0 && !revisionError && (
-              <p>No note revisions yet.</p>
+              <p>No revisions yet.</p>
             )}
             {revisions.length > 0 && (
               <ol className="cmd-record-list" aria-label="Note revisions">

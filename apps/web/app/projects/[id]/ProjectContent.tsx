@@ -22,9 +22,10 @@ interface KnowledgeItem {
   id: string;
   projectId: string;
   sourceCaptureId: string;
-  kind: "note";
+  kind: "note" | "link";
   title: string;
   content: string;
+  url?: string | null;
   createdAt: string;
 }
 
@@ -198,8 +199,8 @@ export default function ProjectContent({ projectId }: { projectId: string }) {
         </div>
       </div>
       <p className="cmd-section-intro">
-        File a capture into this project to create a task or note. Each record
-        keeps a path back to its original source.
+        File a capture into this project to create a task, note, or link. Each
+        record keeps a path back to its original source.
       </p>
       {loading && (
         <p className="cmd-inline-state" role="status">
@@ -298,8 +299,8 @@ export default function ProjectContent({ projectId }: { projectId: string }) {
             </div>
             {knowledge.length === 0 && !error && (
               <RecordEmptyState
-                title="No notes yet"
-                description="File a capture as a note to retain its context here."
+                title="No knowledge yet"
+                description="File a capture as a note or link to retain its context here."
               />
             )}
             <ul className={styles.list} aria-label="Project knowledge">
@@ -310,6 +311,16 @@ export default function ProjectContent({ projectId }: { projectId: string }) {
                     <span className={styles.meta}>{item.kind}</span>
                   </div>
                   {item.content && <p>{item.content}</p>}
+                  {item.kind === "link" && item.url && (
+                    <p>
+                      <a href={item.url} rel="noreferrer" target="_blank">
+                        Open saved external link
+                      </a>
+                    </p>
+                  )}
+                  <a href={`/knowledge-items/${encodeURIComponent(item.id)}`}>
+                    Open knowledge record
+                  </a>
                   <a
                     href={`/inbox?captureId=${encodeURIComponent(item.sourceCaptureId)}`}
                   >
