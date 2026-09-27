@@ -130,6 +130,54 @@ test("a synthetic local agent reads only its run scope and reports an unverified
   expect(run.result.verificationStatus).toBe("unverified");
   expect(run.result.externalActions).toEqual([]);
   expect(run.result.contextReadIds.length).toBeGreaterThan(0);
+  const routingResponse = await request.get(
+    `/api/v1/execution-packets/${packet.id}/agent-routing?limit=1`,
+  );
+  expect(routingResponse.status()).toBe(200);
+  const routing = await routingResponse.json();
+  expect(routing.dispatchMode).toBe("manual-fake-only");
+  expect(routing.unassessed).toEqual(["skills", "budget", "provider capacity"]);
+  expect(routing.items[0].readOperations).toEqual([
+    "project.brief.read",
+    "work.read",
+  ]);
+  const routedAgentIds = new Set<string>(
+    routing.items.map((item: { agent: { id: string } }) => item.agent.id),
+  );
+  let routingCursor = routing.nextCursor;
+  while (routingCursor) {
+    const response = await request.get(
+      `/api/v1/execution-packets/${packet.id}/agent-routing?limit=1&cursor=${routingCursor}`,
+    );
+    expect(response.status()).toBe(200);
+    const page = await response.json();
+    for (const item of page.items) routedAgentIds.add(item.agent.id);
+    routingCursor = page.nextCursor;
+  }
+  expect(routedAgentIds).toEqual(new Set([agent.id, secondAgent.id]));
+  const cachedEvidence: { id: string }[] = [];
+  let cachedCursor: number | null = null;
+  do {
+    const query = new URLSearchParams({ agentId: agent.id, limit: "1" });
+    if (cachedCursor !== null) query.set("cursor", String(cachedCursor));
+    const response = await request.get(
+      `/api/v1/execution-packets/${packet.id}/cached-local-result?${query}`,
+    );
+    expect(response.status()).toBe(200);
+    const saved = await response.json();
+    expect(saved.result.runId).toBe(started.id);
+    expect(saved.result.packetDigest).toBe(packet.contentDigest);
+    expect(saved.result.verificationStatus).toBe("unverified");
+    cachedEvidence.push(...saved.items);
+    cachedCursor = saved.nextCursor;
+  } while (cachedCursor !== null);
+  expect(cachedEvidence.map((item) => item.id)).toEqual(
+    run.result.evidence.map((item: { id: string }) => item.id),
+  );
+  const deniedCached = await request.get(
+    `/api/v1/execution-packets/${packet.id}/cached-local-result?agentId=${unassigned.id}`,
+  );
+  expect(deniedCached.status()).toBe(403);
   for (const evidence of run.result.evidence) {
     expect((await request.get(evidence.href)).status(), evidence.href).toBe(
       200,
@@ -332,6 +380,12 @@ test("a synthetic local agent reads only its run scope and reports an unverified
   await page
     .getByRole("combobox", { name: "Eligible project-scoped agent" })
     .selectOption(agent.id);
+  await expect(
+    page.getByText(/Skills, budget, and provider capacity are unassessed/),
+  ).toBeVisible();
+  await expect(
+    page.getByRole("article", { name: "Saved fake-run result" }),
+  ).toBeVisible();
   const uiRunResponsePromise = page.waitForResponse(
     (response) =>
       response

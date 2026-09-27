@@ -2476,6 +2476,32 @@ export const listLocalAgentsResponseSchema = z.object({
 export const listProjectEligibleAgentsResponseSchema =
   listLocalAgentsResponseSchema;
 
+export const localAgentRoutingCandidateSchema = z.object({
+  agent: localAgentProfileSchema,
+  activeRunCount: z.number().int().min(0),
+  reason: z.literal("Assigned to this packet's project for scoped reads"),
+  readOperations: z.tuple([
+    z.literal("project.brief.read"),
+    z.literal("work.read"),
+  ]),
+});
+
+export const localAgentRoutingResponseSchema = z.object({
+  packetId: z.uuid(),
+  packetDigest: z.string().regex(/^[a-f0-9]{64}$/),
+  projectId: z.uuid(),
+  items: z.array(localAgentRoutingCandidateSchema),
+  nextCursor: z.uuid().nullable(),
+  dispatchMode: z.literal("manual-fake-only"),
+  unassessed: z.tuple([
+    z.literal("skills"),
+    z.literal("budget"),
+    z.literal("provider capacity"),
+  ]),
+  sourceLabel: z.literal("Synthetic local routing preview"),
+  isSynthetic: z.literal(true),
+});
+
 export const createLocalAgentProjectAssignmentRequestSchema = z.object({
   projectId: z.uuid(),
 });
@@ -2656,6 +2682,31 @@ export const fakeLocalAgentRunResultSchema = z.object({
   isSynthetic: z.literal(true),
   verificationStatus: z.literal("unverified"),
   externalActions: z.array(z.string()).max(0),
+});
+
+export const cachedLocalAgentResultQuerySchema = z.object({
+  agentId: z.uuid(),
+  limit: z.coerce.number().int().min(1).max(100).default(10),
+  cursor: z.coerce.number().int().min(0).optional(),
+});
+
+export const cachedLocalAgentResultSchema = z.object({
+  runId: z.uuid(),
+  agentId: z.uuid(),
+  packetId: z.uuid(),
+  packetDigest: z.string().regex(/^[a-f0-9]{64}$/),
+  completedAt: z.iso.datetime({ offset: true }),
+  summary: z.string().min(1),
+  contextReadIds: z.array(z.uuid()),
+  verificationStatus: z.literal("unverified"),
+  sourceLabel: z.literal("Saved synthetic local fake-run result"),
+  isSynthetic: z.literal(true),
+});
+
+export const cachedLocalAgentResultResponseSchema = z.object({
+  result: cachedLocalAgentResultSchema.nullable(),
+  items: z.array(evidenceReferenceSchema),
+  nextCursor: z.number().int().min(0).nullable(),
 });
 
 export const localAgentRunAttemptSchema = z.object({
@@ -3247,6 +3298,12 @@ export type CreateLocalAgentRequest = z.infer<
   typeof createLocalAgentRequestSchema
 >;
 export type LocalAgentProfile = z.infer<typeof localAgentProfileSchema>;
+export type LocalAgentRoutingCandidate = z.infer<
+  typeof localAgentRoutingCandidateSchema
+>;
+export type LocalAgentRoutingResponse = z.infer<
+  typeof localAgentRoutingResponseSchema
+>;
 export type LocalAgentProjectAssignment = z.infer<
   typeof localAgentProjectAssignmentSchema
 >;
@@ -3281,6 +3338,9 @@ export type LocalMcpReadResponse = z.infer<typeof localMcpReadResponseSchema>;
 export type LocalMcpAuditEvent = z.infer<typeof localMcpAuditEventSchema>;
 export type FakeLocalAgentRunResult = z.infer<
   typeof fakeLocalAgentRunResultSchema
+>;
+export type CachedLocalAgentResultResponse = z.infer<
+  typeof cachedLocalAgentResultResponseSchema
 >;
 export type LocalAgentRun = z.infer<typeof localAgentRunSchema>;
 export type AgentContextReadRequest = z.infer<

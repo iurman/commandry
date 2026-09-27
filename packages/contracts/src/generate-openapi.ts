@@ -75,6 +75,11 @@ import {
   createLocalAgentRequestSchema,
   localAgentProfileSchema,
   listLocalAgentsResponseSchema,
+  localAgentRoutingCandidateSchema,
+  localAgentRoutingResponseSchema,
+  cachedLocalAgentResultQuerySchema,
+  cachedLocalAgentResultSchema,
+  cachedLocalAgentResultResponseSchema,
   createLocalAgentProjectAssignmentRequestSchema,
   localAgentProjectAssignmentSchema,
   listLocalAgentProjectAssignmentsResponseSchema,
@@ -2634,6 +2639,63 @@ export function generateOpenApi(): string {
           },
         },
       },
+      "/api/v1/execution-packets/{id}/agent-routing": {
+        get: {
+          operationId: "listPacketLocalAgentRouting",
+          summary: "Explain manual synthetic local agent choices for a packet",
+          parameters: [idParameter, ...pageParameters],
+          responses: {
+            "200": {
+              description:
+                "Project-scoped candidates with active fake-run load",
+              content: jsonContent("LocalAgentRoutingResponse"),
+            },
+            "404": {
+              description: "Packet not found",
+              content: jsonContent("ErrorResponse"),
+            },
+          },
+        },
+      },
+      "/api/v1/execution-packets/{id}/cached-local-result": {
+        get: {
+          operationId: "getCachedLocalAgentResult",
+          summary: "Page saved evidence from the latest exact-packet fake run",
+          parameters: [
+            idParameter,
+            {
+              name: "agentId",
+              in: "query",
+              required: true,
+              schema: { type: "string", format: "uuid" },
+            },
+            {
+              name: "limit",
+              in: "query",
+              schema: { type: "integer", minimum: 1, maximum: 100 },
+            },
+            {
+              name: "cursor",
+              in: "query",
+              schema: { type: "integer", minimum: 0 },
+            },
+          ],
+          responses: {
+            "200": {
+              description: "Historical unverified result or empty cache",
+              content: jsonContent("CachedLocalAgentResultResponse"),
+            },
+            "403": {
+              description: "Agent is not currently assigned to packet project",
+              content: jsonContent("ErrorResponse"),
+            },
+            "404": {
+              description: "Packet not found",
+              content: jsonContent("ErrorResponse"),
+            },
+          },
+        },
+      },
       "/api/v1/agent-runs/{id}": {
         get: {
           operationId: "getLocalAgentRun",
@@ -4598,6 +4660,15 @@ export function generateOpenApi(): string {
         CreateLocalAgentRequest: component(createLocalAgentRequestSchema),
         LocalAgentProfile: component(localAgentProfileSchema),
         ListLocalAgentsResponse: component(listLocalAgentsResponseSchema),
+        LocalAgentRoutingCandidate: component(localAgentRoutingCandidateSchema),
+        LocalAgentRoutingResponse: component(localAgentRoutingResponseSchema),
+        CachedLocalAgentResultQuery: component(
+          cachedLocalAgentResultQuerySchema,
+        ),
+        CachedLocalAgentResult: component(cachedLocalAgentResultSchema),
+        CachedLocalAgentResultResponse: component(
+          cachedLocalAgentResultResponseSchema,
+        ),
         CreateLocalAgentProjectAssignmentRequest: component(
           createLocalAgentProjectAssignmentRequestSchema,
         ),

@@ -2,6 +2,7 @@ import {
   createAgentContextService,
   createLocalAgentRunControlService,
   createLocalAgentRunService,
+  createLocalAgentRoutingService,
   createLocalAgentService,
   createProjectBriefService,
 } from "@commandry/application";
@@ -11,6 +12,7 @@ import {
   createExecutionPacketRepository,
   createLocalAgentRepository,
   createLocalAgentRunRepository,
+  createLocalAgentRoutingRepository,
 } from "@commandry/db";
 import { LocalAgentError } from "@commandry/domain";
 import {
@@ -42,6 +44,15 @@ export function localAgentModeFailure(
 
 export function getLocalAgentService() {
   return createLocalAgentService(createLocalAgentRepository(getDatabase().db));
+}
+
+export function getLocalAgentRoutingService() {
+  const db = getDatabase().db;
+  return createLocalAgentRoutingService({
+    getPacketById: createExecutionPacketRepository(db).getById,
+    isAssigned: createLocalAgentRepository(db).isAssigned,
+    ...createLocalAgentRoutingRepository(db),
+  });
 }
 
 export function getLocalAgentRunService() {
@@ -98,17 +109,20 @@ export function localAgentFailure(
   operation: string,
 ): Response {
   if (error instanceof LocalAgentError) {
-    const status = [
-      "AGENT_NOT_FOUND",
-      "PROJECT_NOT_FOUND",
-      "PACKET_NOT_FOUND",
-      "RUN_NOT_FOUND",
-      "CONTEXT_NOT_FOUND",
-    ].includes(error.code)
-      ? 404
-      : ["ASSIGNMENT_EXISTS", "OCCURRENCE_CONFLICT"].includes(error.code)
-        ? 409
-        : 403;
+    const status =
+      error.code === "INVALID_CACHE_CURSOR"
+        ? 400
+        : [
+              "AGENT_NOT_FOUND",
+              "PROJECT_NOT_FOUND",
+              "PACKET_NOT_FOUND",
+              "RUN_NOT_FOUND",
+              "CONTEXT_NOT_FOUND",
+            ].includes(error.code)
+          ? 404
+          : ["ASSIGNMENT_EXISTS", "OCCURRENCE_CONFLICT"].includes(error.code)
+            ? 409
+            : 403;
     return jsonResponse(
       request,
       { code: error.code, message: error.message },

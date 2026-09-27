@@ -64,6 +64,17 @@ record. It performs no external action. Token distribution to an external
 runner, callback transport trust, real workspace/log/artifact ownership,
 heartbeat loss policy, and retries remain undecided.
 
+For local review, a packet-scoped routing page shows only currently assigned
+synthetic agents, their active fake-run count, the two fixed read operations,
+and the reason they may be selected. The selection remains manual; skills,
+budget, and provider capacity have no configured model and are labeled
+unassessed. The latest successful fake result for that exact packet digest can
+be read as a historical snapshot while the agent remains assigned, with
+bounded evidence pages and a link to its read audit. It does not reissue a run
+grant or imply verified work. Decide actual matching criteria, assignment
+revocation semantics for historical output, cache retention, and whether any
+future automatic dispatch requires a separate approval policy.
+
 ### OQ-007: What is the first capability and policy representation?
 
 Define operations, scopes, environments, expiry, delegation, and approval

@@ -56,6 +56,11 @@ and production prerequisites remain gates.
   evidence, explainable activity and attention, briefs, packets, scoped fake
   agents, simulated approvals, local automation, integration fixtures, and the
   Overnight Queue, and local packet-scoped MCP read sessions.
+- Packet-scoped synthetic routing now lists only assigned agents, their active
+  fake-run load, fixed read scope, and explicit unassessed matching criteria.
+  The same screen can page a saved, unverified fake-run result tied to the exact
+  packet digest and current project assignment, with evidence and a run-audit
+  link. This is manual local selection, not automatic or external dispatch.
 - A resource impact view and versioned API page recorded downstream depends-on
   paths up to six hops, active supporting Project links, and the latest active
   synthetic metric-drop evidence from the worker. The signal card links to the

@@ -44,7 +44,8 @@ export class LocalAgentError extends Error {
       | "PROJECT_SCOPE_DENIED"
       | "OPERATION_DENIED"
       | "GRANT_EXPIRED"
-      | "CONTEXT_NOT_FOUND",
+      | "CONTEXT_NOT_FOUND"
+      | "INVALID_CACHE_CURSOR",
     message: string,
   ) {
     super(message);

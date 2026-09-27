@@ -96,6 +96,15 @@ export type {
   ExecutionPacketProps,
 } from "./components/ExecutionPacket";
 export { LocalAgentCard } from "./components/LocalAgent";
+export {
+  LocalAgentRouteCard,
+  CachedLocalResultCard,
+} from "./components/LocalAgentRouting";
+export type {
+  LocalAgentRouteView,
+  CachedLocalResultView,
+  CachedLocalEvidenceView,
+} from "./components/LocalAgentRouting";
 export { LocalAgentCallbackTimeline } from "./components/LocalAgentCallbackTimeline";
 export { ProjectChangeCard } from "./components/ProjectChangeCard";
 export { ProjectOverviewCard } from "./components/ProjectOverviewCard";

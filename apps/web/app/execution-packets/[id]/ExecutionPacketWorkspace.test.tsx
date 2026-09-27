@@ -110,7 +110,17 @@ describe("Execution packet review", () => {
   it("renders exact versioned snapshot, selected sources and missing authorization", async () => {
     vi.stubGlobal(
       "fetch",
-      vi.fn(async () => new Response(JSON.stringify(packet), { status: 200 })),
+      vi.fn(
+        async (path: string) =>
+          new Response(
+            JSON.stringify(
+              path === `/api/v1/execution-packets/${packetId}`
+                ? packet
+                : { items: [], nextCursor: null },
+            ),
+            { status: 200 },
+          ),
+      ),
     );
     render(<ExecutionPacketWorkspace packetId={packetId} />);
     expect(
@@ -187,9 +197,8 @@ describe("Execution packet review", () => {
     );
   });
 
-  it("offers only project-assigned agents and starts a fake local run", async () => {
+  it("explains packet-scoped routing, pages saved evidence and starts a fake local run", async () => {
     const agentId = "8f24f301-47fa-4ca8-8492-4264993c5025";
-    const otherId = "8f24f301-47fa-4ca8-8492-4264993c5026";
     const runId = "3a11e8b9-97df-4831-924e-12d1e786775d";
     vi.stubGlobal("crypto", {
       randomUUID: () => "f68b29e9-908c-4097-b8e4-75850865e45d",
@@ -197,53 +206,61 @@ describe("Execution packet review", () => {
     const fetchMock = vi.fn(async (path: string, init?: RequestInit) => {
       if (path === `/api/v1/execution-packets/${packetId}`)
         return new Response(JSON.stringify(packet), { status: 200 });
-      if (path.startsWith("/api/v1/agents?"))
+      if (
+        path.startsWith(`/api/v1/execution-packets/${packetId}/agent-routing`)
+      )
         return new Response(
           JSON.stringify({
             items: [
               {
-                id: agentId,
-                name: "Harbor reader",
-                role: "Read only",
-                runtime: "local-fake-v1",
-                sourceLabel: "Synthetic local agent",
-                isSynthetic: true,
-                createdAt: at,
-              },
-              {
-                id: otherId,
-                name: "Other reader",
-                role: "Read only",
-                runtime: "local-fake-v1",
-                sourceLabel: "Synthetic local agent",
-                isSynthetic: true,
-                createdAt: at,
+                agent: {
+                  id: agentId,
+                  name: "Harbor reader",
+                  role: "Read only",
+                  runtime: "local-fake-v1",
+                  sourceLabel: "Synthetic local agent",
+                  isSynthetic: true,
+                  createdAt: at,
+                },
+                activeRunCount: 1,
+                reason: "Assigned to this packet's project for scoped reads",
+                readOperations: ["project.brief.read", "work.read"],
               },
             ],
             nextCursor: null,
           }),
           { status: 200 },
         );
-      if (path.startsWith(`/api/v1/agents/${agentId}/projects`))
+      if (path.includes("/cached-local-result?") && path.includes("cursor=2"))
         return new Response(
           JSON.stringify({
-            items: [
-              {
-                id: "5b311f36-f474-4297-9e5a-aa396fe6d257",
-                agentId,
-                projectId,
-                isSynthetic: true,
-                createdAt: at,
-              },
-            ],
+            result: {
+              runId,
+              completedAt: at,
+              summary: "Saved synthetic context review",
+              sourceLabel: "Saved synthetic local fake-run result",
+              verificationStatus: "unverified",
+            },
+            items: [evidence("work_item", workId)],
             nextCursor: null,
           }),
           { status: 200 },
         );
-      if (path.startsWith(`/api/v1/agents/${otherId}/projects`))
-        return new Response(JSON.stringify({ items: [], nextCursor: null }), {
-          status: 200,
-        });
+      if (path.includes("/cached-local-result?"))
+        return new Response(
+          JSON.stringify({
+            result: {
+              runId,
+              completedAt: at,
+              summary: "Saved synthetic context review",
+              sourceLabel: "Saved synthetic local fake-run result",
+              verificationStatus: "unverified",
+            },
+            items: [evidence("project", projectId)],
+            nextCursor: 2,
+          }),
+          { status: 200 },
+        );
       if (
         path === `/api/v1/execution-packets/${packetId}/agent-runs` &&
         init?.method === "POST"
@@ -258,17 +275,21 @@ describe("Execution packet review", () => {
     const selector = await screen.findByLabelText(
       "Eligible project-scoped agent",
     );
+    expect(within(selector).getAllByRole("option")).toHaveLength(2);
     expect(
-      within(selector)
-        .getByRole("option", { name: /Harbor reader/ })
-        .hasAttribute("disabled"),
-    ).toBe(false);
-    expect(
-      within(selector)
-        .getByRole("option", { name: /Other reader/ })
-        .hasAttribute("disabled"),
-    ).toBe(true);
+      screen.getByText(/Skills, budget, and provider capacity are unassessed/),
+    ).toBeTruthy();
     fireEvent.change(selector, { target: { value: agentId } });
+    expect(
+      await screen.findByText("Queued or running fake jobs: 1."),
+    ).toBeTruthy();
+    expect(
+      await screen.findByText("Saved synthetic context review"),
+    ).toBeTruthy();
+    fireEvent.click(
+      screen.getByRole("button", { name: "Load more saved evidence" }),
+    );
+    expect(await screen.findByText(/work item \/ ba972830/)).toBeTruthy();
     fireEvent.click(
       screen.getByRole("button", { name: "Start fake local run" }),
     );

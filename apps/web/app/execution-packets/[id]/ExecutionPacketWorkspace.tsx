@@ -1,42 +1,25 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import type {
+  CachedLocalAgentResultResponse,
+  EvidenceReference,
   ExecutionPacket as ExecutionPacketRecord,
+  LocalAgentRoutingCandidate,
+  LocalAgentRoutingResponse,
   OvernightQueueEntry,
   OvernightReadiness,
 } from "@commandry/contracts";
 import {
   AppShell,
   Button,
+  CachedLocalResultCard,
   ExecutionPacket,
-  type LocalAgentAssignmentView,
-  type LocalAgentProfileView,
+  LocalAgentRouteCard,
   type LocalAgentRunView,
 } from "@commandry/ui";
-import { apiJson, pagePath, type PageResponse } from "../../projects/api";
+import { apiJson, pagePath } from "../../projects/api";
 import LocalMcpAccess from "./LocalMcpAccess";
-
-interface AgentChoice {
-  agent: LocalAgentProfileView;
-  eligible: boolean;
-}
-
-async function isAssigned(agentId: string, projectId: string) {
-  let cursor: string | null = null;
-  do {
-    const page: PageResponse<LocalAgentAssignmentView> = await apiJson(
-      pagePath(
-        `/api/v1/agents/${encodeURIComponent(agentId)}/projects`,
-        cursor,
-      ),
-    );
-    if (page.items.some((assignment) => assignment.projectId === projectId))
-      return true;
-    cursor = page.nextCursor;
-  } while (cursor);
-  return false;
-}
 
 export default function ExecutionPacketWorkspace({
   packetId,
@@ -46,7 +29,7 @@ export default function ExecutionPacketWorkspace({
   const [packet, setPacket] = useState<ExecutionPacketRecord | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
-  const [agents, setAgents] = useState<AgentChoice[]>([]);
+  const [agents, setAgents] = useState<LocalAgentRoutingCandidate[]>([]);
   const [agentCursor, setAgentCursor] = useState<string | null>(null);
   const [agentsLoading, setAgentsLoading] = useState(false);
   const [agentsError, setAgentsError] = useState<string | null>(null);
@@ -54,6 +37,14 @@ export default function ExecutionPacketWorkspace({
   const [starting, setStarting] = useState(false);
   const [startError, setStartError] = useState<string | null>(null);
   const [startedRun, setStartedRun] = useState<LocalAgentRunView | null>(null);
+  const [cached, setCached] =
+    useState<CachedLocalAgentResultResponse["result"]>(null);
+  const [cachedEvidence, setCachedEvidence] = useState<EvidenceReference[]>([]);
+  const [cacheCursor, setCacheCursor] = useState<number | null>(null);
+  const [cacheLoading, setCacheLoading] = useState(false);
+  const [cacheError, setCacheError] = useState<string | null>(null);
+  const [cacheRefresh, setCacheRefresh] = useState(0);
+  const cacheRequestVersion = useRef(0);
   const [readiness, setReadiness] = useState<OvernightReadiness | null>(null);
   const [runAfterLocal, setRunAfterLocal] = useState("");
   const [scheduling, setScheduling] = useState(false);
@@ -61,29 +52,26 @@ export default function ExecutionPacketWorkspace({
   const [scheduledEntry, setScheduledEntry] =
     useState<OvernightQueueEntry | null>(null);
 
-  async function loadAgents(projectId: string, cursor?: string | null) {
+  async function loadAgents(packetId: string, cursor?: string | null) {
     setAgentsLoading(true);
     setAgentsError(null);
     try {
-      const page = await apiJson<PageResponse<LocalAgentProfileView>>(
-        pagePath("/api/v1/agents", cursor),
-      );
-      const choices = await Promise.all(
-        page.items.map(async (agent) => ({
-          agent,
-          eligible: await isAssigned(agent.id, projectId),
-        })),
+      const page = await apiJson<LocalAgentRoutingResponse>(
+        pagePath(
+          `/api/v1/execution-packets/${encodeURIComponent(packetId)}/agent-routing`,
+          cursor,
+        ),
       );
       setAgents((current) =>
         cursor
           ? [
               ...current,
-              ...choices.filter(
+              ...page.items.filter(
                 (choice) =>
                   !current.some((saved) => saved.agent.id === choice.agent.id),
               ),
             ]
-          : choices,
+          : page.items,
       );
       setAgentCursor(page.nextCursor);
     } catch (cause) {
@@ -103,7 +91,7 @@ export default function ExecutionPacketWorkspace({
       .then((record) => {
         if (active) {
           setPacket(record);
-          void loadAgents(record.projectId);
+          void loadAgents(record.id);
         }
       })
       .catch((cause: unknown) => {
@@ -121,6 +109,67 @@ export default function ExecutionPacketWorkspace({
       active = false;
     };
   }, [packetId]);
+
+  useEffect(() => {
+    if (!packet || !selectedAgentId) return;
+    let active = true;
+    const params = new URLSearchParams({ agentId: selectedAgentId });
+    apiJson<CachedLocalAgentResultResponse>(
+      `/api/v1/execution-packets/${encodeURIComponent(packet.id)}/cached-local-result?${params}`,
+    )
+      .then((page) => {
+        if (!active) return;
+        setCached(page.result);
+        setCachedEvidence(page.items);
+        setCacheCursor(page.nextCursor);
+      })
+      .catch((cause: unknown) => {
+        if (active)
+          setCacheError(
+            cause instanceof Error
+              ? cause.message
+              : "Could not load saved fake-run result.",
+          );
+      })
+      .finally(() => {
+        if (active) setCacheLoading(false);
+      });
+    return () => {
+      active = false;
+    };
+  }, [packet, selectedAgentId, cacheRefresh]);
+
+  async function loadMoreCachedEvidence() {
+    if (!packet || !selectedAgentId || cacheCursor === null || cacheLoading)
+      return;
+    const requestVersion = cacheRequestVersion.current;
+    setCacheLoading(true);
+    setCacheError(null);
+    try {
+      const params = new URLSearchParams({
+        agentId: selectedAgentId,
+        cursor: String(cacheCursor),
+      });
+      const page = await apiJson<CachedLocalAgentResultResponse>(
+        `/api/v1/execution-packets/${encodeURIComponent(packet.id)}/cached-local-result?${params}`,
+      );
+      if (requestVersion !== cacheRequestVersion.current) return;
+      if (page.result?.runId !== cached?.runId)
+        throw new Error("Saved result changed. Refresh the evidence page.");
+      setCachedEvidence((current) => [...current, ...page.items]);
+      setCacheCursor(page.nextCursor);
+    } catch (cause) {
+      if (requestVersion === cacheRequestVersion.current)
+        setCacheError(
+          cause instanceof Error
+            ? cause.message
+            : "Could not load more evidence.",
+        );
+    } finally {
+      if (requestVersion === cacheRequestVersion.current)
+        setCacheLoading(false);
+    }
+  }
 
   useEffect(() => {
     if (!packet || !selectedAgentId) return;
@@ -197,20 +246,18 @@ export default function ExecutionPacketWorkspace({
             )}
             {!agentsLoading && agents.length === 0 && !agentsError && (
               <p>
-                No local agents exist yet.{" "}
+                No agent is assigned to this packet&apos;s project.{" "}
                 <a href="/agents">
                   Create a synthetic agent and assign this project.
                 </a>
               </p>
             )}
-            {!agentsLoading &&
-              agents.length > 0 &&
-              !agents.some((choice) => choice.eligible) && (
-                <p>
-                  No agents in the loaded page are assigned to this project.{" "}
-                  <a href="/agents">Assign this project to a local agent.</a>
-                </p>
-              )}
+            <p className="cmd-form-hint">
+              Routing uses recorded project assignment and current fake-run
+              load. Skills, budget, and provider capacity are unassessed.
+              Selection is manual; no external runner or action capability is
+              connected.
+            </p>
             {agents.length > 0 && (
               <form
                 className="cmd-form"
@@ -250,29 +297,36 @@ export default function ExecutionPacketWorkspace({
                   id="packet-agent-choice"
                   value={selectedAgentId}
                   onChange={(event) => {
+                    cacheRequestVersion.current += 1;
                     setReadiness(null);
                     setSelectedAgentId(event.target.value);
+                    setCached(null);
+                    setCachedEvidence([]);
+                    setCacheCursor(null);
+                    setCacheError(null);
+                    setCacheLoading(Boolean(event.target.value));
                   }}
                 >
                   <option value="">Choose an eligible local agent</option>
-                  {agents.map(({ agent, eligible }) => (
-                    <option
-                      key={agent.id}
-                      value={agent.id}
-                      disabled={!eligible}
-                    >
-                      {agent.name}
-                      {eligible
-                        ? " / project-scoped read"
-                        : " / not assigned to this project"}
+                  {agents.map(({ agent, activeRunCount }) => (
+                    <option key={agent.id} value={agent.id}>
+                      {agent.name} / project-scoped read / {activeRunCount}{" "}
+                      active fake jobs
                     </option>
                   ))}
                 </select>
                 <p className="cmd-form-hint">
-                  {agents.filter((choice) => choice.eligible).length} eligible
-                  among {agents.length} shown. Ineligible profiles cannot start
-                  this packet.
+                  {agents.length} assigned profiles shown. Only assigned agents
+                  can start this packet.
                 </p>
+                {agents
+                  .filter(({ agent }) => agent.id === selectedAgentId)
+                  .map((choice) => (
+                    <LocalAgentRouteCard
+                      key={choice.agent.id}
+                      candidate={choice}
+                    />
+                  ))}
                 <Button
                   variant="primary"
                   type="submit"
@@ -285,7 +339,7 @@ export default function ExecutionPacketWorkspace({
             {agentCursor && (
               <Button
                 disabled={agentsLoading}
-                onClick={() => void loadAgents(packet.projectId, agentCursor)}
+                onClick={() => void loadAgents(packet.id, agentCursor)}
               >
                 {agentsLoading ? "Loading..." : "Load more local agents"}
               </Button>
@@ -302,6 +356,49 @@ export default function ExecutionPacketWorkspace({
                   Review agent run
                 </a>
               </p>
+            )}
+            {selectedAgentId && (
+              <div aria-label="Saved fake-run evidence">
+                <h3>Saved fake-run evidence</h3>
+                <p className="cmd-form-hint">
+                  Historical output is bound to this exact packet digest.
+                  Refresh after a fake run completes to see its saved evidence.
+                </p>
+                <Button
+                  onClick={() => {
+                    cacheRequestVersion.current += 1;
+                    setCacheLoading(true);
+                    setCacheError(null);
+                    setCacheRefresh((value) => value + 1);
+                  }}
+                  disabled={cacheLoading}
+                >
+                  Refresh saved result
+                </Button>
+                {cacheLoading && (
+                  <p role="status">Loading saved fake-run evidence...</p>
+                )}
+                {cacheError && <p role="alert">{cacheError}</p>}
+                {!cacheLoading && !cacheError && !cached && (
+                  <p>
+                    No completed fake run is saved for this packet and agent.
+                  </p>
+                )}
+                {cached && (
+                  <CachedLocalResultCard
+                    result={cached}
+                    evidence={cachedEvidence}
+                  />
+                )}
+                {cacheCursor !== null && (
+                  <Button
+                    onClick={() => void loadMoreCachedEvidence()}
+                    disabled={cacheLoading}
+                  >
+                    Load more saved evidence
+                  </Button>
+                )}
+              </div>
             )}
           </section>
           <section
