@@ -22,6 +22,7 @@ export type { ResourceTreeRowView } from "./components/ResourceTreeRow";
 export { DecisionCard } from "./components/DecisionCard";
 export type { DecisionCardProps } from "./components/DecisionCard";
 export { AutomationCard } from "./components/AutomationCard";
+export { AutomationEvidenceCheckCard } from "./components/AutomationEvidenceCheckCard";
 export { DomainCard } from "./components/DomainCard";
 export { SystemCard } from "./components/SystemCard";
 export { OvernightQueueCard } from "./components/OvernightQueueCard";

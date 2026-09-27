@@ -204,6 +204,9 @@ import {
   automationRunSchema,
   automationRunAttemptSchema,
   automationAuditEventSchema,
+  automationEvidenceCheckSchema,
+  listAutomationEvidenceChecksResponseSchema,
+  automationExportPageSchema,
   automationJobV1Schema,
   morningDigestItemSchema,
   morningDigestResponseSchema,
@@ -3041,6 +3044,24 @@ export function generateOpenApi(): string {
           },
         },
       },
+      "/api/v1/automations/{id}/export": {
+        get: {
+          operationId: "exportLocalAutomationPage",
+          summary:
+            "Page through a portable local-only definition and synthetic run export",
+          parameters: [idParameter, ...pageParameters],
+          responses: {
+            "200": {
+              description: "Portable automation export page",
+              content: jsonContent("AutomationExportPage"),
+            },
+            "404": {
+              description: "Automation not found",
+              content: jsonContent("ErrorResponse"),
+            },
+          },
+        },
+      },
       "/api/v1/automation-runs/{id}": {
         get: {
           operationId: "getLocalAutomationRun",
@@ -3061,6 +3082,34 @@ export function generateOpenApi(): string {
             "200": {
               description: "Attempt history page",
               content: jsonContent("ListAutomationRunAttemptsResponse"),
+            },
+          },
+        },
+      },
+      "/api/v1/automation-runs/{id}/evidence-checks": {
+        get: {
+          operationId: "listAutomationEvidenceChecks",
+          parameters: [idParameter, ...pageParameters],
+          responses: {
+            "200": {
+              description: "Local evidence presence check history",
+              content: jsonContent("ListAutomationEvidenceChecksResponse"),
+            },
+          },
+        },
+        post: {
+          operationId: "checkAutomationEvidencePresence",
+          summary:
+            "Record presence of referenced local evidence without verifying external effects",
+          parameters: [idParameter],
+          responses: {
+            "201": {
+              description: "Recorded evidence presence check",
+              content: jsonContent("AutomationEvidenceCheck"),
+            },
+            "409": {
+              description: "Run has no completed result",
+              content: jsonContent("ErrorResponse"),
             },
           },
         },
@@ -3929,6 +3978,11 @@ export function generateOpenApi(): string {
         AutomationRunResult: component(automationRunResultSchema),
         AutomationRun: component(automationRunSchema),
         AutomationRunAttempt: component(automationRunAttemptSchema),
+        AutomationEvidenceCheck: component(automationEvidenceCheckSchema),
+        ListAutomationEvidenceChecksResponse: component(
+          listAutomationEvidenceChecksResponseSchema,
+        ),
+        AutomationExportPage: component(automationExportPageSchema),
         AutomationAuditEvent: component(automationAuditEventSchema),
         AutomationJobV1: component(automationJobV1Schema),
         MorningDigestItem: component(morningDigestItemSchema),

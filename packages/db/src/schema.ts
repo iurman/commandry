@@ -1916,6 +1916,46 @@ export const automationRunAttempt = pgTable(
   ],
 );
 
+export const automationEvidenceCheck = pgTable(
+  "automation_evidence_check",
+  {
+    id: uuid("id").primaryKey(),
+    runId: uuid("run_id")
+      .notNull()
+      .references(() => automationRun.id, { onDelete: "restrict" }),
+    status: text("status", { enum: ["complete", "missing"] }).notNull(),
+    evidenceCount: integer("evidence_count").notNull(),
+    missing: jsonb("missing")
+      .$type<Array<{ kind: string; id: string }>>()
+      .notNull()
+      .default([]),
+    resultDigest: text("result_digest").notNull(),
+    actor: text("actor").notNull().default("local-user:unattributed"),
+    checkedAt: timestamp("checked_at", { withTimezone: true })
+      .notNull()
+      .defaultNow(),
+  },
+  (table) => [
+    index("automation_evidence_check_run_idx").on(
+      table.runId,
+      table.checkedAt,
+      table.id,
+    ),
+    check(
+      "automation_evidence_check_status_valid",
+      sql`${table.status} in ('complete', 'missing')`,
+    ),
+    check(
+      "automation_evidence_check_count_valid",
+      sql`${table.evidenceCount} >= 1`,
+    ),
+    check(
+      "automation_evidence_check_actor_local",
+      sql`${table.actor} = 'local-user:unattributed'`,
+    ),
+  ],
+);
+
 export const automationAuditEvent = pgTable(
   "automation_audit_event",
   {

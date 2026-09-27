@@ -17,6 +17,7 @@ export * from "./knowledge-revisions";
 export * from "./resource-topology";
 export * from "./project-decisions";
 export * from "./local-automations";
+export * from "./automation-review";
 export * from "./notifications";
 export * from "./capture-triage";
 export * from "./morning-digest";

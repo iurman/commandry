@@ -211,7 +211,7 @@ export function createLocalAutomationRepository(db: CommandryDatabase) {
           and(
             eq(automationRun.definitionId, definitionId),
             anchor
-              ? sql`(${automationRun.createdAt}, ${automationRun.id}) < (${anchor.createdAt}, ${query.cursor}::uuid)`
+              ? sql`(${automationRun.createdAt}, ${automationRun.id}) < (select created_at, id from automation_run where id = ${query.cursor}::uuid)`
               : undefined,
           ),
         )

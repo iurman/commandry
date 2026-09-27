@@ -4,10 +4,17 @@ import { useEffect, useState, type FormEvent } from "react";
 import type {
   AutomationAuditEvent,
   AutomationDefinition,
+  AutomationEvidenceCheck,
+  AutomationExportPage,
   AutomationRun,
   AutomationRunAttempt,
 } from "@commandry/contracts";
-import { AppShell, Button, RecordEmptyState } from "@commandry/ui";
+import {
+  AppShell,
+  AutomationEvidenceCheckCard,
+  Button,
+  RecordEmptyState,
+} from "@commandry/ui";
 import {
   apiJson,
   pagePath,
@@ -37,6 +44,12 @@ export default function AutomationDetail({
   const [error, setError] = useState<string | null>(null);
   const [feedback, setFeedback] = useState<string | null>(null);
   const [scheduleLocalTime, setScheduleLocalTime] = useState("");
+  const [checksByRun, setChecksByRun] = useState<
+    Record<string, AutomationEvidenceCheck[]>
+  >({});
+  const [checkCursors, setCheckCursors] = useState<
+    Record<string, string | null>
+  >({});
 
   useEffect(() => {
     let active = true;
@@ -281,6 +294,113 @@ export default function AutomationDetail({
     }
   }
 
+  async function loadEvidenceChecks(runId: string, cursor?: string) {
+    setBusy(true);
+    setError(null);
+    try {
+      const page = await apiJson<PageResponse<AutomationEvidenceCheck>>(
+        pagePath(`/api/v1/automation-runs/${runId}/evidence-checks`, cursor),
+      );
+      setChecksByRun((current) => ({
+        ...current,
+        [runId]: cursor
+          ? [...(current[runId] ?? []), ...page.items]
+          : page.items,
+      }));
+      setCheckCursors((current) => ({ ...current, [runId]: page.nextCursor }));
+    } catch (cause) {
+      setError(
+        cause instanceof Error
+          ? cause.message
+          : "Could not load evidence checks.",
+      );
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  async function checkEvidence(runId: string) {
+    if (busy) return;
+    setBusy(true);
+    setError(null);
+    try {
+      const checked = await apiJson<AutomationEvidenceCheck>(
+        `/api/v1/automation-runs/${runId}/evidence-checks`,
+        { method: "POST" },
+      );
+      setChecksByRun((current) => ({
+        ...current,
+        [runId]: [checked, ...(current[runId] ?? [])],
+      }));
+      setFeedback(
+        checked.status === "complete"
+          ? "All referenced local records were found. The synthetic result remains unverified."
+          : "Some referenced local records are missing. Review the check below.",
+      );
+    } catch (cause) {
+      setError(
+        cause instanceof Error
+          ? cause.message
+          : "Could not check local evidence.",
+      );
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  async function downloadExport() {
+    if (busy || !definition) return;
+    setBusy(true);
+    setError(null);
+    try {
+      const exportedRuns: AutomationRun[] = [];
+      const seen = new Set<string>();
+      let cursor: string | null = null;
+      let first: AutomationExportPage | null = null;
+      do {
+        const page: AutomationExportPage = await apiJson<AutomationExportPage>(
+          `${path}/export?limit=100${cursor ? `&cursor=${encodeURIComponent(cursor)}` : ""}`,
+        );
+        first ??= page;
+        exportedRuns.push(...page.runs);
+        cursor = page.nextCursor;
+        if (cursor && seen.has(cursor))
+          throw new Error("Export pagination repeated a cursor");
+        if (cursor) seen.add(cursor);
+      } while (cursor);
+      if (!first) throw new Error("Automation export is empty");
+      const content = JSON.stringify(
+        {
+          exportVersion: 1,
+          exportedAt: first.exportedAt,
+          sourceOfTruth: "local-only",
+          isSynthetic: true,
+          definition: first.definition,
+          runs: exportedRuns,
+        },
+        null,
+        2,
+      );
+      const url = URL.createObjectURL(
+        new Blob([content], { type: "application/json" }),
+      );
+      const anchor = document.createElement("a");
+      anchor.href = url;
+      anchor.download = `commandry-automation-${definition.id}.json`;
+      anchor.click();
+      window.setTimeout(() => URL.revokeObjectURL(url), 0);
+      setFeedback(
+        `Downloaded the local-only definition and ${exportedRuns.length} synthetic run records.`,
+      );
+    } catch (cause) {
+      setError(
+        cause instanceof Error ? cause.message : "Could not export automation.",
+      );
+    } finally {
+      setBusy(false);
+    }
+  }
+
   return (
     <AppShell current="Automations">
       <div className="cmd-breadcrumb">
@@ -470,6 +590,9 @@ export default function AutomationDetail({
                 </p>
               )}
               <div className="cmd-decision-actions">
+                <Button disabled={busy} onClick={() => void downloadExport()}>
+                  Download local export
+                </Button>
                 <Button disabled={busy} onClick={setEnabled}>
                   {busy
                     ? "Saving..."
@@ -654,6 +777,39 @@ export default function AutomationDetail({
                           </li>
                         ))}
                       </ul>
+                      <div className="cmd-action-row">
+                        <Button
+                          disabled={busy}
+                          onClick={() => void checkEvidence(run.id)}
+                        >
+                          Check local evidence
+                        </Button>
+                        <Button
+                          disabled={busy}
+                          onClick={() => void loadEvidenceChecks(run.id)}
+                        >
+                          View check history
+                        </Button>
+                      </div>
+                      {(checksByRun[run.id] ?? []).map((check) => (
+                        <AutomationEvidenceCheckCard
+                          key={check.id}
+                          check={check}
+                        />
+                      ))}
+                      {checkCursors[run.id] && (
+                        <Button
+                          disabled={busy}
+                          onClick={() =>
+                            void loadEvidenceChecks(
+                              run.id,
+                              checkCursors[run.id] ?? undefined,
+                            )
+                          }
+                        >
+                          Load older checks
+                        </Button>
+                      )}
                     </div>
                   )}
                   <Button

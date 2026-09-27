@@ -21,6 +21,7 @@ export * from "./knowledge-revision-repository";
 export * from "./resource-topology-repository";
 export * from "./project-decision-repository";
 export * from "./local-automation-repository";
+export * from "./automation-evidence-repository";
 export * from "./notification-repository";
 export * from "./capture-triage-repository";
 export * from "./morning-digest-repository";

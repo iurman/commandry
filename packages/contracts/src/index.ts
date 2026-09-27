@@ -1721,6 +1721,33 @@ export const listAutomationAuditResponseSchema = z.object({
   items: z.array(automationAuditEventSchema),
   nextCursor: z.uuid().nullable(),
 });
+export const automationEvidenceCheckSchema = z.object({
+  id: z.uuid(),
+  runId: z.uuid(),
+  status: z.enum(["complete", "missing"]),
+  evidenceCount: z.number().int().min(1),
+  missing: z.array(
+    z.object({ kind: evidenceReferenceSchema.shape.kind, id: z.uuid() }),
+  ),
+  resultDigest: z.string().length(64),
+  actor: z.literal("local-user:unattributed"),
+  checkedAt: z.iso.datetime({ offset: true }),
+  scope: z.literal("reference_presence_only"),
+  isSynthetic: z.literal(true),
+});
+export const listAutomationEvidenceChecksResponseSchema = z.object({
+  items: z.array(automationEvidenceCheckSchema),
+  nextCursor: z.uuid().nullable(),
+});
+export const automationExportPageSchema = z.object({
+  exportVersion: z.literal(1),
+  sourceOfTruth: z.literal("local-only"),
+  isSynthetic: z.literal(true),
+  exportedAt: z.iso.datetime({ offset: true }),
+  definition: automationDefinitionSchema,
+  runs: z.array(automationRunSchema),
+  nextCursor: z.uuid().nullable(),
+});
 export const morningDigestQuerySchema = z.strictObject({
   from: z.iso.datetime({ offset: true }),
   to: z.iso.datetime({ offset: true }),
@@ -2642,6 +2669,10 @@ export type AutomationRunResult = z.infer<typeof automationRunResultSchema>;
 export type AutomationRun = z.infer<typeof automationRunSchema>;
 export type AutomationRunAttempt = z.infer<typeof automationRunAttemptSchema>;
 export type AutomationAuditEvent = z.infer<typeof automationAuditEventSchema>;
+export type AutomationEvidenceCheck = z.infer<
+  typeof automationEvidenceCheckSchema
+>;
+export type AutomationExportPage = z.infer<typeof automationExportPageSchema>;
 export type AutomationJobV1 = z.infer<typeof automationJobV1Schema>;
 export type MorningDigestItem = z.infer<typeof morningDigestItemSchema>;
 export type MorningDigestResponse = z.infer<typeof morningDigestResponseSchema>;

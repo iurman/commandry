@@ -1,6 +1,12 @@
-import { createLocalAutomationService } from "@commandry/application";
+import {
+  createAutomationReviewService,
+  createLocalAutomationService,
+} from "@commandry/application";
 import { loadRuntimeConfig } from "@commandry/config";
-import { createLocalAutomationRepository } from "@commandry/db";
+import {
+  createAutomationEvidenceRepository,
+  createLocalAutomationRepository,
+} from "@commandry/db";
 import { LocalAutomationError } from "@commandry/domain";
 import {
   createLocalAutomationSubmission,
@@ -10,6 +16,7 @@ import { getDatabase } from "./database";
 import { jsonResponse } from "./http";
 
 let service: ReturnType<typeof createLocalAutomationService> | undefined;
+let reviewService: ReturnType<typeof createAutomationReviewService> | undefined;
 
 export async function getLocalAutomationService() {
   if (!service) {
@@ -25,6 +32,20 @@ export async function getLocalAutomationService() {
     });
   }
   return service;
+}
+
+export function getAutomationReviewService() {
+  if (!reviewService) {
+    const database = getDatabase().db;
+    const automation = createLocalAutomationRepository(database);
+    reviewService = createAutomationReviewService({
+      getRun: automation.getRun,
+      getDefinition: automation.getDefinition,
+      listRuns: automation.listRuns,
+      ...createAutomationEvidenceRepository(database),
+    });
+  }
+  return reviewService;
 }
 
 export function localAutomationFailure(

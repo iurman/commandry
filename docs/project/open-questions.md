@@ -229,3 +229,14 @@ in minutes. Received time and import completion remain distinct. The default
 never marks a real resource healthy. Validate provider-specific expected
 cadence, delay tolerance, clock skew, mixed sources, silence alerts, and how a
 production health projection should use freshness once real inputs exist.
+
+### OQ-032: What verifies an automation result and belongs in its export?
+
+The local MVP records an immutable check that each referenced database record
+still exists, along with the exact synthetic result digest, missing references,
+and audit event. This is reference presence only; it never changes the worker
+result from unverified or asserts an external effect. A versioned, paged JSON
+export carries the local definition and every synthetic run with its result and
+evidence. Validate semantic verification, reviewer identity, recheck policy,
+redaction, provenance of imported definitions, export format and scope, and
+retention before treating this as a production verification workflow.
