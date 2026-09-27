@@ -405,7 +405,11 @@ export default function InboxPage() {
         setFileDraft(null);
         setFileInputKey((value) => value + 1);
       }
-      setCaptureFeedback("Captured locally. The original is preserved below.");
+      setCaptureFeedback(
+        inputType === "file"
+          ? "Captured locally. The exact original is preserved below; supported text files receive a separate worker projection."
+          : "Captured locally. The original is preserved below.",
+      );
     } catch (cause) {
       setCaptureError(message(cause, "Could not save capture."));
     } finally {
@@ -564,6 +568,13 @@ export default function InboxPage() {
                 }
                 required
               />
+            )}
+            {inputType === "file" && (
+              <p className="cmd-section-intro">
+                Plain text, Markdown, CSV, and JSON can gain a labeled local
+                text projection for search. Other file types remain preserved
+                and downloadable without extracted content.
+              </p>
             )}
             {captureError && (
               <p className="cmd-form-error" role="alert">

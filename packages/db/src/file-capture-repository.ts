@@ -1,7 +1,8 @@
 import { eq } from "drizzle-orm";
 import type { CommandryDatabase } from "./client";
 import { captureRecord } from "./capture-repository";
-import { capture, captureFile } from "./schema";
+import { capture, captureFile, captureFileText } from "./schema";
+import { LOCAL_FILE_TEXT_EXTRACTOR } from "@commandry/domain";
 
 export function createFileCaptureRepository(db: CommandryDatabase) {
   return {
@@ -27,6 +28,11 @@ export function createFileCaptureRepository(db: CommandryDatabase) {
         if (!source) throw new Error("File capture insert returned no row");
         const [file] = await tx.insert(captureFile).values(input).returning();
         if (!file) throw new Error("Original file insert returned no row");
+        await tx.insert(captureFileText).values({
+          captureId: input.captureId,
+          sourceSha256: input.sha256,
+          extractor: LOCAL_FILE_TEXT_EXTRACTOR,
+        });
         return captureRecord(source, file);
       });
     },

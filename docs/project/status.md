@@ -125,8 +125,13 @@ and production prerequisites remain gates.
 - The Inbox accepts bounded local files and preserves exact bytes, original
   metadata, and a SHA-256 digest in PostgreSQL. A file can be filed as a
   project Knowledge document; its editable context remains separate from the
-  immutable file. Downloads are forced attachments. File extraction, larger
-  storage and production blob access remain open.
+  immutable file. Downloads are forced attachments. The separate worker now
+  records a bounded, labeled UTF-8 projection for supported local text,
+  Markdown, CSV, and JSON files. Project-scoped search can find that derived
+  text while the document detail shows status, checksum, and exact download.
+  Unsupported and unreadable files remain preserved without claiming a text
+  extraction. Broader file extraction, larger storage, and production blob
+  access remain open under OQ-028.
 - Project Knowledge documents can be linked to tasks through primary or active
   secondary project context. Shared attachments cite the exact Knowledge
   project relation, which cannot be unlinked while an active task attachment

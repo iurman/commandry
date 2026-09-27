@@ -535,6 +535,17 @@ textarea {
   gap: var(--cmd-space-4);
 }
 
+.cmd-derived-text {
+  max-height: 28rem;
+  max-width: 100%;
+  overflow: auto;
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+  padding: 1rem;
+  border-radius: var(--cmd-radius);
+  background: var(--cmd-surface-muted);
+}
+
 .cmd-work-board-column {
   min-width: 0;
   padding: var(--cmd-space-4);

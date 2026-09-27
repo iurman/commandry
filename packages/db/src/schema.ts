@@ -614,6 +614,42 @@ export const captureFile = pgTable(
   ],
 );
 
+export const captureFileText = pgTable(
+  "capture_file_text",
+  {
+    captureId: uuid("capture_id")
+      .primaryKey()
+      .references(() => captureFile.captureId, { onDelete: "restrict" }),
+    sourceSha256: text("source_sha256").notNull(),
+    status: text("status", {
+      enum: ["pending", "extracted", "unsupported", "failed"],
+    })
+      .notNull()
+      .default("pending"),
+    extractor: text("extractor").notNull(),
+    extractedText: text("extracted_text"),
+    truncated: boolean("truncated").notNull().default(false),
+    message: text("message"),
+    createdAt: createdAt(),
+    updatedAt: updatedAt(),
+  },
+  (table) => [
+    index("capture_file_text_pending_idx").on(table.status, table.createdAt),
+    index("capture_file_text_search_idx").using(
+      "gin",
+      sql`to_tsvector('simple', coalesce(${table.extractedText}, ''))`,
+    ),
+    check(
+      "capture_file_text_source_digest_valid",
+      sql`${table.sourceSha256} ~ '^[a-f0-9]{64}$'`,
+    ),
+    check(
+      "capture_file_text_state_valid",
+      sql`(${table.status} = 'pending' and ${table.extractedText} is null and ${table.message} is null) or (${table.status} = 'extracted' and ${table.extractedText} is not null and length(${table.extractedText}) > 0 and ${table.message} is null) or (${table.status} in ('unsupported', 'failed') and ${table.extractedText} is null and ${table.message} is not null)`,
+    ),
+  ],
+);
+
 export const captureTriageSuggestion = pgTable(
   "capture_triage_suggestion",
   {

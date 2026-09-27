@@ -709,16 +709,32 @@ export function createCaptureRepository(db: CommandryDatabase) {
           inner join capture on capture.id = capture_file.capture_id
           where to_tsvector('simple', capture_file.original_name) @@ websearch_to_tsquery('simple', ${input.q})
           union all
+          select capture.id, 'capture'::text as kind, capture.project_id,
+            capture_file.original_name as title,
+            left('Derived local file text: ' || derived.extracted_text, 220) as excerpt,
+            null::uuid as source_capture_id, null::uuid as target_id, capture.created_at
+          from capture_file_text derived
+          inner join capture on capture.id = derived.capture_id
+          inner join capture_file on capture_file.capture_id = capture.id
+          where capture.state = 'unfiled' and derived.status = 'extracted'
+            and to_tsvector('simple', derived.extracted_text) @@ websearch_to_tsquery('simple', ${input.q})
+          union all
           select id, work_type::text as kind, ${input.projectId ? sql`${input.projectId}::uuid` : sql`project_id`} as project_id, title,
             left(description, 220) as excerpt, source_capture_id, null::uuid as target_id, created_at
           from work_item
           where to_tsvector('simple', title || ' ' || description) @@ websearch_to_tsquery('simple', ${input.q})
             and ${input.projectId ? sql`(project_id = ${input.projectId}::uuid or exists (select 1 from work_project_link context where context.work_item_id = work_item.id and context.project_id = ${input.projectId}::uuid and context.lifecycle = 'active'))` : sql`true`}
           union all
-          select id, kind, ${input.projectId ? sql`${input.projectId}::uuid` : sql`project_id`} as project_id, title,
-            left(content || ' ' || coalesce(url, ''), 220) as excerpt, source_capture_id, null::uuid as target_id, created_at
+          select knowledge_item.id, knowledge_item.kind, ${input.projectId ? sql`${input.projectId}::uuid` : sql`knowledge_item.project_id`} as project_id, knowledge_item.title,
+            case when derived.status = 'extracted'
+              and to_tsvector('simple', derived.extracted_text) @@ websearch_to_tsquery('simple', ${input.q})
+              then left('Derived local file text: ' || derived.extracted_text, 220)
+              else left(knowledge_item.content || ' ' || coalesce(knowledge_item.url, ''), 220)
+            end as excerpt, knowledge_item.source_capture_id, null::uuid as target_id, knowledge_item.created_at
           from knowledge_item
-          where to_tsvector('simple', title || ' ' || content || ' ' || coalesce(url, '')) @@ websearch_to_tsquery('simple', ${input.q})
+          left join capture_file_text derived on derived.capture_id = knowledge_item.source_capture_id
+          where (to_tsvector('simple', knowledge_item.title || ' ' || knowledge_item.content || ' ' || coalesce(knowledge_item.url, '')) @@ websearch_to_tsquery('simple', ${input.q})
+            or (derived.status = 'extracted' and to_tsvector('simple', derived.extracted_text) @@ websearch_to_tsquery('simple', ${input.q})))
             and ${input.projectId ? sql`(project_id = ${input.projectId}::uuid or exists (select 1 from knowledge_project_link context where context.knowledge_item_id = knowledge_item.id and context.project_id = ${input.projectId}::uuid and context.lifecycle = 'active'))` : sql`true`}
           union all
           select id, 'comment'::text as kind, project_id, 'Work comment'::text as title,

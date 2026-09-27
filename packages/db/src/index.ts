@@ -32,6 +32,7 @@ export * from "./work-relations-repository";
 export * from "./work-attachment-repository";
 export * from "./work-acceptance-repository";
 export * from "./file-capture-repository";
+export * from "./local-file-text-repository";
 export * from "./domain-portfolio-repository";
 export * from "./system-context-repository";
 export * from "./knowledge-project-repository";

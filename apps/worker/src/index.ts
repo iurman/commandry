@@ -6,6 +6,7 @@ import {
   createLocalAgentRunService,
   createOvernightQueueProcessor,
   createLocalAutomationProcessor,
+  createLocalFileTextService,
   createSimulatedApprovalProcessor,
   createProjectBriefService,
   createSyntheticEventImportProcessor,
@@ -17,6 +18,7 @@ import {
   captureTriageJobV1Schema,
   automationJobV1Schema,
   localAgentRunJobV1Schema,
+  localFileTextJobV1Schema,
   overnightQueueJobV1Schema,
   simulatedApprovalJobV1Schema,
   syntheticEventImportJobV1Schema,
@@ -32,6 +34,7 @@ import {
   createExecutionPacketRepository,
   createOvernightQueueRepository,
   createLocalAutomationRepository,
+  createLocalFileTextRepository,
   createSimulatedApprovalRepository,
   createSyntheticEventImportRepository,
   createSyntheticRunRepository,
@@ -49,6 +52,7 @@ import {
   LOCAL_AGENT_RUN_QUEUE,
   OVERNIGHT_QUEUE,
   LOCAL_AUTOMATION_QUEUE,
+  LOCAL_FILE_TEXT_QUEUE,
   SIMULATED_APPROVAL_QUEUE,
   SYNTHETIC_EVENT_IMPORT_QUEUE,
   SYNTHETIC_QUEUE,
@@ -139,6 +143,8 @@ const processSimulatedApproval = createSimulatedApprovalProcessor(
 const processCaptureTriage = createCaptureTriageProcessor(
   createCaptureTriageRepository(database.db),
 );
+const fileTextRepository = createLocalFileTextRepository(database.db);
+const fileTextService = createLocalFileTextService(fileTextRepository);
 const processLocalAutomation = createLocalAutomationProcessor(
   createLocalAutomationRepository(database.db),
   projectBriefService,
@@ -339,6 +345,29 @@ await transport.boss.work(
     }
   },
 );
+await transport.boss.work(
+  LOCAL_FILE_TEXT_QUEUE,
+  { pollingIntervalSeconds: 0.5 },
+  async ([job]) => {
+    if (!job) throw new Error("pg-boss delivered an empty file text job batch");
+    const input = localFileTextJobV1Schema.parse(job.data);
+    try {
+      const result = await fileTextService.process(input.captureId);
+      log("info", "local_file_text.processed", {
+        captureId: input.captureId,
+        status: result.status,
+        jobId: job.id,
+      });
+    } catch (error) {
+      log("error", "local_file_text.failed_attempt", {
+        captureId: input.captureId,
+        jobId: job.id,
+        error: error instanceof Error ? error.name : "unknown",
+      });
+      throw error;
+    }
+  },
+);
 await transport.boss.work(LOCAL_AUTOMATION_QUEUE, async ([job]) => {
   if (!job)
     throw new Error("pg-boss delivered an empty local automation job batch");
@@ -422,6 +451,39 @@ const workRecurrenceTimer = setInterval(
   10_000,
 );
 workRecurrenceTimer.unref();
+let reconcilingFileText = false;
+async function reconcileFileText() {
+  if (reconcilingFileText) return;
+  reconcilingFileText = true;
+  try {
+    let cursor: string | undefined;
+    while (true) {
+      const ids = await fileTextRepository.listPending(100, cursor);
+      if (ids.length === 0) break;
+      for (const id of ids) {
+        try {
+          await fileTextService.process(id);
+        } catch (error) {
+          log("error", "local_file_text.recovery_failed", {
+            captureId: id,
+            error: error instanceof Error ? error.name : "unknown",
+          });
+        }
+      }
+      if (ids.length < 100) break;
+      cursor = ids.at(-1);
+    }
+  } catch (error) {
+    log("error", "local_file_text.reconciliation_failed", {
+      error: error instanceof Error ? error.name : "unknown",
+    });
+  } finally {
+    reconcilingFileText = false;
+  }
+}
+await reconcileFileText();
+const fileTextTimer = setInterval(() => void reconcileFileText(), 30_000);
+fileTextTimer.unref();
 log("info", "worker.started", { workerId });
 
 let stopping = false;
@@ -432,6 +494,7 @@ async function shutdown(signal: string) {
   clearInterval(approvalExpiryTimer);
   clearInterval(recurringTimer);
   clearInterval(workRecurrenceTimer);
+  clearInterval(fileTextTimer);
   log("info", "worker.stopping", { signal });
   try {
     await transport.close();

@@ -9,6 +9,7 @@ import {
   getFileCaptureService,
 } from "../../../../../lib/file-capture";
 import { jsonResponse } from "../../../../../lib/http";
+import { enqueueLocalFileText } from "../../../../../lib/local-file-text";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -73,11 +74,20 @@ export async function POST(request: Request): Promise<Response> {
       mediaType: file.type,
       bytes,
     });
+    let extractionQueued = false;
+    try {
+      await enqueueLocalFileText(saved.id);
+      extractionQueued = true;
+    } catch {
+      // The pending projection is reconciled by the worker after queue recovery.
+    }
     return jsonResponse(
       request,
       captureSchema.parse(saved),
       201,
-      "capture_files.created",
+      extractionQueued
+        ? "capture_files.created"
+        : "capture_files.created.extraction_pending",
     );
   } catch (error) {
     return fileCaptureFailure(request, error, "capture_files.create");

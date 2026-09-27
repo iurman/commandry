@@ -60,6 +60,9 @@ export const SIMULATED_APPROVAL_DEAD_LETTER_QUEUE =
   "commandry-simulated-approval-dlq";
 export const CAPTURE_TRIAGE_QUEUE = "commandry-capture-triage-v1";
 export const CAPTURE_TRIAGE_DEAD_LETTER_QUEUE = "commandry-capture-triage-dlq";
+export const LOCAL_FILE_TEXT_QUEUE = "commandry-local-file-text-v1";
+export const LOCAL_FILE_TEXT_DEAD_LETTER_QUEUE =
+  "commandry-local-file-text-dlq";
 export const LOCAL_AUTOMATION_QUEUE = "commandry-local-automation-v1";
 export const LOCAL_AUTOMATION_DEAD_LETTER_QUEUE =
   "commandry-local-automation-dlq";
@@ -130,6 +133,13 @@ export async function installPgBossSchema(options: {
       retryBackoff: true,
       deadLetter: CAPTURE_TRIAGE_DEAD_LETTER_QUEUE,
     });
+    await boss.createQueue(LOCAL_FILE_TEXT_DEAD_LETTER_QUEUE);
+    await boss.createQueue(LOCAL_FILE_TEXT_QUEUE, {
+      retryLimit: 3,
+      retryDelay: 1,
+      retryBackoff: true,
+      deadLetter: LOCAL_FILE_TEXT_DEAD_LETTER_QUEUE,
+    });
     await boss.createQueue(LOCAL_AUTOMATION_DEAD_LETTER_QUEUE);
     await boss.createQueue(LOCAL_AUTOMATION_QUEUE, {
       retryLimit: 3,
@@ -183,6 +193,18 @@ export function createCaptureTriageSubmission(boss: PgBoss) {
         captureId,
       });
       if (!jobId) throw new Error("Capture triage job was not enqueued");
+    },
+  };
+}
+
+export function createLocalFileTextSubmission(boss: PgBoss) {
+  return {
+    async enqueue(captureId: string): Promise<void> {
+      const jobId = await boss.send(LOCAL_FILE_TEXT_QUEUE, {
+        version: 1,
+        captureId,
+      });
+      if (!jobId) throw new Error("Local file text job was not enqueued");
     },
   };
 }

@@ -1,11 +1,13 @@
 "use client";
 
 import { useEffect, useState, type FormEvent } from "react";
+import type { LocalFileTextProjection } from "@commandry/contracts";
 import {
   AppShell,
   Button,
   knowledgeTypeLabel,
   KnowledgeRevisionCard,
+  LocalFileTextCard,
   type KnowledgeKind,
 } from "@commandry/ui";
 import { apiJson, pagePath, type PageResponse } from "../../projects/api";
@@ -52,8 +54,14 @@ export default function KnowledgeItemWorkspace({
   const [revisionCursor, setRevisionCursor] = useState<string | null>(null);
   const [revisionsLoading, setRevisionsLoading] = useState(false);
   const [revisionError, setRevisionError] = useState<string | null>(null);
+  const [derivedText, setDerivedText] =
+    useState<LocalFileTextProjection | null>(null);
+  const [derivedLoading, setDerivedLoading] = useState(false);
+  const [derivedError, setDerivedError] = useState<string | null>(null);
   const revisionsPath = `/api/v1/knowledge-items/${encodeURIComponent(knowledgeItemId)}/revisions`;
   const currentItemId = item?.id;
+  const documentCaptureId =
+    item?.kind === "document" ? item.sourceCaptureId : null;
 
   useEffect(() => {
     let active = true;
@@ -105,6 +113,51 @@ export default function KnowledgeItemWorkspace({
       active = false;
     };
   }, [currentItemId, revisionsPath]);
+
+  useEffect(() => {
+    if (!documentCaptureId) return;
+    let active = true;
+    apiJson<LocalFileTextProjection>(
+      `/api/v1/captures/${encodeURIComponent(documentCaptureId)}/derived-text`,
+    )
+      .then((projection) => {
+        if (!active) return;
+        setDerivedText(projection);
+        setDerivedError(null);
+      })
+      .catch((cause: unknown) => {
+        if (active)
+          setDerivedError(
+            cause instanceof Error
+              ? cause.message
+              : "Derived file text is unavailable.",
+          );
+      });
+    return () => {
+      active = false;
+    };
+  }, [documentCaptureId]);
+
+  async function refreshDerivedText() {
+    if (!documentCaptureId || derivedLoading) return;
+    setDerivedLoading(true);
+    setDerivedError(null);
+    try {
+      setDerivedText(
+        await apiJson<LocalFileTextProjection>(
+          `/api/v1/captures/${encodeURIComponent(documentCaptureId)}/derived-text`,
+        ),
+      );
+    } catch (cause) {
+      setDerivedError(
+        cause instanceof Error
+          ? cause.message
+          : "Derived file text is unavailable.",
+      );
+    } finally {
+      setDerivedLoading(false);
+    }
+  }
 
   async function saveRevision(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
@@ -318,6 +371,31 @@ export default function KnowledgeItemWorkspace({
               </dl>
             </aside>
           </div>
+          {item.kind === "document" && (
+            <section
+              className="cmd-workspace-section"
+              aria-labelledby="derived-file-text-heading"
+            >
+              <div className="cmd-section-heading">
+                <div>
+                  <p className="cmd-eyebrow">Local worker / Derived data</p>
+                  <h2 id="derived-file-text-heading">Extracted file text</h2>
+                </div>
+                <Button disabled={derivedLoading} onClick={refreshDerivedText}>
+                  {derivedLoading ? "Refreshing..." : "Refresh status"}
+                </Button>
+              </div>
+              {derivedError && (
+                <p className="cmd-inline-state cmd-error" role="alert">
+                  {derivedError}
+                </p>
+              )}
+              {!derivedText && !derivedError && (
+                <p role="status">Loading extraction status...</p>
+              )}
+              {derivedText && <LocalFileTextCard projection={derivedText} />}
+            </section>
+          )}
           <KnowledgeProjectPanel
             knowledgeItemId={item.id}
             primaryProjectId={item.projectId}

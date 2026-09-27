@@ -267,6 +267,13 @@
       "when": 1790492218783,
       "tag": "0037_square_boom_boom",
       "breakpoints": true
+    },
+    {
+      "idx": 38,
+      "version": "7",
+      "when": 1790495549802,
+      "tag": "0038_smooth_pepper_potts",
+      "breakpoints": true
     }
   ]
 }

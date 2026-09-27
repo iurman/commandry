@@ -35,6 +35,7 @@ export type { WorkRelationCardView } from "./components/WorkRelationCard";
 export { KnowledgeLinkCard } from "./components/KnowledgeLinkCard";
 export type { KnowledgeLinkCardView } from "./components/KnowledgeLinkCard";
 export { KnowledgeDocumentCard } from "./components/KnowledgeDocumentCard";
+export { LocalFileTextCard } from "./components/LocalFileTextCard";
 export { KnowledgeProjectLinkCard } from "./components/KnowledgeProjectLinkCard";
 export type { KnowledgeProjectLinkCardView } from "./components/KnowledgeProjectLinkCard";
 export { WorkProjectLinkCard } from "./components/WorkProjectLinkCard";

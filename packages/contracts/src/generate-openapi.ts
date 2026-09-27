@@ -4,6 +4,8 @@ import { fileURLToPath } from "node:url";
 import { z } from "zod";
 import {
   captureSchema,
+  localFileTextProjectionSchema,
+  localFileTextJobV1Schema,
   captureFileMetadataSchema,
   captureTriageSuggestionSchema,
   captureTriageDecisionSchema,
@@ -1296,6 +1298,24 @@ export function generateOpenApi(): string {
             },
             "404": {
               description: "Original file not found",
+              content: jsonContent("ErrorResponse"),
+            },
+          },
+        },
+      },
+      "/api/v1/captures/{id}/derived-text": {
+        get: {
+          operationId: "getLocalFileDerivedText",
+          summary:
+            "Read the labeled local UTF-8 projection, separate from original file bytes",
+          parameters: [idParameter],
+          responses: {
+            "200": {
+              description: "File extraction status and derived text",
+              content: jsonContent("LocalFileTextProjection"),
+            },
+            "404": {
+              description: "File text projection not found",
               content: jsonContent("ErrorResponse"),
             },
           },
@@ -3484,6 +3504,8 @@ export function generateOpenApi(): string {
         ),
         CreateCaptureRequest: component(createCaptureRequestSchema),
         Capture: component(captureSchema),
+        LocalFileTextProjection: component(localFileTextProjectionSchema),
+        LocalFileTextJobV1: component(localFileTextJobV1Schema),
         CaptureFileMetadata: component(captureFileMetadataSchema),
         ListCapturesResponse: component(listCapturesResponseSchema),
         FileCaptureRequest: component(fileCaptureRequestSchema),

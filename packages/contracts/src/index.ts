@@ -465,6 +465,22 @@ export const captureSchema = z.object({
   filedAt: z.iso.datetime({ offset: true }).nullable(),
 });
 
+export const localFileTextProjectionSchema = z.object({
+  captureId: z.uuid(),
+  sourceSha256: z.string().regex(/^[a-f0-9]{64}$/),
+  status: z.enum(["pending", "extracted", "unsupported", "failed"]),
+  extractor: z.literal("local-utf8-v1"),
+  extractedText: z.string().max(200_000).nullable(),
+  truncated: z.boolean(),
+  message: z.string().nullable(),
+  updatedAt: z.iso.datetime({ offset: true }),
+});
+
+export const localFileTextJobV1Schema = z.strictObject({
+  version: z.literal(1),
+  captureId: z.uuid(),
+});
+
 export const listCapturesResponseSchema = z.object({
   items: z.array(captureSchema),
   nextCursor: z.uuid().nullable(),
@@ -2404,6 +2420,9 @@ export type CreateProjectResourceLinkRequest = z.infer<
 >;
 export type CreateCaptureRequest = z.infer<typeof createCaptureRequestSchema>;
 export type Capture = z.infer<typeof captureSchema>;
+export type LocalFileTextProjection = z.infer<
+  typeof localFileTextProjectionSchema
+>;
 export type FileCaptureRequest = z.infer<typeof fileCaptureRequestSchema>;
 export type WorkItem = z.infer<typeof workItemSchema>;
 export type WorkProjectLink = z.infer<typeof workProjectLinkSchema>;

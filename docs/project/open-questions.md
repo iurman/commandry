@@ -187,3 +187,14 @@ history and may still complete. Validate calendar and time-zone semantics,
 catch-up limits, edits to a source task, cancellation of queued work, retention,
 source task completion, and how recurrence relates to assignment or approved
 execution. No occurrence automatically runs an agent or external action.
+
+### OQ-028: Which file extraction and storage policy belongs in production?
+
+The local MVP stores original files of at most 2 MiB in PostgreSQL and uses a
+deterministic UTF-8 worker for text, Markdown, CSV, and JSON. It indexes only
+the first 200,000 characters, labels the projection, and leaves unsupported or
+unreadable files intact. Validate file-size and type limits, malware scanning,
+larger blob storage, extraction of PDF and images, reprocessing after extractor
+changes, retention, access controls, and whether derived text may enter agent
+packets. This local extractor is a provisional implementation, not a canonical
+production content policy.
