@@ -108,7 +108,7 @@ test("project decisions cite manual revisions while task list and board share on
   await expect(
     work
       .getByRole("list", { name: "Project work" })
-      .getByText("done", { exact: true }),
+      .getByText("task / done", { exact: true }),
   ).toBeVisible();
   const audit = await request.get(
     `/api/v1/work-items/${task.id}/status-events`,

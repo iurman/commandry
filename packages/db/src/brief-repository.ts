@@ -19,6 +19,7 @@ import {
   system,
   systemProjectLink,
   workItem,
+  workItemAssignmentEvent,
   workProjectLink,
   workItemAttachment,
   workItemAcceptance,
@@ -105,6 +106,22 @@ export function createBriefRepository(db: CommandryDatabase) {
           const visibleWorkIds = openWorkRows
             .slice(0, query.limit)
             .map(({ item }) => item.id);
+          const assignmentRows = visibleWorkIds.length
+            ? await tx
+                .selectDistinctOn([workItemAssignmentEvent.workItemId])
+                .from(workItemAssignmentEvent)
+                .where(
+                  inArray(workItemAssignmentEvent.workItemId, visibleWorkIds),
+                )
+                .orderBy(
+                  asc(workItemAssignmentEvent.workItemId),
+                  desc(workItemAssignmentEvent.createdAt),
+                  desc(workItemAssignmentEvent.id),
+                )
+            : [];
+          const assignmentByWork = new Map(
+            assignmentRows.map((event) => [event.workItemId, event]),
+          );
           const blockerRows = visibleWorkIds.length
             ? await tx
                 .select({ relation: workItemRelation, blocker: workItem })
@@ -366,6 +383,27 @@ export function createBriefRepository(db: CommandryDatabase) {
                 title: item.title,
                 description: item.description,
                 workType: item.workType,
+                assigneeKind: item.assigneeKind,
+                assigneeAgentId: item.assigneeAgentId,
+                assigneeLabel: item.assigneeLabel,
+                assignment: (() => {
+                  const event = assignmentByWork.get(item.id);
+                  if (
+                    !event ||
+                    item.assigneeKind === "unassigned" ||
+                    event.nextKind !== item.assigneeKind ||
+                    event.nextAgentId !== item.assigneeAgentId ||
+                    event.nextLabel !== item.assigneeLabel
+                  )
+                    return null;
+                  return {
+                    eventId: event.id,
+                    recordedAt: event.createdAt.toISOString(),
+                    kind: item.assigneeKind,
+                    agentId: item.assigneeAgentId,
+                    label: item.assigneeLabel!,
+                  };
+                })(),
                 status: item.status,
                 priority: item.priority,
                 dueOn: item.dueOn,

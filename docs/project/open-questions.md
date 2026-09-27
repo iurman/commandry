@@ -163,3 +163,15 @@ Decisions remain separate. Validate the vocabulary, whether type changes need
 their own audited revision, whether templates or required fields belong to
 specific types, and how imported sources should map into these categories.
 The current type is fixed at filing and does not assert a canonical taxonomy.
+
+### OQ-026: How should Work assignment relate to identity and agent execution?
+
+The local MVP can assign one Work item to the unattributed local user or one
+synthetic agent already scoped to its immutable primary project. Changes are
+audited, and an assigned agent appears with exact evidence in a live project
+brief and in new execution packet snapshots. Assignment is organizational and
+does not grant a run, capability, or external action. Validate whether Work
+needs multiple assignees, project-specific assignees for shared Work, a real
+human identity, reassignment on project scope change, and a deliberate path
+from assignment to a governed run. Keep production identity and runner policy
+open under OQ-003 and OQ-006 through OQ-008.

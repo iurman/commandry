@@ -38,9 +38,11 @@ test("Inbox files a note and search reaches the same source-backed project recor
   await projectSelect.selectOption(project.id);
   await page.getByLabel("File as").selectOption("note");
   await page.getByLabel("Title *").fill(`${token} field note`);
-  await page.getByLabel("Note body Optional").fill("Retained project context.");
+  await page.getByLabel("Content Optional").fill("Retained project context.");
   await page.getByRole("button", { name: "File as note" }).click();
-  await expect(page.getByText(/Filed as note/)).toBeVisible();
+  await expect(
+    page.getByText("Filed as a note in the selected project."),
+  ).toBeVisible();
 
   await page.goto(`/projects/${project.id}`);
   const knowledge = page.getByRole("list", { name: "Project knowledge" });

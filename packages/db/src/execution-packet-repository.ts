@@ -16,6 +16,7 @@ import {
   project,
   projectResourceLink,
   workItem,
+  workItemAssignmentEvent,
   workItemAcceptance,
   workItemAcceptanceRevision,
   workItemVerification,
@@ -47,6 +48,9 @@ function workRecord(row: typeof workItem.$inferSelect) {
     title: row.title,
     description: row.description,
     workType: row.workType,
+    assigneeKind: row.assigneeKind,
+    assigneeAgentId: row.assigneeAgentId,
+    assigneeLabel: row.assigneeLabel,
     status: row.status,
     priority: row.priority,
     dueOn: row.dueOn,
@@ -94,6 +98,7 @@ export function createExecutionPacketRepository(db: CommandryDatabase) {
         generatedAt: string;
         project: ReturnType<typeof projectRecord>;
         workItem: ReturnType<typeof workRecord>;
+        assignmentEvent?: { id: string; recordedAt: string } | undefined;
         acceptance: {
           criteria: string;
           version: number;
@@ -138,6 +143,30 @@ export function createExecutionPacketRepository(db: CommandryDatabase) {
           throw new ExecutionPacketError(
             "WORK_ITEM_NOT_FOUND",
             "Work item not found",
+          );
+        }
+        const [assignmentEvent] =
+          task.assigneeKind === "unassigned"
+            ? []
+            : await tx
+                .select()
+                .from(workItemAssignmentEvent)
+                .where(eq(workItemAssignmentEvent.workItemId, task.id))
+                .orderBy(
+                  desc(workItemAssignmentEvent.createdAt),
+                  desc(workItemAssignmentEvent.id),
+                )
+                .limit(1);
+        if (
+          task.assigneeKind !== "unassigned" &&
+          (!assignmentEvent ||
+            assignmentEvent.nextKind !== task.assigneeKind ||
+            assignmentEvent.nextAgentId !== task.assigneeAgentId ||
+            assignmentEvent.nextLabel !== task.assigneeLabel)
+        ) {
+          throw new ExecutionPacketError(
+            "INVALID_SELECTION",
+            "Current Work assignment lacks matching audit evidence",
           );
         }
         const [currentProject] = await tx
@@ -286,6 +315,14 @@ export function createExecutionPacketRepository(db: CommandryDatabase) {
           generatedAt: generatedAt.toISOString(),
           project: projectRecord(currentProject),
           workItem: workRecord(task),
+          ...(assignmentEvent
+            ? {
+                assignmentEvent: {
+                  id: assignmentEvent.id,
+                  recordedAt: assignmentEvent.createdAt.toISOString(),
+                },
+              }
+            : {}),
           acceptance: acceptanceRow?.acceptance.criteria.trim()
             ? {
                 criteria: acceptanceRow.acceptance.criteria,

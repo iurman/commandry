@@ -20,6 +20,7 @@ interface WorkItem {
   status: "open" | "done";
   priority?: "low" | "normal" | "high" | null;
   dueOn?: string | null;
+  assigneeLabel?: string | null;
   contextLink?: { id: string; projectId: string; createdAt: string } | null;
   createdAt: string;
   updatedAt: string;
@@ -164,6 +165,7 @@ export default function ProjectContent({ projectId }: { projectId: string }) {
             {item.dueOn ? ` / due ${item.dueOn} UTC` : ""}
           </p>
         )}
+        <p>Assigned: {item.assigneeLabel ?? "Unassigned"}</p>
         <div className={styles.recordActions}>
           <a href={`/work-items/${encodeURIComponent(item.id)}`}>
             Open {item.workType ?? "task"}

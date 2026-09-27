@@ -3682,6 +3682,142 @@
         }
       }
     },
+    "/api/v1/work-items/{id}/assignment": {
+      "put": {
+        "operationId": "changeWorkAssignment",
+        "summary": "Assign a task to the local user or a scoped synthetic agent",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "id",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ChangeWorkAssignmentRequest"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Updated task with assignment and source reference",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/WorkItem"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "Assignment changed or agent lacks project scope",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/work-items/{id}/assignment-events": {
+      "get": {
+        "operationId": "listWorkAssignmentEvents",
+        "summary": "Page through immutable assignment changes",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "id",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          },
+          {
+            "in": "query",
+            "name": "limit",
+            "required": false,
+            "schema": {
+              "type": "integer",
+              "minimum": 1,
+              "maximum": 100,
+              "default": 25
+            }
+          },
+          {
+            "in": "query",
+            "name": "cursor",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Assignment history page",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ListWorkAssignmentEventsResponse"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/work-item-assignment-events/{id}": {
+      "get": {
+        "operationId": "getWorkAssignmentEvent",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "id",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Exact immutable assignment evidence",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/WorkItemAssignmentEvent"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Assignment event not found",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/api/v1/work-items/{id}/planning-events": {
       "get": {
         "operationId": "listWorkItemPlanningEvents",
@@ -5097,6 +5233,55 @@
               "application/json": {
                 "schema": {
                   "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/projects/{id}/eligible-agents": {
+      "get": {
+        "operationId": "listProjectEligibleAgents",
+        "summary": "Page through synthetic agents scoped to this project",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "id",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          },
+          {
+            "in": "query",
+            "name": "limit",
+            "required": false,
+            "schema": {
+              "type": "integer",
+              "minimum": 1,
+              "maximum": 100,
+              "default": 25
+            }
+          },
+          {
+            "in": "query",
+            "name": "cursor",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Eligible synthetic agent profile page",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ListProjectEligibleAgentsResponse"
                 }
               }
             }
@@ -12719,6 +12904,32 @@
                       "subtask"
                     ]
                   },
+                  "assigneeKind": {
+                    "type": "string",
+                    "enum": [
+                      "unassigned",
+                      "local_user",
+                      "agent"
+                    ]
+                  },
+                  "assigneeAgentId": {
+                    "anyOf": [
+                      {
+                        "type": "string",
+                        "format": "uuid",
+                        "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$"
+                      },
+                      {
+                        "type": "null"
+                      }
+                    ]
+                  },
+                  "assigneeLabel": {
+                    "type": [
+                      "string",
+                      "null"
+                    ]
+                  },
                   "status": {
                     "type": "string",
                     "enum": [
@@ -13711,6 +13922,32 @@
                           "subtask"
                         ]
                       },
+                      "assigneeKind": {
+                        "type": "string",
+                        "enum": [
+                          "unassigned",
+                          "local_user",
+                          "agent"
+                        ]
+                      },
+                      "assigneeAgentId": {
+                        "anyOf": [
+                          {
+                            "type": "string",
+                            "format": "uuid",
+                            "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$"
+                          },
+                          {
+                            "type": "null"
+                          }
+                        ]
+                      },
+                      "assigneeLabel": {
+                        "type": [
+                          "string",
+                          "null"
+                        ]
+                      },
                       "status": {
                         "type": "string",
                         "enum": [
@@ -13980,6 +14217,32 @@
               "subtask"
             ]
           },
+          "assigneeKind": {
+            "type": "string",
+            "enum": [
+              "unassigned",
+              "local_user",
+              "agent"
+            ]
+          },
+          "assigneeAgentId": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "uuid",
+                "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "assigneeLabel": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
           "status": {
             "type": "string",
             "enum": [
@@ -14100,6 +14363,32 @@
               "task",
               "initiative",
               "subtask"
+            ]
+          },
+          "assigneeKind": {
+            "type": "string",
+            "enum": [
+              "unassigned",
+              "local_user",
+              "agent"
+            ]
+          },
+          "assigneeAgentId": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "uuid",
+                "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "assigneeLabel": {
+            "type": [
+              "string",
+              "null"
             ]
           },
           "status": {
@@ -14232,6 +14521,32 @@
                     "task",
                     "initiative",
                     "subtask"
+                  ]
+                },
+                "assigneeKind": {
+                  "type": "string",
+                  "enum": [
+                    "unassigned",
+                    "local_user",
+                    "agent"
+                  ]
+                },
+                "assigneeAgentId": {
+                  "anyOf": [
+                    {
+                      "type": "string",
+                      "format": "uuid",
+                      "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$"
+                    },
+                    {
+                      "type": "null"
+                    }
+                  ]
+                },
+                "assigneeLabel": {
+                  "type": [
+                    "string",
+                    "null"
                   ]
                 },
                 "status": {
@@ -14389,6 +14704,317 @@
           "expectedUpdatedAt",
           "priority",
           "dueOn"
+        ],
+        "additionalProperties": false
+      },
+      "ChangeWorkAssignmentRequest": {
+        "type": "object",
+        "properties": {
+          "expectedUpdatedAt": {
+            "type": "string",
+            "format": "date-time",
+            "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))T(?:(?:[01]\\d|2[0-3]):[0-5]\\d:[0-5]\\d(?:\\.\\d+)?(?:Z|([+-](?:[01]\\d|2[0-3]):[0-5]\\d)))$"
+          },
+          "assigneeKind": {
+            "type": "string",
+            "enum": [
+              "unassigned",
+              "local_user",
+              "agent"
+            ]
+          },
+          "agentId": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "uuid",
+                "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          }
+        },
+        "required": [
+          "expectedUpdatedAt",
+          "assigneeKind",
+          "agentId"
+        ],
+        "additionalProperties": false
+      },
+      "WorkItemAssignmentEvent": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string",
+            "format": "uuid",
+            "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$"
+          },
+          "workItemId": {
+            "type": "string",
+            "format": "uuid",
+            "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$"
+          },
+          "previousKind": {
+            "type": "string",
+            "enum": [
+              "unassigned",
+              "local_user",
+              "agent"
+            ]
+          },
+          "nextKind": {
+            "type": "string",
+            "enum": [
+              "unassigned",
+              "local_user",
+              "agent"
+            ]
+          },
+          "previousAgentId": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "uuid",
+                "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "nextAgentId": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "uuid",
+                "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "previousLabel": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "nextLabel": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "actor": {
+            "type": "string",
+            "const": "local-user:unattributed"
+          },
+          "createdAt": {
+            "type": "string",
+            "format": "date-time",
+            "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))T(?:(?:[01]\\d|2[0-3]):[0-5]\\d:[0-5]\\d(?:\\.\\d+)?(?:Z|([+-](?:[01]\\d|2[0-3]):[0-5]\\d)))$"
+          }
+        },
+        "required": [
+          "id",
+          "workItemId",
+          "previousKind",
+          "nextKind",
+          "previousAgentId",
+          "nextAgentId",
+          "previousLabel",
+          "nextLabel",
+          "actor",
+          "createdAt"
+        ],
+        "additionalProperties": false
+      },
+      "ListWorkAssignmentEventsResponse": {
+        "type": "object",
+        "properties": {
+          "items": {
+            "type": "array",
+            "items": {
+              "type": "object",
+              "properties": {
+                "id": {
+                  "type": "string",
+                  "format": "uuid",
+                  "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$"
+                },
+                "workItemId": {
+                  "type": "string",
+                  "format": "uuid",
+                  "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$"
+                },
+                "previousKind": {
+                  "type": "string",
+                  "enum": [
+                    "unassigned",
+                    "local_user",
+                    "agent"
+                  ]
+                },
+                "nextKind": {
+                  "type": "string",
+                  "enum": [
+                    "unassigned",
+                    "local_user",
+                    "agent"
+                  ]
+                },
+                "previousAgentId": {
+                  "anyOf": [
+                    {
+                      "type": "string",
+                      "format": "uuid",
+                      "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$"
+                    },
+                    {
+                      "type": "null"
+                    }
+                  ]
+                },
+                "nextAgentId": {
+                  "anyOf": [
+                    {
+                      "type": "string",
+                      "format": "uuid",
+                      "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$"
+                    },
+                    {
+                      "type": "null"
+                    }
+                  ]
+                },
+                "previousLabel": {
+                  "type": [
+                    "string",
+                    "null"
+                  ]
+                },
+                "nextLabel": {
+                  "type": [
+                    "string",
+                    "null"
+                  ]
+                },
+                "actor": {
+                  "type": "string",
+                  "const": "local-user:unattributed"
+                },
+                "createdAt": {
+                  "type": "string",
+                  "format": "date-time",
+                  "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))T(?:(?:[01]\\d|2[0-3]):[0-5]\\d:[0-5]\\d(?:\\.\\d+)?(?:Z|([+-](?:[01]\\d|2[0-3]):[0-5]\\d)))$"
+                }
+              },
+              "required": [
+                "id",
+                "workItemId",
+                "previousKind",
+                "nextKind",
+                "previousAgentId",
+                "nextAgentId",
+                "previousLabel",
+                "nextLabel",
+                "actor",
+                "createdAt"
+              ],
+              "additionalProperties": false
+            }
+          },
+          "nextCursor": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "uuid",
+                "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          }
+        },
+        "required": [
+          "items",
+          "nextCursor"
+        ],
+        "additionalProperties": false
+      },
+      "ListProjectEligibleAgentsResponse": {
+        "type": "object",
+        "properties": {
+          "items": {
+            "type": "array",
+            "items": {
+              "type": "object",
+              "properties": {
+                "id": {
+                  "type": "string",
+                  "format": "uuid",
+                  "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$"
+                },
+                "name": {
+                  "type": "string",
+                  "minLength": 1
+                },
+                "role": {
+                  "type": [
+                    "string",
+                    "null"
+                  ]
+                },
+                "runtime": {
+                  "type": "string",
+                  "const": "local-fake-v1"
+                },
+                "sourceLabel": {
+                  "type": "string",
+                  "const": "Synthetic local agent"
+                },
+                "isSynthetic": {
+                  "type": "boolean",
+                  "const": true
+                },
+                "createdAt": {
+                  "type": "string",
+                  "format": "date-time",
+                  "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))T(?:(?:[01]\\d|2[0-3]):[0-5]\\d:[0-5]\\d(?:\\.\\d+)?(?:Z|([+-](?:[01]\\d|2[0-3]):[0-5]\\d)))$"
+                }
+              },
+              "required": [
+                "id",
+                "name",
+                "role",
+                "runtime",
+                "sourceLabel",
+                "isSynthetic",
+                "createdAt"
+              ],
+              "additionalProperties": false
+            }
+          },
+          "nextCursor": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "uuid",
+                "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          }
+        },
+        "required": [
+          "items",
+          "nextCursor"
         ],
         "additionalProperties": false
       },
@@ -14630,6 +15256,32 @@
                     "task",
                     "initiative",
                     "subtask"
+                  ]
+                },
+                "assigneeKind": {
+                  "type": "string",
+                  "enum": [
+                    "unassigned",
+                    "local_user",
+                    "agent"
+                  ]
+                },
+                "assigneeAgentId": {
+                  "anyOf": [
+                    {
+                      "type": "string",
+                      "format": "uuid",
+                      "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$"
+                    },
+                    {
+                      "type": "null"
+                    }
+                  ]
+                },
+                "assigneeLabel": {
+                  "type": [
+                    "string",
+                    "null"
                   ]
                 },
                 "status": {
@@ -18554,6 +19206,7 @@
                     "system_resource_link",
                     "project",
                     "work_item",
+                    "work_item_assignment_event",
                     "work_item_relation",
                     "work_item_attachment",
                     "work_item_acceptance_revision",
@@ -18763,6 +19416,7 @@
                             "system_resource_link",
                             "project",
                             "work_item",
+                            "work_item_assignment_event",
                             "work_item_relation",
                             "work_item_attachment",
                             "work_item_acceptance_revision",
@@ -19638,6 +20292,7 @@
                                   "system_resource_link",
                                   "project",
                                   "work_item",
+                                  "work_item_assignment_event",
                                   "work_item_relation",
                                   "work_item_attachment",
                                   "work_item_acceptance_revision",
@@ -20502,6 +21157,32 @@
                     "subtask"
                   ]
                 },
+                "assigneeKind": {
+                  "type": "string",
+                  "enum": [
+                    "unassigned",
+                    "local_user",
+                    "agent"
+                  ]
+                },
+                "assigneeAgentId": {
+                  "anyOf": [
+                    {
+                      "type": "string",
+                      "format": "uuid",
+                      "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$"
+                    },
+                    {
+                      "type": "null"
+                    }
+                  ]
+                },
+                "assigneeLabel": {
+                  "type": [
+                    "string",
+                    "null"
+                  ]
+                },
                 "status": {
                   "type": "string",
                   "enum": [
@@ -20962,6 +21643,7 @@
               "system_resource_link",
               "project",
               "work_item",
+              "work_item_assignment_event",
               "work_item_relation",
               "work_item_attachment",
               "work_item_acceptance_revision",
@@ -21068,6 +21750,7 @@
                     "system_resource_link",
                     "project",
                     "work_item",
+                    "work_item_assignment_event",
                     "work_item_relation",
                     "work_item_attachment",
                     "work_item_acceptance_revision",
@@ -21199,6 +21882,7 @@
                           "system_resource_link",
                           "project",
                           "work_item",
+                          "work_item_assignment_event",
                           "work_item_relation",
                           "work_item_attachment",
                           "work_item_acceptance_revision",
@@ -21364,6 +22048,7 @@
                     "system_resource_link",
                     "project",
                     "work_item",
+                    "work_item_assignment_event",
                     "work_item_relation",
                     "work_item_attachment",
                     "work_item_acceptance_revision",
@@ -21557,6 +22242,7 @@
                         "system_resource_link",
                         "project",
                         "work_item",
+                        "work_item_assignment_event",
                         "work_item_relation",
                         "work_item_attachment",
                         "work_item_acceptance_revision",
@@ -21679,6 +22365,7 @@
                                   "system_resource_link",
                                   "project",
                                   "work_item",
+                                  "work_item_assignment_event",
                                   "work_item_relation",
                                   "work_item_attachment",
                                   "work_item_acceptance_revision",
@@ -21843,6 +22530,7 @@
                                   "system_resource_link",
                                   "project",
                                   "work_item",
+                                  "work_item_assignment_event",
                                   "work_item_relation",
                                   "work_item_attachment",
                                   "work_item_acceptance_revision",
@@ -22007,6 +22695,7 @@
                                   "system_resource_link",
                                   "project",
                                   "work_item",
+                                  "work_item_assignment_event",
                                   "work_item_relation",
                                   "work_item_attachment",
                                   "work_item_acceptance_revision",
@@ -22171,6 +22860,7 @@
                                   "system_resource_link",
                                   "project",
                                   "work_item",
+                                  "work_item_assignment_event",
                                   "work_item_relation",
                                   "work_item_attachment",
                                   "work_item_acceptance_revision",
@@ -22335,6 +23025,7 @@
                                   "system_resource_link",
                                   "project",
                                   "work_item",
+                                  "work_item_assignment_event",
                                   "work_item_relation",
                                   "work_item_attachment",
                                   "work_item_acceptance_revision",
@@ -22499,6 +23190,7 @@
                                   "system_resource_link",
                                   "project",
                                   "work_item",
+                                  "work_item_assignment_event",
                                   "work_item_relation",
                                   "work_item_attachment",
                                   "work_item_acceptance_revision",
@@ -22663,6 +23355,7 @@
                                   "system_resource_link",
                                   "project",
                                   "work_item",
+                                  "work_item_assignment_event",
                                   "work_item_relation",
                                   "work_item_attachment",
                                   "work_item_acceptance_revision",
@@ -22894,6 +23587,7 @@
                               "system_resource_link",
                               "project",
                               "work_item",
+                              "work_item_assignment_event",
                               "work_item_relation",
                               "work_item_attachment",
                               "work_item_acceptance_revision",
@@ -23041,6 +23735,118 @@
                   "subtask"
                 ]
               },
+              "assignee": {
+                "type": "object",
+                "properties": {
+                  "kind": {
+                    "type": "string",
+                    "enum": [
+                      "local_user",
+                      "agent"
+                    ]
+                  },
+                  "agentId": {
+                    "anyOf": [
+                      {
+                        "type": "string",
+                        "format": "uuid",
+                        "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$"
+                      },
+                      {
+                        "type": "null"
+                      }
+                    ]
+                  },
+                  "label": {
+                    "type": "string",
+                    "minLength": 1
+                  },
+                  "evidence": {
+                    "type": "object",
+                    "properties": {
+                      "kind": {
+                        "type": "string",
+                        "enum": [
+                          "domain",
+                          "project_domain_link",
+                          "system",
+                          "system_project_link",
+                          "system_domain_link",
+                          "system_resource_link",
+                          "project",
+                          "work_item",
+                          "work_item_assignment_event",
+                          "work_item_relation",
+                          "work_item_attachment",
+                          "work_item_acceptance_revision",
+                          "work_item_verification",
+                          "metric_sample",
+                          "knowledge_item",
+                          "knowledge_project_link",
+                          "work_project_link",
+                          "decision",
+                          "resource",
+                          "project_resource_link",
+                          "event",
+                          "alert",
+                          "capture"
+                        ]
+                      },
+                      "id": {
+                        "type": "string",
+                        "format": "uuid",
+                        "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$"
+                      },
+                      "href": {
+                        "type": "string",
+                        "format": "starts_with",
+                        "pattern": "^\\/api\\/v1\\/.*"
+                      },
+                      "recordedAt": {
+                        "type": "string",
+                        "format": "date-time",
+                        "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))T(?:(?:[01]\\d|2[0-3]):[0-5]\\d:[0-5]\\d(?:\\.\\d+)?(?:Z|([+-](?:[01]\\d|2[0-3]):[0-5]\\d)))$"
+                      },
+                      "occurredAt": {
+                        "anyOf": [
+                          {
+                            "type": "string",
+                            "format": "date-time",
+                            "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))T(?:(?:[01]\\d|2[0-3]):[0-5]\\d:[0-5]\\d(?:\\.\\d+)?(?:Z|([+-](?:[01]\\d|2[0-3]):[0-5]\\d)))$"
+                          },
+                          {
+                            "type": "null"
+                          }
+                        ]
+                      },
+                      "sourceLabel": {
+                        "type": "string",
+                        "minLength": 1
+                      },
+                      "isSynthetic": {
+                        "type": "boolean"
+                      }
+                    },
+                    "required": [
+                      "kind",
+                      "id",
+                      "href",
+                      "recordedAt",
+                      "occurredAt",
+                      "sourceLabel",
+                      "isSynthetic"
+                    ],
+                    "additionalProperties": false
+                  }
+                },
+                "required": [
+                  "kind",
+                  "agentId",
+                  "label",
+                  "evidence"
+                ],
+                "additionalProperties": false
+              },
               "status": {
                 "type": "string",
                 "enum": [
@@ -23065,6 +23871,7 @@
                         "system_resource_link",
                         "project",
                         "work_item",
+                        "work_item_assignment_event",
                         "work_item_relation",
                         "work_item_attachment",
                         "work_item_acceptance_revision",
@@ -23183,6 +23990,7 @@
                       "system_resource_link",
                       "project",
                       "work_item",
+                      "work_item_assignment_event",
                       "work_item_relation",
                       "work_item_attachment",
                       "work_item_acceptance_revision",
@@ -23300,6 +24108,7 @@
                         "system_resource_link",
                         "project",
                         "work_item",
+                        "work_item_assignment_event",
                         "work_item_relation",
                         "work_item_attachment",
                         "work_item_acceptance_revision",
@@ -23376,6 +24185,7 @@
                         "system_resource_link",
                         "project",
                         "work_item",
+                        "work_item_assignment_event",
                         "work_item_relation",
                         "work_item_attachment",
                         "work_item_acceptance_revision",
@@ -23483,6 +24293,7 @@
                         "system_resource_link",
                         "project",
                         "work_item",
+                        "work_item_assignment_event",
                         "work_item_relation",
                         "work_item_attachment",
                         "work_item_acceptance_revision",
@@ -23583,6 +24394,7 @@
                           "system_resource_link",
                           "project",
                           "work_item",
+                          "work_item_assignment_event",
                           "work_item_relation",
                           "work_item_attachment",
                           "work_item_acceptance_revision",
@@ -23680,6 +24492,7 @@
                                     "system_resource_link",
                                     "project",
                                     "work_item",
+                                    "work_item_assignment_event",
                                     "work_item_relation",
                                     "work_item_attachment",
                                     "work_item_acceptance_revision",
@@ -23939,6 +24752,118 @@
                       "subtask"
                     ]
                   },
+                  "assignee": {
+                    "type": "object",
+                    "properties": {
+                      "kind": {
+                        "type": "string",
+                        "enum": [
+                          "local_user",
+                          "agent"
+                        ]
+                      },
+                      "agentId": {
+                        "anyOf": [
+                          {
+                            "type": "string",
+                            "format": "uuid",
+                            "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$"
+                          },
+                          {
+                            "type": "null"
+                          }
+                        ]
+                      },
+                      "label": {
+                        "type": "string",
+                        "minLength": 1
+                      },
+                      "evidence": {
+                        "type": "object",
+                        "properties": {
+                          "kind": {
+                            "type": "string",
+                            "enum": [
+                              "domain",
+                              "project_domain_link",
+                              "system",
+                              "system_project_link",
+                              "system_domain_link",
+                              "system_resource_link",
+                              "project",
+                              "work_item",
+                              "work_item_assignment_event",
+                              "work_item_relation",
+                              "work_item_attachment",
+                              "work_item_acceptance_revision",
+                              "work_item_verification",
+                              "metric_sample",
+                              "knowledge_item",
+                              "knowledge_project_link",
+                              "work_project_link",
+                              "decision",
+                              "resource",
+                              "project_resource_link",
+                              "event",
+                              "alert",
+                              "capture"
+                            ]
+                          },
+                          "id": {
+                            "type": "string",
+                            "format": "uuid",
+                            "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$"
+                          },
+                          "href": {
+                            "type": "string",
+                            "format": "starts_with",
+                            "pattern": "^\\/api\\/v1\\/.*"
+                          },
+                          "recordedAt": {
+                            "type": "string",
+                            "format": "date-time",
+                            "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))T(?:(?:[01]\\d|2[0-3]):[0-5]\\d:[0-5]\\d(?:\\.\\d+)?(?:Z|([+-](?:[01]\\d|2[0-3]):[0-5]\\d)))$"
+                          },
+                          "occurredAt": {
+                            "anyOf": [
+                              {
+                                "type": "string",
+                                "format": "date-time",
+                                "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))T(?:(?:[01]\\d|2[0-3]):[0-5]\\d:[0-5]\\d(?:\\.\\d+)?(?:Z|([+-](?:[01]\\d|2[0-3]):[0-5]\\d)))$"
+                              },
+                              {
+                                "type": "null"
+                              }
+                            ]
+                          },
+                          "sourceLabel": {
+                            "type": "string",
+                            "minLength": 1
+                          },
+                          "isSynthetic": {
+                            "type": "boolean"
+                          }
+                        },
+                        "required": [
+                          "kind",
+                          "id",
+                          "href",
+                          "recordedAt",
+                          "occurredAt",
+                          "sourceLabel",
+                          "isSynthetic"
+                        ],
+                        "additionalProperties": false
+                      }
+                    },
+                    "required": [
+                      "kind",
+                      "agentId",
+                      "label",
+                      "evidence"
+                    ],
+                    "additionalProperties": false
+                  },
                   "status": {
                     "type": "string",
                     "enum": [
@@ -23963,6 +24888,7 @@
                             "system_resource_link",
                             "project",
                             "work_item",
+                            "work_item_assignment_event",
                             "work_item_relation",
                             "work_item_attachment",
                             "work_item_acceptance_revision",
@@ -24081,6 +25007,7 @@
                           "system_resource_link",
                           "project",
                           "work_item",
+                          "work_item_assignment_event",
                           "work_item_relation",
                           "work_item_attachment",
                           "work_item_acceptance_revision",
@@ -24198,6 +25125,7 @@
                             "system_resource_link",
                             "project",
                             "work_item",
+                            "work_item_assignment_event",
                             "work_item_relation",
                             "work_item_attachment",
                             "work_item_acceptance_revision",
@@ -24274,6 +25202,7 @@
                             "system_resource_link",
                             "project",
                             "work_item",
+                            "work_item_assignment_event",
                             "work_item_relation",
                             "work_item_attachment",
                             "work_item_acceptance_revision",
@@ -24381,6 +25310,7 @@
                             "system_resource_link",
                             "project",
                             "work_item",
+                            "work_item_assignment_event",
                             "work_item_relation",
                             "work_item_attachment",
                             "work_item_acceptance_revision",
@@ -24481,6 +25411,7 @@
                               "system_resource_link",
                               "project",
                               "work_item",
+                              "work_item_assignment_event",
                               "work_item_relation",
                               "work_item_attachment",
                               "work_item_acceptance_revision",
@@ -24578,6 +25509,7 @@
                                         "system_resource_link",
                                         "project",
                                         "work_item",
+                                        "work_item_assignment_event",
                                         "work_item_relation",
                                         "work_item_attachment",
                                         "work_item_acceptance_revision",
@@ -24856,6 +25788,118 @@
                             "subtask"
                           ]
                         },
+                        "assignee": {
+                          "type": "object",
+                          "properties": {
+                            "kind": {
+                              "type": "string",
+                              "enum": [
+                                "local_user",
+                                "agent"
+                              ]
+                            },
+                            "agentId": {
+                              "anyOf": [
+                                {
+                                  "type": "string",
+                                  "format": "uuid",
+                                  "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$"
+                                },
+                                {
+                                  "type": "null"
+                                }
+                              ]
+                            },
+                            "label": {
+                              "type": "string",
+                              "minLength": 1
+                            },
+                            "evidence": {
+                              "type": "object",
+                              "properties": {
+                                "kind": {
+                                  "type": "string",
+                                  "enum": [
+                                    "domain",
+                                    "project_domain_link",
+                                    "system",
+                                    "system_project_link",
+                                    "system_domain_link",
+                                    "system_resource_link",
+                                    "project",
+                                    "work_item",
+                                    "work_item_assignment_event",
+                                    "work_item_relation",
+                                    "work_item_attachment",
+                                    "work_item_acceptance_revision",
+                                    "work_item_verification",
+                                    "metric_sample",
+                                    "knowledge_item",
+                                    "knowledge_project_link",
+                                    "work_project_link",
+                                    "decision",
+                                    "resource",
+                                    "project_resource_link",
+                                    "event",
+                                    "alert",
+                                    "capture"
+                                  ]
+                                },
+                                "id": {
+                                  "type": "string",
+                                  "format": "uuid",
+                                  "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$"
+                                },
+                                "href": {
+                                  "type": "string",
+                                  "format": "starts_with",
+                                  "pattern": "^\\/api\\/v1\\/.*"
+                                },
+                                "recordedAt": {
+                                  "type": "string",
+                                  "format": "date-time",
+                                  "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))T(?:(?:[01]\\d|2[0-3]):[0-5]\\d:[0-5]\\d(?:\\.\\d+)?(?:Z|([+-](?:[01]\\d|2[0-3]):[0-5]\\d)))$"
+                                },
+                                "occurredAt": {
+                                  "anyOf": [
+                                    {
+                                      "type": "string",
+                                      "format": "date-time",
+                                      "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))T(?:(?:[01]\\d|2[0-3]):[0-5]\\d:[0-5]\\d(?:\\.\\d+)?(?:Z|([+-](?:[01]\\d|2[0-3]):[0-5]\\d)))$"
+                                    },
+                                    {
+                                      "type": "null"
+                                    }
+                                  ]
+                                },
+                                "sourceLabel": {
+                                  "type": "string",
+                                  "minLength": 1
+                                },
+                                "isSynthetic": {
+                                  "type": "boolean"
+                                }
+                              },
+                              "required": [
+                                "kind",
+                                "id",
+                                "href",
+                                "recordedAt",
+                                "occurredAt",
+                                "sourceLabel",
+                                "isSynthetic"
+                              ],
+                              "additionalProperties": false
+                            }
+                          },
+                          "required": [
+                            "kind",
+                            "agentId",
+                            "label",
+                            "evidence"
+                          ],
+                          "additionalProperties": false
+                        },
                         "status": {
                           "type": "string",
                           "enum": [
@@ -24880,6 +25924,7 @@
                                   "system_resource_link",
                                   "project",
                                   "work_item",
+                                  "work_item_assignment_event",
                                   "work_item_relation",
                                   "work_item_attachment",
                                   "work_item_acceptance_revision",
@@ -24998,6 +26043,7 @@
                                 "system_resource_link",
                                 "project",
                                 "work_item",
+                                "work_item_assignment_event",
                                 "work_item_relation",
                                 "work_item_attachment",
                                 "work_item_acceptance_revision",
@@ -25115,6 +26161,7 @@
                                   "system_resource_link",
                                   "project",
                                   "work_item",
+                                  "work_item_assignment_event",
                                   "work_item_relation",
                                   "work_item_attachment",
                                   "work_item_acceptance_revision",
@@ -25191,6 +26238,7 @@
                                   "system_resource_link",
                                   "project",
                                   "work_item",
+                                  "work_item_assignment_event",
                                   "work_item_relation",
                                   "work_item_attachment",
                                   "work_item_acceptance_revision",
@@ -25298,6 +26346,7 @@
                                   "system_resource_link",
                                   "project",
                                   "work_item",
+                                  "work_item_assignment_event",
                                   "work_item_relation",
                                   "work_item_attachment",
                                   "work_item_acceptance_revision",
@@ -25398,6 +26447,7 @@
                                     "system_resource_link",
                                     "project",
                                     "work_item",
+                                    "work_item_assignment_event",
                                     "work_item_relation",
                                     "work_item_attachment",
                                     "work_item_acceptance_revision",
@@ -25495,6 +26545,7 @@
                                               "system_resource_link",
                                               "project",
                                               "work_item",
+                                              "work_item_assignment_event",
                                               "work_item_relation",
                                               "work_item_attachment",
                                               "work_item_acceptance_revision",
@@ -26142,6 +27193,7 @@
                     "system_resource_link",
                     "project",
                     "work_item",
+                    "work_item_assignment_event",
                     "work_item_relation",
                     "work_item_attachment",
                     "work_item_acceptance_revision",
@@ -26415,6 +27467,7 @@
                             "system_resource_link",
                             "project",
                             "work_item",
+                            "work_item_assignment_event",
                             "work_item_relation",
                             "work_item_attachment",
                             "work_item_acceptance_revision",
@@ -27592,6 +28645,7 @@
                         "system_resource_link",
                         "project",
                         "work_item",
+                        "work_item_assignment_event",
                         "work_item_relation",
                         "work_item_attachment",
                         "work_item_acceptance_revision",
@@ -27778,6 +28832,7 @@
                                     "system_resource_link",
                                     "project",
                                     "work_item",
+                                    "work_item_assignment_event",
                                     "work_item_relation",
                                     "work_item_attachment",
                                     "work_item_acceptance_revision",
@@ -27900,6 +28955,7 @@
                                               "system_resource_link",
                                               "project",
                                               "work_item",
+                                              "work_item_assignment_event",
                                               "work_item_relation",
                                               "work_item_attachment",
                                               "work_item_acceptance_revision",
@@ -28064,6 +29120,7 @@
                                               "system_resource_link",
                                               "project",
                                               "work_item",
+                                              "work_item_assignment_event",
                                               "work_item_relation",
                                               "work_item_attachment",
                                               "work_item_acceptance_revision",
@@ -28228,6 +29285,7 @@
                                               "system_resource_link",
                                               "project",
                                               "work_item",
+                                              "work_item_assignment_event",
                                               "work_item_relation",
                                               "work_item_attachment",
                                               "work_item_acceptance_revision",
@@ -28392,6 +29450,7 @@
                                               "system_resource_link",
                                               "project",
                                               "work_item",
+                                              "work_item_assignment_event",
                                               "work_item_relation",
                                               "work_item_attachment",
                                               "work_item_acceptance_revision",
@@ -28556,6 +29615,7 @@
                                               "system_resource_link",
                                               "project",
                                               "work_item",
+                                              "work_item_assignment_event",
                                               "work_item_relation",
                                               "work_item_attachment",
                                               "work_item_acceptance_revision",
@@ -28720,6 +29780,7 @@
                                               "system_resource_link",
                                               "project",
                                               "work_item",
+                                              "work_item_assignment_event",
                                               "work_item_relation",
                                               "work_item_attachment",
                                               "work_item_acceptance_revision",
@@ -28884,6 +29945,7 @@
                                               "system_resource_link",
                                               "project",
                                               "work_item",
+                                              "work_item_assignment_event",
                                               "work_item_relation",
                                               "work_item_attachment",
                                               "work_item_acceptance_revision",
@@ -29115,6 +30177,7 @@
                                           "system_resource_link",
                                           "project",
                                           "work_item",
+                                          "work_item_assignment_event",
                                           "work_item_relation",
                                           "work_item_attachment",
                                           "work_item_acceptance_revision",
@@ -29470,6 +30533,7 @@
                     "system_resource_link",
                     "project",
                     "work_item",
+                    "work_item_assignment_event",
                     "work_item_relation",
                     "work_item_attachment",
                     "work_item_acceptance_revision",
@@ -29656,6 +30720,7 @@
                                 "system_resource_link",
                                 "project",
                                 "work_item",
+                                "work_item_assignment_event",
                                 "work_item_relation",
                                 "work_item_attachment",
                                 "work_item_acceptance_revision",
@@ -29778,6 +30843,7 @@
                                           "system_resource_link",
                                           "project",
                                           "work_item",
+                                          "work_item_assignment_event",
                                           "work_item_relation",
                                           "work_item_attachment",
                                           "work_item_acceptance_revision",
@@ -29942,6 +31008,7 @@
                                           "system_resource_link",
                                           "project",
                                           "work_item",
+                                          "work_item_assignment_event",
                                           "work_item_relation",
                                           "work_item_attachment",
                                           "work_item_acceptance_revision",
@@ -30106,6 +31173,7 @@
                                           "system_resource_link",
                                           "project",
                                           "work_item",
+                                          "work_item_assignment_event",
                                           "work_item_relation",
                                           "work_item_attachment",
                                           "work_item_acceptance_revision",
@@ -30270,6 +31338,7 @@
                                           "system_resource_link",
                                           "project",
                                           "work_item",
+                                          "work_item_assignment_event",
                                           "work_item_relation",
                                           "work_item_attachment",
                                           "work_item_acceptance_revision",
@@ -30434,6 +31503,7 @@
                                           "system_resource_link",
                                           "project",
                                           "work_item",
+                                          "work_item_assignment_event",
                                           "work_item_relation",
                                           "work_item_attachment",
                                           "work_item_acceptance_revision",
@@ -30598,6 +31668,7 @@
                                           "system_resource_link",
                                           "project",
                                           "work_item",
+                                          "work_item_assignment_event",
                                           "work_item_relation",
                                           "work_item_attachment",
                                           "work_item_acceptance_revision",
@@ -30762,6 +31833,7 @@
                                           "system_resource_link",
                                           "project",
                                           "work_item",
+                                          "work_item_assignment_event",
                                           "work_item_relation",
                                           "work_item_attachment",
                                           "work_item_acceptance_revision",
@@ -30993,6 +32065,7 @@
                                       "system_resource_link",
                                       "project",
                                       "work_item",
+                                      "work_item_assignment_event",
                                       "work_item_relation",
                                       "work_item_attachment",
                                       "work_item_acceptance_revision",
@@ -31204,6 +32277,7 @@
                         "system_resource_link",
                         "project",
                         "work_item",
+                        "work_item_assignment_event",
                         "work_item_relation",
                         "work_item_attachment",
                         "work_item_acceptance_revision",
@@ -31390,6 +32464,7 @@
                                     "system_resource_link",
                                     "project",
                                     "work_item",
+                                    "work_item_assignment_event",
                                     "work_item_relation",
                                     "work_item_attachment",
                                     "work_item_acceptance_revision",
@@ -31512,6 +32587,7 @@
                                               "system_resource_link",
                                               "project",
                                               "work_item",
+                                              "work_item_assignment_event",
                                               "work_item_relation",
                                               "work_item_attachment",
                                               "work_item_acceptance_revision",
@@ -31676,6 +32752,7 @@
                                               "system_resource_link",
                                               "project",
                                               "work_item",
+                                              "work_item_assignment_event",
                                               "work_item_relation",
                                               "work_item_attachment",
                                               "work_item_acceptance_revision",
@@ -31840,6 +32917,7 @@
                                               "system_resource_link",
                                               "project",
                                               "work_item",
+                                              "work_item_assignment_event",
                                               "work_item_relation",
                                               "work_item_attachment",
                                               "work_item_acceptance_revision",
@@ -32004,6 +33082,7 @@
                                               "system_resource_link",
                                               "project",
                                               "work_item",
+                                              "work_item_assignment_event",
                                               "work_item_relation",
                                               "work_item_attachment",
                                               "work_item_acceptance_revision",
@@ -32168,6 +33247,7 @@
                                               "system_resource_link",
                                               "project",
                                               "work_item",
+                                              "work_item_assignment_event",
                                               "work_item_relation",
                                               "work_item_attachment",
                                               "work_item_acceptance_revision",
@@ -32332,6 +33412,7 @@
                                               "system_resource_link",
                                               "project",
                                               "work_item",
+                                              "work_item_assignment_event",
                                               "work_item_relation",
                                               "work_item_attachment",
                                               "work_item_acceptance_revision",
@@ -32496,6 +33577,7 @@
                                               "system_resource_link",
                                               "project",
                                               "work_item",
+                                              "work_item_assignment_event",
                                               "work_item_relation",
                                               "work_item_attachment",
                                               "work_item_acceptance_revision",
@@ -32727,6 +33809,7 @@
                                           "system_resource_link",
                                           "project",
                                           "work_item",
+                                          "work_item_assignment_event",
                                           "work_item_relation",
                                           "work_item_attachment",
                                           "work_item_acceptance_revision",

@@ -15,6 +15,14 @@ export interface ExecutionPacketView {
       title: string;
       description: string;
       workType?: "task" | "initiative" | "subtask" | undefined;
+      assignee?:
+        | {
+            kind: "local_user" | "agent";
+            agentId: string | null;
+            label: string;
+            evidence: BriefEvidenceLink;
+          }
+        | undefined;
       status: string;
       evidence: BriefEvidenceLink[];
     };
@@ -143,6 +151,12 @@ export function ExecutionPacket({ packet }: ExecutionPacketProps) {
           <p>Saved status: {snapshot.objective.status}</p>
           {snapshot.objective.workType && (
             <p>Saved work type: {snapshot.objective.workType}</p>
+          )}
+          {snapshot.objective.assignee && (
+            <>
+              <p>Saved assignee: {snapshot.objective.assignee.label}</p>
+              <Source source={snapshot.objective.assignee.evidence} />
+            </>
           )}
           <a href={`/work-items/${encodeURIComponent(packet.workItemId)}`}>
             View current work item

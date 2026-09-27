@@ -13,6 +13,10 @@ import {
   captureTriageJobV1Schema,
   changeWorkItemStatusRequestSchema,
   changeWorkItemPlanningRequestSchema,
+  changeWorkAssignmentRequestSchema,
+  workItemAssignmentEventSchema,
+  listWorkAssignmentEventsResponseSchema,
+  listProjectEligibleAgentsResponseSchema,
   workItemPlanningEventSchema,
   listWorkItemPlanningEventsResponseSchema,
   listUpcomingWorkResponseSchema,
@@ -1373,6 +1377,57 @@ export function generateOpenApi(): string {
           },
         },
       },
+      "/api/v1/work-items/{id}/assignment": {
+        put: {
+          operationId: "changeWorkAssignment",
+          summary:
+            "Assign a task to the local user or a scoped synthetic agent",
+          parameters: [idParameter],
+          requestBody: {
+            required: true,
+            content: jsonContent("ChangeWorkAssignmentRequest"),
+          },
+          responses: {
+            "200": {
+              description: "Updated task with assignment and source reference",
+              content: jsonContent("WorkItem"),
+            },
+            "409": {
+              description: "Assignment changed or agent lacks project scope",
+              content: jsonContent("ErrorResponse"),
+            },
+          },
+        },
+      },
+      "/api/v1/work-items/{id}/assignment-events": {
+        get: {
+          operationId: "listWorkAssignmentEvents",
+          summary: "Page through immutable assignment changes",
+          parameters: [idParameter, ...pageParameters],
+          responses: {
+            "200": {
+              description: "Assignment history page",
+              content: jsonContent("ListWorkAssignmentEventsResponse"),
+            },
+          },
+        },
+      },
+      "/api/v1/work-item-assignment-events/{id}": {
+        get: {
+          operationId: "getWorkAssignmentEvent",
+          parameters: [idParameter],
+          responses: {
+            "200": {
+              description: "Exact immutable assignment evidence",
+              content: jsonContent("WorkItemAssignmentEvent"),
+            },
+            "404": {
+              description: "Assignment event not found",
+              content: jsonContent("ErrorResponse"),
+            },
+          },
+        },
+      },
       "/api/v1/work-items/{id}/planning-events": {
         get: {
           operationId: "listWorkItemPlanningEvents",
@@ -1893,6 +1948,19 @@ export function generateOpenApi(): string {
             "400": {
               description: "Invalid profile",
               content: jsonContent("ErrorResponse"),
+            },
+          },
+        },
+      },
+      "/api/v1/projects/{id}/eligible-agents": {
+        get: {
+          operationId: "listProjectEligibleAgents",
+          summary: "Page through synthetic agents scoped to this project",
+          parameters: [idParameter, ...pageParameters],
+          responses: {
+            "200": {
+              description: "Eligible synthetic agent profile page",
+              content: jsonContent("ListProjectEligibleAgentsResponse"),
             },
           },
         },
@@ -3250,6 +3318,16 @@ export function generateOpenApi(): string {
         ListWorkspaceWorkResponse: component(listWorkspaceWorkResponseSchema),
         ChangeWorkItemPlanningRequest: component(
           changeWorkItemPlanningRequestSchema,
+        ),
+        ChangeWorkAssignmentRequest: component(
+          changeWorkAssignmentRequestSchema,
+        ),
+        WorkItemAssignmentEvent: component(workItemAssignmentEventSchema),
+        ListWorkAssignmentEventsResponse: component(
+          listWorkAssignmentEventsResponseSchema,
+        ),
+        ListProjectEligibleAgentsResponse: component(
+          listProjectEligibleAgentsResponseSchema,
         ),
         WorkItemPlanningEvent: component(workItemPlanningEventSchema),
         ListWorkItemPlanningEventsResponse: component(

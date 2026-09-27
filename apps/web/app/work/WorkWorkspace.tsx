@@ -290,6 +290,7 @@ export default function WorkWorkspace({
                       Due <time dateTime={item.dueOn}>{item.dueOn}</time> UTC
                     </p>
                   )}
+                  <p>Assigned: {item.assigneeLabel ?? "Unassigned"}</p>
                   <p className="cmd-record-identity">
                     <a href={`/projects/${encodeURIComponent(item.projectId)}`}>
                       {item.projectName}

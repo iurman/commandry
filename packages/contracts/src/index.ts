@@ -494,6 +494,9 @@ export const workItemSchema = z.object({
   title: z.string(),
   description: z.string(),
   workType: z.enum(["task", "initiative", "subtask"]).optional(),
+  assigneeKind: z.enum(["unassigned", "local_user", "agent"]).optional(),
+  assigneeAgentId: z.uuid().nullable().optional(),
+  assigneeLabel: z.string().nullable().optional(),
   status: z.enum(["open", "done"]),
   priority: z.enum(["low", "normal", "high"]).nullable().optional(),
   dueOn: z.iso.date().nullable().optional(),
@@ -557,6 +560,30 @@ export const changeWorkItemPlanningRequestSchema = z.strictObject({
   expectedUpdatedAt: z.iso.datetime({ offset: true }),
   priority: z.enum(["low", "normal", "high"]).nullable(),
   dueOn: z.iso.date().nullable(),
+});
+
+export const changeWorkAssignmentRequestSchema = z.strictObject({
+  expectedUpdatedAt: z.iso.datetime({ offset: true }),
+  assigneeKind: z.enum(["unassigned", "local_user", "agent"]),
+  agentId: z.uuid().nullable(),
+});
+
+export const workItemAssignmentEventSchema = z.object({
+  id: z.uuid(),
+  workItemId: z.uuid(),
+  previousKind: z.enum(["unassigned", "local_user", "agent"]),
+  nextKind: z.enum(["unassigned", "local_user", "agent"]),
+  previousAgentId: z.uuid().nullable(),
+  nextAgentId: z.uuid().nullable(),
+  previousLabel: z.string().nullable(),
+  nextLabel: z.string().nullable(),
+  actor: z.literal("local-user:unattributed"),
+  createdAt: z.iso.datetime({ offset: true }),
+});
+
+export const listWorkAssignmentEventsResponseSchema = z.object({
+  items: z.array(workItemAssignmentEventSchema),
+  nextCursor: z.uuid().nullable(),
 });
 
 export const workItemPlanningEventSchema = z.object({
@@ -1332,6 +1359,7 @@ export const evidenceReferenceSchema = z.object({
     "system_resource_link",
     "project",
     "work_item",
+    "work_item_assignment_event",
     "work_item_relation",
     "work_item_attachment",
     "work_item_acceptance_revision",
@@ -1621,6 +1649,14 @@ export const executionPacketSnapshotSchema = z.object({
     title: z.string().min(1),
     description: z.string(),
     workType: z.enum(["task", "initiative", "subtask"]).optional(),
+    assignee: z
+      .object({
+        kind: z.enum(["local_user", "agent"]),
+        agentId: z.uuid().nullable(),
+        label: z.string().min(1),
+        evidence: evidenceReferenceSchema,
+      })
+      .optional(),
     status: z.enum(["open", "done"]),
     evidence: z.array(evidenceReferenceSchema).min(2),
   }),
@@ -1715,6 +1751,9 @@ export const listLocalAgentsResponseSchema = z.object({
   items: z.array(localAgentProfileSchema),
   nextCursor: z.uuid().nullable(),
 });
+
+export const listProjectEligibleAgentsResponseSchema =
+  listLocalAgentsResponseSchema;
 
 export const createLocalAgentProjectAssignmentRequestSchema = z.object({
   projectId: z.uuid(),
@@ -2237,6 +2276,12 @@ export type ChangeWorkItemPlanningRequest = z.infer<
   typeof changeWorkItemPlanningRequestSchema
 >;
 export type WorkItemPlanningEvent = z.infer<typeof workItemPlanningEventSchema>;
+export type ChangeWorkAssignmentRequest = z.infer<
+  typeof changeWorkAssignmentRequestSchema
+>;
+export type WorkItemAssignmentEvent = z.infer<
+  typeof workItemAssignmentEventSchema
+>;
 export type ChangeWorkItemStatusRequest = z.infer<
   typeof changeWorkItemStatusRequestSchema
 >;

@@ -1,19 +1,20 @@
 # syntax=docker/dockerfile:1.7
 
-FROM node:24.19.0-bookworm-slim@sha256:a9f5f7c91a432850b2a8a7797adf5eadb6c733ceed61167806cee7ea7fbc29df AS build
+FROM node:24.19.0-bookworm-slim@sha256:a9f5f7c91a432850b2a8a7797adf5eadb6c733ceed61167806cee7ea7fbc29df AS dependency-cache
 WORKDIR /app
 ENV NEXT_TELEMETRY_DISABLED=1
+COPY package.json pnpm-lock.yaml pnpm-workspace.yaml .npmrc ./
+RUN corepack enable && pnpm fetch --frozen-lockfile
+
+FROM dependency-cache AS build
 COPY . .
-RUN corepack enable \
-    && pnpm install --frozen-lockfile \
+RUN pnpm install --offline --frozen-lockfile \
     && mkdir -p apps/web/public \
     && pnpm build
 
-FROM node:24.19.0-bookworm-slim@sha256:a9f5f7c91a432850b2a8a7797adf5eadb6c733ceed61167806cee7ea7fbc29df AS worker-deps
-WORKDIR /app
+FROM dependency-cache AS worker-deps
 COPY . .
-RUN corepack enable \
-    && pnpm --filter @commandry/worker... install --prod --frozen-lockfile
+RUN CI=true pnpm --filter @commandry/worker... install --prod --offline --frozen-lockfile
 
 FROM node:24.19.0-bookworm-slim@sha256:a9f5f7c91a432850b2a8a7797adf5eadb6c733ceed61167806cee7ea7fbc29df AS runtime
 WORKDIR /app

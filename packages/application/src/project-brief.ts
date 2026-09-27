@@ -27,6 +27,13 @@ import {
 
 export type BriefPage<T> = { items: T[]; nextCursor: string | null };
 export type BriefWorkItem = WorkItem & {
+  assignment?: {
+    eventId: string;
+    recordedAt: string;
+    kind: "local_user" | "agent";
+    agentId: string | null;
+    label: string;
+  } | null;
   acceptance?: {
     criteria: string;
     version: number;
@@ -132,7 +139,7 @@ export function assembleProjectBrief(
       id: item.id,
       kind: "work_item",
       title: item.title,
-      detail: `${item.workType === "initiative" ? "Initiative. " : item.workType === "subtask" ? "Subtask. " : ""}${workFactText(item.status)}. ${briefExcerpt(item.description)}${item.openBlockers?.length ? ` Blocked by ${item.openBlockers.map((blocker) => blocker.title).join(", ")}.` : ""}${item.attachedDocuments?.length ? ` Attached documents: ${item.attachedDocuments.map((document) => document.title).join(", ")}.` : ""}${item.acceptance ? ` Acceptance criteria v${item.acceptance.version}: ${briefExcerpt(item.acceptance.criteria)}. ${item.acceptance.latestReview ? `Manual local review ${item.acceptance.latestReview.result} with ${item.acceptance.latestReview.documentTitle}.` : "No current review recorded."}` : ""}`,
+      detail: `${item.workType === "initiative" ? "Initiative. " : item.workType === "subtask" ? "Subtask. " : ""}${workFactText(item.status)}. ${briefExcerpt(item.description)}${item.assignment ? ` Assigned to ${item.assignment.label}.` : ""}${item.openBlockers?.length ? ` Blocked by ${item.openBlockers.map((blocker) => blocker.title).join(", ")}.` : ""}${item.attachedDocuments?.length ? ` Attached documents: ${item.attachedDocuments.map((document) => document.title).join(", ")}.` : ""}${item.acceptance ? ` Acceptance criteria v${item.acceptance.version}: ${briefExcerpt(item.acceptance.criteria)}. ${item.acceptance.latestReview ? `Manual local review ${item.acceptance.latestReview.result} with ${item.acceptance.latestReview.documentTitle}.` : "No current review recorded."}` : ""}`,
       evidence: [
         evidence(
           "work_item",
@@ -142,6 +149,18 @@ export function assembleProjectBrief(
           "Manual local capture",
           false,
         ),
+        ...(item.assignment
+          ? [
+              evidence(
+                "work_item_assignment_event",
+                item.assignment.eventId,
+                `/api/v1/work-item-assignment-events/${item.assignment.eventId}`,
+                item.assignment.recordedAt,
+                "Manual local Work assignment",
+                false,
+              ),
+            ]
+          : []),
         ...(item.contextLink
           ? [
               evidence(

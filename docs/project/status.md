@@ -149,6 +149,12 @@ authentication is complete. There is no production deployment.
   their saved snapshot.
   The primary project bounds hierarchy links, and the local type semantics
   remain provisional under OQ-024.
+- Work items can be assigned to the unattributed local user or one synthetic
+  agent already scoped to the primary project. An immutable assignment event
+  records each change. The current assignee appears in Work lists and detail,
+  with exact event evidence in live project briefs and new execution packet
+  snapshots. Assignment does not authorize a run or external action; identity,
+  multiplicity, and the assignment-to-run policy remain open under OQ-026.
 - Semantic CSS tokens, accessible responsive components, and representative
   Storybook states exist in the local-only lab. The lab is excluded from the
   production image.

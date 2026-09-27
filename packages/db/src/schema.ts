@@ -4,6 +4,7 @@ import {
   boolean,
   check,
   date,
+  foreignKey,
   index,
   integer,
   jsonb,
@@ -718,6 +719,13 @@ export const workItem = pgTable(
     workType: text("work_type", { enum: ["task", "initiative", "subtask"] })
       .notNull()
       .default("task"),
+    assigneeKind: text("assignee_kind", {
+      enum: ["unassigned", "local_user", "agent"],
+    })
+      .notNull()
+      .default("unassigned"),
+    assigneeAgentId: uuid("assignee_agent_id"),
+    assigneeLabel: text("assignee_label"),
     status: text("status", { enum: ["open", "done"] })
       .notNull()
       .default("open"),
@@ -745,6 +753,55 @@ export const workItem = pgTable(
     check(
       "work_item_priority_valid",
       sql`${table.priority} is null or ${table.priority} in ('low', 'normal', 'high')`,
+    ),
+    check(
+      "work_item_assignee_valid",
+      sql`(${table.assigneeKind} = 'unassigned' and ${table.assigneeAgentId} is null and ${table.assigneeLabel} is null) or (${table.assigneeKind} = 'local_user' and ${table.assigneeAgentId} is null and ${table.assigneeLabel} = 'Local user (unattributed)') or (${table.assigneeKind} = 'agent' and ${table.assigneeAgentId} is not null and ${table.assigneeLabel} like 'Synthetic local agent: %')`,
+    ),
+    foreignKey({
+      columns: [table.assigneeAgentId, table.projectId],
+      foreignColumns: [
+        localAgentProjectAssignment.agentId,
+        localAgentProjectAssignment.projectId,
+      ],
+      name: "work_item_assignee_project_scope_fk",
+    }),
+  ],
+);
+
+export const workItemAssignmentEvent = pgTable(
+  "work_item_assignment_event",
+  {
+    id: uuid("id").primaryKey(),
+    workItemId: uuid("work_item_id")
+      .notNull()
+      .references(() => workItem.id, { onDelete: "restrict" }),
+    previousKind: text("previous_kind", {
+      enum: ["unassigned", "local_user", "agent"],
+    }).notNull(),
+    nextKind: text("next_kind", {
+      enum: ["unassigned", "local_user", "agent"],
+    }).notNull(),
+    previousAgentId: uuid("previous_agent_id"),
+    nextAgentId: uuid("next_agent_id"),
+    previousLabel: text("previous_label"),
+    nextLabel: text("next_label"),
+    actor: text("actor").notNull(),
+    createdAt: createdAt(),
+  },
+  (table) => [
+    index("work_item_assignment_event_page_idx").on(
+      table.workItemId,
+      table.createdAt,
+      table.id,
+    ),
+    check(
+      "work_item_assignment_event_changed",
+      sql`(${table.previousKind} is distinct from ${table.nextKind}) or (${table.previousAgentId} is distinct from ${table.nextAgentId}) or (${table.previousLabel} is distinct from ${table.nextLabel})`,
+    ),
+    check(
+      "work_item_assignment_event_actor_local",
+      sql`${table.actor} = 'local-user:unattributed'`,
     ),
   ],
 );

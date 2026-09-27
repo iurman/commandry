@@ -2,7 +2,7 @@
 
 import { useEffect, useState, type FormEvent } from "react";
 import { AppShell, Button, RecordEmptyState } from "@commandry/ui";
-import type { ExecutionPacket } from "@commandry/contracts";
+import type { ExecutionPacket, WorkItem } from "@commandry/contracts";
 import { workDueLabel } from "@commandry/domain";
 import {
   apiJson,
@@ -15,20 +15,9 @@ import WorkAttachments from "./WorkAttachments";
 import WorkAcceptance from "./WorkAcceptance";
 import WorkRelationships from "./WorkRelationships";
 import WorkProjectPanel from "./WorkProjectPanel";
+import WorkAssignmentPanel from "./WorkAssignmentPanel";
 
-interface WorkItemRecord {
-  id: string;
-  projectId: string;
-  sourceCaptureId: string;
-  title: string;
-  description: string;
-  workType?: "task" | "initiative" | "subtask";
-  status: "open" | "done";
-  priority?: "low" | "normal" | "high" | null;
-  dueOn?: string | null;
-  createdAt: string;
-  updatedAt: string;
-}
+type WorkItemRecord = WorkItem;
 
 interface WorkItemStatusEvent {
   id: string;
@@ -526,6 +515,10 @@ export default function WorkItemWorkspace({
                   <dd>{item.dueOn ?? "Not set"}</dd>
                 </div>
                 <div>
+                  <dt>Assignee</dt>
+                  <dd>{item.assigneeLabel ?? "Unassigned"}</dd>
+                </div>
+                <div>
                   <dt>Work item ID</dt>
                   <dd>
                     <code>{item.id}</code>
@@ -557,6 +550,7 @@ export default function WorkItemWorkspace({
             workItemId={item.id}
             primaryProjectId={item.projectId}
           />
+          <WorkAssignmentPanel item={item} onChanged={setItem} />
           <WorkRelationships
             workItemId={item.id}
             projectId={item.projectId}

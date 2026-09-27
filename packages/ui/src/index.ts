@@ -39,6 +39,8 @@ export { KnowledgeProjectLinkCard } from "./components/KnowledgeProjectLinkCard"
 export type { KnowledgeProjectLinkCardView } from "./components/KnowledgeProjectLinkCard";
 export { WorkProjectLinkCard } from "./components/WorkProjectLinkCard";
 export { WorkTypeBadge } from "./components/WorkTypeBadge";
+export { WorkAssigneeBadge } from "./components/WorkAssigneeBadge";
+export type { WorkAssigneeKind } from "./components/WorkAssigneeBadge";
 export {
   KnowledgeTypeBadge,
   knowledgeTypeLabel,

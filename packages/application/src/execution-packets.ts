@@ -23,6 +23,7 @@ export type ExecutionPacketSourceBundle = {
   generatedAt: string;
   project: ProjectSummary;
   workItem: WorkItem;
+  assignmentEvent?: { id: string; recordedAt: string } | undefined;
   acceptance?: {
     criteria: string;
     version: number;
@@ -101,6 +102,16 @@ export function buildExecutionPacketContents(
 ): ExecutionPacketContents {
   const task = bundle.workItem;
   if (
+    task.assigneeKind &&
+    task.assigneeKind !== "unassigned" &&
+    (!task.assigneeLabel || !bundle.assignmentEvent)
+  ) {
+    throw new ExecutionPacketError(
+      "INVALID_SELECTION",
+      "Assigned Work needs exact assignment evidence",
+    );
+  }
+  if (
     task.projectId !== bundle.project.id ||
     task.sourceCaptureId !== bundle.sourceCapture.id ||
     bundle.knowledge.some(
@@ -119,6 +130,25 @@ export function buildExecutionPacketContents(
       title: task.title,
       description: task.description,
       workType: task.workType ?? "task",
+      ...(task.assigneeKind &&
+      task.assigneeKind !== "unassigned" &&
+      task.assigneeLabel &&
+      bundle.assignmentEvent
+        ? {
+            assignee: {
+              kind: task.assigneeKind,
+              agentId: task.assigneeAgentId ?? null,
+              label: task.assigneeLabel,
+              evidence: evidence(
+                "work_item_assignment_event",
+                bundle.assignmentEvent.id,
+                `/api/v1/work-item-assignment-events/${bundle.assignmentEvent.id}`,
+                bundle.assignmentEvent.recordedAt,
+                "Manual local Work assignment",
+              ),
+            },
+          }
+        : {}),
       status: task.status,
       evidence: [
         evidence(
