@@ -354,6 +354,40 @@ test("a sensitive synthetic action requires exact approval and records no extern
   } while (listCursor);
   expect(approvalIds.has(proposal.id)).toBe(true);
   expect(approvalIds.has(secondProposal.id)).toBe(true);
+  const flowResponse = await request.get(
+    `/api/v1/projects/${project.id}/flow?limit=50`,
+  );
+  expect(flowResponse.status()).toBe(200);
+  const flow = await flowResponse.json();
+  expect(flow.mode).toBe("historical-local-snapshot");
+  expect(flow.items).toEqual(
+    expect.arrayContaining([
+      expect.objectContaining({
+        id: proposal.id,
+        kind: "simulated_approval",
+        state: "approved",
+        isSynthetic: true,
+        sourceHref: `/api/v1/approvals/${proposal.id}`,
+      }),
+      expect.objectContaining({
+        id: secondProposal.id,
+        kind: "simulated_approval",
+        state: "rejected",
+        isSynthetic: true,
+      }),
+    ]),
+  );
+  await page.goto(`/flow?projectId=${project.id}`);
+  await expect(
+    page
+      .getByRole("article", { name: "simulated approval flow record" })
+      .first(),
+  ).toBeVisible();
+  expect(
+    await page.evaluate(
+      () => document.documentElement.scrollWidth <= window.innerWidth,
+    ),
+  ).toBe(true);
   await page.goto("/approvals");
   await expect(
     page.getByRole("heading", { name: "Approval requests" }),

@@ -84,6 +84,7 @@ describe("Command Center", () => {
       ["Signals", "/attention-signals"],
       ["Infrastructure", "/infrastructure"],
       ["Activity", "/activity"],
+      ["Flow", "/flow"],
       ["Search", "/search"],
       ["Agents", "/agents"],
       ["Approvals", "/approvals"],

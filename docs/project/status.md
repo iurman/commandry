@@ -73,6 +73,12 @@ and production prerequisites remain gates.
   audit keep the review. A later worker observation may surface again without
   implying real health or automatic learning. This local control remains
   provisional under OQ-012.
+- A read-only Project flow page pages stored system and resource relationships,
+  synthetic source events, fake local agent runs, local automation runs, and
+  simulated approvals for one project. Each entry links to its source record
+  and related records, distinguishes synthetic evidence, and states its read
+  time. It is a historical projection, not live agent traffic or a health
+  claim; correlation and presentation remain provisional under OQ-017.
 - Portfolio Domains are distinct local records with editable details and one
   active typed `owned_by` relationship per project. Moving or unlinking a
   project archives the old edge while retaining exact link and audit reads.

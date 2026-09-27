@@ -190,6 +190,11 @@ import {
   briefInferenceSchema,
   notRecordedSchema,
   projectBriefSchema,
+  projectFlowKindSchema,
+  projectFlowRelatedSchema,
+  projectFlowItemSchema,
+  listProjectFlowQuerySchema,
+  listProjectFlowResponseSchema,
   executionPacketSnapshotSchema,
   executionPacketSchema,
   listExecutionPacketsResponseSchema,
@@ -1520,6 +1525,40 @@ export function generateOpenApi(): string {
               description:
                 "Bounded project brief with evidence and continuation links",
               content: jsonContent("ProjectBrief"),
+            },
+            "404": {
+              description: "Project not found",
+              content: jsonContent("ErrorResponse"),
+            },
+          },
+        },
+      },
+      "/api/v1/projects/{id}/flow": {
+        get: {
+          operationId: "listProjectFlow",
+          summary:
+            "Page a historical local project flow across stored relationships and runs",
+          parameters: [
+            idParameter,
+            {
+              name: "limit",
+              in: "query",
+              schema: { type: "integer", minimum: 1, maximum: 100 },
+            },
+            {
+              name: "cursor",
+              in: "query",
+              schema: { type: "string" },
+            },
+          ],
+          responses: {
+            "200": {
+              description: "Evidence-linked historical local project flow page",
+              content: jsonContent("ListProjectFlowResponse"),
+            },
+            "400": {
+              description: "Invalid flow cursor or page",
+              content: jsonContent("ErrorResponse"),
             },
             "404": {
               description: "Project not found",
@@ -4681,6 +4720,11 @@ export function generateOpenApi(): string {
         NotRecorded: component(notRecordedSchema),
         BriefInference: component(briefInferenceSchema),
         ProjectBrief: component(projectBriefSchema),
+        ProjectFlowKind: component(projectFlowKindSchema),
+        ProjectFlowRelated: component(projectFlowRelatedSchema),
+        ProjectFlowItem: component(projectFlowItemSchema),
+        ListProjectFlowQuery: component(listProjectFlowQuerySchema),
+        ListProjectFlowResponse: component(listProjectFlowResponseSchema),
         CreateExecutionPacketRequest: component(
           createExecutionPacketRequestSchema,
         ),

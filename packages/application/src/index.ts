@@ -22,6 +22,7 @@ export * from "./local-release-rehearsal";
 export * from "./local-release-preflight";
 export * from "./knowledge-revisions";
 export * from "./resource-topology";
+export * from "./project-flow";
 export * from "./project-decisions";
 export * from "./local-automations";
 export * from "./automation-review";

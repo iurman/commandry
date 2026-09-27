@@ -319,6 +319,11 @@ export default function ProjectWorkspace({ projectId }: { projectId: string }) {
                   Review synthetic attention signals
                 </a>
               </p>
+              <p className="cmd-record-identity">
+                <a href={`/flow?projectId=${projectId}`}>
+                  Review project flow history
+                </a>
+              </p>
             </div>
             <StatusBadge
               dimension="lifecycle"

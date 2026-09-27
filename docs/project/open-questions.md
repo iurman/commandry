@@ -178,6 +178,14 @@ source occurrence separately from Commandry recording time and never claims a
 live flow. This is a provisional accessible timeline, not a choice of live
 transport, aggregation policy, universal graph, or cross-system correlation.
 
+A second provisional project flow page lists persisted manual relationships,
+synthetic events, fake local agent runs, local automation runs, and simulated
+approvals for one project. It pages historical records with source links and
+explicit synthetic labels. Current relationship and approval states are shown
+alongside their recorded timestamps; the page is neither a live stream nor a
+complete collaboration trace. Validate which cross-record correlations and
+time semantics are useful before choosing a live viewport.
+
 ### OQ-020: Which conditional automation rules belong in the first release?
 
 The local fixture rule uses a per-definition availability threshold, fires on

@@ -15,6 +15,7 @@ export function AppShell({
     | "Signals"
     | "Infrastructure"
     | "Activity"
+    | "Flow"
     | "Search"
     | "Agents"
     | "Approvals"
@@ -96,6 +97,13 @@ export function AppShell({
             href="/activity"
           >
             Activity
+          </a>
+          <a
+            aria-current={current === "Flow" ? "page" : undefined}
+            className={`cmd-nav-link ${current === "Flow" ? "cmd-nav-current" : ""}`}
+            href="/flow"
+          >
+            Flow
           </a>
           <a
             aria-current={current === "Search" ? "page" : undefined}

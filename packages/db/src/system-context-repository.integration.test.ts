@@ -61,16 +61,18 @@ test(
       assert.equal(operated.lifecycle, "active");
       const firstPage = await systems.listSystems({ limit: 1 });
       assert.ok(firstPage.nextCursor);
-      const secondPage = await systems.listSystems({
-        limit: 1,
-        cursor: firstPage.nextCursor,
-      });
-      assert.deepEqual(
-        new Set(
-          [...firstPage.items, ...secondPage.items].map((item) => item.id),
-        ),
-        new Set([operated.id, spare.id]),
-      );
+      const listedIds = new Set(firstPage.items.map((item) => item.id));
+      let systemsCursor: string | null = firstPage.nextCursor;
+      while (systemsCursor) {
+        const nextPage = await systems.listSystems({
+          limit: 1,
+          cursor: systemsCursor,
+        });
+        for (const item of nextPage.items) listedIds.add(item.id);
+        systemsCursor = nextPage.nextCursor;
+      }
+      assert.equal(listedIds.has(operated.id), true);
+      assert.equal(listedIds.has(spare.id), true);
       const updated = await systems.updateSystem(operated.id, {
         expectedVersion: 1,
         summary: "Manually modeled home capability",

@@ -31,6 +31,8 @@ export { AutomationEvidenceCheckCard } from "./components/AutomationEvidenceChec
 export { LocalAttentionSignalCard } from "./components/LocalAttentionSignalCard";
 export type { LocalAttentionSignalView } from "./components/LocalAttentionSignalCard";
 export { ResourceImpactCard } from "./components/ResourceImpactCard";
+export { ProjectFlowCard } from "./components/ProjectFlowCard";
+export type { ProjectFlowCardView } from "./components/ProjectFlowCard";
 export type { ResourceImpactCardView } from "./components/ResourceImpactCard";
 export { SyntheticFlowTimeline } from "./components/SyntheticFlowTimeline";
 export type { SyntheticFlowStageView } from "./components/SyntheticFlowTimeline";

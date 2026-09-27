@@ -25,6 +25,7 @@ export * from "./local-release-rehearsal-repository";
 export * from "./local-release-preflight-repository";
 export * from "./knowledge-revision-repository";
 export * from "./resource-topology-repository";
+export * from "./project-flow-repository";
 export * from "./project-decision-repository";
 export * from "./local-automation-repository";
 export * from "./automation-evidence-repository";

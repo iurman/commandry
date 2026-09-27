@@ -2054,6 +2054,59 @@ export const listLocalAttentionAuditResponseSchema = z.object({
   nextCursor: z.uuid().nullable(),
 });
 
+export const projectFlowKindSchema = z.enum([
+  "system_link",
+  "resource_link",
+  "system_resource_link",
+  "synthetic_event",
+  "local_agent_run",
+  "automation_run",
+  "simulated_approval",
+]);
+
+export const projectFlowRelatedSchema = z.object({
+  kind: z.enum([
+    "system",
+    "resource",
+    "agent",
+    "packet",
+    "automation",
+    "event",
+  ]),
+  id: z.uuid(),
+  name: z.string().min(1),
+  href: z.string().startsWith("/api/v1/"),
+});
+
+export const projectFlowItemSchema = z.object({
+  id: z.uuid(),
+  kind: projectFlowKindSchema,
+  projectId: z.uuid(),
+  occurredAt: z.iso.datetime({ offset: true }),
+  recordedAt: z.iso.datetime({ offset: true }),
+  title: z.string().min(1),
+  state: z.string().min(1),
+  detail: z.string().nullable(),
+  sourceHref: z.string().startsWith("/api/v1/"),
+  sourceLabel: z.string().min(1),
+  isSynthetic: z.boolean(),
+  related: z.array(projectFlowRelatedSchema).max(2),
+});
+
+export const listProjectFlowQuerySchema = z.object({
+  limit: z.coerce.number().int().min(1).max(100).default(25),
+  cursor: z.string().min(1).max(512).optional(),
+});
+
+export const listProjectFlowResponseSchema = z.object({
+  projectId: z.uuid(),
+  projectName: z.string().min(1),
+  asOf: z.iso.datetime({ offset: true }),
+  mode: z.literal("historical-local-snapshot"),
+  items: z.array(projectFlowItemSchema),
+  nextCursor: z.string().nullable(),
+});
+
 export const evidenceReferenceSchema = z.object({
   kind: z.enum([
     "domain",
@@ -3310,6 +3363,10 @@ export type SubmitLocalAttentionReviewRequest = z.infer<
 >;
 export type LocalAttentionAuditEvent = z.infer<
   typeof localAttentionAuditEventSchema
+>;
+export type ProjectFlowItem = z.infer<typeof projectFlowItemSchema>;
+export type ListProjectFlowResponse = z.infer<
+  typeof listProjectFlowResponseSchema
 >;
 export type EvidenceReference = z.infer<typeof evidenceReferenceSchema>;
 export type BriefFact = z.infer<typeof briefFactSchema>;
