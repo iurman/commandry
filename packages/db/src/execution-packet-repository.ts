@@ -5,6 +5,7 @@ import {
   EXECUTION_PACKET_SCHEMA_VERSION,
   ExecutionPacketError,
   validatePacketSelection,
+  type ManualCaptureInputType,
 } from "@commandry/domain";
 import type { CommandryDatabase } from "./client";
 import {
@@ -116,7 +117,7 @@ export function createExecutionPacketRepository(db: CommandryDatabase) {
         } | null;
         sourceCapture: {
           id: string;
-          inputType: "text" | "url";
+          inputType: ManualCaptureInputType;
           source: "manual-local";
           createdAt: string;
         };

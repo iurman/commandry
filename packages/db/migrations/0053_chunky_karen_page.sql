@@ -1,0 +1,2 @@
+ALTER TABLE "capture" DROP CONSTRAINT "capture_input_type_valid";--> statement-breakpoint
+ALTER TABLE "capture" ADD CONSTRAINT "capture_input_type_valid" CHECK ("capture"."input_type" in ('text', 'email', 'conversation', 'voice_transcript', 'url', 'file'));

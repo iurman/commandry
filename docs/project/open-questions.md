@@ -341,3 +341,15 @@ records `project_presentation_event` as its append-only audit event. Its
 intended production capability is `commandry.project.presentation.update`;
 local review does not enforce that grant. Validate type defaults, the canonical
 card catalog, layout flexibility, and any sharing model before production.
+
+### OQ-036: Which capture channels and derived media processing should become canonical?
+
+The local MVP preserves pasted email, conversation, and manually entered voice
+transcript text as distinct source types in the same immutable capture envelope.
+It does not connect to mail or chat, record audio, or transcribe speech. Local
+file capture accepts bounded originals; a matching PNG, JPEG, WebP, or GIF can
+be previewed through a verified, same-origin raster response. SVG and unknown
+files remain downloadable only. No image text extraction, OCR, metadata
+stripping, or external media service is implied. Decide permitted source
+channels, consent and retention, image preview policy, transcription and OCR
+quality, and any production file store before real integrations are enabled.

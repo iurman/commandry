@@ -15,6 +15,7 @@ import {
   ExecutionPacketError,
   knowledgeKindLabel,
   validatePacketSelection,
+  type ManualCaptureInputType,
 } from "@commandry/domain";
 
 export type ExecutionPacketSourceBundle = {
@@ -40,7 +41,7 @@ export type ExecutionPacketSourceBundle = {
   } | null;
   sourceCapture: {
     id: string;
-    inputType: "text" | "url";
+    inputType: ManualCaptureInputType;
     source: "manual-local";
     createdAt: string;
   };

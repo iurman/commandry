@@ -646,7 +646,16 @@ export const capture = pgTable(
   "capture",
   {
     id: uuid("id").primaryKey(),
-    inputType: text("input_type", { enum: ["text", "url", "file"] }).notNull(),
+    inputType: text("input_type", {
+      enum: [
+        "text",
+        "email",
+        "conversation",
+        "voice_transcript",
+        "url",
+        "file",
+      ],
+    }).notNull(),
     originalContent: text("original_content").notNull(),
     source: text("source", {
       enum: ["manual-local", "automation-local-synthetic"],
@@ -684,7 +693,7 @@ export const capture = pgTable(
     ),
     check(
       "capture_input_type_valid",
-      sql`${table.inputType} in ('text', 'url', 'file')`,
+      sql`${table.inputType} in ('text', 'email', 'conversation', 'voice_transcript', 'url', 'file')`,
     ),
     check(
       "capture_source_valid",

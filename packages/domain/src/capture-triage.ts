@@ -19,7 +19,7 @@ export class CaptureTriageError extends Error {
 }
 
 export function suggestCaptureTriage(input: {
-  inputType: "text" | "url";
+  inputType: ManualCaptureInputType;
   originalContent: string;
 }): {
   kind: CaptureTriageKind;
@@ -41,20 +41,27 @@ export function suggestCaptureTriage(input: {
     /\b(todo|fix|need to|follow up|review|implement|ship)\b/i.test(
       input.originalContent,
     );
+  const sourceDescription = {
+    text: "text",
+    email: "pasted email",
+    conversation: "pasted conversation",
+    voice_transcript: "entered voice transcript",
+  }[input.inputType];
   return actionable
     ? {
         kind: "task",
         title: "Review captured action",
         confidence: 60,
-        rationale:
-          "Action words in this text triggered a fixed local task suggestion. It may be wrong; review before filing.",
+        rationale: `Action words in this ${sourceDescription} triggered a fixed local task suggestion. It may be wrong; review before filing.`,
       }
     : {
         kind: "note",
         title: "Review captured thought",
         confidence: 50,
         rationale:
-          "No action words matched the fixed local rule, so this is suggested as a note. Review before filing.",
+          input.inputType === "text"
+            ? "No action words matched the fixed local rule, so this is suggested as a note. Review before filing."
+            : `No action words in this ${sourceDescription} matched the fixed local rule, so it is suggested as a note. Review before filing.`,
       };
 }
 
@@ -82,3 +89,4 @@ export function requireCaptureTriageReview(input: {
     );
   }
 }
+import type { ManualCaptureInputType } from "./capture";

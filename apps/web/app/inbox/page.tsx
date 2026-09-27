@@ -3,7 +3,9 @@
 import { useEffect, useRef, useState, type FormEvent } from "react";
 import {
   KNOWLEDGE_TEXT_TYPES,
+  MANUAL_TEXT_CAPTURE_INPUT_TYPES,
   type KnowledgeTextType,
+  type ManualCaptureInputType,
 } from "@commandry/domain";
 import {
   AppShell,
@@ -68,7 +70,9 @@ export default function InboxPage() {
   const [projectsLoading, setProjectsLoading] = useState(true);
   const [projectsLoadingMore, setProjectsLoadingMore] = useState(false);
   const [projectsError, setProjectsError] = useState<string | null>(null);
-  const [inputType, setInputType] = useState<"text" | "url" | "file">("text");
+  const [inputType, setInputType] = useState<ManualCaptureInputType | "file">(
+    "text",
+  );
   const [textDraft, setTextDraft] = useState("");
   const [urlDraft, setUrlDraft] = useState("");
   const [fileDraft, setFileDraft] = useState<File | null>(null);
@@ -85,7 +89,8 @@ export default function InboxPage() {
   const [filing, setFiling] = useState(false);
   const [filingError, setFilingError] = useState<string | null>(null);
   const [filingFeedback, setFilingFeedback] = useState<string | null>(null);
-  const originalContent = inputType === "text" ? textDraft : urlDraft;
+  const textInput = inputType !== "url" && inputType !== "file";
+  const originalContent = textInput ? textDraft : urlDraft;
   const detailLoading = Boolean(selectedId && !detail && !detailError);
 
   useEffect(() => {
@@ -399,7 +404,7 @@ export default function InboxPage() {
       }
       setCaptures((current) => [saved, ...current]);
       selectCapture(saved.id);
-      if (inputType === "text") setTextDraft("");
+      if (textInput) setTextDraft("");
       else if (inputType === "url") setUrlDraft("");
       else {
         setFileDraft(null);
@@ -510,8 +515,8 @@ export default function InboxPage() {
             aria-label="Capture type"
           >
             <Button
-              aria-pressed={inputType === "text"}
-              className={inputType === "text" ? "cmd-capture-type-active" : ""}
+              aria-pressed={textInput}
+              className={textInput ? "cmd-capture-type-active" : ""}
               onClick={() => setInputType("text")}
             >
               Text
@@ -532,15 +537,52 @@ export default function InboxPage() {
             </Button>
           </div>
           <form className="cmd-form" onSubmit={captureInput}>
+            {textInput && (
+              <>
+                <label htmlFor="capture-text-source">Text source</label>
+                <select
+                  id="capture-text-source"
+                  onChange={(event) =>
+                    setInputType(event.target.value as ManualCaptureInputType)
+                  }
+                  value={inputType}
+                >
+                  {MANUAL_TEXT_CAPTURE_INPUT_TYPES.map((value) => (
+                    <option key={value} value={value}>
+                      {
+                        {
+                          text: "General text",
+                          email: "Pasted email",
+                          conversation: "Pasted conversation",
+                          voice_transcript: "Entered voice transcript",
+                        }[value]
+                      }
+                    </option>
+                  ))}
+                </select>
+                {inputType === "voice_transcript" && (
+                  <p className="cmd-form-hint">
+                    Enter text from a voice recording. Commandry does not
+                    transcribe or retain audio here.
+                  </p>
+                )}
+              </>
+            )}
             <label htmlFor="capture-original">
-              {inputType === "text"
-                ? "Original text"
-                : inputType === "url"
-                  ? "Original URL"
-                  : "Original file"}
+              {inputType === "url"
+                ? "Original URL"
+                : inputType === "file"
+                  ? "Original file"
+                  : inputType === "email"
+                    ? "Original pasted email"
+                    : inputType === "conversation"
+                      ? "Original pasted conversation"
+                      : inputType === "voice_transcript"
+                        ? "Original entered transcript"
+                        : "Original text"}
               <span aria-hidden="true"> *</span>
             </label>
-            {inputType === "text" ? (
+            {textInput ? (
               <textarea
                 id="capture-original"
                 onChange={(event) => setTextDraft(event.target.value)}
@@ -572,8 +614,9 @@ export default function InboxPage() {
             {inputType === "file" && (
               <p className="cmd-section-intro">
                 Plain text, Markdown, CSV, and JSON can gain a labeled local
-                text projection for search. Other file types remain preserved
-                and downloadable without extracted content.
+                text projection for search. Matching PNG, JPEG, WebP, and GIF
+                files receive a local raster preview. Other files remain
+                preserved and downloadable without extracted content.
               </p>
             )}
             {captureError && (

@@ -1,6 +1,7 @@
 export interface CaptureRecord {
   id: string;
-  inputType: "text" | "url" | "file";
+  inputType:
+    "text" | "email" | "conversation" | "voice_transcript" | "url" | "file";
   originalContent: string;
   file?: {
     originalName: string;
@@ -8,6 +9,7 @@ export interface CaptureRecord {
     byteSize: number;
     sha256: string;
     downloadHref: string;
+    previewHref?: string | null;
   } | null;
   source: string;
   author: string;

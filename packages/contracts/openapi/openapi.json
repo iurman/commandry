@@ -4059,6 +4059,74 @@
         }
       }
     },
+    "/api/v1/captures/{id}/preview-image": {
+      "get": {
+        "operationId": "previewOriginalImage",
+        "summary": "Preview verified local PNG, JPEG, WebP, or GIF bytes without changing the original",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "id",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Verified raster image bytes with no-store and checksum headers",
+            "content": {
+              "image/png": {
+                "schema": {
+                  "type": "string",
+                  "format": "binary"
+                }
+              },
+              "image/jpeg": {
+                "schema": {
+                  "type": "string",
+                  "format": "binary"
+                }
+              },
+              "image/webp": {
+                "schema": {
+                  "type": "string",
+                  "format": "binary"
+                }
+              },
+              "image/gif": {
+                "schema": {
+                  "type": "string",
+                  "format": "binary"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Original file not found",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "415": {
+            "description": "Original is not a supported matching raster image",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/api/v1/captures/{id}/derived-text": {
       "get": {
         "operationId": "getLocalFileDerivedText",
@@ -15213,6 +15281,9 @@
             "type": "string",
             "enum": [
               "text",
+              "email",
+              "conversation",
+              "voice_transcript",
               "url"
             ]
           },
@@ -15245,6 +15316,9 @@
             "type": "string",
             "enum": [
               "text",
+              "email",
+              "conversation",
+              "voice_transcript",
               "url",
               "file"
             ]
@@ -15278,6 +15352,18 @@
                     "type": "string",
                     "format": "starts_with",
                     "pattern": "^\\/api\\/v1\\/captures\\/.*"
+                  },
+                  "previewHref": {
+                    "anyOf": [
+                      {
+                        "type": "string",
+                        "format": "starts_with",
+                        "pattern": "^\\/api\\/v1\\/captures\\/.*"
+                      },
+                      {
+                        "type": "null"
+                      }
+                    ]
                   }
                 },
                 "required": [
@@ -16754,6 +16840,18 @@
             "type": "string",
             "format": "starts_with",
             "pattern": "^\\/api\\/v1\\/captures\\/.*"
+          },
+          "previewHref": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "starts_with",
+                "pattern": "^\\/api\\/v1\\/captures\\/.*"
+              },
+              {
+                "type": "null"
+              }
+            ]
           }
         },
         "required": [
@@ -16782,6 +16880,9 @@
                   "type": "string",
                   "enum": [
                     "text",
+                    "email",
+                    "conversation",
+                    "voice_transcript",
                     "url",
                     "file"
                   ]
@@ -16815,6 +16916,18 @@
                           "type": "string",
                           "format": "starts_with",
                           "pattern": "^\\/api\\/v1\\/captures\\/.*"
+                        },
+                        "previewHref": {
+                          "anyOf": [
+                            {
+                              "type": "string",
+                              "format": "starts_with",
+                              "pattern": "^\\/api\\/v1\\/captures\\/.*"
+                            },
+                            {
+                              "type": "null"
+                            }
+                          ]
                         }
                       },
                       "required": [
@@ -17017,6 +17130,9 @@
                 "type": "string",
                 "enum": [
                   "text",
+                  "email",
+                  "conversation",
+                  "voice_transcript",
                   "url",
                   "file"
                 ]
@@ -17050,6 +17166,18 @@
                         "type": "string",
                         "format": "starts_with",
                         "pattern": "^\\/api\\/v1\\/captures\\/.*"
+                      },
+                      "previewHref": {
+                        "anyOf": [
+                          {
+                            "type": "string",
+                            "format": "starts_with",
+                            "pattern": "^\\/api\\/v1\\/captures\\/.*"
+                          },
+                          {
+                            "type": "null"
+                          }
+                        ]
                       }
                     },
                     "required": [
@@ -17880,6 +18008,9 @@
                 "type": "string",
                 "enum": [
                   "text",
+                  "email",
+                  "conversation",
+                  "voice_transcript",
                   "url",
                   "file"
                 ]
@@ -17913,6 +18044,18 @@
                         "type": "string",
                         "format": "starts_with",
                         "pattern": "^\\/api\\/v1\\/captures\\/.*"
+                      },
+                      "previewHref": {
+                        "anyOf": [
+                          {
+                            "type": "string",
+                            "format": "starts_with",
+                            "pattern": "^\\/api\\/v1\\/captures\\/.*"
+                          },
+                          {
+                            "type": "null"
+                          }
+                        ]
                       }
                     },
                     "required": [

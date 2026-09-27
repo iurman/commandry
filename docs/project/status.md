@@ -73,6 +73,11 @@ and production prerequisites remain gates.
   area leaves all Work, Knowledge, relationships, and source records intact.
   The universal defaults and presentation choices remain provisional under
   OQ-035. Synthetic facts retain explicit source labels and exact evidence.
+- Local Inbox text captures can retain a distinct manually entered email,
+  conversation, or voice-transcript source label while preserving exact text
+  through filing and search. Bounded local raster files can show a verified
+  same-origin preview; the exact downloadable bytes and checksum remain the
+  original record. No remote message, audio, or OCR source is connected.
 - Systems are distinct local records for continuing operated capabilities. A
   system may have one owning Domain, relate to multiple Projects, and receive
   support from multiple canonical Resources through typed, auditable links.

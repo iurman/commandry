@@ -11,7 +11,7 @@ import { CaptureTriageError, suggestCaptureTriage } from "@commandry/domain";
 export interface CaptureTriagePort {
   getCapture(id: string): Promise<{
     id: string;
-    inputType: "text" | "url" | "file";
+    inputType: Capture["inputType"];
     originalContent: string;
     state: "unfiled" | "filed";
     projectId: string | null;

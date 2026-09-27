@@ -1609,6 +1609,36 @@ export function generateOpenApi(): string {
           },
         },
       },
+      "/api/v1/captures/{id}/preview-image": {
+        get: {
+          operationId: "previewOriginalImage",
+          summary:
+            "Preview verified local PNG, JPEG, WebP, or GIF bytes without changing the original",
+          parameters: [idParameter],
+          responses: {
+            "200": {
+              description:
+                "Verified raster image bytes with no-store and checksum headers",
+              content: Object.fromEntries(
+                ["image/png", "image/jpeg", "image/webp", "image/gif"].map(
+                  (mediaType) => [
+                    mediaType,
+                    { schema: { type: "string", format: "binary" } },
+                  ],
+                ),
+              ),
+            },
+            "404": {
+              description: "Original file not found",
+              content: jsonContent("ErrorResponse"),
+            },
+            "415": {
+              description: "Original is not a supported matching raster image",
+              content: jsonContent("ErrorResponse"),
+            },
+          },
+        },
+      },
       "/api/v1/captures/{id}/derived-text": {
         get: {
           operationId: "getLocalFileDerivedText",

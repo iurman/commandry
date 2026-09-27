@@ -503,7 +503,13 @@ export const listProjectResourceLinksResponseSchema = z.object({
 
 export const createCaptureRequestSchema = z
   .object({
-    inputType: z.enum(["text", "url"]),
+    inputType: z.enum([
+      "text",
+      "email",
+      "conversation",
+      "voice_transcript",
+      "url",
+    ]),
     originalContent: z
       .string()
       .min(1)
@@ -536,11 +542,19 @@ export const captureFileMetadataSchema = z.object({
   byteSize: z.number().int().min(1).max(2_097_152),
   sha256: z.string().regex(/^[a-f0-9]{64}$/),
   downloadHref: z.string().startsWith("/api/v1/captures/"),
+  previewHref: z.string().startsWith("/api/v1/captures/").nullable().optional(),
 });
 
 export const captureSchema = z.object({
   id: z.uuid(),
-  inputType: z.enum(["text", "url", "file"]),
+  inputType: z.enum([
+    "text",
+    "email",
+    "conversation",
+    "voice_transcript",
+    "url",
+    "file",
+  ]),
   originalContent: z.string(),
   file: captureFileMetadataSchema.nullable().optional(),
   source: z.enum(["manual-local", "automation-local-synthetic"]),

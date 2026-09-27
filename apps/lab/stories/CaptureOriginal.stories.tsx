@@ -39,6 +39,28 @@ export const UrlOriginal: Story = {
   },
 };
 
+export const PastedEmailOriginal: Story = {
+  args: {
+    capture: {
+      ...syntheticCapture,
+      inputType: "email",
+      originalContent:
+        "From: synthetic@example.invalid\nSubject: Garden access\n\nPlease review the gate code before the visit.",
+    },
+  },
+};
+
+export const EnteredTranscriptOriginal: Story = {
+  args: {
+    capture: {
+      ...syntheticCapture,
+      inputType: "voice_transcript",
+      originalContent:
+        "This is a manually entered synthetic transcript, not audio or automatic transcription.",
+    },
+  },
+};
+
 export const FileOriginal: Story = {
   args: {
     capture: {
@@ -52,6 +74,26 @@ export const FileOriginal: Story = {
         sha256: "a".repeat(64),
         downloadHref:
           "/api/v1/captures/00000000-0000-4000-8000-000000000001/original-file",
+      },
+    },
+  },
+};
+
+export const ImageOriginal: Story = {
+  args: {
+    capture: {
+      ...syntheticCapture,
+      inputType: "file",
+      originalContent: "capture-file://00000000-0000-4000-8000-000000000002",
+      file: {
+        originalName: "Synthetic garden marker.png",
+        mediaType: "image/png",
+        byteSize: 68,
+        sha256: "b".repeat(64),
+        downloadHref:
+          "/api/v1/captures/00000000-0000-4000-8000-000000000002/original-file",
+        previewHref:
+          "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mP8/x8AAwMCAO+/XhQAAAAASUVORK5CYII=",
       },
     },
   },

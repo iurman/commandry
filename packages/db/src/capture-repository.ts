@@ -3,7 +3,9 @@ import {
   CaptureError,
   MANUAL_CAPTURE_AUTHOR,
   MANUAL_CAPTURE_SOURCE,
+  localImagePreviewMediaType,
   type KnowledgeTextType,
+  type ManualCaptureInputType,
 } from "@commandry/domain";
 import type { CommandryDatabase } from "./client";
 import {
@@ -20,6 +22,12 @@ export function captureRecord(
   row: typeof capture.$inferSelect,
   file: typeof captureFile.$inferSelect | null = null,
 ) {
+  const imagePreview = file
+    ? localImagePreviewMediaType(
+        file.mediaType,
+        Buffer.from(file.contentBase64.slice(0, 32), "base64"),
+      )
+    : null;
   return {
     id: row.id,
     inputType: row.inputType,
@@ -31,6 +39,9 @@ export function captureRecord(
           byteSize: file.byteSize,
           sha256: file.sha256,
           downloadHref: `/api/v1/captures/${row.id}/original-file`,
+          ...(imagePreview && {
+            previewHref: `/api/v1/captures/${row.id}/preview-image`,
+          }),
         }
       : null,
     source: row.source,
@@ -192,7 +203,7 @@ export function createCaptureRepository(db: CommandryDatabase) {
     },
     async createCapture(input: {
       id: string;
-      inputType: "text" | "url";
+      inputType: ManualCaptureInputType;
       originalContent: string;
       projectId?: string;
     }) {

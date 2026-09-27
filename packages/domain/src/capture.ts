@@ -1,4 +1,12 @@
-export type ManualCaptureInputType = "text" | "url";
+export const MANUAL_TEXT_CAPTURE_INPUT_TYPES = [
+  "text",
+  "email",
+  "conversation",
+  "voice_transcript",
+] as const;
+export type ManualTextCaptureInputType =
+  (typeof MANUAL_TEXT_CAPTURE_INPUT_TYPES)[number];
+export type ManualCaptureInputType = ManualTextCaptureInputType | "url";
 
 export const MANUAL_CAPTURE_SOURCE = "manual-local" as const;
 export const MANUAL_CAPTURE_AUTHOR = "local-user" as const;

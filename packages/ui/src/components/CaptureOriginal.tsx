@@ -1,5 +1,7 @@
+/* eslint-disable @next/next/no-img-element -- The verified local raster is shown without framework image rewriting, and this component also runs in Storybook. */
 export interface CaptureOriginalRecord {
-  inputType: "text" | "url" | "file";
+  inputType:
+    "text" | "email" | "conversation" | "voice_transcript" | "url" | "file";
   originalContent: string;
   file?: {
     originalName: string;
@@ -7,6 +9,7 @@ export interface CaptureOriginalRecord {
     byteSize: number;
     sha256: string;
     downloadHref: string;
+    previewHref?: string | null;
   } | null;
   source: string;
   author: string;
@@ -16,6 +19,15 @@ export interface CaptureOriginalRecord {
 function sourceLabel(source: string) {
   return source === "manual-local" ? "Manual local capture" : source;
 }
+
+const inputLabels: Record<CaptureOriginalRecord["inputType"], string> = {
+  text: "Text",
+  email: "Pasted email",
+  conversation: "Pasted conversation",
+  voice_transcript: "Entered voice transcript",
+  url: "URL",
+  file: "File",
+};
 
 export function CaptureOriginal({
   capture,
@@ -46,6 +58,19 @@ export function CaptureOriginal({
           <p>
             SHA-256: <code>{capture.file.sha256}</code>
           </p>
+          {capture.file.previewHref && (
+            <figure className="cmd-capture-image-preview">
+              <img
+                alt={`Local preview of ${capture.file.originalName}`}
+                loading="lazy"
+                src={capture.file.previewHref}
+              />
+              <figcaption>
+                Local raster preview. Download the exact original for its
+                preserved bytes.
+              </figcaption>
+            </figure>
+          )}
           <p>
             <a href={capture.file.downloadHref}>Download exact original file</a>
           </p>
@@ -56,13 +81,7 @@ export function CaptureOriginal({
       <dl className="cmd-capture-provenance">
         <div>
           <dt>Input</dt>
-          <dd>
-            {capture.inputType === "url"
-              ? "URL"
-              : capture.inputType === "file"
-                ? "File"
-                : "Text"}
-          </dd>
+          <dd>{inputLabels[capture.inputType]}</dd>
         </div>
         <div>
           <dt>Source</dt>

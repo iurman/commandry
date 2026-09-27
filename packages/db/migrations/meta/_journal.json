@@ -372,6 +372,13 @@
       "when": 1790514125701,
       "tag": "0052_burly_scream",
       "breakpoints": true
+    },
+    {
+      "idx": 53,
+      "version": "7",
+      "when": 1790515780494,
+      "tag": "0053_chunky_karen_page",
+      "breakpoints": true
     }
   ]
 }

@@ -34,6 +34,23 @@ test("local triage labels its fixed rule and leaves ambiguous capture for review
   });
 });
 
+test("typed pasted text uses the same review-only local rule and names its source", () => {
+  for (const [inputType, source] of [
+    ["email", "pasted email"],
+    ["conversation", "pasted conversation"],
+    ["voice_transcript", "entered voice transcript"],
+  ] as const) {
+    const suggestion = suggestCaptureTriage({
+      inputType,
+      originalContent: "Need to review the gate.",
+    });
+    expect(suggestion.kind).toBe("task");
+    expect(suggestion.confidence).toBe(60);
+    expect(suggestion.rationale).toContain(source);
+    expect(suggestion.rationale).toContain("review before filing");
+  }
+});
+
 test("review and status guards reject stale or repeated decisions", () => {
   expect(() =>
     requireCaptureTriageReview({
