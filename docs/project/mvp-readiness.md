@@ -101,6 +101,8 @@ systems of record, and only then enable separately scoped runner or action
 capabilities. Every real action must name risk, capability, approval behavior,
 and audit evidence as required by
 [security and permissions](../architecture/security-and-permissions.md).
+The [VPS access and onboarding runbook](../operations/vps-access-and-onboarding.md)
+starts with a verified SSH target and read-only inventory of existing services.
 
 This sequence is an operational handoff, not authorization to provision,
 deploy, connect an account, or perform an external action.

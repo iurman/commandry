@@ -2,6 +2,9 @@
 
 **Status: Operational**
 
+For the initial operator connection and a safe inventory of the existing VPS,
+use the [VPS access and onboarding runbook](../docs/operations/vps-access-and-onboarding.md).
+
 `compose.production.yaml` describes the accepted VPS topology but is
 unactivated. It has no published web or database port. Cloudflare Tunnel would
 reach Caddy through the private Compose network. The web application, worker,

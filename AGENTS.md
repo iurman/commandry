@@ -110,6 +110,13 @@ planned behavior as though it already exists.
 
 ## Implementation guardrails
 
+Before changing the existing VPS, identify its host and inventory running
+services, containers, bound ports, network routes, backups, and recovery access.
+Do not stop or reconfigure an existing service without a scoped change and
+rollback plan. Keep SSH private keys and production credentials outside this
+repository; use a dedicated identity for Commandry operations and preserve the
+constrained deployment identity in the accepted deployment strategy.
+
 ADRs 0009 through 0012 are accepted; ADRs 0005 through 0008 are superseded.
 Local application bootstrap may proceed on the accepted Node.js 24, Next.js 16,
 PostgreSQL 18, and separate pg-boss worker architecture. Production provisioning
