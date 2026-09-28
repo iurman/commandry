@@ -2,6 +2,7 @@ import assert from "node:assert/strict";
 import { spawn } from "node:child_process";
 import {
   chmodSync,
+  mkdirSync,
   mkdtempSync,
   readFileSync,
   rmSync,
@@ -71,6 +72,7 @@ async function runAlert(environment) {
 }
 
 test("synthetic backup alert sends once, retries rejection, and resolves", async () => {
+  mkdirSync(resolve(root, ".agent"), { recursive: true, mode: 0o700 });
   const directory = mkdtempSync(resolve(root, ".agent/backup-alert-test-"));
   const received = [];
   let responseStatus = 200;
