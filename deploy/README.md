@@ -51,3 +51,62 @@ Before activation, validate approved image digests and the resolved Compose
 configuration without printing secrets, establish the deployment lock and
 backup gate, and rehearse both release rollback and a real offsite restore.
 Code rollback never reverses a PostgreSQL migration.
+
+## Constrained deployment command, not installed
+
+`commandry-deploy.sh` is a host-side command for a future controlled release.
+No copy of it, its sudo rule, or its gate hooks has been installed on the VPS.
+The installed path is fixed at `/usr/local/sbin/commandry-deploy`; the
+[`sudoers` template](commandry-deploy.sudoers) allows the `commandry-deploy`
+identity to run that command with no arguments. A separate forced SSH command
+and an on-host `sudo -l` plus secret-read denial test are still required before
+this identity can be called constrained. The identity must not join the Docker
+group or own any file below `/opt/commandry` or `/etc/commandry`.
+
+The root-owned, mode `0600` `/etc/commandry/approved-release` is the only
+release input. Its [example](approved-release.example) has deliberately fake
+metadata. An authorized operator must write an exact GHCR image digest,
+40-character Git revision, UTC build time, approval ID, approver, and
+`TARGET=production`. The approval expires within one day; this cap is a
+provisional local control pending a production approval policy. The deployment
+identity can trigger only that approved release; it cannot choose an image or
+edit the approval. The production environment and approval files are root-only.
+Their parent directory,
+the Tunnel credential directory, and `/var/lib/commandry` must be root-owned
+with mode `0700`. The script checks path ownership and write permissions,
+serializes runs with a lock, pulls the digest,
+and compares its repository digest, revision label, and clean-source label to
+the approval. It runs Compose with a fixed project, local Docker socket, and
+scrubbed environment. Docker and hook output are suppressed to avoid logging
+configuration values.
+
+Before migration, the script requires executable, root-owned
+`/usr/local/sbin/commandry-backup-gate` to create a fresh mode `0600`
+`/var/lib/commandry/predeploy-backup.receipt`. The hook receives
+`predeploy <receipt-path>` and must finish a verified offsite snapshot. The
+receipt must have one each of `SNAPSHOT=<64 lowercase hex>`,
+`COMPLETED_AT=<UTC ISO 8601 seconds>`, `OFFSITE=true`, and `VERIFIED=true`;
+the timestamp must be within 30 minutes. The hook must fail when its own
+backup or verification fails. This hook does not exist on the VPS yet. A
+successful receipt alone also cannot replace the separate clean offsite
+restore gate in ADR 0009.
+
+After migration and container health, the script checks `/health/live`,
+`/health/ready`, and exact `/version` identity from inside the web container.
+It then requires root-owned `/usr/local/sbin/commandry-app-smoke` to verify a
+real login, an authenticated read, and one enqueue-to-worker result. The smoke
+hook receives the environment-file path, image digest, and revision. It is not
+installed, so production deployment fails closed. After the hook passes, the
+script starts Caddy and cloudflared, records a root-only JSON event, and saves
+the current release. On failure it restores the prior application image and
+environment, or stops the first-release application containers. The database
+schema is never rolled back.
+
+Run `pnpm production:deploy:test` for a disposable synthetic command rehearsal.
+The tests fake Docker and the two gate hooks, cover successful sequencing,
+digest and provenance rejection, backup failure, non-offsite receipt rejection,
+and code rollback after smoke failure. They do not prove the gate hooks,
+production sign-in, real Docker execution, SSH restrictions, a VPS deployment,
+or an offsite restore. `pnpm release:rehearse` separately exercises real local
+containers and rollback with synthetic data. Do not activate production until
+the remaining readiness gates and explicit release approval are complete.

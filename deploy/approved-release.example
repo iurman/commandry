@@ -1,0 +1,9 @@
+# Illustration only. Install a reviewed release as a root-owned 0600 file at
+# /etc/commandry/approved-release. The deploy identity cannot edit this file.
+TARGET=production
+IMAGE=ghcr.io/example/commandry@sha256:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa
+REVISION=bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb
+BUILD_TIME=2026-09-27T00:00:00Z
+APPROVAL_ID=example-not-approved
+APPROVED_BY=example
+EXPIRES_AT=2026-09-27T00:00:00Z

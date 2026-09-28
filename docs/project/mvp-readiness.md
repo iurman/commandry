@@ -97,7 +97,10 @@ replace the production gates.
 3. **Immutable release and control.** An approved immutable registry image
    digest or signed build chain, production secret handling, deployment
    command restrictions, and rollback rehearsal on the actual host remain to
-   be validated. The unactivated topology and exact procedure are in
+   be validated. A local-only command rehearsal now checks digest and revision
+   approval, backup and smoke gate failures, and code rollback using synthetic
+   hooks; it does not validate the VPS identity or real offsite backup. The
+   unactivated topology and exact procedure are in
    [deploy/README.md](../../deploy/README.md).
 4. **Real sources.** [OQ-005](open-questions.md#oq-005-which-two-integrations-prove-the-vertical-slice) needs one actual development source and one actual
    operational source. Account ownership, source credentials, webhook or poll

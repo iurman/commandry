@@ -244,6 +244,13 @@ paths from real-source and production activation evidence.
   candidate image, and prior image again after code rollback. The immutable
   record and responsive Recovery view label this local evidence; no database
   migration is reversed and no VPS deployment or production login is implied.
+- An uninstalled host-side deployment command now requires a root-owned release
+  approval, exact GHCR image digest and clean revision label, fresh verified
+  offsite backup receipt, Compose and version health, and an application smoke
+  hook before recording success. A synthetic command test proves fail-closed
+  behavior and application-code rollback. The backup and smoke hooks, narrow
+  SSH identity, on-host permissions, offsite restore, and production sign-in
+  remain unverified; no VPS deployment is implied.
 - A host-run local release preflight checks the current Compose PostgreSQL,
   web, worker, and migrator state, shared web/worker image identity, live and
   versioned API reads, a recent worker heartbeat, and the latest passed local
