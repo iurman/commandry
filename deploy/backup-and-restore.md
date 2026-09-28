@@ -175,6 +175,28 @@ failure and staleness alert channel, test a monthly clean restore, and record
 achieved recovery point and time. None of those choices is implied by these
 uninstalled units. Do not treat the nightly status file as restore evidence.
 
+## Monthly isolated restore path, not installed
+
+The uninstalled [monthly service](systemd/commandry-restore-monthly.service)
+and [timer](systemd/commandry-restore-monthly.timer) select the latest retained
+nightly snapshot only if its private success record is fresh under the chosen
+maximum-age policy. The root-owned wrapper shares the deployment lock. On a
+production host, the command reads the current immutable image digest and Git
+revision from `/var/lib/commandry/current-release`, then invokes the existing
+separate-container PostgreSQL and web restore against the R2 snapshot and exact
+dump digest. It requires the restored web health, version, and versioned read
+checks, exact source evidence, no published ports, and complete cleanup before
+recording a private mode `0600` monthly success. A failure marks only the
+latest monthly attempt and preserves the last successful monthly record.
+
+The local `monthly-rehearse` mode completes that same isolated restore with a
+labeled synthetic snapshot. It marks `offsiteVerified` and
+`vpsRecoveryVerified` false. Even a passing future production run will not
+prove recovery of host configuration, PostgreSQL global roles, or an
+authenticated human session; its record keeps `vpsRecoveryVerified` and
+`authenticatedReadVerified` false. A separate clean VPS recovery exercise and
+the production login smoke gate remain required before activation.
+
 Cloudflare documents the [R2 S3 endpoint and bucket-scoped credentials](https://developers.cloudflare.com/r2/get-started/s3/)
 and [jurisdiction-specific endpoints](https://developers.cloudflare.com/r2/reference/data-location/).
 Restic documents its [S3-compatible repository URL and AWS credential variables](https://restic.readthedocs.io/en/stable/030_preparing_a_new_repo.html#s3-compatible-storage).

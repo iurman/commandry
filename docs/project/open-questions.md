@@ -21,9 +21,10 @@ The [current VPS audit](mvp-readiness.md#what-prevents-production-activation)
 now identifies the IONOS Linux L server, its active provider firewall, and
 available console. This question remains open until offsite backup, clean
 restore, and recovery targets are proven.
-The uninstalled nightly backup and hourly health templates require owner-chosen
-retention and maximum-age values. Their journal failures are not yet an
-owner-facing alert channel.
+The uninstalled nightly backup, hourly health, and monthly isolated restore
+templates require owner-chosen retention and maximum-age values. Their journal
+failures are not yet an owner-facing alert channel, and a same-host isolated
+restore does not prove full VPS recovery.
 
 ### OQ-003: What is the first human sign-in and recovery method?
 

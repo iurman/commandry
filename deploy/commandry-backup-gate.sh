@@ -30,6 +30,8 @@ elif [[ $# -eq 1 && "$1" == nightly ]]; then
   entry=commandry-scheduled-backup.mjs
 elif [[ $# -eq 1 && "$1" == health ]]; then
   entry=commandry-backup-health.mjs
+elif [[ $# -eq 1 && "$1" == monthly ]]; then
+  entry=commandry-monthly-restore.mjs
 else
   printf 'Commandry backup gate rejected the invocation.\n' >&2
   exit 1
@@ -42,7 +44,9 @@ for path in "$base" "$runtime_dir" "$script_dir" "$node_bin" "$restic_bin" \
   "$script_dir/commandry-backup-gate.mjs" \
   "$script_dir/commandry-scheduled-backup.mjs" \
   "$script_dir/commandry-backup-health.mjs" \
+  "$script_dir/commandry-monthly-restore.mjs" \
   "$script_dir/host-backup-config.mjs" \
+  "$script_dir/host-backup-status.mjs" \
   "$script_dir/restic-postgres.mjs" \
   "$script_dir/restic-isolated-restore.mjs" \
   "$script_dir/r2-repository.mjs" \
@@ -84,7 +88,8 @@ node_version=$("$node_bin" --version) || {
   printf 'Commandry backup gate could not inspect restic.\n' >&2
   exit 1
 }
-if [[ "$entry" == commandry-scheduled-backup.mjs ]]; then
+if [[ "$entry" == commandry-scheduled-backup.mjs || \
+  "$entry" == commandry-monthly-restore.mjs ]]; then
   [[ ! -L "$state_dir" && -d "$state_dir" ]] || {
     printf 'Commandry nightly backup needs a private state directory.\n' >&2
     exit 1

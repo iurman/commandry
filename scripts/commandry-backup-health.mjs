@@ -1,4 +1,3 @@
-import { lstatSync, readFileSync } from "node:fs";
 import { resolve, sep } from "node:path";
 import { fileURLToPath } from "node:url";
 import {
@@ -6,6 +5,7 @@ import {
   retentionPolicy,
   trustedSource,
 } from "./host-backup-config.mjs";
+import { readStatus, validateStatusDirectory } from "./host-backup-status.mjs";
 
 const root = resolve(fileURLToPath(new URL("..", import.meta.url)));
 const mode = process.argv[2];
@@ -14,24 +14,6 @@ let reason = "STATUS_INVALID";
 
 function fail(code) {
   throw new Error(code);
-}
-
-function readStatus(directory, name, uid) {
-  const path = resolve(directory, name);
-  const entry = lstatSync(path);
-  if (
-    !entry.isFile() ||
-    entry.uid !== uid ||
-    (entry.mode & 0o777) !== 0o600 ||
-    entry.size < 2 ||
-    entry.size > 8192
-  )
-    fail("STATUS_FILE");
-  try {
-    return JSON.parse(readFileSync(path, "utf8"));
-  } catch {
-    fail("STATUS_FILE");
-  }
 }
 
 try {
@@ -47,6 +29,7 @@ try {
     for (const script of [
       "commandry-backup-health.mjs",
       "host-backup-config.mjs",
+      "host-backup-status.mjs",
       "r2-repository.mjs",
     ])
       trustedSource(resolve(root, "scripts", script));
@@ -64,13 +47,7 @@ try {
   } else {
     fail("INVOCATION");
   }
-  const stateDir = lstatSync(directory);
-  if (
-    !stateDir.isDirectory() ||
-    stateDir.uid !== uid ||
-    (stateDir.mode & 0o777) !== 0o700
-  )
-    fail("STATUS_DIRECTORY");
+  validateStatusDirectory(directory, uid);
   reason = "STATUS_FILE";
   const success = readStatus(directory, "backup-last-success.json", uid);
   const attempt = readStatus(directory, "backup-last-attempt.json", uid);

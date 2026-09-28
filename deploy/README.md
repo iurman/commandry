@@ -152,6 +152,11 @@ or a snapshot older than the configured maximum age. Local synthetic rehearsals
 exercise retention and those status states. The timers are not an owner alert
 channel or a monthly clean restore; choosing retention and freshness targets,
 owner-facing alerts, R2 access, and installation remain gates.
+An uninstalled monthly timer can restore a fresh retained snapshot into
+isolated PostgreSQL and web containers using the current approved image. The
+local test runs that path against a synthetic repository. A passing monthly
+run will still leave host-wide recovery and authenticated reads unproven; the
+VPS recovery exercise and human smoke gate remain separate requirements.
 
 Before migration it stops Commandry's existing Tunnel and Caddy services so
 the candidate web process cannot receive public traffic before smoke passes.

@@ -83,7 +83,7 @@ replace the production gates.
    console connected without a reboot, and Grml recovery media is offered
    but was not mounted. No snapshot action appeared for this VPS. No
    application database backup timer appeared in inspected system or user
-   timers. Nightly backup and hourly health timer templates now exist locally;
+   timers. Nightly backup, hourly health, and monthly isolated restore timer templates now exist locally;
    their synthetic rehearsal records private results but they have not been
    installed or run with R2. Exact data center region, provider host-key verification, offsite
    encrypted backup, clean restore, and constrained deployment identity

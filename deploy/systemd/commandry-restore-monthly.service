@@ -1,0 +1,14 @@
+[Unit]
+Description=Commandry monthly isolated offsite PostgreSQL and web restore
+Documentation=file:/opt/commandry/deploy/backup-and-restore.md
+After=docker.service
+
+[Service]
+Type=oneshot
+User=root
+Group=root
+UMask=0077
+ExecStart=/usr/local/sbin/commandry-backup-gate monthly
+TimeoutStartSec=70min
+StandardOutput=journal
+StandardError=journal

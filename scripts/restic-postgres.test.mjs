@@ -321,6 +321,29 @@ test("streamed restic backup restores synthetic data in an isolated app and reje
     assert.equal(healthy.status, "healthy");
     assert.equal(healthy.offsiteStored, false);
     assert.equal(healthy.restoreVerified, false);
+    const monthly = JSON.parse(
+      execute(
+        process.execPath,
+        ["scripts/commandry-monthly-restore.mjs", "monthly-rehearse"],
+        { env: scheduledEnvironment },
+      ),
+    );
+    assert.equal(monthly.outcome, "passed");
+    assert.equal(monthly.sourceLabel, "synthetic-local-monthly");
+    assert.equal(monthly.snapshotId, scheduled.snapshotId);
+    assert.equal(monthly.isolatedRestorePassed, true);
+    assert.equal(monthly.offsiteVerified, false);
+    assert.equal(monthly.authenticatedReadVerified, false);
+    assert.equal(monthly.vpsRecoveryVerified, false);
+    const monthlySuccessPath = resolve(
+      statusDir,
+      "backup-monthly-last-success.json",
+    );
+    assert.equal((await stat(monthlySuccessPath)).mode & 0o777, 0o600);
+    assert.deepEqual(
+      JSON.parse(await readFile(monthlySuccessPath, "utf8")),
+      monthly,
+    );
     await writeFile(
       lastAttemptPath,
       `${JSON.stringify({ ...scheduled, outcome: "running", completedAt: null })}\n`,
@@ -427,6 +450,17 @@ test("streamed restic backup restores synthetic data in an isolated app and reje
     );
     assert.equal(staleHealth.status, 1);
     assert.equal(JSON.parse(staleHealth.stderr).reason, "BACKUP_STALE");
+    const staleMonthly = spawnSync(
+      process.execPath,
+      ["scripts/commandry-monthly-restore.mjs", "monthly-rehearse"],
+      { cwd: root, encoding: "utf8", env: scheduledEnvironment },
+    );
+    assert.equal(staleMonthly.status, 1);
+    assert.equal(JSON.parse(staleMonthly.stderr).reason, "BACKUP_STALE");
+    assert.deepEqual(
+      JSON.parse(await readFile(monthlySuccessPath, "utf8")),
+      monthly,
+    );
     const absent = (args) =>
       spawnSync(runtime.command, [...runtime.prefix, ...args], {
         cwd: root,

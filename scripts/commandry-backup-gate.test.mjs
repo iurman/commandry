@@ -53,7 +53,9 @@ function withHostFixture(callback) {
     "commandry-backup-gate.mjs",
     "commandry-scheduled-backup.mjs",
     "commandry-backup-health.mjs",
+    "commandry-monthly-restore.mjs",
     "host-backup-config.mjs",
+    "host-backup-status.mjs",
     "restic-postgres.mjs",
     "restic-isolated-restore.mjs",
     "r2-repository.mjs",
@@ -112,6 +114,17 @@ function withHostFixture(callback) {
       ],
       { encoding: "utf8" },
     );
+  const runMonthly = () =>
+    spawnSync(
+      "bash",
+      [
+        resolve(root, "deploy/commandry-backup-gate.sh"),
+        "--test-root",
+        fixture,
+        "monthly",
+      ],
+      { encoding: "utf8" },
+    );
   try {
     callback({
       base,
@@ -125,6 +138,7 @@ function withHostFixture(callback) {
       run,
       runNightly,
       runHealth,
+      runMonthly,
     });
   } finally {
     rmSync(fixture, { recursive: true, force: true });
@@ -133,7 +147,17 @@ function withHostFixture(callback) {
 
 test("host backup gate uses a fixed trusted Node 24 runtime", () => {
   withHostFixture(
-    ({ base, node, receipt, image, revision, run, runNightly, runHealth }) => {
+    ({
+      base,
+      node,
+      receipt,
+      image,
+      revision,
+      run,
+      runNightly,
+      runHealth,
+      runMonthly,
+    }) => {
       writeFileSync(
         node,
         `#!/bin/sh\nif [ "$1" = --version ]; then printf 'v24.17.0\\n'; exit 0; fi\nprintf '%s\\n' "$@"\n`,
@@ -159,6 +183,12 @@ test("host backup gate uses a fixed trusted Node 24 runtime", () => {
       assert.deepEqual(health.stdout.trim().split("\n"), [
         resolve(base, "scripts/commandry-backup-health.mjs"),
         "health",
+      ]);
+      const monthly = runMonthly();
+      assert.equal(monthly.status, 0, monthly.stderr);
+      assert.deepEqual(monthly.stdout.trim().split("\n"), [
+        resolve(base, "scripts/commandry-monthly-restore.mjs"),
+        "monthly",
       ]);
     },
   );

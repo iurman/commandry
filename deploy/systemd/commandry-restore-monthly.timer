@@ -1,0 +1,12 @@
+[Unit]
+Description=Verify a retained Commandry offsite snapshot monthly
+
+[Timer]
+OnCalendar=*-*-01 04:30:00 UTC
+RandomizedDelaySec=30min
+AccuracySec=1min
+Persistent=true
+Unit=commandry-restore-monthly.service
+
+[Install]
+WantedBy=timers.target

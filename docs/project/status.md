@@ -283,6 +283,12 @@ paths from real-source and production activation evidence.
   attempt. The local rehearsal uses a labeled synthetic repository. No timer
   is active on the VPS, and owner-selected policy values, owner-facing failure
   alerts, monthly clean restore, and accepted recovery targets remain open.
+- An uninstalled monthly service and timer can select a retained snapshot and
+  current release identity, run the separate-container PostgreSQL and web
+  restore, then record a private result only after read smoke and cleanup pass.
+  Its synthetic local rehearsal is not an offsite or VPS recovery proof. The
+  actual R2 run, host configuration and global-role recovery, authenticated
+  production read, and accepted recovery targets remain unverified.
 - A host-run local release preflight checks the current Compose PostgreSQL,
   web, worker, and migrator state, shared web/worker image identity, live and
   versioned API reads, a recent worker heartbeat, and the latest passed local
