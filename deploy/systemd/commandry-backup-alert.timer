@@ -1,0 +1,11 @@
+[Unit]
+Description=Evaluate Commandry backup alerts every fifteen minutes
+
+[Timer]
+OnCalendar=*-*-* *:00,15,30,45:00 UTC
+AccuracySec=1min
+Persistent=true
+Unit=commandry-backup-alert.service
+
+[Install]
+WantedBy=timers.target

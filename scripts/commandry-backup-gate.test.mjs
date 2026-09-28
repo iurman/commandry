@@ -53,6 +53,7 @@ function withHostFixture(callback) {
     "commandry-backup-gate.mjs",
     "commandry-scheduled-backup.mjs",
     "commandry-backup-health.mjs",
+    "commandry-backup-alert.mjs",
     "commandry-monthly-restore.mjs",
     "host-backup-config.mjs",
     "host-backup-status.mjs",
@@ -116,6 +117,17 @@ function withHostFixture(callback) {
       ],
       { encoding: "utf8" },
     );
+  const runAlert = () =>
+    spawnSync(
+      "bash",
+      [
+        resolve(root, "deploy/commandry-backup-gate.sh"),
+        "--test-root",
+        fixture,
+        "alert",
+      ],
+      { encoding: "utf8" },
+    );
   const runMonthly = () =>
     spawnSync(
       "bash",
@@ -140,6 +152,7 @@ function withHostFixture(callback) {
       run,
       runNightly,
       runHealth,
+      runAlert,
       runMonthly,
     });
   } finally {
@@ -158,6 +171,7 @@ test("host backup gate uses a fixed trusted Node 24 runtime", () => {
       run,
       runNightly,
       runHealth,
+      runAlert,
       runMonthly,
     }) => {
       writeFileSync(
@@ -186,6 +200,12 @@ test("host backup gate uses a fixed trusted Node 24 runtime", () => {
         resolve(base, "scripts/commandry-backup-health.mjs"),
         "health",
       ]);
+      const alert = runAlert();
+      assert.equal(alert.status, 0, alert.stderr);
+      assert.deepEqual(alert.stdout.trim().split("\n"), [
+        resolve(base, "scripts/commandry-backup-alert.mjs"),
+        "alert",
+      ]);
       const monthly = runMonthly();
       assert.equal(monthly.status, 0, monthly.stderr);
       assert.deepEqual(monthly.stdout.trim().split("\n"), [
@@ -197,7 +217,7 @@ test("host backup gate uses a fixed trusted Node 24 runtime", () => {
 });
 
 test("host backup gate rejects missing, writable, symlinked, and wrong-version runtimes", () => {
-  withHostFixture(({ node, restic, run }) => {
+  withHostFixture(({ node, restic, run, runAlert }) => {
     assert.match(run().stderr, /needs root-owned source and runtime files/);
     writeFileSync(node, "#!/bin/sh\nprintf 'v22.0.0\\n'\n", { mode: 0o755 });
     assert.match(run().stderr, /requires Node.js 24/);
@@ -211,6 +231,7 @@ test("host backup gate rejects missing, writable, symlinked, and wrong-version r
     writeFileSync(node, "#!/bin/sh\nprintf 'v24.17.0\\n'\n", { mode: 0o755 });
     rmSync(restic);
     assert.match(run().stderr, /needs root-owned source and runtime files/);
+    assert.equal(runAlert().status, 0);
   });
 });
 
@@ -219,5 +240,13 @@ test("host backup gate rejects a writable imported source before starting Node",
     writeFileSync(node, "#!/bin/sh\nprintf 'v24.17.0\\n'\n", { mode: 0o755 });
     chmodSync(resolve(scripts, "host-backup-config.mjs"), 0o666);
     assert.match(runNightly().stderr, /writable controlled path/);
+  });
+});
+
+test("host alert rejects a writable dispatcher before starting Node", () => {
+  withHostFixture(({ scripts, node, runAlert }) => {
+    writeFileSync(node, "#!/bin/sh\nprintf 'v24.17.0\\n'\n", { mode: 0o755 });
+    chmodSync(resolve(scripts, "commandry-backup-alert.mjs"), 0o666);
+    assert.match(runAlert().stderr, /writable controlled path/);
   });
 });

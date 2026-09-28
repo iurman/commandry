@@ -156,9 +156,12 @@ committed example deliberately sets invalid zeroes. It keeps private
 last-attempt and last-success JSON records and exits nonzero on
 failure. A separate uninstalled hourly health unit fails on a failed attempt
 or a snapshot older than the configured maximum age. Local synthetic rehearsals
-exercise retention and those status states. The timers are not an owner alert
-channel or a monthly clean restore; choosing retention and freshness targets,
-owner-facing alerts, R2 access, and installation remain gates.
+exercise retention and those status states. The uninstalled
+[webhook alert adapter](backup-and-restore.md#provisional-backup-alert-transport-not-installed)
+can deliver and deduplicate failure and resolution events, but its local test
+uses only a synthetic loopback receiver. Choosing retention and freshness
+targets, an approved owner alert receiver, R2 access, and installation remain
+gates.
 An uninstalled monthly timer can apply retained PostgreSQL globals to a
 disposable cluster, extract the private configuration into a disposable
 directory, and restore a fresh database snapshot into isolated PostgreSQL and

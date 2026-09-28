@@ -1,0 +1,13 @@
+[Unit]
+Description=Deliver Commandry backup health alerts through an approved webhook
+Documentation=file:/opt/commandry/deploy/backup-and-restore.md
+
+[Service]
+Type=oneshot
+User=root
+Group=root
+UMask=0077
+ExecStart=/usr/local/sbin/commandry-backup-gate alert
+TimeoutStartSec=45s
+StandardOutput=journal
+StandardError=journal

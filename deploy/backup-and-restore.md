@@ -184,11 +184,46 @@ success remains fresh; an attempt still running after the service's 90-minute
 limit fails as stalled. A local rehearsal checks healthy, in-progress, stalled,
 failed, and stale states. The
 probe's nonzero systemd result and journal entry are machine-readable host
-signals; no owner-facing notification is connected.
+signals. The separate notification path below remains uninstalled.
+
+## Provisional backup alert transport, not installed
+
+The [alert service](systemd/commandry-backup-alert.service) and
+[fifteen-minute timer](systemd/commandry-backup-alert.timer) can run the same
+backup health probe and POST a small JSON firing or resolved event to an
+owner-approved HTTPS webhook. This is a configurable local implementation, not
+a decision about the canonical alert provider or a running owner notification.
+The invalid [example](alert.env.example) documents the private
+`/etc/commandry/alert.env` and separate bearer-token file. Both must be
+root-owned, mode `0600`, and under `/etc/commandry`. The webhook URL cannot
+contain credentials, a query, or a fragment. Redirects are rejected. The
+payload contains the condition, health reason, timestamp, environment, and a
+stable event ID. It contains no backup credential or response body. The
+production payload labels its source as VPS offsite backup health.
+
+The host capability is `commandry.host.backup_alert.dispatch`, with medium
+risk because it sends operational status outside the VPS. It is not exposed to
+product agents. Activation requires explicit owner approval of the receiver,
+its token and delivery policy, plus root-controlled installation of the unit.
+After activation, each delivery or failure records a private mode `0600`
+`/var/lib/commandry/backup-alert-last-attempt.json` audit record. Successful
+delivery updates `backup-alert-state.json`; the next timer run suppresses a
+repeat of the same unresolved reason. A failed delivery remains retryable with
+the same event ID. A healthy probe sends one resolution for an active incident.
+The controlled host wrapper uses a separate lock so overlapping runs cannot
+duplicate delivery, and alert dispatch does not depend on a working restic
+binary. A provider's receipt or acknowledgement semantics, repeat reminders,
+and the final owner channel remain open choices.
+
+`node --test scripts/commandry-backup-alert.test.mjs` rehearses a healthy
+probe, a synthetic failed backup, duplicate suppression, rejected delivery,
+retry, and resolution against a loopback receiver. Its JSON explicitly marks
+the event as simulated and the source as synthetic. It makes no external
+request. Neither the service nor the timer is installed on the VPS.
 
 Before enabling the timers, select retention and maximum-age values based on
-measured data growth and accepted recovery targets, define an owner-facing
-failure and staleness alert channel, test a monthly clean restore, and record
+measured data growth and accepted recovery targets, approve and install an
+owner-facing failure and staleness alert channel, test a monthly clean restore, and record
 achieved recovery point and time. None of those choices is implied by these
 uninstalled units. Do not treat the nightly status file as restore evidence.
 
