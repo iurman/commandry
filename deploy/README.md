@@ -77,7 +77,7 @@ the image has no vulnerabilities. The workflow tags the tested image with its
 commit SHA and a unique workflow run identifier, publishes it to GHCR, pulls
 it back by repository digest, and compares its image ID with the tested local
 image. The resulting digest appears in the workflow summary. The workflow
-has no push trigger or deployment step and has not been dispatched. It does
+has no push trigger or deployment step. It does
 not prove an offsite restore, install any VPS control, or validate production
 ingress; those gates remain open before a deployment approval.
 
@@ -125,6 +125,78 @@ The production-mode test supplies HTTPS proxy headers over a loopback test
 transport and verifies a Secure session cookie; it does not test the real
 Cloudflare Tunnel, Caddy, or VPS access. No production account or recovery
 command has been run on the VPS.
+
+## One-shot host commissioning, not installed
+
+The uninstalled [`commandry-commission.sh`](commandry-commission.sh) prepares
+inert host controls and a restricted `commandry-deploy` SSH identity. It is a
+one-shot root operation, not a deployment. It accepts the exact reviewed source
+revision, SHA-256 values for the controls archive and manifest, Node.js and
+restic binaries, and a separate deployment public key. The operator must copy
+the installer itself into a root-owned, non-writable directory and verify its
+reviewed SHA-256 before executing it. The script checks the ownership and mode
+of its executing copy. It copies every user-staged input into a root-owned
+temporary directory and verifies its hash before parsing or running it. The
+current runtime versions are Node.js 24.20.0 and restic 0.19.1.
+
+All five hash arguments must be literal expected values prepared on the trusted
+local machine, never values recomputed from the files staged on the VPS. The
+controls archive and manifest hashes come from a local bundle generated from
+the exact committed Git tree and a reviewed file list. Record those hashes in
+a trusted local manifest outside VPS staging. The Node.js and restic binary
+hashes come from the verified local runtime bundle and its signed upstream
+checksum evidence. Hash the dedicated local deploy public key separately.
+Check that the bundle revision is the intended Git commit before copying any
+artifact. The installer verifies equality to these values, but cannot decide
+whether caller-provided values are trustworthy.
+
+It refuses any existing Commandry install path or deploy account. The source
+archive must contain only regular files whose names and hashes match the
+reviewed manifest. The installed controls are root-owned. Private state and
+configuration directories have mode `0700`; the installer leaves environment,
+backup, Tunnel, and approval secrets absent. It creates a locked passwordless
+`commandry-deploy` account with a normal shell, no home directory, and only its
+own group. The public key is accepted only through a root-owned authorized-key
+file with a forced dispatcher. A single no-argument sudo rule invokes the
+root-owned deploy command. The appended SSH Match block also requires public
+key authentication and disables TTY, forwarding, and user RC behavior.
+
+Before changing the active SSH configuration, the installer requires explicit
+`--tailnet-context` and `--public-context` arguments. Each contains the actual
+resolved client host, client source address, server local address, and SSH port
+in `host=...,addr=...,laddr=...,lport=22` form. Refresh those values from
+the live SSH connection and host resolver immediately before commissioning.
+The installer validates the sudoers rule, candidate sshd syntax, and effective
+`sshd -T -C` policy for both paths, using both the resolved client name and
+its numeric address as `host` to cover DNS-dependent Match behavior. It
+requires the forced dispatcher, exactly the root-owned key-file path, no
+alternate AuthorizedKeysCommand or trusted user CA, public-key-only
+authentication, and no TTY or forwarding. It checks the installed key file's
+owner and mode, then reloads the existing `ssh` service without stopping it.
+A failed reload restores the previous sshd configuration and removes the new
+key, sudo rule, and deploy account. No Commandry service,
+container, timer, Tunnel, firewall rule, network listener, or external
+connection is started. Ephemera is outside every command in this installer.
+
+On a normal failed run, the installer removes only the new Commandry paths it
+created, including inert controls, wrappers, key, sudo rule, and account, so
+the same reviewed command can be retried. If restoring the previous SSH
+configuration or reloading it fails, it preserves
+`/var/lib/commandry/sshd_config.before-commission`. Use the IONOS recovery
+console to compare that copy with `/etc/ssh/sshd_config` and repair SSH before
+retrying. A hard interruption can leave partially installed paths; inventory
+them and confirm the deploy key, sudo rule, and account are absent before a
+scoped cleanup. The atomic `/run/commandry-commission.lock` directory
+prevents concurrent runs; if left by a crashed process, confirm no
+commissioning process is active before removing it.
+
+After a successful run, inspect `sshd -T -C` using the real client address,
+verify the account is password-locked with no Docker or sudo group, and test
+that a requested command, TTY, unrestricted shell, Docker socket, root shell,
+and production secret read are denied through the new key. The local synthetic
+fixture test proves the install and rollback sequence but does not establish
+actual VPS SSH confinement. Production release, offsite restore, owner sign-in,
+and public ingress remain separate gates.
 
 ## Constrained deployment command, not installed
 
@@ -194,7 +266,8 @@ configuration readback, isolated role application and configuration
 extraction, repository check, exact-digest clean restore, and unexposed web
 read smoke all pass. A local `pnpm backup:restic:test` rehearsal uses a
 synthetic local repository and never writes a production receipt. The hook
-does not exist on the VPS yet, and no R2 bucket or credentials are configured.
+does not exist on the VPS yet. An empty private R2 bucket is reserved, but
+backup credentials and a working offsite restore are not configured.
 
 The uninstalled [nightly host service and timer](systemd/commandry-backup.timer)
 use the same controlled runtime to create encrypted R2 database, PostgreSQL
