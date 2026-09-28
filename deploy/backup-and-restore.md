@@ -131,6 +131,54 @@ configuration snapshot IDs to their SHA-256 digests. The candidate web image
 must be the approved digest with the expected clean source
 revision. No R2 or VPS run has occurred.
 
+The first release has a distinct bootstrap order. The constrained deploy
+command rejects an existing unmarked Commandry database volume and any running
+Commandry web, worker, or ingress service. It creates a new volume with a
+generated identity in its Docker labels, checks those labels before and after
+starting PostgreSQL, and records PostgreSQL's cluster system identifier in a
+private mode `0600` `pending-first-release` marker alongside the approved
+image, revision, and volume identity. It keeps Commandry ingress closed and
+runs the initial migration before this first
+backup. The backup gate then archives the pending marker, reads its encrypted
+bytes back, extracts and checks its exact SHA-256 in the isolated host recovery
+drill, restores the migrated database in separate containers, and ties the
+marker digest to the receipt. Only after the application and worker smoke
+checks and ingress start does the deploy command replace the pending state with
+`current-release`. Both markers also bind the canonical PostgreSQL database
+name. Before any Docker command, the deploy gate requires that name to match
+`DB_NAME` in the private production and backup files and the exact database
+path in both application and migration URLs. Those URLs must target the
+`postgres:5432` Compose service with the expected role, and cannot contain
+query strings, fragments, or ambiguous interpolation. The backup gate checks
+its private `DB_NAME` against the marker before dumping, and the receipt repeats
+the database name for the deploy gate to verify before migration. The production
+environment also requires a single canonical assignment grammar: blank lines,
+comments, and unique uppercase `KEY=value` lines with
+nonempty unquoted printable values. Spaces, quotes, backslashes, `#`, and `$`
+are disallowed in values. Compose `KEY: value` and `export KEY=value` forms,
+malformed lines, and duplicate keys are rejected before Docker starts. A failed first
+release after marker creation stops only
+Commandry web, worker, and ingress started by that attempt while retaining the
+pending marker and database volume for a retry of
+the same approved image, revision, volume, and PostgreSQL cluster. A missing
+pending volume, changed cluster identifier, or crash before the marker is
+recorded requires a separately reviewed recovery path; the command never
+silently initializes a replacement database. Subsequent releases keep the
+backup-before-migration order and restore the prior code and release marker on
+failure. The active `current-release` marker retains the volume name, database
+name, bootstrap label, and PostgreSQL cluster identifier. An upgrade compares those
+to the private environment, Docker volume, and running cluster before its
+backup; it rejects an edited volume name or replacement cluster. If the
+running cluster identity cannot be confirmed after PostgreSQL starts, rollback
+stops Commandry web, worker, and ingress without restarting them against an
+unverified database. The previous release marker and environment are restored,
+but operator recovery must confirm the database before another deployment.
+Pre-database validation failures preserve the running previous release. A legacy
+active marker without volume and database identities has no trustworthy database identity
+and requires operator review before any upgrade. This first-release exception
+has only synthetic local command tests;
+the actual R2 and VPS restore still need proof before production activation.
+
 `pnpm backup:restic:test` also invokes the gate with a synthetic repository
 under `.agent/`. That local mode cannot use an S3 address and emits no
 production receipt. It proves orchestration, failure cleanup, and the restored

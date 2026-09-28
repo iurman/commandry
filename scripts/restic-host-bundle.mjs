@@ -1,5 +1,6 @@
+import { createHash } from "node:crypto";
 import { spawnSync } from "node:child_process";
-import { readdirSync, lstatSync } from "node:fs";
+import { readdirSync, lstatSync, readFileSync } from "node:fs";
 import { basename, dirname, relative, resolve, sep } from "node:path";
 import { fileURLToPath } from "node:url";
 import { detectContainerRuntime } from "./container-runtime.mjs";
@@ -15,6 +16,8 @@ const root = resolve(fileURLToPath(new URL("..", import.meta.url)));
 const mode = process.argv[2];
 const production = mode === "backup" || mode === "verify";
 const backupMode = mode === "backup" || mode === "rehearse";
+const releaseMarker = process.env.COMMANDRY_RELEASE_MARKER ?? "current-release";
+const expectedMarkerSha = process.env.COMMANDRY_RELEASE_MARKER_SHA256 ?? null;
 let phase = "CONFIG";
 
 function fail(code) {
@@ -134,11 +137,9 @@ async function readback(
   if (digest !== item.sha256) fail("READBACK_DIGEST");
   if (
     listTar &&
-    ![
-      "commandry/commandry.env",
-      "commandry/backup.env",
-      "current-release",
-    ].every((name) => entries.has(name))
+    !["commandry/commandry.env", "commandry/backup.env", releaseMarker].every(
+      (name) => entries.has(name),
+    )
   )
     fail("CONFIG_ARCHIVE");
   if (excludedPath && entries.has(excludedPath)) fail("CONFIG_SECRET_ARCHIVED");
@@ -146,6 +147,12 @@ async function readback(
 
 try {
   if (Number(process.versions.node.split(".")[0]) !== 24) fail("NODE_VERSION");
+  if (
+    !["current-release", "pending-first-release"].includes(releaseMarker) ||
+    (expectedMarkerSha !== null && !validDigest(expectedMarkerSha)) ||
+    (releaseMarker === "pending-first-release" && !expectedMarkerSha)
+  )
+    fail("RELEASE_MARKER");
   let config;
   let environment;
   let configDir;
@@ -164,7 +171,13 @@ try {
     ])
       trustedSource(resolve(root, "scripts", script));
     config = parsePrivateConfig();
-    environment = productionBackupEnvironment(config);
+    environment = {
+      ...productionBackupEnvironment(config),
+      COMMANDRY_RELEASE_MARKER: releaseMarker,
+      ...(expectedMarkerSha
+        ? { COMMANDRY_RELEASE_MARKER_SHA256: expectedMarkerSha }
+        : {}),
+    };
     configDir = "/etc/commandry";
     stateDir = "/var/lib/commandry";
     uid = 0;
@@ -214,7 +227,13 @@ try {
       (state.mode & 0o777) !== 0o700
     )
       fail("SOURCE_MODE");
-    sourceTree(resolve(stateDir, "current-release"), uid);
+    const markerPath = resolve(stateDir, releaseMarker);
+    sourceTree(markerPath, uid);
+    const markerSha = createHash("sha256")
+      .update(readFileSync(markerPath))
+      .digest("hex");
+    if (expectedMarkerSha && markerSha !== expectedMarkerSha)
+      fail("RELEASE_MARKER");
     const runtime = detectContainerRuntime();
     if (!runtime) fail("CONTAINER_RUNTIME");
     const compose = [
@@ -259,7 +278,7 @@ try {
           basename(configDir),
           "-C",
           stateDir,
-          "current-release",
+          releaseMarker,
         ],
       ],
       "commandry-config.tar",
@@ -298,6 +317,8 @@ try {
       encryptedReadbackVerified: true,
       globalsApplied: false,
       configurationInstalled: false,
+      releaseMarker,
+      releaseMarkerSha256: expectedMarkerSha,
       offsiteStored: production,
     }),
   );

@@ -1,8 +1,10 @@
-import { randomBytes } from "node:crypto";
+import { createHash, randomBytes } from "node:crypto";
 import { spawnSync } from "node:child_process";
 import {
   chmodSync,
   existsSync,
+  lstatSync,
+  readFileSync,
   renameSync,
   rmSync,
   writeFileSync,
@@ -50,7 +52,42 @@ function validDigest(value) {
   return typeof value === "string" && /^[0-9a-f]{64}$/.test(value);
 }
 
-function writeReceipt(snapshotId, dumpSha256, hostBundle) {
+function releaseState(image, revision) {
+  const stateDir = "/var/lib/commandry";
+  const active = resolve(stateDir, "current-release");
+  const pending = resolve(stateDir, "pending-first-release");
+  const activeEntry = lstatSync(active, { throwIfNoEntry: false });
+  const pendingEntry = lstatSync(pending, { throwIfNoEntry: false });
+  const activeExists = Boolean(activeEntry);
+  const pendingExists = Boolean(pendingEntry);
+  if (activeExists === pendingExists) fail("RELEASE_STATE");
+  const name = pendingExists ? "pending-first-release" : "current-release";
+  const path = pendingExists ? pending : active;
+  const entry = pendingExists ? pendingEntry : activeEntry;
+  if (
+    !entry.isFile() ||
+    entry.uid !== 0 ||
+    (entry.mode & 0o777) !== 0o600 ||
+    entry.nlink !== 1
+  )
+    fail("RELEASE_STATE");
+  const content = readFileSync(path, "utf8");
+  const match = content.match(
+    /^IMAGE=(ghcr\.io\/[^\s@]+@sha256:[0-9a-f]{64})\nREVISION=([0-9a-f]{40})\nVOLUME=(commandry[-_][a-z0-9_.-]{1,100})\nDB_NAME=([a-z_][a-z0-9_]{0,62})\nBOOTSTRAP_ID=([0-9a-f]{32})\nCLUSTER_ID=([1-9][0-9]{14,19})\n$/,
+  );
+  if (
+    !match ||
+    (pendingExists && (match[1] !== image || match[2] !== revision))
+  )
+    fail("RELEASE_STATE");
+  return {
+    name,
+    sha256: createHash("sha256").update(content).digest("hex"),
+    databaseName: match[4],
+  };
+}
+
+function writeReceipt(snapshotId, dumpSha256, hostBundle, release) {
   if (existsSync(receiptPath)) fail("RECEIPT_EXISTS");
   const temporary = `${receiptPath}.${randomBytes(6).toString("hex")}.tmp`;
   try {
@@ -68,6 +105,9 @@ function writeReceipt(snapshotId, dumpSha256, hostBundle) {
         `GLOBALS_SHA256=${hostBundle.globals.sha256}`,
         `CONFIG_SNAPSHOT=${hostBundle.configuration.snapshotId}`,
         `CONFIG_SHA256=${hostBundle.configuration.sha256}`,
+        `RELEASE_STATE=${release.name}`,
+        `RELEASE_MARKER_SHA256=${release.sha256}`,
+        `DB_NAME=${release.databaseName}`,
         "",
       ].join("\n"),
       { flag: "wx", mode: 0o600 },
@@ -83,6 +123,7 @@ try {
   if (Number(process.versions.node.split(".")[0]) !== 24) fail("NODE_VERSION");
   let config;
   let environment;
+  let release = null;
   if (production) {
     if (
       process.getuid?.() !== 0 ||
@@ -107,8 +148,13 @@ try {
     ])
       trustedSource(resolve(root, "scripts", script));
     config = parsePrivateConfig();
+    phase = "RELEASE_STATE";
+    release = releaseState(process.argv[4], process.argv[5]);
+    if (config.DB_NAME !== release.databaseName) fail("DATABASE_IDENTITY");
     environment = {
       ...productionBackupEnvironment(config),
+      COMMANDRY_RELEASE_MARKER: release.name,
+      COMMANDRY_RELEASE_MARKER_SHA256: release.sha256,
       RECOVERY_SOURCE_LABEL: "production-r2",
       RECOVERY_WEB_IMAGE: process.argv[4],
       RECOVERY_WEB_REVISION: process.argv[5],
@@ -152,6 +198,8 @@ try {
     hostBundle.outcome !== "passed" ||
     hostBundle.offsiteStored !== production ||
     hostBundle.encryptedReadbackVerified !== true ||
+    hostBundle.releaseMarker !== (release?.name ?? "current-release") ||
+    hostBundle.releaseMarkerSha256 !== (release?.sha256 ?? null) ||
     ![hostBundle.globals, hostBundle.configuration].every(
       (item) => validDigest(item?.snapshotId) && validDigest(item?.sha256),
     )
@@ -214,13 +262,15 @@ try {
     hostRecovery.resourcesRemoved !== true ||
     hostRecovery.offsiteVerified !== production ||
     hostRecovery.vpsRecoveryVerified !== false ||
+    hostRecovery.releaseMarker !== (release?.name ?? "current-release") ||
+    hostRecovery.releaseMarkerSha256 !== (release?.sha256 ?? null) ||
     hostRecovery.sourceLabel !== environment.RECOVERY_SOURCE_LABEL
   )
     fail("HOST_RECOVERY_RESULT");
 
   if (production) {
     phase = "RECEIPT";
-    writeReceipt(backup.snapshotId, backup.dumpSha256, hostBundle);
+    writeReceipt(backup.snapshotId, backup.dumpSha256, hostBundle, release);
   }
   console.log(
     JSON.stringify({
@@ -247,6 +297,7 @@ try {
         vpsRecoveryVerified: false,
       },
       receiptWritten: production,
+      releaseState: release?.name ?? "current-release",
       restoreEvidencePath: restore.evidencePath,
       recoveryDurationMs: restore.recoveryDurationMs,
       snapshotAgeMs,

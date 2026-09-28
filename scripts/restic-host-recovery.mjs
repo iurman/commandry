@@ -1,6 +1,6 @@
-import { randomBytes } from "node:crypto";
+import { createHash, randomBytes } from "node:crypto";
 import { spawnSync } from "node:child_process";
-import { existsSync, lstatSync } from "node:fs";
+import { existsSync, lstatSync, readFileSync } from "node:fs";
 import { mkdtemp, rm, writeFile } from "node:fs/promises";
 import { basename, dirname, relative, resolve, sep } from "node:path";
 import { Transform } from "node:stream";
@@ -17,6 +17,8 @@ import { pipeAndHash } from "./stream-process.mjs";
 const root = resolve(fileURLToPath(new URL("..", import.meta.url)));
 const mode = process.argv[2];
 const production = mode === "verify";
+const releaseMarker = process.env.COMMANDRY_RELEASE_MARKER ?? "current-release";
+const expectedMarkerSha = process.env.COMMANDRY_RELEASE_MARKER_SHA256 ?? null;
 const sourceLabel = production
   ? "production-r2"
   : process.env.RECOVERY_SOURCE_LABEL || "synthetic-local-rehearsal";
@@ -181,7 +183,9 @@ async function drill(environment, uid, configDir) {
     bundle.globals.snapshotId !== globalsSnapshot ||
     bundle.globals.sha256 !== globalsSha ||
     bundle.configuration.snapshotId !== configSnapshot ||
-    bundle.configuration.sha256 !== configSha
+    bundle.configuration.sha256 !== configSha ||
+    bundle.releaseMarker !== releaseMarker ||
+    bundle.releaseMarkerSha256 !== expectedMarkerSha
   )
     fail("BUNDLE_READBACK");
   const restic = resticRunner(environment);
@@ -210,7 +214,14 @@ async function drill(environment, uid, configDir) {
   privateEntry(resolve(directory, "commandry"), uid, true);
   for (const name of ["commandry.env", "backup.env"])
     privateEntry(resolve(directory, "commandry", name), uid, false);
-  privateEntry(resolve(directory, "current-release"), uid, false);
+  const restoredMarker = resolve(directory, releaseMarker);
+  privateEntry(restoredMarker, uid, false);
+  if (
+    expectedMarkerSha &&
+    createHash("sha256").update(readFileSync(restoredMarker)).digest("hex") !==
+      expectedMarkerSha
+  )
+    fail("RELEASE_MARKER_DIGEST");
   const relativePassword = relative(
     dirname(configDir),
     resolve(environment.RESTIC_PASSWORD_FILE),
@@ -409,6 +420,12 @@ let resourcesRemoved = false;
 try {
   if (Number(process.versions.node.split(".")[0]) !== 24) fail("NODE_VERSION");
   if (
+    !["current-release", "pending-first-release"].includes(releaseMarker) ||
+    (expectedMarkerSha !== null && !validDigest(expectedMarkerSha)) ||
+    (releaseMarker === "pending-first-release" && !expectedMarkerSha)
+  )
+    fail("RELEASE_MARKER");
+  if (
     !["verify", "rehearse"].includes(mode) ||
     process.argv.length !== 7 ||
     process.argv.slice(3).some((value) => !validDigest(value)) ||
@@ -431,7 +448,13 @@ try {
       "stream-process.mjs",
     ])
       trustedSource(resolve(root, "scripts", script));
-    environment = productionBackupEnvironment(parsePrivateConfig());
+    environment = {
+      ...productionBackupEnvironment(parsePrivateConfig()),
+      COMMANDRY_RELEASE_MARKER: releaseMarker,
+      ...(expectedMarkerSha
+        ? { COMMANDRY_RELEASE_MARKER_SHA256: expectedMarkerSha }
+        : {}),
+    };
     configDir = "/etc/commandry";
     uid = 0;
   } else {
@@ -487,6 +510,8 @@ try {
     postgresRoleCount: result?.roleCount ?? null,
     backupReadMembershipVerified: result?.readMembership ?? false,
     postgresImageId: result?.postgresImageId ?? null,
+    releaseMarker,
+    releaseMarkerSha256: expectedMarkerSha,
     isolatedNetwork: result?.isolatedNetwork ?? false,
     resourcesRemoved,
     offsiteVerified: production && outcome === "passed",
