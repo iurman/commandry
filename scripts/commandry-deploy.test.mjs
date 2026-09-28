@@ -47,10 +47,11 @@ fi
 const fakeBackup = String.raw`#!/usr/bin/env bash
 set -euo pipefail
 [[ "$1" == predeploy ]] || exit 2
+[[ "$3" == ghcr.io/*/commandry@sha256:* && "$4" =~ ^[0-9a-f]{40}$ ]] || exit 2
 [[ ! -f "$COMMANDRY_TEST_ROOT/fail-backup" ]] || exit 21
 status=true
 [[ ! -f "$COMMANDRY_TEST_ROOT/non-offsite-backup" ]] || status=false
-printf 'SNAPSHOT=%064d\nCOMPLETED_AT=%s\nOFFSITE=%s\nVERIFIED=true\n' 0 "$(date -u +%Y-%m-%dT%H:%M:%SZ)" "$status" > "$2"
+printf 'SNAPSHOT=%064d\nCOMPLETED_AT=%s\nOFFSITE=%s\nVERIFIED=true\nRESTORE_PASSED=true\nDUMP_SHA256=%064d\n' 0 "$(date -u +%Y-%m-%dT%H:%M:%SZ)" "$status" 1 > "$2"
 chmod 0600 "$2"
 `;
 

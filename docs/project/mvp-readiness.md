@@ -99,7 +99,9 @@ replace the production gates.
    command restrictions, and rollback rehearsal on the actual host remain to
    be validated. A local-only command rehearsal now checks digest and revision
    approval, backup and smoke gate failures, and code rollback using synthetic
-   hooks; it does not validate the VPS identity or real offsite backup. The
+   hooks. A separate backup-gate drill uses a synthetic restic repository and
+   isolated web restore but cannot write an offsite receipt. Neither path
+   validates the VPS identity or real R2 storage. The
    unactivated topology and exact procedure are in
    [deploy/README.md](../../deploy/README.md).
 4. **Real sources.** [OQ-005](open-questions.md#oq-005-which-two-integrations-prove-the-vertical-slice) needs one actual development source and one actual

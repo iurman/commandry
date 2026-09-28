@@ -245,13 +245,16 @@ step=database_readiness
 compose up -d --wait --wait-timeout 120 postgres >/dev/null 2>&1 || failed $?
 step=backup_gate
 rm -f "$backup_receipt"
-hook "$backup_hook" predeploy "$backup_receipt" >/dev/null 2>&1 || failed $?
+hook "$backup_hook" predeploy "$backup_receipt" "$image" "$revision" >/dev/null 2>&1 || failed $?
 trusted_path "$backup_receipt" private
 received_backup_id=$(field "$backup_receipt" SNAPSHOT) || reject 'backup snapshot receipt is invalid'
 backup_time=$(field "$backup_receipt" COMPLETED_AT) || reject 'backup timestamp receipt is invalid'
 backup_offsite=$(field "$backup_receipt" OFFSITE) || reject 'backup location receipt is invalid'
 backup_verified=$(field "$backup_receipt" VERIFIED) || reject 'backup verification receipt is invalid'
-[[ "$received_backup_id" =~ ^[0-9a-f]{64}$ && "$backup_offsite" == true && "$backup_verified" == true ]] ||
+backup_restored=$(field "$backup_receipt" RESTORE_PASSED) || reject 'backup restore receipt is invalid'
+backup_dump_sha=$(field "$backup_receipt" DUMP_SHA256) || reject 'backup digest receipt is invalid'
+[[ "$received_backup_id" =~ ^[0-9a-f]{64}$ && "$backup_dump_sha" =~ ^[0-9a-f]{64}$ && \
+  "$backup_offsite" == true && "$backup_verified" == true && "$backup_restored" == true ]] ||
   reject 'backup receipt does not prove a verified offsite snapshot'
 backup_id=$received_backup_id
 [[ "$backup_time" =~ ^[0-9]{4}-[0-9]{2}-[0-9]{2}T[0-9]{2}:[0-9]{2}:[0-9]{2}Z$ ]] ||

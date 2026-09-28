@@ -241,6 +241,28 @@ test("streamed restic backup restores synthetic data in an isolated app and reje
     const saved = JSON.parse(await readFile(isolated.evidencePath, "utf8"));
     assert.equal(saved.id, isolated.id);
     assert.equal(saved.outcome, "passed");
+    const gate = JSON.parse(
+      execute(
+        process.execPath,
+        ["scripts/commandry-backup-gate.mjs", "rehearse"],
+        {
+          env: scriptEnvironment,
+        },
+      ),
+    );
+    assert.equal(gate.outcome, "passed");
+    assert.equal(gate.mode, "local_rehearsal");
+    assert.equal(gate.offsiteVerified, false);
+    assert.equal(gate.isolatedRestorePassed, true);
+    assert.equal(gate.receiptWritten, false);
+    assert.match(gate.snapshotId, /^[0-9a-f]{64}$/);
+    const gateEvidence = JSON.parse(
+      await readFile(gate.restoreEvidencePath, "utf8"),
+    );
+    assert.equal(gateEvidence.outcome, "passed");
+    assert.equal(gateEvidence.sourceLabel, "synthetic-local-gate");
+    assert.equal(gateEvidence.offsiteVerified, false);
+    assert.equal(gateEvidence.resourcesRemoved, true);
     const absent = (args) =>
       spawnSync(runtime.command, [...runtime.prefix, ...args], {
         cwd: root,

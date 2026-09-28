@@ -5,10 +5,12 @@ import { mkdir, mkdtemp, rm, writeFile } from "node:fs/promises";
 import { dirname, isAbsolute, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
 import { detectContainerRuntime } from "./container-runtime.mjs";
+import { parseR2Repository } from "./r2-repository.mjs";
 import { pipeAndHash } from "./stream-process.mjs";
 
 const root = resolve(dirname(fileURLToPath(import.meta.url)), "..");
 process.chdir(root);
+const production = process.env.APP_ENV === "production";
 if (!process.env.APP_ENV && existsSync(".env.local")) {
   process.loadEnvFile(".env.local");
 }
@@ -47,6 +49,7 @@ const evidence = {
   outcome: "failed",
   startedAt,
   sourceLabel: process.env.RECOVERY_SOURCE_LABEL || "unverified-snapshot",
+  environment: process.env.APP_ENV ?? null,
   snapshotId: process.argv[2] ?? null,
   snapshotTime: null,
   snapshotAgeAtStartMs: null,
@@ -147,8 +150,8 @@ function resticConfig() {
     fail("A full restic snapshot ID is required");
   if (process.argv[3] && !/^[0-9a-f]{64}$/.test(process.argv[3]))
     fail("Expected dump SHA-256 must be a full digest");
-  if (process.env.APP_ENV !== "local")
-    fail("Isolated restore requires APP_ENV=local");
+  if (process.env.APP_ENV !== "local" && !production)
+    fail("Isolated restore requires APP_ENV=local or production");
   if (!/^[a-z_][a-z0-9_]{0,62}$/.test(process.env.DB_NAME || ""))
     fail("DB_NAME must be a simple PostgreSQL identifier");
   if (!/^[a-z0-9][a-z0-9_.-]{0,63}$/.test(evidence.sourceLabel))
@@ -159,9 +162,33 @@ function resticConfig() {
   if (!passwordFile || !isAbsolute(passwordFile))
     fail("RESTIC_PASSWORD_FILE must be absolute");
   const entry = lstatSync(passwordFile);
-  if (!entry.isFile() || entry.size < 32 || (entry.mode & 0o077) !== 0)
+  if (
+    !entry.isFile() ||
+    entry.size < 32 ||
+    (entry.mode & 0o077) !== 0 ||
+    (production && entry.uid !== 0)
+  )
     fail("RESTIC_PASSWORD_FILE must be a private regular file");
-  if (!existsSync(".env.local")) fail("Local Compose environment is missing");
+  const composeEnvFile = production
+    ? "/etc/commandry/commandry.env"
+    : resolve(root, ".env.local");
+  if (!existsSync(composeEnvFile)) fail("Compose environment is missing");
+  if (production) {
+    const composeEnvEntry = lstatSync(composeEnvFile);
+    if (
+      !composeEnvEntry.isFile() ||
+      composeEnvEntry.uid !== 0 ||
+      (composeEnvEntry.mode & 0o077) !== 0 ||
+      !parseR2Repository(process.env.RESTIC_REPOSITORY) ||
+      !/^ghcr\.io\/[^\s@]+@sha256:[0-9a-f]{64}$/.test(
+        process.env.RECOVERY_WEB_IMAGE ?? "",
+      ) ||
+      !/^[0-9a-f]{40}$/.test(process.env.RECOVERY_WEB_REVISION ?? "") ||
+      process.env.RECOVERY_EVIDENCE_DIR !==
+        "/var/lib/commandry/recovery-evidence"
+    )
+      fail("Production restore configuration is invalid");
+  }
   runtime = detectContainerRuntime();
   if (!runtime) fail("A Docker-compatible runtime is unavailable");
   const candidates = process.env.RESTIC_BINARY
@@ -260,15 +287,42 @@ async function isolate(restic) {
   evidence.snapshotAgeAtStartMs = startedMs - snapshotMs;
 
   phase = "SOURCE_IMAGES";
-  const compose = ["compose", "--env-file", ".env.local", "-f", "compose.yaml"];
+  const compose = [
+    "compose",
+    "--env-file",
+    production ? "/etc/commandry/commandry.env" : ".env.local",
+    "-f",
+    production ? "compose.production.yaml" : "compose.yaml",
+  ];
   const postgresContainer = docker([...compose, "ps", "-q", "postgres"]);
-  const webContainer = docker([...compose, "ps", "-q", "web"]);
-  if (!postgresContainer || !webContainer) fail(phase);
+  const webContainer = production
+    ? null
+    : docker([...compose, "ps", "-q", "web"]);
+  if (!postgresContainer || (!production && !webContainer)) fail(phase);
   const postgresImageId = checkedImageId(
     docker(["inspect", postgresContainer, "--format", "{{.Image}}"]),
   );
+  if (production) {
+    const repoDigests = docker([
+      "image",
+      "inspect",
+      process.env.RECOVERY_WEB_IMAGE,
+      "--format",
+      "{{range .RepoDigests}}{{println .}}{{end}}",
+    ]).split("\n");
+    if (!repoDigests.includes(process.env.RECOVERY_WEB_IMAGE))
+      fail("SOURCE_IMAGE_UNVERIFIED");
+  }
   const webImageId = checkedImageId(
-    docker(["inspect", webContainer, "--format", "{{.Image}}"]),
+    production
+      ? docker([
+          "image",
+          "inspect",
+          process.env.RECOVERY_WEB_IMAGE,
+          "--format",
+          "{{.Id}}",
+        ])
+      : docker(["inspect", webContainer, "--format", "{{.Image}}"]),
   );
   const labels = JSON.parse(
     docker(["image", "inspect", webImageId, "--format", "{{json .Labels}}"]),
@@ -276,7 +330,8 @@ async function isolate(restic) {
   const revision = labels["org.opencontainers.image.revision"];
   if (
     labels["org.commandry.source.clean"] !== "true" ||
-    !/^[0-9a-f]{40}$/.test(revision)
+    !/^[0-9a-f]{40}$/.test(revision) ||
+    (production && revision !== process.env.RECOVERY_WEB_REVISION)
   )
     fail("SOURCE_IMAGE_UNVERIFIED");
   evidence.postgresImageId = postgresImageId;
@@ -436,7 +491,7 @@ async function isolate(restic) {
       `APP_ENCRYPTION_KEY=${randomBytes(48).toString("base64url")}`,
       "LOCAL_AUTH_MODE=off",
       `RELEASE_SHA=${revision}`,
-      `RELEASE_IMAGE_DIGEST=${webImageId}`,
+      `RELEASE_IMAGE_DIGEST=${production ? process.env.RECOVERY_WEB_IMAGE : webImageId}`,
       "",
     ].join("\n"),
     { mode: 0o600 },
@@ -469,7 +524,7 @@ async function isolate(restic) {
     project,
     capture,
     revision,
-    imageId: webImageId,
+    imageId: production ? process.env.RECOVERY_WEB_IMAGE : webImageId,
   });
   let smoke = null;
   await waitFor(() => {
@@ -530,7 +585,14 @@ try {
   evidence.completedAt = new Date().toISOString();
   evidence.totalDurationMs = Date.now() - startedMs;
   evidence.failureCode = failureCode;
-  const evidenceDirectory = resolve(root, ".agent/restic-recovery-evidence");
+  evidence.offsiteVerified =
+    evidence.outcome === "passed" &&
+    evidence.resourcesRemoved &&
+    production &&
+    Boolean(parseR2Repository(process.env.RESTIC_REPOSITORY));
+  const evidenceDirectory = production
+    ? "/var/lib/commandry/recovery-evidence"
+    : resolve(root, ".agent/restic-recovery-evidence");
   try {
     await mkdir(evidenceDirectory, { recursive: true, mode: 0o700 });
     const entry = lstatSync(evidenceDirectory);

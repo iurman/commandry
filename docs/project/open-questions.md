@@ -379,6 +379,13 @@ PostgreSQL container, and an unexposed web read smoke. The actual R2
 repository, dedicated key custody and rotation, schedule, retention,
 offsite and VPS restore, and recovery targets remain open.
 
+A provisional deployment backup gate now requires that streamed snapshot to
+pass a separate-container restore with exact dump bytes and a web read smoke
+before it can issue a production receipt. Local rehearsals are explicitly
+synthetic and cannot issue that receipt. The R2 bucket, scoped credentials,
+key custody, timer, alert, retention, production restore, and recovery targets
+still require a production decision and proof.
+
 ### OQ-035: What project lifecycle and overview configuration should be canonical?
 
 The local MVP lets the owner edit a project's name, summary, free-text type,

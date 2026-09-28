@@ -89,3 +89,30 @@ record the achieved recovery point and recovery time. Snapshot age in a local
 drill is not a production recovery point guarantee. These scripts do not
 export cluster-global role definitions or root-owned configuration, so those
 must be captured and tested separately.
+
+## Deployment backup gate
+
+The uninstalled [backup gate](../scripts/commandry-backup-gate.mjs) connects the
+streaming backup to the separate-container restore. Its root-owned
+[host wrapper](commandry-backup-gate.sh) reads a private
+[`backup.env` example](backup.env.example) only after installation under
+`/etc/commandry/backup.env` with mode `0600`. The real configuration requires
+one dedicated restic password file with mode `0600` and bucket-scoped R2 S3
+credentials. The backup key and S3 secret must stay outside this repository.
+The production hook accepts only a canonical Cloudflare R2 endpoint, performs
+an upload and download through restic, checks the exact dump digest, and
+restores into isolated PostgreSQL and web containers without public ports. It
+writes the deployment receipt only after those steps and cleanup pass. The
+candidate web image must be the approved digest with the expected clean source
+revision. No R2 or VPS run has occurred.
+
+`pnpm backup:restic:test` also invokes the gate with a synthetic repository
+under `.agent/`. That local mode cannot use an S3 address and emits no
+production receipt. It proves orchestration, failure cleanup, and the restored
+read path, but it does not prove offsite storage or recovery of root-owned
+configuration and PostgreSQL global roles. Record an actual offsite recovery
+time and point only after the owner approves the bucket and the VPS run passes.
+
+Cloudflare documents the [R2 S3 endpoint and bucket-scoped credentials](https://developers.cloudflare.com/r2/get-started/s3/)
+and [jurisdiction-specific endpoints](https://developers.cloudflare.com/r2/reference/data-location/).
+Restic documents its [S3-compatible repository URL and AWS credential variables](https://restic.readthedocs.io/en/stable/030_preparing_a_new_repo.html#s3-compatible-storage).

@@ -83,13 +83,18 @@ configuration values.
 Before migration, the script requires executable, root-owned
 `/usr/local/sbin/commandry-backup-gate` to create a fresh mode `0600`
 `/var/lib/commandry/predeploy-backup.receipt`. The hook receives
-`predeploy <receipt-path>` and must finish a verified offsite snapshot. The
+`predeploy <receipt-path> <image-digest> <revision>` and must finish a verified
+offsite snapshot and isolated restore. The [host wrapper](commandry-backup-gate.sh)
+and [backup configuration example](backup.env.example) are committed but not
+installed. The
 receipt must have one each of `SNAPSHOT=<64 lowercase hex>`,
 `COMPLETED_AT=<UTC ISO 8601 seconds>`, `OFFSITE=true`, and `VERIFIED=true`;
-the timestamp must be within 30 minutes. The hook must fail when its own
-backup or verification fails. This hook does not exist on the VPS yet. A
-successful receipt alone also cannot replace the separate clean offsite
-restore gate in ADR 0009.
+it also requires `RESTORE_PASSED=true` and a full `DUMP_SHA256`. The timestamp
+must be within 30 minutes. The hook fails unless the streaming backup,
+repository check, exact-digest clean restore, and unexposed web read smoke all
+pass. A local `pnpm backup:restic:test` rehearsal uses a synthetic local
+repository and never writes a production receipt. The hook does not exist on
+the VPS yet, and no R2 bucket or credentials are configured.
 
 After migration and container health, the script checks `/health/live`,
 `/health/ready`, and exact `/version` identity from inside the web container.

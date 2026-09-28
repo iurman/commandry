@@ -2,7 +2,7 @@
 
 **Status: Operational**
 
-**Last updated:** 2026-09-27
+**Last updated:** 2026-09-28
 
 ## Current phase
 
@@ -251,6 +251,13 @@ paths from real-source and production activation evidence.
   behavior and application-code rollback. The backup and smoke hooks, narrow
   SSH identity, on-host permissions, offsite restore, and production sign-in
   remain unverified; no VPS deployment is implied.
+- An uninstalled backup gate now connects the streaming restic dump and exact
+  digest to a separate-container PostgreSQL and web restore. Its local drill
+  uses a labeled synthetic repository, rejects remote addresses, and cannot
+  emit a production offsite receipt. The production path requires root-owned
+  R2 credentials and a canonical R2 endpoint, then checks the approved web
+  image and an isolated read smoke before writing a deployment receipt. No R2
+  account, bucket, credentials, timer, or VPS restore is active.
 - A host-run local release preflight checks the current Compose PostgreSQL,
   web, worker, and migrator state, shared web/worker image identity, live and
   versioned API reads, a recent worker heartbeat, and the latest passed local
