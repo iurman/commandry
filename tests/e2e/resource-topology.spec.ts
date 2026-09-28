@@ -21,12 +21,18 @@ async function createResource(
 async function loadResourceOption(page: Page, selectLabel: string, id: string) {
   const select = page.getByLabel(selectLabel);
   const option = select.locator(`option[value="${id}"]`);
+  const more = page.getByRole("button", {
+    name: "Load more resource choices",
+  });
   while ((await option.count()) === 0) {
+    await expect
+      .poll(
+        async () => (await option.count()) > 0 || (await more.count()) > 0,
+        { timeout: 15_000 },
+      )
+      .toBe(true);
+    if ((await option.count()) > 0) break;
     const before = await select.locator("option").count();
-    const more = page.getByRole("button", {
-      name: "Load more resource choices",
-    });
-    await expect(more).toBeVisible();
     await more.click();
     await expect
       .poll(() => select.locator("option").count())
@@ -117,12 +123,20 @@ test("resource tree, dependency inverse, and labeled synthetic context stay dist
 
   await page.goto("/infrastructure");
   const tree = page.getByRole("list", { name: "Resource hierarchy" });
-  while (
-    (await tree.getByRole("link", { name: provider.name }).count()) === 0
-  ) {
-    await page
-      .getByRole("button", { name: "Load more root resources" })
-      .click();
+  const providerLink = tree.getByRole("link", { name: provider.name });
+  const moreRoots = page.getByRole("button", {
+    name: "Load more root resources",
+  });
+  while ((await providerLink.count()) === 0) {
+    await expect
+      .poll(
+        async () =>
+          (await providerLink.count()) > 0 || (await moreRoots.count()) > 0,
+        { timeout: 15_000 },
+      )
+      .toBe(true);
+    if ((await providerLink.count()) > 0) break;
+    await moreRoots.click();
   }
   await page
     .getByRole("button", { name: `Show children of ${provider.name}` })

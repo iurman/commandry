@@ -67,15 +67,19 @@ release. The normal local app and Storybook continue running separately.
 
 The [release candidate workflow](../.github/workflows/release-candidate.yml)
 can be started manually from the current `main` commit. It runs repository
-checks, built-app smoke tests, desktop and phone browser tests against local
-Compose, and this synthetic production topology rehearsal. It tags the exact
-tested image with its commit SHA and a unique workflow run identifier, then
-publishes that image to GHCR. It pulls the image back by repository digest and
-compares its image ID with the tested local image. The resulting digest appears
-in the workflow summary. The workflow has no push trigger or deployment step
-and has not been dispatched. It does not scan the image or dependencies, prove
-an offsite restore, install any VPS control, or validate production ingress;
-those gates remain open before a deployment approval.
+checks, a production dependency audit, built-app smoke tests, desktop and
+phone browser tests against local Compose, and this synthetic production
+topology rehearsal. It scans the exact tested image with pinned Trivy tooling:
+one pass reports all high and critical findings, and a second pass blocks
+findings with available fixes and high or critical secret findings. Unfixed
+findings remain visible in the workflow summary; a passing gate does not mean
+the image has no vulnerabilities. The workflow tags the tested image with its
+commit SHA and a unique workflow run identifier, publishes it to GHCR, pulls
+it back by repository digest, and compares its image ID with the tested local
+image. The resulting digest appears in the workflow summary. The workflow
+has no push trigger or deployment step and has not been dispatched. It does
+not prove an offsite restore, install any VPS control, or validate production
+ingress; those gates remain open before a deployment approval.
 
 Before activation, validate approved image digests and the resolved Compose
 configuration without printing secrets, establish the deployment lock and

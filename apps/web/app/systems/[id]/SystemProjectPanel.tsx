@@ -121,6 +121,7 @@ export default function SystemProjectPanel({
     if (busy) return;
     setBusy(true);
     setError(null);
+    setSelectedId("");
     try {
       const query = choiceQuery.trim();
       const page = query
@@ -131,7 +132,6 @@ export default function SystemProjectPanel({
       setChoices(page.items);
       setChoiceCursor(page.nextCursor);
       setAppliedChoiceQuery(query);
-      setSelectedId("");
     } catch (cause) {
       setError(
         cause instanceof Error ? cause.message : "Could not find projects.",
@@ -268,6 +268,7 @@ export default function SystemProjectPanel({
           <select
             id="system-project-choice"
             value={selectedId}
+            disabled={busy}
             onChange={(event) => setSelectedId(event.target.value)}
           >
             <option value="">Choose a project</option>

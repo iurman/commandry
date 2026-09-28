@@ -22,7 +22,8 @@ test("a recurring local summary can be created in the UI and yields an audited s
   const localStart = await page.evaluate(() => {
     const due = new Date(Date.now() + 25_000);
     const pad = (value: number) => String(value).padStart(2, "0");
-    return `${due.getFullYear()}-${pad(due.getMonth() + 1)}-${pad(due.getDate())}T${pad(due.getHours())}:${pad(due.getMinutes())}:${pad(due.getSeconds())}`;
+    const seconds = due.getSeconds();
+    return `${due.getFullYear()}-${pad(due.getMonth() + 1)}-${pad(due.getDate())}T${pad(due.getHours())}:${pad(due.getMinutes())}${seconds === 0 ? "" : `:${pad(seconds)}`}`;
   });
   await page.getByLabel("First run (device time)").fill(localStart);
   await page.getByLabel("Repeat every (minutes)").fill("5");

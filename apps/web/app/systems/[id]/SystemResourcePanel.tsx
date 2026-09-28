@@ -123,6 +123,7 @@ export default function SystemResourcePanel({
     if (busy) return;
     setBusy(true);
     setError(null);
+    setSelectedId("");
     try {
       const query = choiceQuery.trim();
       const page = query
@@ -133,7 +134,6 @@ export default function SystemResourcePanel({
       setChoices(page.items);
       setChoiceCursor(page.nextCursor);
       setAppliedChoiceQuery(query);
-      setSelectedId("");
     } catch (cause) {
       setError(
         cause instanceof Error ? cause.message : "Could not find resources.",
@@ -277,6 +277,7 @@ export default function SystemResourcePanel({
           <select
             id="system-resource-choice"
             value={selectedId}
+            disabled={busy}
             onChange={(event) => setSelectedId(event.target.value)}
           >
             <option value="">Choose a resource</option>

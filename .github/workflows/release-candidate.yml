@@ -38,7 +38,7 @@ jobs:
 
       - uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7
         with:
-          node-version: 24.19.0
+          node-version: 24.20.0
           package-manager-cache: false
 
       - name: Set up local test environment
@@ -48,6 +48,9 @@ jobs:
         run: |
           pnpm check
           pnpm exec prettier --check .github/workflows/release-candidate.yml
+
+      - name: Audit production dependencies
+        run: pnpm audit --prod --audit-level high
 
       - name: Run unit and local tests
         run: pnpm test
@@ -86,6 +89,56 @@ jobs:
           image="commandry-local:${GITHUB_SHA}"
           test "$(docker image inspect "$image" --format '{{index .Config.Labels "org.opencontainers.image.revision"}}')" = "$GITHUB_SHA"
           test "$(docker image inspect "$image" --format '{{index .Config.Labels "org.commandry.source.clean"}}')" = true
+
+      - name: Report all high and critical image findings
+        uses: aquasecurity/trivy-action@ed142fd0673e97e23eac54620cfb913e5ce36c25 # v0.36.0
+        with:
+          version: v0.74.0
+          image-ref: commandry-local:${{ github.sha }}
+          scanners: vuln,secret
+          severity: HIGH,CRITICAL
+          format: json
+          output: ${{ runner.temp }}/commandry-image-scan.json
+          exit-code: "0"
+
+      - name: Block fixable high and critical findings and secrets
+        uses: aquasecurity/trivy-action@ed142fd0673e97e23eac54620cfb913e5ce36c25 # v0.36.0
+        with:
+          version: v0.74.0
+          image-ref: commandry-local:${{ github.sha }}
+          scanners: vuln,secret
+          severity: HIGH,CRITICAL
+          ignore-unfixed: true
+          format: json
+          output: ${{ runner.temp }}/commandry-image-gate.json
+          exit-code: "1"
+
+      - name: Summarize image findings without exposing matches
+        if: always()
+        env:
+          IMAGE_SCAN: ${{ runner.temp }}/commandry-image-scan.json
+        run: |
+          node <<'NODE'
+          const fs = require('node:fs');
+          if (!fs.existsSync(process.env.IMAGE_SCAN)) process.exit(0);
+          const report = JSON.parse(fs.readFileSync(process.env.IMAGE_SCAN, 'utf8'));
+          let high = 0;
+          let critical = 0;
+          let fixable = 0;
+          let secrets = 0;
+          for (const result of report.Results ?? []) {
+            for (const finding of result.Vulnerabilities ?? []) {
+              if (finding.Severity === 'HIGH') high++;
+              if (finding.Severity === 'CRITICAL') critical++;
+              if (finding.FixedVersion) fixable++;
+            }
+            secrets += (result.Secrets ?? []).length;
+          }
+          fs.appendFileSync(
+            process.env.GITHUB_STEP_SUMMARY,
+            `## Production image scan\n\n- High: ${high}\n- Critical: ${critical}\n- Fixable high/critical: ${fixable}\n- Secret findings: ${secrets}\n- Unfixed findings are reported but do not block publication. A passing gate does not mean the image has no vulnerabilities.\n\n`
+          );
+          NODE
 
       - name: Log in to GitHub Container Registry
         uses: docker/login-action@c94ce9fb468520275223c153574b00df6fe4bcc9 # v3

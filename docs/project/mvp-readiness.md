@@ -46,9 +46,12 @@ verification false.
 
 An unrun [manual release candidate workflow](../../.github/workflows/release-candidate.yml)
 now prepares a GHCR image from the exact clean image tested by those local
-checks and verifies the published digest by pulling it back. No GHCR release
-digest, image scan, VPS deployment, or production backup result has been
-verified by this workflow yet.
+checks, audits production dependencies, reports high and critical image
+findings, blocks findings with available fixes and high or critical secrets,
+and verifies the published digest by pulling it back. Unfixed vulnerabilities
+are reported rather than silently treated as a clean scan. No GHCR release
+digest, hosted image scan, VPS deployment, or production backup result has
+been verified by this workflow yet.
 
 ## Local review
 
