@@ -12,7 +12,7 @@ export function getAuth() {
       secret: config.betterAuthSecret,
       baseURL: config.appOrigin,
       ...(config.initialAdminEmail && { adminEmail: config.initialAdminEmail }),
-      passwordLoginEnabled: config.localAuthMode === "password",
+      passwordLoginEnabled: config.humanAuthMode === "password",
       trustedOrigins: [
         config.appOrigin,
         ...(config.localAuthTrustedOrigin

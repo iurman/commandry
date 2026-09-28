@@ -8,12 +8,9 @@ import {
 
 async function main() {
   const config = loadRuntimeConfig();
-  if (config.appEnv !== "local" && config.appEnv !== "test") {
-    throw new Error("Owner recovery is available only for local test data.");
-  }
-  if (config.localAuthMode !== "password" || !config.initialAdminEmail) {
+  if (config.humanAuthMode !== "password" || !config.initialAdminEmail) {
     throw new Error(
-      "Set LOCAL_AUTH_MODE=password and INITIAL_ADMIN_EMAIL before local recovery.",
+      "Enable the configured owner password mode and set INITIAL_ADMIN_EMAIL before recovery.",
     );
   }
   if (process.stdin.isTTY) {
@@ -37,6 +34,9 @@ async function main() {
   try {
     const service = createOwnerPasswordRecoveryService(
       createOwnerPasswordRecoveryRepository(connection.db),
+      config.appEnv === "production"
+        ? "vps-operator-cli"
+        : "local-operator-cli",
     );
     const result = await service.recover({
       expectedEmail: config.initialAdminEmail,
@@ -61,7 +61,7 @@ async function main() {
 
 main().catch((error) => {
   console.error(
-    error instanceof Error ? error.message : "Local recovery failed.",
+    error instanceof Error ? error.message : "Owner recovery failed.",
   );
   process.exitCode = 1;
 });

@@ -65,6 +65,8 @@ const evidence = {
   networkInternal: false,
   publishedPorts: null,
   webSmoke: null,
+  isolatedWebAuthMode: "off-for-read-only-restore-check",
+  authenticatedReadVerified: false,
   restoreDurationMs: null,
   recoveryDurationMs: null,
   totalDurationMs: null,

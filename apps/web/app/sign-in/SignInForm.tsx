@@ -30,7 +30,7 @@ export default function SignInForm() {
       router.replace("/");
       router.refresh();
     } catch {
-      setError("Sign-in is unavailable. Try again locally.");
+      setError("Sign-in is unavailable. Try again shortly.");
     } finally {
       setBusy(false);
     }

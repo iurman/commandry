@@ -176,8 +176,11 @@ paths from real-source and production activation evidence.
   trusted. An offline local operator command can replace the owner's password,
   revoke sessions, and write a recovery audit while the web service is stopped;
   a disposable built-app smoke covers denial, sign-in, sign-out, and recovery.
-  The default local review remains open behind test/pass; OQ-003 production
-  recovery, production activation, and human audit attribution remain open.
+  An explicit provisional production password mode is closed by default and
+  has a separate built-app smoke with HTTPS-origin configuration and an
+  operator-labeled reset audit. The default local review remains open behind
+  test/pass; OQ-003, production activation, recovery after VPS access loss, and
+  human audit attribution remain open.
 - Work items now have append-only, cursor-paged local comments with immutable
   bodies and source-labeled search results. URL captures can be filed as
   knowledge links while preserving the original URL; the navigable link omits

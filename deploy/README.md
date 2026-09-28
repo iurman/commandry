@@ -11,9 +11,10 @@ reach Caddy through the private Compose network. The web application, worker,
 and one-shot migrator use the same approved image digest. The local Storybook
 lab is absent.
 
-The application currently rejects `APP_ENV=production` at startup. Do not
-remove that guard or run this file on a VPS until OQ-003 establishes human
-sign-in and recovery. The other deployment gates in
+The application rejects `APP_ENV=production` unless a reviewed environment
+explicitly sets `PRODUCTION_AUTH_MODE=password`, one owner email, and a plain
+HTTPS origin. This is a provisional single-owner password path and does not
+settle OQ-003 or justify running this file on a VPS. The other gates in
 [deployment strategy](../docs/architecture/deployment-strategy.md) also remain:
 VPS inventory and capacity, encrypted offsite backup with an actual restore,
 and constrained deployment controls. The local rehearsal at
@@ -51,6 +52,35 @@ Before activation, validate approved image digests and the resolved Compose
 configuration without printing secrets, establish the deployment lock and
 backup gate, and rehearse both release rollback and a real offsite restore.
 Code rollback never reverses a PostgreSQL migration.
+
+## Provisional owner sign-in and operator recovery, not installed
+
+The single-owner password mode is a reversible implementation option while
+[OQ-003](../docs/project/open-questions.md#oq-003-what-is-the-first-human-sign-in-and-recovery-method)
+stays open. Production requires `PRODUCTION_AUTH_MODE=password` in the private
+environment file, a configured owner email, and an HTTPS origin. The example
+keeps the mode disabled. Public sign-up is closed; the one-time owner bootstrap
+reads the initial password from standard input in a one-shot worker container.
+No owner password belongs in the Compose environment or repository. The
+`test`/`pass` phone preview gate is separate.
+
+The uninstalled [`commandry-owner-recover.sh`](commandry-owner-recover.sh)
+is intended for `/usr/local/sbin/commandry-owner-recover`, owned by root with
+mode `0750`. It accepts no arguments and reads the configured owner email and
+new password as two standard-input lines from an operator terminal. It requires
+root-owned private configuration, shares the deployment lock, stops web,
+changes the password in PostgreSQL, revokes sessions, records an
+`auth.owner_password_recovered` event with actor `vps-operator-cli`, and
+restarts web if it was running. A failed reset still attempts the restart.
+This procedure requires working VPS operator access. The audit actor identifies
+the operator path, not a verified human identity.
+
+`pnpm test:auth-smoke` exercises both local and provisional production
+configuration against disposable PostgreSQL with built web and worker code.
+The production-mode test supplies HTTPS proxy headers over a loopback test
+transport and verifies a Secure session cookie; it does not test the real
+Cloudflare Tunnel, Caddy, or VPS access. No production account or recovery
+command has been run on the VPS.
 
 ## Constrained deployment command, not installed
 

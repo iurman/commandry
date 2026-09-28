@@ -4,7 +4,7 @@ import { eq } from "drizzle-orm";
 import type { CommandryDatabase } from "./client";
 import { authSchema, user } from "./schema";
 
-/** Local password sign-in is provisional; OQ-003 still governs production activation and recovery. */
+/** Owner password sign-in is provisional; OQ-003 still governs the canonical login and recovery choice. */
 export function createAuth(options: {
   db: CommandryDatabase;
   secret: string;

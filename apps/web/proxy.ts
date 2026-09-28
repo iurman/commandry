@@ -26,7 +26,7 @@ export function isMachineAuthPath(pathname: string, method: string): boolean {
 
 export async function proxy(request: NextRequest) {
   const config = loadRuntimeConfig();
-  if (config.localAuthMode !== "password") return NextResponse.next();
+  if (config.humanAuthMode !== "password") return NextResponse.next();
 
   const path = request.nextUrl.pathname;
   if (

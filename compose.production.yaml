@@ -13,6 +13,7 @@ x-runtime-env: &runtime-env
   BETTER_AUTH_SECRET: ${BETTER_AUTH_SECRET:?Set the auth secret}
   APP_ENCRYPTION_KEY: ${APP_ENCRYPTION_KEY:?Set the encryption key}
   INITIAL_ADMIN_EMAIL: ${INITIAL_ADMIN_EMAIL:?Set the approved admin identity}
+  PRODUCTION_AUTH_MODE: ${PRODUCTION_AUTH_MODE:?Set the approved provisional owner sign-in mode}
   RELEASE_SHA: ${RELEASE_SHA:?Set the approved revision}
   RELEASE_IMAGE_DIGEST: ${COMMANDRY_IMAGE:?Set the approved image digest}
   RELEASE_BUILD_TIME: ${RELEASE_BUILD_TIME:?Set the release build time}

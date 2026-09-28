@@ -48,6 +48,7 @@ const environmentSchema = z.object({
   ),
   LOCAL_AUTH_MODE: z.enum(["off", "password"]).default("off"),
   LOCAL_AUTH_TRUSTED_ORIGIN: optionalString,
+  PRODUCTION_AUTH_MODE: z.enum(["disabled", "password"]).default("disabled"),
   RELEASE_SHA: z.string().min(1),
   RELEASE_IMAGE_DIGEST: optionalString,
   RELEASE_BUILD_TIME: z.preprocess(
@@ -85,6 +86,8 @@ export type RuntimeConfig = {
   initialAdminEmail?: string;
   localAuthMode: "off" | "password";
   localAuthTrustedOrigin?: string;
+  productionAuthMode: "disabled" | "password";
+  humanAuthMode: "off" | "password";
   releaseSha: string;
   releaseImageDigest?: string;
   releaseBuildTime?: string;
@@ -118,34 +121,87 @@ export function loadRuntimeConfig(
   }
 
   const value = result.data;
-  if (value.APP_ENV === "preview" || value.APP_ENV === "production") {
+  if (value.APP_ENV === "preview") {
     throw new ConfigurationError(
-      "Public environments are disabled until human sign-in and recovery are decided (OQ-003).",
+      "Preview startup remains disabled until human sign-in and recovery are decided (OQ-003).",
     );
   }
 
   const localHosts = new Set(["127.0.0.1", "localhost", "[::1]"]);
   const origin = new URL(value.APP_ORIGIN);
-  if (
+  const plainOrigin =
+    origin.pathname === "/" &&
+    !origin.search &&
+    !origin.hash &&
+    !origin.username &&
+    !origin.password;
+  const databaseHosts = new Set([...localHosts, "postgres"]);
+  if (value.APP_ENV === "production") {
+    if (value.PRODUCTION_AUTH_MODE !== "password") {
+      throw new ConfigurationError(
+        "Production startup requires explicit PRODUCTION_AUTH_MODE=password; OQ-003 remains open.",
+      );
+    }
+    if (
+      !plainOrigin ||
+      value.APP_ORIGIN !== origin.origin ||
+      origin.protocol !== "https:" ||
+      localHosts.has(origin.hostname) ||
+      !origin.hostname.includes(".") ||
+      !/[a-z]/i.test(origin.hostname) ||
+      isPrivateIPv4Host(origin.hostname) ||
+      origin.port
+    ) {
+      throw new ConfigurationError(
+        "Production APP_ORIGIN must be a public HTTPS origin without a port.",
+      );
+    }
+    if (value.LOCAL_AUTH_MODE !== "off" || value.LOCAL_AUTH_TRUSTED_ORIGIN) {
+      throw new ConfigurationError(
+        "Production cannot use local authentication or a local trusted origin.",
+      );
+    }
+    if (!value.INITIAL_ADMIN_EMAIL) {
+      throw new ConfigurationError(
+        "INITIAL_ADMIN_EMAIL is required for provisional production password sign-in.",
+      );
+    }
+    if (
+      !databaseHosts.has(new URL(value.DATABASE_URL).hostname) ||
+      (value.DATABASE_MIGRATION_URL &&
+        !databaseHosts.has(new URL(value.DATABASE_MIGRATION_URL).hostname))
+    ) {
+      throw new ConfigurationError(
+        "Production PostgreSQL must use a local or private Compose host.",
+      );
+    }
+  } else if (
+    !plainOrigin ||
     origin.protocol !== "http:" ||
-    !localHosts.has(origin.hostname) ||
-    origin.pathname !== "/" ||
-    origin.search ||
-    origin.hash ||
-    origin.username ||
-    origin.password
+    !localHosts.has(origin.hostname)
   ) {
     throw new ConfigurationError(
       "Local runtime APP_ORIGIN must be a plain HTTP loopback origin.",
     );
   }
-  const databaseHosts = new Set([...localHosts, "postgres"]);
-  if (value.LOCAL_AUTH_MODE === "password" && !value.INITIAL_ADMIN_EMAIL) {
+  if (
+    value.APP_ENV !== "production" &&
+    value.PRODUCTION_AUTH_MODE !== "disabled"
+  ) {
+    throw new ConfigurationError(
+      "PRODUCTION_AUTH_MODE is available only in production.",
+    );
+  }
+  if (
+    value.APP_ENV !== "production" &&
+    value.LOCAL_AUTH_MODE === "password" &&
+    !value.INITIAL_ADMIN_EMAIL
+  ) {
     throw new ConfigurationError(
       "INITIAL_ADMIN_EMAIL is required for provisional local password sign-in.",
     );
   }
-  if (value.LOCAL_AUTH_TRUSTED_ORIGIN) {
+  if (value.APP_ENV !== "production" && value.LOCAL_AUTH_TRUSTED_ORIGIN) {
     let trusted: URL;
     try {
       trusted = new URL(value.LOCAL_AUTH_TRUSTED_ORIGIN);
@@ -167,12 +223,16 @@ export function loadRuntimeConfig(
       );
     }
   }
-  if (!databaseHosts.has(new URL(value.DATABASE_URL).hostname)) {
+  if (
+    value.APP_ENV !== "production" &&
+    !databaseHosts.has(new URL(value.DATABASE_URL).hostname)
+  ) {
     throw new ConfigurationError(
       "Local runtime DATABASE_URL must point to local PostgreSQL.",
     );
   }
   if (
+    value.APP_ENV !== "production" &&
     value.DATABASE_MIGRATION_URL &&
     !databaseHosts.has(new URL(value.DATABASE_MIGRATION_URL).hostname)
   ) {
@@ -197,6 +257,9 @@ export function loadRuntimeConfig(
     ...(value.LOCAL_AUTH_TRUSTED_ORIGIN && {
       localAuthTrustedOrigin: value.LOCAL_AUTH_TRUSTED_ORIGIN,
     }),
+    productionAuthMode: value.PRODUCTION_AUTH_MODE,
+    humanAuthMode:
+      value.APP_ENV === "production" ? "password" : value.LOCAL_AUTH_MODE,
     releaseSha: value.RELEASE_SHA,
     ...(value.RELEASE_IMAGE_DIGEST && {
       releaseImageDigest: value.RELEASE_IMAGE_DIGEST,

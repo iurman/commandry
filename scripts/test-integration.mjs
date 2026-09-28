@@ -687,7 +687,12 @@ async function runSmoke(postgres, adminUrl, runtimePassword) {
   }
 }
 
-async function runAuthSmoke(postgres, adminUrl, runtimePassword) {
+async function runAuthSmoke(
+  postgres,
+  adminUrl,
+  runtimePassword,
+  production = false,
+) {
   const webEntry = join(root, "apps/web/.next/standalone/apps/web/server.js");
   const bootstrapEntry = join(root, "apps/worker/dist/bootstrap-local-auth.js");
   const recoveryEntry = join(root, "apps/worker/dist/recover-local-auth.js");
@@ -699,7 +704,10 @@ async function runAuthSmoke(postgres, adminUrl, runtimePassword) {
   }
   const port = await freeLoopbackPort();
   const origin = `http://127.0.0.1:${port}`;
-  const email = "auth-smoke-owner@commandry.test";
+  const appOrigin = production ? "https://commandry.site" : origin;
+  const email = production
+    ? "production-auth-smoke-owner@commandry.test"
+    : "auth-smoke-owner@commandry.test";
   const password = `Auth-Smoke-${randomBytes(16).toString("hex")}`;
   const recoveredPassword = `Recovered-${randomBytes(16).toString("hex")}`;
   const runtimeUrl = new URL(adminUrl);
@@ -707,13 +715,14 @@ async function runAuthSmoke(postgres, adminUrl, runtimePassword) {
   runtimeUrl.password = runtimePassword;
   const environment = {
     NODE_ENV: "production",
-    APP_ENV: "test",
-    APP_ORIGIN: origin,
+    APP_ENV: production ? "production" : "test",
+    APP_ORIGIN: appOrigin,
     DATABASE_URL: runtimeUrl.toString(),
     BETTER_AUTH_SECRET: randomBytes(32).toString("hex"),
     APP_ENCRYPTION_KEY: randomBytes(32).toString("hex"),
     INITIAL_ADMIN_EMAIL: email,
-    LOCAL_AUTH_MODE: "password",
+    LOCAL_AUTH_MODE: production ? "off" : "password",
+    PRODUCTION_AUTH_MODE: production ? "password" : "disabled",
     RELEASE_SHA: "auth-integration-smoke",
     DB_POOL_MAX: "2",
     PORT: String(port),
@@ -732,7 +741,13 @@ async function runAuthSmoke(postgres, adminUrl, runtimePassword) {
       method: "POST",
       headers: {
         "content-type": "application/json",
-        origin,
+        origin: appOrigin,
+        ...(production
+          ? {
+              "x-forwarded-host": "commandry.site",
+              "x-forwarded-proto": "https",
+            }
+          : {}),
         ...(cookie ? { cookie } : {}),
       },
       body: JSON.stringify(body),
@@ -745,6 +760,9 @@ async function runAuthSmoke(postgres, adminUrl, runtimePassword) {
     assert.equal(response.status, 200, await response.text());
     const cookie = response.headers.get("set-cookie")?.split(";", 1)[0];
     assert.ok(cookie?.includes("session_token="));
+    if (production) {
+      assert.match(response.headers.get("set-cookie") ?? "", /Secure/i);
+    }
     return cookie;
   }
   try {
@@ -823,13 +841,16 @@ async function runAuthSmoke(postgres, adminUrl, runtimePassword) {
         "SELECT actor, details FROM audit_event WHERE id = $1 AND operation = 'auth.owner_password_recovered'",
         [evidence.auditEventId],
       );
-      assert.equal(audit.rows[0]?.actor, "local-operator-cli");
+      assert.equal(
+        audit.rows[0]?.actor,
+        production ? "vps-operator-cli" : "local-operator-cli",
+      );
       assert.equal(audit.rows[0]?.details?.revokedSessionCount, 1);
     } finally {
       await client.end();
     }
     console.log(
-      "Built auth smoke passed: unauthorized page/API denial, closed sign-up, owner sign-in and sign-out, offline password recovery, old-session revocation, and recovered read.",
+      `Built ${production ? "provisional production" : "local"} auth smoke passed: unauthorized page/API denial, closed sign-up, owner sign-in and sign-out, offline password recovery, old-session revocation, and recovered read.`,
     );
   } finally {
     await stopService(web);
@@ -895,6 +916,7 @@ try {
   }
   if (process.argv.includes("--smoke") || authOnly) {
     await runAuthSmoke(postgres, connectionString, runtimePassword);
+    await runAuthSmoke(postgres, connectionString, runtimePassword, true);
   }
   if (authOnly) {
     await runTests(

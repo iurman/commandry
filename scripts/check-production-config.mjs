@@ -74,6 +74,10 @@ if (services.worker?.environment?.DATABASE_MIGRATION_URL)
 if (!services.migrate?.environment?.DATABASE_MIGRATION_URL)
   errors.push("migrator credential");
 if (!example) {
+  for (const name of ["migrate", "web", "worker"]) {
+    if (services[name]?.environment?.PRODUCTION_AUTH_MODE !== "password")
+      errors.push(`${name} provisional owner sign-in gate`);
+  }
   for (const name of expectedServices) {
     const image = services[name]?.image;
     if (!digestReference.test(image ?? "")) errors.push(`${name} image digest`);

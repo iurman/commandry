@@ -231,6 +231,11 @@ test("streamed restic backup restores synthetic data in an isolated app and reje
     assert.equal(isolated.captureCount, 1);
     assert.equal(isolated.webSmoke.projectRead, true);
     assert.equal(isolated.webSmoke.captureRead, true);
+    assert.equal(isolated.authenticatedReadVerified, false);
+    assert.equal(
+      isolated.isolatedWebAuthMode,
+      "off-for-read-only-restore-check",
+    );
     assert.equal(isolated.networkInternal, true);
     assert.ok(["{}", "null"].includes(isolated.publishedPorts));
     assert.equal(isolated.resourcesRemoved, true);

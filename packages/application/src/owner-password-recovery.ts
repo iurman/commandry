@@ -2,6 +2,7 @@ export interface OwnerPasswordRecoveryPort {
   resetOnlyOwnerPassword(input: {
     expectedEmail: string;
     newPassword: string;
+    actor: "local-operator-cli" | "vps-operator-cli";
   }): Promise<{ auditEventId: string; revokedSessionCount: number }>;
 }
 
@@ -14,6 +15,7 @@ export class OwnerPasswordRecoveryError extends Error {
 
 export function createOwnerPasswordRecoveryService(
   port: OwnerPasswordRecoveryPort,
+  actor: "local-operator-cli" | "vps-operator-cli" = "local-operator-cli",
 ) {
   return {
     async recover(input: {
@@ -43,6 +45,7 @@ export function createOwnerPasswordRecoveryService(
       return port.resetOnlyOwnerPassword({
         expectedEmail,
         newPassword: input.newPassword,
+        actor,
       });
     },
   };

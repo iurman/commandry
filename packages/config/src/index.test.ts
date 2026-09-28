@@ -71,13 +71,46 @@ describe("runtime configuration", () => {
     }
   });
 
-  it("blocks public environments while sign-in and recovery remain undecided", () => {
+  it("keeps preview and unconfigured production closed", () => {
     expect(() =>
       loadRuntimeConfig({ ...valid, APP_ENV: "production" }),
-    ).toThrow(/OQ-003/);
+    ).toThrow(/PRODUCTION_AUTH_MODE/);
     expect(() => loadRuntimeConfig({ ...valid, APP_ENV: "preview" })).toThrow(
       /OQ-003/,
     );
+  });
+
+  it("requires an explicit bounded production password configuration", () => {
+    const production = {
+      ...valid,
+      APP_ENV: "production",
+      APP_ORIGIN: "https://commandry.site",
+      DATABASE_URL: "postgresql://owner:password@postgres:5432/commandry",
+      INITIAL_ADMIN_EMAIL: "owner@example.test",
+      PRODUCTION_AUTH_MODE: "password",
+    };
+    const config = loadRuntimeConfig(production);
+    expect(config.humanAuthMode).toBe("password");
+    expect(config.productionAuthMode).toBe("password");
+    for (const override of [
+      { APP_ORIGIN: "http://commandry.site" },
+      { APP_ORIGIN: "https://commandry.site:444" },
+      { APP_ORIGIN: "https://commandry.site:443" },
+      { APP_ORIGIN: "https://owner:password@commandry.site" },
+      { APP_ORIGIN: "https://commandry.site/path" },
+      { APP_ORIGIN: "https://127.0.0.1" },
+      { DATABASE_URL: "postgresql://owner:password@db.example/commandry" },
+      { INITIAL_ADMIN_EMAIL: "" },
+      { LOCAL_AUTH_MODE: "password" },
+      { LOCAL_AUTH_TRUSTED_ORIGIN: "http://10.0.0.73:3011" },
+    ]) {
+      expect(() => loadRuntimeConfig({ ...production, ...override })).toThrow(
+        ConfigurationError,
+      );
+    }
+    expect(() =>
+      loadRuntimeConfig({ ...valid, PRODUCTION_AUTH_MODE: "password" }),
+    ).toThrow(/only in production/);
   });
 
   it("requires loopback HTTP and a local PostgreSQL host for this scaffold", () => {

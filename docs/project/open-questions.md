@@ -38,9 +38,12 @@ through its separate test/pass review gate. This experiment is off by default;
 an offline local operator can now reset that one owner's password, revoke all
 sessions, and record an `auth.owner_password_recovered` audit event while web
 traffic is stopped. The built-app smoke checks sign-in, denial, sign-out, and
-recovery against disposable PostgreSQL. This does not decide a production login
-or recovery method, cover loss of VPS operator access, attribute existing
-product audit records to a human, or lift the preview/production config gate.
+recovery against disposable PostgreSQL. A separate opt-in production password
+mode now rehearses the same single-owner session and operator reset path with
+HTTPS-origin constraints and a production-labeled audit actor. It stays closed
+by default and does not decide the canonical login or recovery method, cover
+loss of VPS operator access, or attribute existing product audit records to a
+human. Preview remains blocked; the other production deployment gates remain.
 
 ### OQ-005: Which two integrations prove the vertical slice?
 

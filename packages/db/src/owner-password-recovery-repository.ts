@@ -16,6 +16,7 @@ export function createOwnerPasswordRecoveryRepository(db: CommandryDatabase) {
     async resetOnlyOwnerPassword(input: {
       expectedEmail: string;
       newPassword: string;
+      actor: "local-operator-cli" | "vps-operator-cli";
     }) {
       const passwordHash = await hashPassword(input.newPassword);
       return db.transaction(async (tx) => {
@@ -64,7 +65,7 @@ export function createOwnerPasswordRecoveryRepository(db: CommandryDatabase) {
         const auditEventId = randomUUID();
         await tx.insert(auditEvent).values({
           id: auditEventId,
-          actor: "local-operator-cli",
+          actor: input.actor,
           operation: "auth.owner_password_recovered",
           details: {
             ownerEmail: owner.email.toLowerCase(),

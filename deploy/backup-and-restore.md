@@ -67,6 +67,10 @@ saves a private JSON record under
 `.agent/restic-recovery-evidence/`. It removes the containers, network, volume,
 and temporary credential files on success or failure. The repeatable test also
 checks that a wrong archive digest fails and cleanup succeeds.
+The isolated web process uses local auth-off mode so its read-only database
+role can check restored records without creating a session. Its evidence marks
+`authenticatedReadVerified` false. Production sign-in and worker smoke are
+separate gates that must still pass before a release.
 
 ## Production activation boundary
 

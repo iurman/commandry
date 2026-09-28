@@ -4,17 +4,17 @@ import { createAuth, createDatabase } from "@commandry/db";
 
 async function main() {
   const config = loadRuntimeConfig();
-  if (config.localAuthMode !== "password" || !config.initialAdminEmail) {
+  if (config.humanAuthMode !== "password" || !config.initialAdminEmail) {
     throw new Error(
-      "Set LOCAL_AUTH_MODE=password and INITIAL_ADMIN_EMAIL before local bootstrap.",
+      "Enable the configured owner password mode and set INITIAL_ADMIN_EMAIL before bootstrap.",
     );
   }
   if (process.stdin.isTTY) {
-    throw new Error("Pipe the local password through standard input.");
+    throw new Error("Pipe the owner password through standard input.");
   }
   const password = readFileSync(0, "utf8").replace(/\r?\n$/, "");
   if (password.length < 12 || password.length > 128) {
-    throw new Error("The local password must be 12 to 128 characters.");
+    throw new Error("The owner password must be 12 to 128 characters.");
   }
 
   const connection = createDatabase({
@@ -27,7 +27,7 @@ async function main() {
     );
     if (Number(count.rows[0]?.count) !== 0) {
       throw new Error(
-        "A user already exists. Local bootstrap is one-time only.",
+        "A user already exists. Owner bootstrap is one-time only.",
       );
     }
     const auth = createAuth({
@@ -41,7 +41,7 @@ async function main() {
     });
     const result = await auth.api.signUpEmail({
       body: {
-        name: "Local owner",
+        name: "Commandry owner",
         email: config.initialAdminEmail,
         password,
       },
@@ -51,9 +51,9 @@ async function main() {
       !result.user ||
       result.user.email.toLowerCase() !== config.initialAdminEmail.toLowerCase()
     ) {
-      throw new Error("Local user bootstrap did not return the owner.");
+      throw new Error("Owner bootstrap did not return the configured owner.");
     }
-    console.log(`Created one local Commandry owner: ${result.user.email}`);
+    console.log(`Created one Commandry owner: ${result.user.email}`);
   } finally {
     await connection.close();
   }
@@ -61,7 +61,7 @@ async function main() {
 
 main().catch((error) => {
   console.error(
-    error instanceof Error ? error.message : "Local bootstrap failed.",
+    error instanceof Error ? error.message : "Owner bootstrap failed.",
   );
   process.exitCode = 1;
 });
