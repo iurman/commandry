@@ -29,8 +29,10 @@ application logic stays outside route handlers and the separate pg-boss worker.
 The Storybook lab is local development tooling and is absent from production
 manifests. The app is responsive at desktop and 390px and 320px phone widths.
 The [host-side restic drill](../../deploy/backup-and-restore.md) has also passed
-with a synthetic capture in a local encrypted repository. It is separate from
-the product Recovery screen and does not prove an offsite or VPS restore.
+with a synthetic Project and Capture in a separate PostgreSQL container, an
+internal web read smoke, and a local encrypted repository. It records measured
+time in a private JSON file. It is separate from the product Recovery screen
+and does not prove an offsite or VPS restore.
 
 ## Local review
 

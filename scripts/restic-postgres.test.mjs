@@ -2,7 +2,7 @@ import assert from "node:assert/strict";
 import { spawnSync } from "node:child_process";
 import { randomBytes, randomUUID } from "node:crypto";
 import { existsSync } from "node:fs";
-import { mkdtemp, rm, writeFile } from "node:fs/promises";
+import { mkdtemp, readFile, rm, writeFile } from "node:fs/promises";
 import { dirname, resolve } from "node:path";
 import { test } from "node:test";
 import { fileURLToPath } from "node:url";
@@ -25,7 +25,7 @@ function execute(executable, args, options = {}) {
   return result.stdout;
 }
 
-test("streamed restic backup restores a synthetic capture and rejects a bad digest", async () => {
+test("streamed restic backup restores synthetic data in an isolated app and rejects bad digests", async () => {
   assert.ok(existsSync(resolve(root, ".env.local")));
   if (!process.env.APP_ENV) process.loadEnvFile(resolve(root, ".env.local"));
   assert.equal(process.env.APP_ENV, "local");
@@ -47,6 +47,7 @@ test("streamed restic backup restores a synthetic capture and rejects a bad dige
   );
   assert.ok(restic);
   const database = `commandry_restic_test_${randomBytes(4).toString("hex")}`;
+  const projectId = randomUUID();
   const captureId = randomUUID();
   const fixture = `Synthetic restic test capture ${captureId}`;
   const directory = await mkdtemp(resolve(root, ".agent/restic-test-"));
@@ -81,6 +82,7 @@ test("streamed restic backup restores a synthetic capture and rejects a bad dige
     DB_NAME: database,
     RESTIC_REPOSITORY: repository,
     RESTIC_PASSWORD_FILE: passwordFile,
+    RECOVERY_SOURCE_LABEL: "synthetic-local-test",
   };
   let created = false;
   try {
@@ -136,7 +138,19 @@ test("streamed restic backup restores a synthetic capture and rejects a bad dige
       "-d",
       database,
       "-c",
-      `insert into capture (id, input_type, original_content) values ('${captureId}', 'text', '${fixture}')`,
+      `insert into project (id, name, type) values ('${projectId}', 'Synthetic restic project ${projectId}', 'general')`,
+    ]);
+    inDatabase([
+      "psql",
+      "-X",
+      "-v",
+      "ON_ERROR_STOP=1",
+      "-U",
+      "postgres",
+      "-d",
+      database,
+      "-c",
+      `insert into capture (id, input_type, original_content, project_id) values ('${captureId}', 'text', '${fixture}', '${projectId}')`,
     ]);
     inDatabase([
       "psql",
@@ -184,6 +198,7 @@ test("streamed restic backup restores a synthetic capture and rejects a bad dige
       ),
     );
     assert.equal(restored.outcome, "passed");
+    assert.equal(restored.projectCount, 1);
     assert.equal(restored.captureCount, 1);
     assert.equal(restored.dumpSha256, backup.dumpSha256);
     assert.ok(restored.tableCount > 0);
@@ -199,6 +214,58 @@ test("streamed restic backup restores a synthetic capture and rejects a bad dige
     );
     assert.equal(badDigest.status, 1);
     assert.equal(JSON.parse(badDigest.stderr).reason, "RESTORE_DIGEST");
+    const isolated = JSON.parse(
+      execute(
+        process.execPath,
+        [
+          "scripts/restic-isolated-restore.mjs",
+          backup.snapshotId,
+          backup.dumpSha256,
+        ],
+        { env: scriptEnvironment },
+      ),
+    );
+    assert.equal(isolated.outcome, "passed");
+    assert.equal(isolated.sourceLabel, "synthetic-local-test");
+    assert.equal(isolated.projectCount, 1);
+    assert.equal(isolated.captureCount, 1);
+    assert.equal(isolated.webSmoke.projectRead, true);
+    assert.equal(isolated.webSmoke.captureRead, true);
+    assert.equal(isolated.networkInternal, true);
+    assert.ok(["{}", "null"].includes(isolated.publishedPorts));
+    assert.equal(isolated.resourcesRemoved, true);
+    assert.equal(isolated.offsiteVerified, false);
+    assert.ok(Date.parse(isolated.snapshotTime) > 0);
+    assert.ok(isolated.snapshotAgeAtStartMs >= 0);
+    assert.ok(isolated.recoveryDurationMs > 0);
+    const saved = JSON.parse(await readFile(isolated.evidencePath, "utf8"));
+    assert.equal(saved.id, isolated.id);
+    assert.equal(saved.outcome, "passed");
+    const absent = (args) =>
+      spawnSync(runtime.command, [...runtime.prefix, ...args], {
+        cwd: root,
+        stdio: "ignore",
+      }).status !== 0;
+    assert.ok(absent(["inspect", isolated.resources.web]));
+    assert.ok(absent(["inspect", isolated.resources.postgres]));
+    assert.ok(absent(["network", "inspect", isolated.resources.network]));
+    assert.ok(absent(["volume", "inspect", isolated.resources.volume]));
+    const isolatedBadDigest = spawnSync(
+      process.execPath,
+      [
+        "scripts/restic-isolated-restore.mjs",
+        backup.snapshotId,
+        "0".repeat(64),
+      ],
+      { cwd: root, encoding: "utf8", env: scriptEnvironment },
+    );
+    assert.equal(isolatedBadDigest.status, 1);
+    const rejected = JSON.parse(isolatedBadDigest.stderr);
+    assert.equal(rejected.failureCode, "RESTORE_DIGEST");
+    assert.equal(rejected.resourcesRemoved, true);
+    assert.ok(absent(["inspect", rejected.resources.postgres]));
+    assert.ok(absent(["network", "inspect", rejected.resources.network]));
+    assert.ok(absent(["volume", "inspect", rejected.resources.volume]));
     const residualDatabases = inDatabase([
       "psql",
       "-X",

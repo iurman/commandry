@@ -230,9 +230,10 @@ paths from real-source and production activation evidence.
   by OQ-003 and the deployment prerequisites.
 - A separate host-side restic drill streams a custom PostgreSQL archive from a
   read-only backup role into an encrypted repository. A local test restores an
-  exact snapshot and synthetic capture into a disposable database, compares
-  archive digests, checks role privileges and failure cleanup, then removes its
-  fixture. No offsite repository, timer, or separate-instance VPS restore is
+  exact snapshot and synthetic Project and Capture into a separate disposable
+  PostgreSQL container, starts the clean local web image on an internal network,
+  checks versioned reads, compares archive digests, records measured time, and
+  proves failure cleanup. No offsite repository, timer, or VPS restore is
   active. The [runbook](../../deploy/backup-and-restore.md) records the boundary.
 - A separate local release rehearsal builds two committed application images,
   clones current local data into disposable PostgreSQL, and verifies the web

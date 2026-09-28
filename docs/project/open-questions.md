@@ -370,9 +370,10 @@ storage, restore target, recovery point, and recovery time before production.
 
 A separate host-side restic path now streams a custom-format dump through a
 read-only backup role to a configurable encrypted repository. Its repeatable
-local test uses a synthetic capture and disposable restore database. The actual
-R2 repository, dedicated key custody and rotation, schedule, retention,
-separate-instance restore, and recovery targets remain open.
+local test uses a synthetic Project and Capture, a separate disposable
+PostgreSQL container, and an unexposed web read smoke. The actual R2
+repository, dedicated key custody and rotation, schedule, retention,
+offsite and VPS restore, and recovery targets remain open.
 
 ### OQ-035: What project lifecycle and overview configuration should be canonical?
 

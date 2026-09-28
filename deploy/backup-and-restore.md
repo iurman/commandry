@@ -47,6 +47,27 @@ private local restic repository and disposable schema copy, files a synthetic
 capture, checks the read-only role, proves the restore and digest, rejects a
 wrong digest, and removes its databases and repository.
 
+For an operator-selected snapshot, run the separate-instance drill with the
+full snapshot ID and its recorded dump digest:
+
+```bash
+RECOVERY_SOURCE_LABEL=synthetic-local-test pnpm backup:restic:verify-isolated <full-snapshot-id> <dump-sha256>
+```
+
+Set `RECOVERY_SOURCE_LABEL` to the actual source being tested; the example
+above labels a synthetic local fixture. The drill requires a clean committed
+local web image and the current PostgreSQL image in Compose. It creates a new
+PostgreSQL container and volume on an internal network, restores the snapshot,
+and starts the existing web image with a read-only database role and no
+published port. From inside that web container it checks liveness, readiness,
+version identity, the versioned Project list, and a saved Project and Capture
+when present. The command reports restore and recovery durations in
+milliseconds, plus the snapshot timestamp and its age at drill start, and
+saves a private JSON record under
+`.agent/restic-recovery-evidence/`. It removes the containers, network, volume,
+and temporary credential files on success or failure. The repeatable test also
+checks that a wrong archive digest fails and cleanup succeeds.
+
 ## Production activation boundary
 
 The accepted deployment design calls for a root-owned host timer and a private
@@ -59,9 +80,12 @@ root-owned `RESTIC_PASSWORD_FILE` with mode `0600`, an R2
 environment file. Do not put secret values in a command line, repository file,
 or agent prompt.
 
-The local `verify` target is an empty database in the active PostgreSQL
-container. Before production deployment, restore an offsite snapshot into a
-separate disposable PostgreSQL instance, run application smoke checks against
-it, and record the achieved recovery point and recovery time. The backup
-script does not export cluster-global role definitions or root-owned
-configuration, so those must be captured and tested separately.
+The original local `verify` target is an empty database in the active
+PostgreSQL container. `verify-isolated` uses a separate local container and
+tests the app read path, but its measured time is not a production recovery
+target. Before production deployment, restore an actual offsite snapshot on
+the intended recovery host, run application smoke checks, and agree on and
+record the achieved recovery point and recovery time. Snapshot age in a local
+drill is not a production recovery point guarantee. These scripts do not
+export cluster-global role definitions or root-owned configuration, so those
+must be captured and tested separately.

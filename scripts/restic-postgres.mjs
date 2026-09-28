@@ -1,11 +1,10 @@
-import { createHash, randomBytes } from "node:crypto";
-import { spawn, spawnSync } from "node:child_process";
+import { randomBytes } from "node:crypto";
+import { spawnSync } from "node:child_process";
 import { existsSync, lstatSync } from "node:fs";
 import { dirname, isAbsolute, resolve } from "node:path";
-import { pipeline } from "node:stream/promises";
-import { Transform } from "node:stream";
 import { fileURLToPath } from "node:url";
 import { detectContainerRuntime } from "./container-runtime.mjs";
+import { pipeAndHash } from "./stream-process.mjs";
 
 const root = resolve(dirname(fileURLToPath(import.meta.url)), "..");
 process.chdir(root);
@@ -154,56 +153,6 @@ function databaseQuery(config, database, sql) {
   return run(executable, args);
 }
 
-function onClose(child) {
-  return new Promise((resolve, reject) => {
-    child.once("error", reject);
-    child.once("close", (code) => resolve(code));
-  });
-}
-
-async function pipeAndHash(sourceCommand, targetCommand, onTargetLine) {
-  const source = spawn(sourceCommand[0], sourceCommand[1], { cwd: root });
-  const target = spawn(targetCommand[0], targetCommand[1], { cwd: root });
-  const hash = createHash("sha256");
-  const hasher = new Transform({
-    transform(chunk, _encoding, done) {
-      hash.update(chunk);
-      done(null, chunk);
-    },
-  });
-  let pending = "";
-  target.stdout.setEncoding("utf8");
-  target.stdout.on("data", (chunk) => {
-    pending += chunk;
-    if (pending.length > 128 * 1024) {
-      target.kill();
-      return;
-    }
-    let newline = pending.indexOf("\n");
-    while (newline >= 0) {
-      onTargetLine?.(pending.slice(0, newline));
-      pending = pending.slice(newline + 1);
-      newline = pending.indexOf("\n");
-    }
-  });
-  source.stderr.resume();
-  target.stderr.resume();
-  const results = await Promise.allSettled([
-    pipeline(source.stdout, hasher, target.stdin),
-    onClose(source),
-    onClose(target),
-  ]);
-  if (
-    results.some(
-      (result, index) =>
-        result.status === "rejected" || (index > 0 && result.value !== 0),
-    )
-  )
-    fail(phase);
-  if (pending) onTargetLine?.(pending);
-  return hash.digest("hex");
-}
-
 function checkedSnapshotId(value) {
   if (!/^[0-9a-f]{64}$/.test(value || ""))
     fail("A full restic snapshot ID is required");
@@ -256,6 +205,7 @@ async function backup(config) {
         "--json",
       ],
     ],
+    root,
     (line) => {
       try {
         const data = JSON.parse(line);
@@ -306,6 +256,7 @@ async function verify(config, snapshotId, expectedSha256) {
         "--no-acl",
         "--exit-on-error",
       ]),
+      root,
     );
     if (expectedSha256 && restoredSha256 !== expectedSha256)
       fail("RESTORE_DIGEST");

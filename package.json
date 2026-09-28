@@ -30,6 +30,7 @@
     "backup:local:verify": "node scripts/local-backup.mjs verify",
     "backup:restic": "node scripts/restic-postgres.mjs backup",
     "backup:restic:verify": "node scripts/restic-postgres.mjs verify",
+    "backup:restic:verify-isolated": "node scripts/restic-isolated-restore.mjs",
     "backup:restic:test": "node --test scripts/restic-postgres.test.mjs",
     "auth:bootstrap:local": "node scripts/bootstrap-local-auth.mjs",
     "production:config:check": "node scripts/check-production-config.mjs",

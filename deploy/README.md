@@ -19,8 +19,8 @@ VPS inventory and capacity, encrypted offsite backup with an actual restore,
 and constrained deployment controls. The local rehearsal at
 `pnpm recovery:rehearse` proves only a disposable local logical restore.
 The [restic backup runbook](backup-and-restore.md) covers a streaming local
-backup and restore drill. Its local repository is neither offsite nor a
-separate-instance VPS recovery test.
+backup and isolated PostgreSQL plus web smoke drill. Its local repository is
+neither offsite nor a VPS recovery test.
 `pnpm backup:local` encrypts the current local PostgreSQL archive and verifies
 it in a disposable database. Its ignored `.agent/local-backups/` file stays on
 the same machine and requires the local application encryption key. The
