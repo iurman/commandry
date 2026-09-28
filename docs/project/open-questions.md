@@ -44,6 +44,12 @@ HTTPS-origin constraints and a production-labeled audit actor. It stays closed
 by default and does not decide the canonical login or recovery method, cover
 loss of VPS operator access, or attribute existing product audit records to a
 human. Preview remains blocked; the other production deployment gates remain.
+The uninstalled deployment smoke path can provision the first owner during an
+approved release, records an `auth.owner_bootstrapped` audit with an operator
+path, and verifies a protected read plus a separate worker result. It has only
+local built-app and fake-host tests. A failed first release does not remove the
+created account, and this path does not settle device-loss or VPS-access-loss
+recovery.
 
 ### OQ-005: Which two integrations prove the vertical slice?
 

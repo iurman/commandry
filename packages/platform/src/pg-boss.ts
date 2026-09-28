@@ -69,6 +69,7 @@ export const LOCAL_AUTOMATION_DEAD_LETTER_QUEUE =
 export const WORK_RECURRENCE_QUEUE = "commandry-work-recurrence-v1";
 export const WORK_RECURRENCE_DEAD_LETTER_QUEUE =
   "commandry-work-recurrence-dlq";
+export const DEPLOYMENT_SMOKE_QUEUE = "commandry-deployment-smoke-v1";
 
 function bossOptions(connectionString: string, max: number, migrate: boolean) {
   return {
@@ -154,6 +155,7 @@ export async function installPgBossSchema(options: {
       retryBackoff: true,
       deadLetter: WORK_RECURRENCE_DEAD_LETTER_QUEUE,
     });
+    await boss.createQueue(DEPLOYMENT_SMOKE_QUEUE, { retryLimit: 0 });
   } finally {
     await boss.stop();
   }

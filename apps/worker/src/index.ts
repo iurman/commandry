@@ -26,6 +26,8 @@ import {
   simulatedApprovalJobV1Schema,
   syntheticEventImportJobV1Schema,
   syntheticJobV1Schema,
+  deploymentSmokeJobV1Schema,
+  deploymentSmokeResultV1Schema,
   workRecurrenceJobV1Schema,
 } from "@commandry/contracts";
 import {
@@ -64,6 +66,7 @@ import {
   SYNTHETIC_EVENT_IMPORT_QUEUE,
   SYNTHETIC_QUEUE,
   WORK_RECURRENCE_QUEUE,
+  DEPLOYMENT_SMOKE_QUEUE,
 } from "@commandry/platform";
 
 const config = loadRuntimeConfig();
@@ -282,6 +285,24 @@ await transport.boss.work(SYNTHETIC_QUEUE, async ([job]) => {
     });
     throw error;
   }
+});
+await transport.boss.work(DEPLOYMENT_SMOKE_QUEUE, async ([job]) => {
+  if (!job) throw new Error("pg-boss delivered an empty deployment probe");
+  const input = deploymentSmokeJobV1Schema.parse(job.data);
+  if (input.releaseSha !== config.releaseSha) {
+    throw new Error("Deployment probe revision does not match the worker");
+  }
+  const result = deploymentSmokeResultV1Schema.parse({
+    version: 1,
+    probeId: input.probeId,
+    releaseSha: config.releaseSha,
+    workerId,
+  });
+  log("info", "deployment_smoke.completed", {
+    probeId: input.probeId,
+    jobId: job.id,
+  });
+  return result;
 });
 await transport.boss.work(SYNTHETIC_EVENT_IMPORT_QUEUE, async ([job]) => {
   if (!job) throw new Error("pg-boss delivered an empty import job batch");

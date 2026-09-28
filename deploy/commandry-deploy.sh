@@ -44,10 +44,17 @@ event_log=$state_dir/deployments.jsonl
 compose_file=$base/compose.production.yaml
 backup_hook=$hook_dir/commandry-backup-gate
 smoke_hook=$hook_dir/commandry-app-smoke
+smoke_validator=$base/deploy/validate-app-smoke-receipt.py
+smoke_receipt=$state_dir/app-smoke.latest.json
 step=preflight
 mutated=false
 backup_id=''
 rollback_result=not_needed
+smoke_verified=false
+smoke_job_id=''
+owner_bootstrapped=false
+prior_caddy=false
+prior_cloudflared=false
 image=''
 revision=''
 approval_id=''
@@ -110,8 +117,8 @@ field() {
 event() {
   local result=$1 now
   now=$(date -u +%Y-%m-%dT%H:%M:%SZ)
-  printf '{"time":"%s","mode":"%s","actor":"%s","result":"%s","step":"%s","image":"%s","revision":"%s","approvalId":"%s","approvedBy":"%s","backupSnapshot":"%s","rollback":"%s"}\n' \
-    "$now" "$mode" "$actor" "$result" "$step" "$image" "$revision" "$approval_id" "$approved_by" "$backup_id" "$rollback_result" >> "$event_log"
+  printf '{"time":"%s","mode":"%s","actor":"%s","result":"%s","step":"%s","image":"%s","revision":"%s","approvalId":"%s","approvedBy":"%s","backupSnapshot":"%s","smokeVerified":%s,"smokeJobId":"%s","ownerBootstrapped":%s,"rollback":"%s"}\n' \
+    "$now" "$mode" "$actor" "$result" "$step" "$image" "$revision" "$approval_id" "$approved_by" "$backup_id" "$smoke_verified" "$smoke_job_id" "$owner_bootstrapped" "$rollback_result" >> "$event_log"
 }
 
 restore_previous_env() {
@@ -126,6 +133,12 @@ rollback() {
   if [[ -f "$current_release" ]]; then
     restore_previous_env || return 1
     compose up --no-deps -d --wait --wait-timeout 120 web worker >/dev/null 2>&1 || return 1
+    local restore_ingress=()
+    [[ "$prior_caddy" != true ]] || restore_ingress+=(caddy)
+    [[ "$prior_cloudflared" != true ]] || restore_ingress+=(cloudflared)
+    if (( ${#restore_ingress[@]} > 0 )); then
+      compose up --no-deps -d --wait --wait-timeout 120 "${restore_ingress[@]}" >/dev/null 2>&1 || return 1
+    fi
     rollback_result=previous_code_restored
   else
     compose stop cloudflared caddy web worker >/dev/null 2>&1 || return 1
@@ -158,6 +171,7 @@ for path in "$config_dir" "$config_dir/cloudflared" "$state_dir"; do
 done
 trusted_path "$compose_file" file
 trusted_path "$base/deploy/Caddyfile" file
+trusted_path "$smoke_validator" file
 for path in "$base/docker/postgres/initdb/"*; do
   [[ -e "$path" ]] || reject 'PostgreSQL initialization files are missing'
   trusted_path "$path" file
@@ -264,6 +278,11 @@ now_epoch=$(date -u +%s)
 (( backup_epoch <= now_epoch + 60 && backup_epoch >= now_epoch - 1800 )) ||
   reject 'backup snapshot is stale or future-dated'
 
+step=ingress_quiesce
+running_ingress=$(compose ps --status running --services caddy cloudflared) || failed $?
+if grep -Fxq caddy <<< "$running_ingress"; then prior_caddy=true; fi
+if grep -Fxq cloudflared <<< "$running_ingress"; then prior_cloudflared=true; fi
+compose stop cloudflared caddy >/dev/null 2>&1 || failed $?
 step=migration
 compose run --rm --no-deps migrate >/dev/null 2>&1 || failed $?
 step=application_start
@@ -284,7 +303,13 @@ compose exec -T web node -e '
   })().catch(() => process.exit(1));
 ' >/dev/null 2>&1 || failed $?
 step=application_smoke
+rm -f "$smoke_receipt"
 hook "$smoke_hook" "$env_file" "$image" "$revision" >/dev/null 2>&1 || failed $?
+trusted_path "$smoke_receipt" private
+python3 "$smoke_validator" "$smoke_receipt" "$image" "$revision" || failed $?
+smoke_job_id=$(python3 -c 'import json,sys; print(json.load(open(sys.argv[1]))["workerJobId"])' "$smoke_receipt") || failed $?
+owner_bootstrapped=$(python3 -c 'import json,sys; print(str(json.load(open(sys.argv[1]))["bootstrapCreated"]).lower())' "$smoke_receipt") || failed $?
+smoke_verified=true
 step=ingress_start
 compose up --no-deps -d --wait --wait-timeout 120 caddy cloudflared >/dev/null 2>&1 || failed $?
 

@@ -64,6 +64,16 @@ reads the initial password from standard input in a one-shot worker container.
 No owner password belongs in the Compose environment or repository. The
 `test`/`pass` phone preview gate is separate.
 
+During an approved first release, the application smoke command creates the
+configured owner only when the user table is empty. This is a sensitive action
+requiring root-controlled deployment access and the exact release approval;
+it is never an agent capability. It records `auth.owner_bootstrapped` with the
+operator path and release revision, then tests an owner login, a protected API
+read, probe-session revocation, and a versioned job completed by the separate
+worker. If a later gate fails, the account remains in PostgreSQL because
+application rollback does not undo data changes. Recovery after loss of VPS
+operator access and human audit attribution remain open.
+
 The uninstalled [`commandry-owner-recover.sh`](commandry-owner-recover.sh)
 is intended for `/usr/local/sbin/commandry-owner-recover`, owned by root with
 mode `0750`. It accepts no arguments and reads the configured owner email and
@@ -75,8 +85,9 @@ restarts web if it was running. A failed reset still attempts the restart.
 This procedure requires working VPS operator access. The audit actor identifies
 the operator path, not a verified human identity.
 
-`pnpm test:auth-smoke` exercises both local and provisional production
-configuration against disposable PostgreSQL with built web and worker code.
+`pnpm test:auth-smoke` exercises the first-owner, authenticated read, sign-out,
+and worker probe against disposable PostgreSQL with built web and worker code;
+it also exercises provisional production sign-in and recovery configuration.
 The production-mode test supplies HTTPS proxy headers over a loopback test
 transport and verifies a Secure session cookie; it does not test the real
 Cloudflare Tunnel, Caddy, or VPS access. No production account or recovery
@@ -126,22 +137,37 @@ pass. A local `pnpm backup:restic:test` rehearsal uses a synthetic local
 repository and never writes a production receipt. The hook does not exist on
 the VPS yet, and no R2 bucket or credentials are configured.
 
+Before migration it stops Commandry's existing Tunnel and Caddy services so
+the candidate web process cannot receive public traffic before smoke passes.
+If a later gate fails, rollback restarts the prior web, worker, Caddy, and
+Tunnel services. Ephemera and other unrelated services are outside this
+Compose project and are not touched by the command.
 After migration and container health, the script checks `/health/live`,
 `/health/ready`, and exact `/version` identity from inside the web container.
 It then requires root-owned `/usr/local/sbin/commandry-app-smoke` to verify a
 real login, an authenticated read, and one enqueue-to-worker result. The smoke
-hook receives the environment-file path, image digest, and revision. It is not
-installed, so production deployment fails closed. After the hook passes, the
+hook receives the environment-file path, image digest, and revision and reads
+the owner email and password from standard input. The committed
+[`host wrapper`](commandry-app-smoke.sh) runs the one-shot worker command in
+the private Compose network. It writes a fresh mode `0600` receipt under
+`/var/lib/commandry` only after the exact release, login, read, sign-out,
+and worker result match. The deployment command independently validates that
+receipt before ingress starts. The hook is not installed, so production
+deployment still fails closed. After the hook passes, the
 script starts Caddy and cloudflared, records a root-only JSON event, and saves
 the current release. On failure it restores the prior application image and
 environment, or stops the first-release application containers. The database
 schema is never rolled back.
+The deployment event records whether smoke passed, its worker job ID, and
+whether the first owner was created; the private receipt retains the exact
+image and revision for local audit.
 
 Run `pnpm production:deploy:test` for a disposable synthetic command rehearsal.
 The tests fake Docker and the two gate hooks, cover successful sequencing,
 digest and provenance rejection, backup failure, non-offsite receipt rejection,
-and code rollback after smoke failure. They do not prove the gate hooks,
-production sign-in, real Docker execution, SSH restrictions, a VPS deployment,
-or an offsite restore. `pnpm release:rehearse` separately exercises real local
+and code rollback after smoke failure. Separate local tests exercise the app
+smoke wrapper and the real built web plus worker probe. They do not prove
+production sign-in through Tunnel and Caddy, real VPS Docker execution, SSH
+restrictions, or an offsite restore. `pnpm release:rehearse` separately exercises real local
 containers and rollback with synthetic data. Do not activate production until
 the remaining readiness gates and explicit release approval are complete.

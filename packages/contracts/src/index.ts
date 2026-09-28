@@ -3136,6 +3136,19 @@ export const syntheticJobV1Schema = z.object({
   occurrenceId: z.string().min(1).max(200),
 });
 
+export const deploymentSmokeJobV1Schema = z.strictObject({
+  version: z.literal(1),
+  probeId: z.uuid(),
+  releaseSha: z.string().min(1).max(80),
+});
+
+export const deploymentSmokeResultV1Schema = z.strictObject({
+  version: z.literal(1),
+  probeId: z.uuid(),
+  releaseSha: z.string().min(1).max(80),
+  workerId: z.uuid(),
+});
+
 export const syntheticRunSchema = z.object({
   id: z.uuid(),
   occurrenceId: z.string(),
@@ -3493,4 +3506,8 @@ export type SimulatedApprovalJobV1 = z.infer<
   typeof simulatedApprovalJobV1Schema
 >;
 export type SyntheticJobV1 = z.infer<typeof syntheticJobV1Schema>;
+export type DeploymentSmokeJobV1 = z.infer<typeof deploymentSmokeJobV1Schema>;
+export type DeploymentSmokeResultV1 = z.infer<
+  typeof deploymentSmokeResultV1Schema
+>;
 export type SyntheticRunResponse = z.infer<typeof syntheticRunSchema>;

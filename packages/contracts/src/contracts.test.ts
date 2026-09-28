@@ -15,6 +15,8 @@ import {
   listResourcesQuerySchema,
   searchQuerySchema,
   syntheticJobV1Schema,
+  deploymentSmokeJobV1Schema,
+  deploymentSmokeResultV1Schema,
 } from "./index.js";
 
 test("resource pagination has a bounded default", () => {
@@ -30,6 +32,25 @@ test("synthetic jobs are versioned", () => {
       version: 2,
       runId: crypto.randomUUID(),
       occurrenceId: "x",
+    }).success,
+  ).toBe(false);
+});
+
+test("deployment probes bind job and result to one release", () => {
+  const probeId = crypto.randomUUID();
+  expect(
+    deploymentSmokeJobV1Schema.parse({
+      version: 1,
+      probeId,
+      releaseSha: "a".repeat(40),
+    }).probeId,
+  ).toBe(probeId);
+  expect(
+    deploymentSmokeResultV1Schema.safeParse({
+      version: 1,
+      probeId,
+      releaseSha: "a".repeat(40),
+      workerId: "not-a-uuid",
     }).success,
   ).toBe(false);
 });

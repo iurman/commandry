@@ -18,6 +18,7 @@ await build({
     "src/migrate.ts",
     "src/bootstrap-local-auth.ts",
     "src/recover-local-auth.ts",
+    "src/deployment-smoke.ts",
   ],
   outdir: "dist",
   bundle: true,

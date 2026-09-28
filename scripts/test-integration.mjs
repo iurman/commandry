@@ -82,8 +82,8 @@ async function stopService(service) {
   ]);
 }
 
-async function runOneShot(name, entrypoint, environment, input) {
-  const child = spawn(process.execPath, [entrypoint], {
+async function runOneShot(name, entrypoint, environment, input, args = []) {
+  const child = spawn(process.execPath, [entrypoint, ...args], {
     cwd: root,
     env: { ...process.env, ...environment },
     stdio: ["pipe", "pipe", "pipe"],
@@ -696,7 +696,18 @@ async function runAuthSmoke(
   const webEntry = join(root, "apps/web/.next/standalone/apps/web/server.js");
   const bootstrapEntry = join(root, "apps/worker/dist/bootstrap-local-auth.js");
   const recoveryEntry = join(root, "apps/worker/dist/recover-local-auth.js");
-  for (const entry of [webEntry, bootstrapEntry, recoveryEntry]) {
+  const workerEntry = join(root, "apps/worker/dist/index.js");
+  const deploymentSmokeEntry = join(
+    root,
+    "apps/worker/dist/deployment-smoke.js",
+  );
+  for (const entry of [
+    webEntry,
+    bootstrapEntry,
+    recoveryEntry,
+    workerEntry,
+    deploymentSmokeEntry,
+  ]) {
     if (!existsSync(entry))
       throw new Error(
         `Build artifact is missing: ${entry}. Run pnpm build first.`,
@@ -723,19 +734,27 @@ async function runAuthSmoke(
     INITIAL_ADMIN_EMAIL: email,
     LOCAL_AUTH_MODE: production ? "off" : "password",
     PRODUCTION_AUTH_MODE: production ? "password" : "disabled",
-    RELEASE_SHA: "auth-integration-smoke",
+    RELEASE_SHA: production ? "a".repeat(40) : "auth-integration-smoke",
+    ...(production && {
+      RELEASE_IMAGE_DIGEST: `ghcr.io/example/commandry@sha256:${"b".repeat(64)}`,
+    }),
     DB_POOL_MAX: "2",
     PORT: String(port),
     HOSTNAME: "127.0.0.1",
   };
-  const bootstrap = await runOneShot(
-    "owner bootstrap",
-    bootstrapEntry,
-    environment,
-    `${password}\n`,
-  );
-  assert.ok(!bootstrap.stdout.includes(password));
+  if (production) {
+    const bootstrap = await runOneShot(
+      "owner bootstrap",
+      bootstrapEntry,
+      environment,
+      `${password}\n`,
+    );
+    assert.ok(!bootstrap.stdout.includes(password));
+  }
   let web = startService("auth web", webEntry, environment);
+  const worker = production
+    ? null
+    : startService("deployment smoke worker", workerEntry, environment);
   const postAuth = (path, body, cookie) =>
     fetch(`${origin}/api/auth/${path}`, {
       method: "POST",
@@ -766,7 +785,25 @@ async function runAuthSmoke(
     return cookie;
   }
   try {
-    await waitForReady(`${origin}/health/ready`, [web]);
+    await waitForReady(
+      `${origin}/health/ready`,
+      worker ? [web, worker] : [web],
+    );
+    if (!production) {
+      const smoke = await runOneShot(
+        "deployment smoke",
+        deploymentSmokeEntry,
+        environment,
+        `${email}\n${password}\n`,
+      );
+      assert.ok(!smoke.stdout.includes(password));
+      const smokeEvidence = JSON.parse(smoke.stdout);
+      assert.equal(smokeEvidence.bootstrapCreated, true);
+      assert.equal(smokeEvidence.authenticatedRead, true);
+      assert.equal(smokeEvidence.probeSessionRevoked, true);
+      assert.ok(smokeEvidence.workerJobId);
+      assert.ok(smokeEvidence.workerId);
+    }
     const publicSignIn = await fetch(`${origin}/sign-in`);
     assert.equal(publicSignIn.status, 200);
     const deniedRead = await fetch(`${origin}/api/v1/projects`);
@@ -854,6 +891,7 @@ async function runAuthSmoke(
     );
   } finally {
     await stopService(web);
+    await stopService(worker);
     const cleanup = postgres.getPgClient("commandry_integration", "127.0.0.1");
     await cleanup.connect();
     try {

@@ -42,6 +42,10 @@ if [[ "$1" == image && "$2" == inspect && "$#" -ge 3 && "$3" == --format ]]; the
     '{{index .Config.Labels "org.commandry.source.clean"}}') printf 'true\n' ;;
   esac
 fi
+if [[ "$*" == *'ps --status running --services caddy cloudflared'* && \
+  ! -f "$COMMANDRY_TEST_ROOT/ingress-was-stopped" ]]; then
+  printf 'caddy\ncloudflared\n'
+fi
 `;
 
 const fakeBackup = String.raw`#!/usr/bin/env bash
@@ -59,6 +63,11 @@ const fakeSmoke = String.raw`#!/usr/bin/env bash
 set -euo pipefail
 printf 'smoke %s %s\n' "$2" "$3" >> "$COMMANDRY_TEST_ROOT/hook.calls"
 [[ ! -f "$COMMANDRY_TEST_ROOT/fail-smoke" ]] || exit 22
+smoke_image=$2
+[[ ! -f "$COMMANDRY_TEST_ROOT/bad-smoke-receipt" ]] || smoke_image=ghcr.io/example/commandry@sha256:bad
+printf '{"kind":"commandry_deployment_smoke","outcome":"passed","environment":"production","imageDigest":"%s","releaseSha":"%s","completedAt":"%s","bootstrapCreated":false,"authenticatedRead":true,"probeSessionRevoked":true,"workerJobId":"11111111-1111-4111-8111-111111111111","workerId":"22222222-2222-4222-8222-222222222222"}\n' \
+  "$smoke_image" "$3" "$(date -u +%Y-%m-%dT%H:%M:%SZ)" > "$COMMANDRY_TEST_ROOT/var/lib/commandry/app-smoke.latest.json"
+chmod 0600 "$COMMANDRY_TEST_ROOT/var/lib/commandry/app-smoke.latest.json"
 `;
 
 function write(path, content, mode = 0o600) {
@@ -94,6 +103,10 @@ function harness(t) {
   copyFileSync(
     join(repository, "deploy/Caddyfile"),
     join(root, "opt/commandry/deploy/Caddyfile"),
+  );
+  copyFileSync(
+    join(repository, "deploy/validate-app-smoke-receipt.py"),
+    join(root, "opt/commandry/deploy/validate-app-smoke-receipt.py"),
   );
   for (const name of readdirSync(join(repository, "docker/postgres/initdb"))) {
     copyFileSync(
@@ -161,10 +174,18 @@ test("approved digest deploys through backup, migration, health, smoke, and ingr
   assert.match(env, new RegExp(`RELEASE_SHA=${revision}`));
   assert.match(calls, /run --rm --no-deps migrate/);
   assert.match(calls, /exec -T web node -e/);
+  assert.match(calls, /stop cloudflared caddy/);
   assert.match(calls, /caddy cloudflared/);
+  assert.ok(
+    calls.indexOf("stop cloudflared caddy") <
+      calls.indexOf("run --rm --no-deps migrate"),
+  );
   assert.equal(event(root).result, "succeeded");
   assert.equal(event(root).mode, "local_rehearsal");
   assert.equal(event(root).approvedBy, "test-fixture");
+  assert.equal(event(root).smokeVerified, true);
+  assert.equal(event(root).smokeJobId, "11111111-1111-4111-8111-111111111111");
+  assert.equal(event(root).ownerBootstrapped, false);
   assert.doesNotMatch(
     result.stdout + result.stderr + calls,
     new RegExp(secret),
@@ -285,5 +306,44 @@ test("failed smoke after migration restores the prior code image, not the schema
   );
   assert.equal(event(root).rollback, "previous_code_restored");
   assert.equal(event(root).backupSnapshot, "0".repeat(64));
+  assert.match(
+    readFileSync(join(root, "docker.calls"), "utf8"),
+    /up --no-deps -d --wait --wait-timeout 120 caddy cloudflared/,
+  );
   assert.doesNotMatch(result.stdout + result.stderr, new RegExp(secret));
+});
+
+test("rollback preserves an intentionally stopped ingress", (t) => {
+  const root = harness(t);
+  write(
+    join(root, "var/lib/commandry/current-release"),
+    `IMAGE=${oldImage}\nREVISION=${"2".repeat(40)}\n`,
+  );
+  write(join(root, "ingress-was-stopped"), "1");
+  write(join(root, "fail-smoke"), "1");
+  const result = run(root);
+  assert.notEqual(result.status, 0);
+  const calls = readFileSync(join(root, "docker.calls"), "utf8");
+  assert.match(calls, /stop cloudflared caddy/);
+  assert.doesNotMatch(
+    calls,
+    /up --no-deps -d --wait --wait-timeout 120 caddy cloudflared/,
+  );
+  assert.equal(event(root).rollback, "previous_code_restored");
+});
+
+test("a mismatched smoke receipt prevents ingress and rolls back", (t) => {
+  const root = harness(t);
+  write(join(root, "bad-smoke-receipt"), "1");
+  const result = run(root);
+  assert.notEqual(result.status, 0);
+  assert.match(
+    result.stderr,
+    /application_smoke; rollback: first_release_stopped/,
+  );
+  assert.equal(event(root).smokeVerified, false);
+  assert.doesNotMatch(
+    readFileSync(join(root, "docker.calls"), "utf8"),
+    /up --no-deps -d --wait --wait-timeout 120 caddy cloudflared/,
+  );
 });

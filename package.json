@@ -16,7 +16,7 @@
     "typecheck": "pnpm -r --if-present typecheck",
     "boundaries:check": "node scripts/check-boundaries.mjs",
     "contracts:check": "pnpm --filter @commandry/contracts check:generated",
-    "test": "vitest run --config vitest.config.mts && pnpm --filter @commandry/lab test && node --test scripts/commandry-backup-gate.test.mjs scripts/commandry-deploy.test.mjs scripts/commandry-owner-recover.test.mjs scripts/r2-repository.test.mjs scripts/local-backup-crypto.test.mjs scripts/local-source-provenance.test.mjs scripts/recover-local-auth.test.mjs && pnpm preview:lan:test && pnpm preview:phone:test",
+    "test": "vitest run --config vitest.config.mts && pnpm --filter @commandry/lab test && node --test scripts/commandry-app-smoke.test.mjs scripts/commandry-backup-gate.test.mjs scripts/commandry-deploy.test.mjs scripts/commandry-owner-recover.test.mjs scripts/r2-repository.test.mjs scripts/local-backup-crypto.test.mjs scripts/local-source-provenance.test.mjs scripts/recover-local-auth.test.mjs && pnpm preview:lan:test && pnpm preview:phone:test",
     "test:integration": "node scripts/test-integration.mjs",
     "test:smoke": "node scripts/test-integration.mjs --smoke",
     "test:auth-smoke": "node scripts/test-integration.mjs --auth-only",

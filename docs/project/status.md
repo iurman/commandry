@@ -181,6 +181,13 @@ paths from real-source and production activation evidence.
   operator-labeled reset audit. The default local review remains open behind
   test/pass; OQ-003, production activation, recovery after VPS access loss, and
   human audit attribution remain open.
+- An uninstalled deployment smoke hook can create the first configured owner
+  only when no user exists, record a bootstrap audit, authenticate through the
+  web app, read the versioned API, revoke its probe session, and wait for a
+  versioned job result from the separate worker. A root-only receipt binds the
+  probe to the exact candidate image and revision before ingress may start.
+  Local built-app and synthetic host tests pass; no VPS or public ingress test
+  has run.
 - Work items now have append-only, cursor-paged local comments with immutable
   bodies and source-labeled search results. URL captures can be filed as
   knowledge links while preserving the original URL; the navigable link omits

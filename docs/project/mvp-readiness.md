@@ -102,9 +102,12 @@ replace the production gates.
    command restrictions, and rollback rehearsal on the actual host remain to
    be validated. A local-only command rehearsal now checks digest and revision
    approval, backup and smoke gate failures, and code rollback using synthetic
-   hooks. A separate backup-gate drill uses a synthetic restic repository and
-   isolated web restore but cannot write an offsite receipt. Neither path
-   validates the VPS identity or real R2 storage. The
+   Docker. The committed, uninstalled app smoke hook has a separate wrapper
+   test and a built-app local test that creates the first owner, reads through
+   a real session, revokes it, and waits for a worker job result. A separate
+   backup-gate drill uses a synthetic restic repository and isolated web
+   restore but cannot write an offsite receipt. None of these paths validates
+   the VPS identity, real R2 storage, or public ingress. The
    unactivated topology and exact procedure are in
    [deploy/README.md](../../deploy/README.md).
 4. **Real sources.** [OQ-005](open-questions.md#oq-005-which-two-integrations-prove-the-vertical-slice) needs one actual development source and one actual
