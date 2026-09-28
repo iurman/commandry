@@ -27,9 +27,12 @@ test("Inbox files a typed runbook into project memory, search, brief, and a save
   ).toBeVisible();
   const projectSelect = page.getByLabel("Project *");
   const projectOption = projectSelect.locator(`option[value="${project.id}"]`);
+  await expect(projectSelect).toBeEnabled();
   while ((await projectOption.count()) === 0) {
     const previousCount = await projectSelect.locator("option").count();
-    await page.getByRole("button", { name: "Load more projects" }).click();
+    const more = page.getByRole("button", { name: "Load more projects" });
+    await expect(more).toBeVisible();
+    await more.click();
     await expect
       .poll(() => projectSelect.locator("option").count())
       .toBeGreaterThan(previousCount);

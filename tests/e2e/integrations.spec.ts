@@ -35,8 +35,17 @@ test("configured local sources carry synthetic development and operations sample
   await expect(page.getByText("Loading integrations...")).toBeHidden();
   const projectSelect = page.getByLabel("Project", { exact: true });
   const projectOption = projectSelect.locator(`option[value="${project.id}"]`);
+  await expect
+    .poll(() => projectSelect.locator('option:not([value=""])').count())
+    .toBeGreaterThan(0);
   while ((await projectOption.count()) === 0) {
-    await page.getByRole("button", { name: "Load more projects" }).click();
+    const previousCount = await projectSelect.locator("option").count();
+    const more = page.getByRole("button", { name: "Load more projects" });
+    await expect(more).toBeVisible();
+    await more.click();
+    await expect
+      .poll(() => projectSelect.locator("option").count())
+      .toBeGreaterThan(previousCount);
   }
   await projectSelect.selectOption(project.id);
 

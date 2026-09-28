@@ -42,10 +42,16 @@ test("a local file becomes source-backed Knowledge with exact download, search, 
   ).toHaveAttribute("href", source.file.downloadHref);
 
   const projectSelect = page.getByLabel("Project *");
-  while (
-    (await projectSelect.locator(`option[value="${project.id}"]`).count()) === 0
-  ) {
-    await page.getByRole("button", { name: "Load more projects" }).click();
+  const projectOption = projectSelect.locator(`option[value="${project.id}"]`);
+  await expect(projectSelect).toBeEnabled();
+  while ((await projectOption.count()) === 0) {
+    const previousCount = await projectSelect.locator("option").count();
+    const more = page.getByRole("button", { name: "Load more projects" });
+    await expect(more).toBeVisible();
+    await more.click();
+    await expect
+      .poll(() => projectSelect.locator("option").count())
+      .toBeGreaterThan(previousCount);
   }
   await projectSelect.selectOption(project.id);
   await expect(page.getByLabel("File as")).toHaveValue("document");
