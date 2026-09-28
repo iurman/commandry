@@ -103,6 +103,12 @@ streaming backup to the separate-container restore. Its root-owned
 `/etc/commandry/backup.env` with mode `0600`. The real configuration requires
 one dedicated restic password file with mode `0600` and bucket-scoped R2 S3
 credentials. The backup key and S3 secret must stay outside this repository.
+The host wrapper executes only a root-owned Node.js 24 binary at
+`/opt/commandry/runtime/node` and sets `RESTIC_BINARY` to the root-owned
+`/opt/commandry/runtime/restic`. Both binaries must be executable and their
+paths must not be symlinks or group/world writable. This deliberately excludes
+the current VPS's `hermes`-owned nvm runtime. Their verified installation is a
+separate activation step; the backup gate fails closed until then.
 The production hook accepts only a canonical Cloudflare R2 endpoint, performs
 an upload and download through restic, checks the exact dump digest, and
 restores into isolated PostgreSQL and web containers without public ports. It

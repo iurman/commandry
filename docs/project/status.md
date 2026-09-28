@@ -268,6 +268,12 @@ paths from real-source and production activation evidence.
   R2 credentials and a canonical R2 endpoint, then checks the approved web
   image and an isolated read smoke before writing a deployment receipt. No R2
   account, bucket, credentials, timer, or VPS restore is active.
+- Read-only VPS inspection found Node.js 24 under the `hermes` user's nvm
+  directory and no restic executable on the search path. The uninstalled backup
+  gate now requires root-owned Node.js 24 and restic binaries in
+  `/opt/commandry/runtime` and rejects missing or writable paths. Those
+  binaries have not been installed, so the production backup gate remains
+  closed.
 - A host-run local release preflight checks the current Compose PostgreSQL,
   web, worker, and migrator state, shared web/worker image identity, live and
   versioned API reads, a recent worker heartbeat, and the latest passed local

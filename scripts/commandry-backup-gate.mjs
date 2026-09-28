@@ -194,7 +194,7 @@ try {
       DOCKER_HOST: "unix:///var/run/docker.sock",
       APP_ENV: "production",
       AWS_DEFAULT_REGION: "auto",
-      RESTIC_BINARY: "/usr/bin/restic",
+      RESTIC_BINARY: "/opt/commandry/runtime/restic",
       RECOVERY_SOURCE_LABEL: "production-r2",
       RECOVERY_WEB_IMAGE: process.argv[4],
       RECOVERY_WEB_REVISION: process.argv[5],

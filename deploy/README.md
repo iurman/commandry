@@ -127,7 +127,12 @@ Before migration, the script requires executable, root-owned
 `predeploy <receipt-path> <image-digest> <revision>` and must finish a verified
 offsite snapshot and isolated restore. The [host wrapper](commandry-backup-gate.sh)
 and [backup configuration example](backup.env.example) are committed but not
-installed. The
+installed. The wrapper requires root-owned, executable Node.js 24 and restic
+binaries at `/opt/commandry/runtime/node` and
+`/opt/commandry/runtime/restic`, with no symlinks or group/world write access.
+The current VPS has Node only in the `hermes` user's nvm directory and no
+restic executable on its search path. Neither runtime has been installed in
+the controlled location. The
 receipt must have one each of `SNAPSHOT=<64 lowercase hex>`,
 `COMPLETED_AT=<UTC ISO 8601 seconds>`, `OFFSITE=true`, and `VERIFIED=true`;
 it also requires `RESTORE_PASSED=true` and a full `DUMP_SHA256`. The timestamp
