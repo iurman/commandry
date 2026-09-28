@@ -39,11 +39,29 @@ test("synthetic availability rule produces a source-linked run after a crossing"
       .toBeGreaterThan(before);
   }
   await projectChoice.selectOption(project.id);
+  await expect(projectChoice).toHaveValue(project.id);
   await page.getByLabel("Trigger").selectOption("synthetic_condition");
   const resourceChoice = page.getByLabel("Linked resource to watch");
-  await expect(
-    resourceChoice.locator(`option[value="${resource.id}"]`),
-  ).toHaveCount(1);
+  const resourceOption = resourceChoice.locator(
+    `option[value="${resource.id}"]`,
+  );
+  const moreResources = page.getByRole("button", {
+    name: "Load more resource choices",
+  });
+  await expect
+    .poll(
+      async () =>
+        (await resourceOption.count()) + (await moreResources.count()),
+      { timeout: 30_000 },
+    )
+    .toBeGreaterThan(0);
+  while ((await resourceOption.count()) === 0) {
+    const before = await resourceChoice.locator("option").count();
+    await moreResources.click();
+    await expect
+      .poll(() => resourceChoice.locator("option").count())
+      .toBeGreaterThan(before);
+  }
   await resourceChoice.selectOption(resource.id);
   await page.getByLabel("At or below availability (%)").fill("50");
   const createResponsePromise = page.waitForResponse(

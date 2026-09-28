@@ -19,7 +19,8 @@ test("Inbox files a note and search reaches the same source-backed project recor
   await page.goto("/inbox");
   await page.getByLabel("Original text *").fill(original);
   await page.getByRole("button", { name: "Save to Inbox" }).click();
-  await expect(page.getByText(original).first()).toBeVisible();
+  const source = page.getByRole("article", { name: "Original input" });
+  await expect(source.locator("pre")).toHaveText(original);
   await expect(
     page.getByRole("heading", { name: "Capture detail" }),
   ).toBeInViewport();
@@ -40,6 +41,10 @@ test("Inbox files a note and search reaches the same source-backed project recor
   await page.getByLabel("File as").selectOption("note");
   await page.getByLabel("Title *").fill(`${token} field note`);
   await page.getByLabel("Content Optional").fill("Retained project context.");
+  await expect(projectSelect).toHaveValue(project.id);
+  await expect(page.getByLabel("Title *")).toHaveValue(`${token} field note`);
+  const fileButton = page.getByRole("button", { name: "File as note" });
+  await expect(fileButton).toBeEnabled();
   const filingResponsePromise = page.waitForResponse(
     (response) =>
       response.request().method() === "POST" &&
@@ -47,7 +52,7 @@ test("Inbox files a note and search reaches the same source-backed project recor
         new URL(response.url()).pathname,
       ),
   );
-  await page.getByRole("button", { name: "File as note" }).click();
+  await fileButton.click();
   const filingResponse = await filingResponsePromise;
   expect(filingResponse.status()).toBe(201);
   const filed = await filingResponse.json();
