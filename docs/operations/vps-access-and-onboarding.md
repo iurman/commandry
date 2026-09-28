@@ -123,6 +123,40 @@ identity files, and strict host checking are documented in the
 and the distinct behavior of
 [Tailscale SSH](https://tailscale.com/kb/1193/tailscale-ssh).
 
+## Separate deployment key, not installed
+
+The uninstalled [dispatcher](../../deploy/commandry-ssh-dispatch.sh),
+[root-owned authorized-key example](../../deploy/commandry-deploy-authorized-keys.example),
+[sshd Match example](../../deploy/sshd-commandry-deploy.match.example), and
+[no-argument sudo rule](../../deploy/commandry-deploy.sudoers) describe a
+dedicated `commandry-deploy` identity. It needs a new key distinct from the
+existing broad operator key. That account must have no password, Docker or
+sudo group membership, writable application or secret paths, or other
+authorized keys. Keep its authorized-key file under root-owned `/etc/ssh`.
+Append the Match block only after the existing global SSH configuration and
+validate the complete effective configuration before reloading SSH. Keep the
+current operator session open until a second session proves access.
+
+The local dispatcher test proves that a requested shell, a TTY, and extra
+arguments are rejected and that only `sudo -n` for the fixed deployment path
+is invoked with a cleared environment. After an owner-approved installation,
+the host must additionally prove the effective `ForceCommand`,
+`AuthorizedKeysFile`, public-key-only authentication, forwarding and TTY
+denials, and `PermitUserEnvironment no` using `sshd -T -C` for the actual
+client address. Run `sshd -t` before any reload and inspect
+`sudo -l -U commandry-deploy`; only the exact no-argument deploy command may
+appear. As `commandry-deploy`, `test -r` against
+`/etc/commandry/commandry.env`, `backup.env`, and `alert.env` must fail;
+reading or writing the Docker socket and `sudo -n /bin/sh` must also fail.
+Verify the account's groups and root ownership of the deployed scripts, SSH
+key file, and private directories. Run an SSH request for `sh` to verify
+rejection. Do not run SSH with no remote command as a probe: the forced entry
+point would attempt the approved deployment.
+
+These on-host checks have not run, and no account or key has been installed by
+this work. The template does not grant any production action by itself. The
+separate release approval and offsite restore gates remain required.
+
 ## Read-only VPS inventory before any change
 
 From the verified operator connection, record the provider, region, OS,

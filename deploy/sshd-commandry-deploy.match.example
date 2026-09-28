@@ -1,0 +1,16 @@
+# Append this Match block after the existing global and Match declarations in
+# /etc/ssh/sshd_config only after reviewing the effective host configuration.
+# Do not place a Match block in an early included file: it can change the
+# meaning of subsequent global directives.
+Match User commandry-deploy
+    ForceCommand /usr/local/sbin/commandry-ssh-dispatch
+    AuthorizedKeysFile /etc/ssh/authorized_keys/commandry-deploy
+    AuthenticationMethods publickey
+    PasswordAuthentication no
+    KbdInteractiveAuthentication no
+    PermitTTY no
+    AllowTcpForwarding no
+    AllowAgentForwarding no
+    X11Forwarding no
+    PermitTunnel no
+    PermitUserRC no

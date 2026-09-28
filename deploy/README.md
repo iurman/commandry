@@ -99,10 +99,27 @@ command has been run on the VPS.
 No copy of it, its sudo rule, or its gate hooks has been installed on the VPS.
 The installed path is fixed at `/usr/local/sbin/commandry-deploy`; the
 [`sudoers` template](commandry-deploy.sudoers) allows the `commandry-deploy`
-identity to run that command with no arguments. A separate forced SSH command
-and an on-host `sudo -l` plus secret-read denial test are still required before
-this identity can be called constrained. The identity must not join the Docker
-group or own any file below `/opt/commandry` or `/etc/commandry`.
+identity to run that command with no arguments. The uninstalled
+[SSH dispatcher](commandry-ssh-dispatch.sh), invalid
+[authorized-key example](commandry-deploy-authorized-keys.example), and
+[sshd Match example](sshd-commandry-deploy.match.example) constrain a
+separate deployment key to that no-argument command. The dispatcher rejects
+requested commands and TTYs and clears inherited environment variables before
+calling `sudo -n`. The Match block must be appended after existing global
+directives, then checked against the complete effective host configuration;
+it must not be placed in an early included file. The deployment key must be
+distinct from the broad bootstrap operator key. The identity must not join
+the Docker or sudo groups or own any file below `/opt/commandry` or
+`/etc/commandry`. Local tests cover the dispatcher but cannot prove VPS
+account restrictions. On-host `sudo -l`, secret-read denial, Docker-socket
+denial, and an unrestricted root-shell denial remain mandatory before this
+identity can be called constrained.
+
+The host capability is `commandry.host.deploy.approved-release`, with high
+risk. An approved release digest and expiry in the root-owned file authorize
+the action; the SSH identity merely triggers that already approved release.
+Each deployment records an event in the root-only `deployments.jsonl` and a
+private smoke receipt. No product agent receives this capability.
 
 The root-owned, mode `0600` `/etc/commandry/approved-release` is the only
 release input. Its [example](approved-release.example) has deliberately fake

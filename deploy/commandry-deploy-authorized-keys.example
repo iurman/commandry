@@ -1,0 +1,4 @@
+# Invalid example only. Install a separately generated deployment public key in
+# /etc/ssh/authorized_keys/commandry-deploy, root owned with mode 0600.
+# Do not reuse the broad bootstrap operator key.
+restrict,command="/usr/local/sbin/commandry-ssh-dispatch" ssh-ed25519 REPLACE_WITH_SEPARATE_DEPLOYMENT_PUBLIC_KEY commandry-deploy
