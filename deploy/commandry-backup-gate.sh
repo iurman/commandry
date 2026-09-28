@@ -5,15 +5,15 @@ set -euo pipefail
 installed_path=/usr/local/sbin/commandry-backup-gate
 script_path=$(realpath "$0")
 if [[ "$script_path" == "$installed_path" ]]; then
-  [[ $EUID -eq 0 && $# -eq 4 ]] || {
-    printf 'Commandry backup gate requires root and four approved arguments.\n' >&2
+  [[ $EUID -eq 0 ]] || {
+    printf 'Commandry backup gate requires root.\n' >&2
     exit 1
   }
   base=/opt/commandry
   state_dir=/var/lib/commandry
   expected_uid=0
 else
-  [[ $# -eq 6 && "$1" == --test-root && -d "$2" ]] || {
+  [[ $# -ge 3 && "$1" == --test-root && -d "$2" ]] || {
     printf 'Use --test-root with an existing disposable directory.\n' >&2
     exit 1
   }
@@ -23,37 +23,50 @@ else
   state_dir=$test_root/var/lib/commandry
   expected_uid=$EUID
 fi
-[[ $# -eq 4 && "$1" == predeploy && \
-  "$2" == "$state_dir/predeploy-backup.receipt" ]] || {
+if [[ $# -eq 4 && "$1" == predeploy && \
+  "$2" == "$state_dir/predeploy-backup.receipt" ]]; then
+  entry=commandry-backup-gate.mjs
+elif [[ $# -eq 1 && "$1" == nightly ]]; then
+  entry=commandry-scheduled-backup.mjs
+else
   printf 'Commandry backup gate rejected the invocation.\n' >&2
   exit 1
-}
+fi
 runtime_dir=$base/runtime
+script_dir=$base/scripts
 node_bin=$runtime_dir/node
 restic_bin=$runtime_dir/restic
-for path in "$base" "$runtime_dir" "$node_bin" "$restic_bin"; do
+for path in "$base" "$runtime_dir" "$script_dir" "$node_bin" "$restic_bin" \
+  "$script_dir/commandry-backup-gate.mjs" \
+  "$script_dir/commandry-scheduled-backup.mjs" \
+  "$script_dir/host-backup-config.mjs" \
+  "$script_dir/restic-postgres.mjs" \
+  "$script_dir/restic-isolated-restore.mjs" \
+  "$script_dir/r2-repository.mjs" \
+  "$script_dir/container-runtime.mjs" \
+  "$script_dir/stream-process.mjs"; do
   [[ ! -L "$path" ]] || {
-    printf 'Commandry backup gate rejected an untrusted runtime path.\n' >&2
+    printf 'Commandry backup gate rejected an untrusted controlled path.\n' >&2
     exit 1
   }
   [[ -e "$path" ]] || {
-    printf 'Commandry backup gate needs root-owned Node.js 24 and restic binaries in %s.\n' "$runtime_dir" >&2
+    printf 'Commandry backup gate needs root-owned source and runtime files under %s.\n' "$base" >&2
     exit 1
   }
   read -r uid mode_text < <(stat -c '%u %a' "$path")
   [[ "$uid" == "$expected_uid" && "$mode_text" =~ ^[0-7]{3,4}$ ]] || {
-    printf 'Commandry backup gate rejected an untrusted runtime owner or mode.\n' >&2
+    printf 'Commandry backup gate rejected an untrusted controlled owner or mode.\n' >&2
     exit 1
   }
   permissions=$((8#$mode_text))
   (( (permissions & 8#022) == 0 )) || {
-    printf 'Commandry backup gate rejected a writable runtime path.\n' >&2
+    printf 'Commandry backup gate rejected a writable controlled path.\n' >&2
     exit 1
   }
 done
-[[ -d "$base" && -d "$runtime_dir" && -f "$node_bin" && -x "$node_bin" && \
-  -f "$restic_bin" && -x "$restic_bin" ]] || {
-  printf 'Commandry backup gate needs executable Node.js 24 and restic binaries.\n' >&2
+[[ -d "$base" && -d "$runtime_dir" && -d "$script_dir" && \
+  -f "$node_bin" && -x "$node_bin" && -f "$restic_bin" && -x "$restic_bin" ]] || {
+  printf 'Commandry backup gate needs controlled source and executable Node.js 24 and restic binaries.\n' >&2
   exit 1
 }
 node_version=$("$node_bin" --version) || {
@@ -70,4 +83,4 @@ node_version=$("$node_bin" --version) || {
 }
 exec /usr/bin/env -i HOME=/root PATH=/usr/sbin:/usr/bin:/sbin:/bin \
   DOCKER_HOST=unix:///var/run/docker.sock "$node_bin" \
-  "$base/scripts/commandry-backup-gate.mjs" "$@"
+  "$base/scripts/$entry" "$@"

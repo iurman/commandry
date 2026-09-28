@@ -2,7 +2,14 @@ import assert from "node:assert/strict";
 import { spawnSync } from "node:child_process";
 import { randomBytes, randomUUID } from "node:crypto";
 import { existsSync } from "node:fs";
-import { mkdtemp, readFile, rm, writeFile } from "node:fs/promises";
+import {
+  mkdir,
+  mkdtemp,
+  readFile,
+  rm,
+  stat,
+  writeFile,
+} from "node:fs/promises";
 import { dirname, resolve } from "node:path";
 import { test } from "node:test";
 import { fileURLToPath } from "node:url";
@@ -268,6 +275,73 @@ test("streamed restic backup restores synthetic data in an isolated app and reje
     assert.equal(gateEvidence.sourceLabel, "synthetic-local-gate");
     assert.equal(gateEvidence.offsiteVerified, false);
     assert.equal(gateEvidence.resourcesRemoved, true);
+    const statusDir = resolve(directory, "scheduled-status");
+    await mkdir(statusDir, { mode: 0o700 });
+    const scheduledEnvironment = {
+      ...scriptEnvironment,
+      COMMANDRY_BACKUP_STATUS_DIR: statusDir,
+    };
+    const scheduled = JSON.parse(
+      execute(
+        process.execPath,
+        ["scripts/commandry-scheduled-backup.mjs", "rehearse"],
+        { env: scheduledEnvironment },
+      ),
+    );
+    assert.equal(scheduled.outcome, "passed");
+    assert.equal(scheduled.sourceLabel, "synthetic-local-rehearsal");
+    assert.equal(scheduled.repositoryCheckPassed, true);
+    assert.equal(scheduled.offsiteStored, false);
+    assert.equal(scheduled.restoreVerified, false);
+    assert.match(scheduled.snapshotId, /^[0-9a-f]{64}$/);
+    const lastSuccessPath = resolve(statusDir, "backup-last-success.json");
+    const lastAttemptPath = resolve(statusDir, "backup-last-attempt.json");
+    const lastSuccess = JSON.parse(await readFile(lastSuccessPath, "utf8"));
+    assert.deepEqual(lastSuccess, scheduled);
+    assert.equal((await stat(lastSuccessPath)).mode & 0o777, 0o600);
+    const scheduledFailure = spawnSync(
+      process.execPath,
+      ["scripts/commandry-scheduled-backup.mjs", "rehearse"],
+      {
+        cwd: root,
+        encoding: "utf8",
+        env: {
+          ...scheduledEnvironment,
+          RESTIC_REPOSITORY: "/tmp/outside-commandry-test",
+        },
+      },
+    );
+    assert.equal(scheduledFailure.status, 1);
+    assert.equal(
+      JSON.parse(scheduledFailure.stderr).reason,
+      "LOCAL_REHEARSAL_CONFIG",
+    );
+    assert.equal(
+      JSON.parse(await readFile(lastAttemptPath, "utf8")).outcome,
+      "failed",
+    );
+    const failedDatabase = spawnSync(
+      process.execPath,
+      ["scripts/commandry-scheduled-backup.mjs", "rehearse"],
+      {
+        cwd: root,
+        encoding: "utf8",
+        env: {
+          ...scheduledEnvironment,
+          DB_NAME: "commandry_nonexistent_backup_test",
+        },
+      },
+    );
+    assert.equal(failedDatabase.status, 1);
+    assert.equal(JSON.parse(failedDatabase.stderr).reason, "BACKUP_FAILED");
+    assert.equal(
+      JSON.parse(await readFile(lastAttemptPath, "utf8")).phase,
+      "BACKUP",
+    );
+    assert.deepEqual(
+      JSON.parse(await readFile(lastSuccessPath, "utf8")),
+      scheduled,
+    );
     const absent = (args) =>
       spawnSync(runtime.command, [...runtime.prefix, ...args], {
         cwd: root,

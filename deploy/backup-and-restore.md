@@ -123,6 +123,37 @@ read path, but it does not prove offsite storage or recovery of root-owned
 configuration and PostgreSQL global roles. Record an actual offsite recovery
 time and point only after the owner approves the bucket and the VPS run passes.
 
+## Nightly host backup path, not installed
+
+The [systemd service](systemd/commandry-backup.service) calls the same
+root-owned host wrapper with `nightly`; its [timer](systemd/commandry-backup.timer)
+requests a daily UTC run with a bounded random delay and catches a missed run
+after reboot. Neither unit is installed or enabled on the VPS. The wrapper
+requires the controlled Node.js 24 and restic binaries described above. The
+nightly command reads only the private R2 backup configuration, streams a new
+PostgreSQL dump, and runs `restic check`. It does not require a release image or
+issue a predeploy receipt.
+
+After a passing run, the command atomically writes mode `0600`
+`/var/lib/commandry/backup-last-success.json` and
+`backup-last-attempt.json`. A failed run writes only the last-attempt record,
+preserving the last confirmed success. The JSON records a snapshot ID, dump
+digest, completion time, repository-check result, and whether storage was
+offsite. It explicitly sets `restoreVerified` to false: the nightly upload is
+not a clean restore. The service also exits nonzero on failure for the systemd
+journal. These local status files are not an owner notification channel.
+
+The `rehearse` mode uses a disposable local encrypted repository under
+`.agent/`, writes status only in a private local test directory, and marks
+`offsiteStored` false. `pnpm backup:restic:test` checks a passing nightly
+rehearsal and a failed attempt that leaves the prior success intact.
+
+Before enabling the timer, choose and test a daily, weekly, and monthly restic
+retention policy based on measured data growth; define the owner-facing failure
+and staleness alert channel; test a monthly clean restore; and record accepted
+recovery point and time targets. None of those choices is implied by this
+uninstalled timer. Do not treat the nightly status file as restore evidence.
+
 Cloudflare documents the [R2 S3 endpoint and bucket-scoped credentials](https://developers.cloudflare.com/r2/get-started/s3/)
 and [jurisdiction-specific endpoints](https://developers.cloudflare.com/r2/reference/data-location/).
 Restic documents its [S3-compatible repository URL and AWS credential variables](https://restic.readthedocs.io/en/stable/030_preparing_a_new_repo.html#s3-compatible-storage).

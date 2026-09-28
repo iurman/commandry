@@ -1,0 +1,12 @@
+[Unit]
+Description=Run Commandry encrypted offsite PostgreSQL backup nightly
+
+[Timer]
+OnCalendar=*-*-* 02:30:00 UTC
+RandomizedDelaySec=15min
+AccuracySec=1min
+Persistent=true
+Unit=commandry-backup.service
+
+[Install]
+WantedBy=timers.target

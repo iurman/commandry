@@ -142,6 +142,14 @@ pass. A local `pnpm backup:restic:test` rehearsal uses a synthetic local
 repository and never writes a production receipt. The hook does not exist on
 the VPS yet, and no R2 bucket or credentials are configured.
 
+The uninstalled [nightly host service and timer](systemd/commandry-backup.timer)
+use the same controlled runtime to create an encrypted R2 snapshot without a
+release image. The command keeps private last-attempt and last-success JSON
+records, and exits nonzero on failure. The local synthetic rehearsal verifies
+success and a failed attempt. The timer is not an alert channel or a monthly
+clean restore; retention, owner-facing failure alerts, accepted recovery
+targets, R2 access, and installation remain gates.
+
 Before migration it stops Commandry's existing Tunnel and Caddy services so
 the candidate web process cannot receive public traffic before smoke passes.
 If a later gate fails, rollback restarts the prior web, worker, Caddy, and
