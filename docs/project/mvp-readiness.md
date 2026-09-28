@@ -83,8 +83,8 @@ replace the production gates.
    console connected without a reboot, and Grml recovery media is offered
    but was not mounted. No snapshot action appeared for this VPS. No
    application database backup timer appeared in inspected system or user
-   timers. A nightly root-owned service and timer template now exists locally;
-   its synthetic rehearsal records a private result but it has not been
+   timers. Nightly backup and hourly health timer templates now exist locally;
+   their synthetic rehearsal records private results but they have not been
    installed or run with R2. Exact data center region, provider host-key verification, offsite
    encrypted backup, clean restore, and constrained deployment identity
    remain open. Local backup and rollback drills do not satisfy ADR 0009.

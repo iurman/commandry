@@ -28,6 +28,8 @@ if [[ $# -eq 4 && "$1" == predeploy && \
   entry=commandry-backup-gate.mjs
 elif [[ $# -eq 1 && "$1" == nightly ]]; then
   entry=commandry-scheduled-backup.mjs
+elif [[ $# -eq 1 && "$1" == health ]]; then
+  entry=commandry-backup-health.mjs
 else
   printf 'Commandry backup gate rejected the invocation.\n' >&2
   exit 1
@@ -39,6 +41,7 @@ restic_bin=$runtime_dir/restic
 for path in "$base" "$runtime_dir" "$script_dir" "$node_bin" "$restic_bin" \
   "$script_dir/commandry-backup-gate.mjs" \
   "$script_dir/commandry-scheduled-backup.mjs" \
+  "$script_dir/commandry-backup-health.mjs" \
   "$script_dir/host-backup-config.mjs" \
   "$script_dir/restic-postgres.mjs" \
   "$script_dir/restic-isolated-restore.mjs" \
@@ -81,6 +84,27 @@ node_version=$("$node_bin" --version) || {
   printf 'Commandry backup gate could not inspect restic.\n' >&2
   exit 1
 }
+if [[ "$entry" == commandry-scheduled-backup.mjs ]]; then
+  [[ ! -L "$state_dir" && -d "$state_dir" ]] || {
+    printf 'Commandry nightly backup needs a private state directory.\n' >&2
+    exit 1
+  }
+  read -r state_uid state_mode < <(stat -c '%u %a' "$state_dir")
+  [[ "$state_uid" == "$expected_uid" && "$state_mode" == 700 ]] || {
+    printf 'Commandry nightly backup rejected the state directory owner or mode.\n' >&2
+    exit 1
+  }
+  lock_file=$state_dir/deploy.lock
+  [[ ! -L "$lock_file" ]] || {
+    printf 'Commandry nightly backup rejected a symlinked deployment lock.\n' >&2
+    exit 1
+  }
+  exec 9> "$lock_file"
+  flock -w 900 9 || {
+    printf 'Commandry nightly backup could not acquire the deployment lock.\n' >&2
+    exit 1
+  }
+fi
 exec /usr/bin/env -i HOME=/root PATH=/usr/sbin:/usr/bin:/sbin:/bin \
   DOCKER_HOST=unix:///var/run/docker.sock "$node_bin" \
   "$base/scripts/$entry" "$@"

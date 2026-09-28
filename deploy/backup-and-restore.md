@@ -130,9 +130,18 @@ root-owned host wrapper with `nightly`; its [timer](systemd/commandry-backup.tim
 requests a daily UTC run with a bounded random delay and catches a missed run
 after reboot. Neither unit is installed or enabled on the VPS. The wrapper
 requires the controlled Node.js 24 and restic binaries described above. The
+nightly wrapper shares the deployment and owner-recovery lock, waiting up to
+15 minutes rather than pruning during a release or password reset. The
 nightly command reads only the private R2 backup configuration, streams a new
-PostgreSQL dump, and runs `restic check`. It does not require a release image or
-issue a predeploy receipt.
+PostgreSQL dump, runs `restic check`, applies the configured recent, daily,
+weekly, and monthly retention counts to `commandry-postgres` snapshots with
+`restic forget --prune`, then checks the repository again. The real
+`backup.env` must supply positive `RETENTION_LAST`, `RETENTION_DAILY`,
+`RETENTION_WEEKLY`, `RETENTION_MONTHLY`, and `MAX_BACKUP_AGE_HOURS` values;
+the committed example uses invalid zeroes so no owner policy is silently
+chosen. A failed retention or integrity pass leaves the prior success record
+unchanged and marks the latest attempt failed. The command does not require a
+release image or issue a predeploy receipt.
 
 After a passing run, the command atomically writes mode `0600`
 `/var/lib/commandry/backup-last-success.json` and
@@ -146,13 +155,25 @@ journal. These local status files are not an owner notification channel.
 The `rehearse` mode uses a disposable local encrypted repository under
 `.agent/`, writes status only in a private local test directory, and marks
 `offsiteStored` false. `pnpm backup:restic:test` checks a passing nightly
-rehearsal and a failed attempt that leaves the prior success intact.
+rehearsal, rejected policy and database failures, and a failed attempt that
+leaves the prior success intact.
 
-Before enabling the timer, choose and test a daily, weekly, and monthly restic
-retention policy based on measured data growth; define the owner-facing failure
-and staleness alert channel; test a monthly clean restore; and record accepted
-recovery point and time targets. None of those choices is implied by this
-uninstalled timer. Do not treat the nightly status file as restore evidence.
+The uninstalled [health service](systemd/commandry-backup-health.service) and
+[hourly timer](systemd/commandry-backup-health.timer) read these private
+records. The probe fails if the latest attempt failed, the saved success and
+attempt do not match, or the successful snapshot is older than the configured
+maximum age. A new backup in progress is reported as such while the previous
+success remains fresh; an attempt still running after the service's 90-minute
+limit fails as stalled. A local rehearsal checks healthy, in-progress, stalled,
+failed, and stale states. The
+probe's nonzero systemd result and journal entry are machine-readable host
+signals; no owner-facing notification is connected.
+
+Before enabling the timers, select retention and maximum-age values based on
+measured data growth and accepted recovery targets, define an owner-facing
+failure and staleness alert channel, test a monthly clean restore, and record
+achieved recovery point and time. None of those choices is implied by these
+uninstalled units. Do not treat the nightly status file as restore evidence.
 
 Cloudflare documents the [R2 S3 endpoint and bucket-scoped credentials](https://developers.cloudflare.com/r2/get-started/s3/)
 and [jurisdiction-specific endpoints](https://developers.cloudflare.com/r2/reference/data-location/).

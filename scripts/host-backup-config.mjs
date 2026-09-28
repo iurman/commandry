@@ -36,6 +36,11 @@ export function parsePrivateConfig(path = "/etc/commandry/backup.env") {
     "RESTIC_PASSWORD_FILE",
     "AWS_ACCESS_KEY_ID",
     "AWS_SECRET_ACCESS_KEY",
+    "RETENTION_DAILY",
+    "RETENTION_LAST",
+    "RETENTION_WEEKLY",
+    "RETENTION_MONTHLY",
+    "MAX_BACKUP_AGE_HOURS",
   ]);
   const values = {};
   for (const raw of readFileSync(path, "utf8").split("\n")) {
@@ -63,7 +68,29 @@ export function parsePrivateConfig(path = "/etc/commandry/backup.env") {
   )
     fail("R2_CREDENTIALS");
   privateFile(values.RESTIC_PASSWORD_FILE, 32);
+  retentionPolicy(values);
   return values;
+}
+
+export function retentionPolicy(values) {
+  const limits = {
+    RETENTION_LAST: 100,
+    RETENTION_DAILY: 366,
+    RETENTION_WEEKLY: 104,
+    RETENTION_MONTHLY: 120,
+    MAX_BACKUP_AGE_HOURS: 168,
+  };
+  const result = {};
+  for (const [name, maximum] of Object.entries(limits)) {
+    const raw = values[name];
+    if (typeof raw !== "string" || !/^[1-9][0-9]*$/.test(raw))
+      fail("BACKUP_POLICY");
+    const parsed = Number(raw);
+    if (!Number.isSafeInteger(parsed) || parsed > maximum)
+      fail("BACKUP_POLICY");
+    result[name] = parsed;
+  }
+  return result;
 }
 
 export function productionBackupEnvironment(config) {

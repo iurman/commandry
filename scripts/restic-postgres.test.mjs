@@ -89,6 +89,11 @@ test("streamed restic backup restores synthetic data in an isolated app and reje
     DB_NAME: database,
     RESTIC_REPOSITORY: repository,
     RESTIC_PASSWORD_FILE: passwordFile,
+    RETENTION_LAST: "3",
+    RETENTION_DAILY: "7",
+    RETENTION_WEEKLY: "4",
+    RETENTION_MONTHLY: "3",
+    MAX_BACKUP_AGE_HOURS: "36",
     RECOVERY_SOURCE_LABEL: "synthetic-local-test",
   };
   let created = false;
@@ -291,14 +296,74 @@ test("streamed restic backup restores synthetic data in an isolated app and reje
     assert.equal(scheduled.outcome, "passed");
     assert.equal(scheduled.sourceLabel, "synthetic-local-rehearsal");
     assert.equal(scheduled.repositoryCheckPassed, true);
+    assert.equal(scheduled.retainedSnapshotVerified, true);
     assert.equal(scheduled.offsiteStored, false);
     assert.equal(scheduled.restoreVerified, false);
+    assert.deepEqual(scheduled.retentionApplied, {
+      last: 3,
+      daily: 7,
+      weekly: 4,
+      monthly: 3,
+    });
     assert.match(scheduled.snapshotId, /^[0-9a-f]{64}$/);
     const lastSuccessPath = resolve(statusDir, "backup-last-success.json");
     const lastAttemptPath = resolve(statusDir, "backup-last-attempt.json");
     const lastSuccess = JSON.parse(await readFile(lastSuccessPath, "utf8"));
     assert.deepEqual(lastSuccess, scheduled);
     assert.equal((await stat(lastSuccessPath)).mode & 0o777, 0o600);
+    const healthy = JSON.parse(
+      execute(
+        process.execPath,
+        ["scripts/commandry-backup-health.mjs", "health-rehearse"],
+        { env: scheduledEnvironment },
+      ),
+    );
+    assert.equal(healthy.status, "healthy");
+    assert.equal(healthy.offsiteStored, false);
+    assert.equal(healthy.restoreVerified, false);
+    await writeFile(
+      lastAttemptPath,
+      `${JSON.stringify({ ...scheduled, outcome: "running", completedAt: null })}\n`,
+    );
+    const inProgress = JSON.parse(
+      execute(
+        process.execPath,
+        ["scripts/commandry-backup-health.mjs", "health-rehearse"],
+        { env: scheduledEnvironment },
+      ),
+    );
+    assert.equal(inProgress.status, "in_progress");
+    await writeFile(
+      lastAttemptPath,
+      `${JSON.stringify({
+        ...scheduled,
+        outcome: "running",
+        completedAt: null,
+        startedAt: new Date(Date.now() - 91 * 60_000).toISOString(),
+      })}\n`,
+    );
+    const interruptedHealth = spawnSync(
+      process.execPath,
+      ["scripts/commandry-backup-health.mjs", "health-rehearse"],
+      { cwd: root, encoding: "utf8", env: scheduledEnvironment },
+    );
+    assert.equal(interruptedHealth.status, 1);
+    assert.equal(
+      JSON.parse(interruptedHealth.stderr).reason,
+      "ATTEMPT_STALLED",
+    );
+    await writeFile(lastAttemptPath, `${JSON.stringify(scheduled)}\n`);
+    const rejectedPolicy = spawnSync(
+      process.execPath,
+      ["scripts/commandry-scheduled-backup.mjs", "rehearse"],
+      {
+        cwd: root,
+        encoding: "utf8",
+        env: { ...scheduledEnvironment, RETENTION_DAILY: "0" },
+      },
+    );
+    assert.equal(rejectedPolicy.status, 1);
+    assert.equal(JSON.parse(rejectedPolicy.stderr).reason, "BACKUP_POLICY");
     const scheduledFailure = spawnSync(
       process.execPath,
       ["scripts/commandry-scheduled-backup.mjs", "rehearse"],
@@ -338,10 +403,30 @@ test("streamed restic backup restores synthetic data in an isolated app and reje
       JSON.parse(await readFile(lastAttemptPath, "utf8")).phase,
       "BACKUP",
     );
+    const failedHealth = spawnSync(
+      process.execPath,
+      ["scripts/commandry-backup-health.mjs", "health-rehearse"],
+      { cwd: root, encoding: "utf8", env: scheduledEnvironment },
+    );
+    assert.equal(failedHealth.status, 1);
+    assert.equal(JSON.parse(failedHealth.stderr).reason, "LAST_ATTEMPT_FAILED");
     assert.deepEqual(
       JSON.parse(await readFile(lastSuccessPath, "utf8")),
       scheduled,
     );
+    const stale = {
+      ...scheduled,
+      completedAt: new Date(Date.now() - 37 * 60 * 60_000).toISOString(),
+    };
+    await writeFile(lastSuccessPath, `${JSON.stringify(stale)}\n`);
+    await writeFile(lastAttemptPath, `${JSON.stringify(stale)}\n`);
+    const staleHealth = spawnSync(
+      process.execPath,
+      ["scripts/commandry-backup-health.mjs", "health-rehearse"],
+      { cwd: root, encoding: "utf8", env: scheduledEnvironment },
+    );
+    assert.equal(staleHealth.status, 1);
+    assert.equal(JSON.parse(staleHealth.stderr).reason, "BACKUP_STALE");
     const absent = (args) =>
       spawnSync(runtime.command, [...runtime.prefix, ...args], {
         cwd: root,

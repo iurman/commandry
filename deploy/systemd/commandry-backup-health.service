@@ -1,14 +1,13 @@
 [Unit]
-Description=Commandry encrypted offsite PostgreSQL backup
+Description=Check Commandry offsite backup freshness and last attempt
 Documentation=file:/opt/commandry/deploy/backup-and-restore.md
-After=docker.service
 
 [Service]
 Type=oneshot
 User=root
 Group=root
 UMask=0077
-ExecStart=/usr/local/sbin/commandry-backup-gate nightly
-TimeoutStartSec=90min
+ExecStart=/usr/local/sbin/commandry-backup-gate health
+TimeoutStartSec=1min
 StandardOutput=journal
 StandardError=journal

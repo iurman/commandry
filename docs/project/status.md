@@ -278,9 +278,11 @@ paths from real-source and production activation evidence.
   release-independent encrypted PostgreSQL backup and repository check. A
   passing run records a private snapshot and dump digest; a failed attempt
   preserves the last successful record while marking the latest attempt failed.
-  The local rehearsal uses a labeled synthetic repository. No timer is active
-  on the VPS, and retention, owner-facing failure alerts, monthly clean restore,
-  and accepted recovery targets remain open.
+  Configurable recent, daily, weekly, and monthly retention runs after the new
+  snapshot; an uninstalled hourly health probe fails for a failed or stale
+  attempt. The local rehearsal uses a labeled synthetic repository. No timer
+  is active on the VPS, and owner-selected policy values, owner-facing failure
+  alerts, monthly clean restore, and accepted recovery targets remain open.
 - A host-run local release preflight checks the current Compose PostgreSQL,
   web, worker, and migrator state, shared web/worker image identity, live and
   versioned API reads, a recent worker heartbeat, and the latest passed local

@@ -144,11 +144,14 @@ the VPS yet, and no R2 bucket or credentials are configured.
 
 The uninstalled [nightly host service and timer](systemd/commandry-backup.timer)
 use the same controlled runtime to create an encrypted R2 snapshot without a
-release image. The command keeps private last-attempt and last-success JSON
-records, and exits nonzero on failure. The local synthetic rehearsal verifies
-success and a failed attempt. The timer is not an alert channel or a monthly
-clean restore; retention, owner-facing failure alerts, accepted recovery
-targets, R2 access, and installation remain gates.
+release image. The command applies explicit recent, daily, weekly, and monthly
+retention values; its committed example deliberately sets invalid zeroes. It
+keeps private last-attempt and last-success JSON records and exits nonzero on
+failure. A separate uninstalled hourly health unit fails on a failed attempt
+or a snapshot older than the configured maximum age. Local synthetic rehearsals
+exercise retention and those status states. The timers are not an owner alert
+channel or a monthly clean restore; choosing retention and freshness targets,
+owner-facing alerts, R2 access, and installation remain gates.
 
 Before migration it stops Commandry's existing Tunnel and Caddy services so
 the candidate web process cannot receive public traffic before smoke passes.

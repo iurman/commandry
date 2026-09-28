@@ -52,6 +52,7 @@ function withHostFixture(callback) {
   for (const name of [
     "commandry-backup-gate.mjs",
     "commandry-scheduled-backup.mjs",
+    "commandry-backup-health.mjs",
     "host-backup-config.mjs",
     "restic-postgres.mjs",
     "restic-isolated-restore.mjs",
@@ -65,6 +66,10 @@ function withHostFixture(callback) {
   const node = resolve(runtime, "node");
   const restic = resolve(runtime, "restic");
   writeFileSync(restic, "#!/bin/sh\nexit 0\n", { mode: 0o755 });
+  mkdirSync(resolve(fixture, "var/lib/commandry"), {
+    recursive: true,
+    mode: 0o700,
+  });
   const receipt = resolve(
     fixture,
     "var/lib/commandry/predeploy-backup.receipt",
@@ -96,6 +101,17 @@ function withHostFixture(callback) {
       ],
       { encoding: "utf8" },
     );
+  const runHealth = () =>
+    spawnSync(
+      "bash",
+      [
+        resolve(root, "deploy/commandry-backup-gate.sh"),
+        "--test-root",
+        fixture,
+        "health",
+      ],
+      { encoding: "utf8" },
+    );
   try {
     callback({
       base,
@@ -108,6 +124,7 @@ function withHostFixture(callback) {
       revision,
       run,
       runNightly,
+      runHealth,
     });
   } finally {
     rmSync(fixture, { recursive: true, force: true });
@@ -116,7 +133,7 @@ function withHostFixture(callback) {
 
 test("host backup gate uses a fixed trusted Node 24 runtime", () => {
   withHostFixture(
-    ({ base, node, receipt, image, revision, run, runNightly }) => {
+    ({ base, node, receipt, image, revision, run, runNightly, runHealth }) => {
       writeFileSync(
         node,
         `#!/bin/sh\nif [ "$1" = --version ]; then printf 'v24.17.0\\n'; exit 0; fi\nprintf '%s\\n' "$@"\n`,
@@ -136,6 +153,12 @@ test("host backup gate uses a fixed trusted Node 24 runtime", () => {
       assert.deepEqual(nightly.stdout.trim().split("\n"), [
         resolve(base, "scripts/commandry-scheduled-backup.mjs"),
         "nightly",
+      ]);
+      const health = runHealth();
+      assert.equal(health.status, 0, health.stderr);
+      assert.deepEqual(health.stdout.trim().split("\n"), [
+        resolve(base, "scripts/commandry-backup-health.mjs"),
+        "health",
       ]);
     },
   );

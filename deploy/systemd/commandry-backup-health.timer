@@ -1,0 +1,11 @@
+[Unit]
+Description=Check Commandry offsite backup health hourly
+
+[Timer]
+OnCalendar=*-*-* *:10:00 UTC
+AccuracySec=1min
+Persistent=true
+Unit=commandry-backup-health.service
+
+[Install]
+WantedBy=timers.target

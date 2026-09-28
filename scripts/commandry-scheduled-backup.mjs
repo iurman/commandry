@@ -16,6 +16,7 @@ import {
   localBackupConfig,
   parsePrivateConfig,
   productionBackupEnvironment,
+  retentionPolicy,
   trustedSource,
 } from "./host-backup-config.mjs";
 
@@ -72,6 +73,19 @@ function atomicStatus(name, record) {
   }
 }
 
+function markStarted() {
+  atomicStatus("backup-last-attempt.json", {
+    kind: "commandry_scheduled_backup",
+    schemaVersion: 1,
+    outcome: "running",
+    environment: production ? "production" : "local",
+    sourceLabel: production ? "production-r2" : "synthetic-local-rehearsal",
+    startedAt,
+    completedAt: null,
+    phase: "CONFIG",
+  });
+}
+
 function runBackup(environment) {
   const result = spawnSync(
     process.execPath,
@@ -102,6 +116,82 @@ function runBackup(environment) {
   return output;
 }
 
+function runRetention(environment, policy, snapshotId) {
+  const candidates = environment.RESTIC_BINARY
+    ? [{ executable: environment.RESTIC_BINARY, prefix: [] }]
+    : [
+        { executable: "restic", prefix: [] },
+        {
+          executable: "flatpak-spawn",
+          prefix: ["--host", "/home/linuxbrew/.linuxbrew/bin/restic"],
+        },
+      ];
+  const restic = candidates.find(
+    ({ executable, prefix }) =>
+      spawnSync(executable, [...prefix, "version"], {
+        env: environment,
+        stdio: "ignore",
+        timeout: 10_000,
+      }).status === 0,
+  );
+  if (!restic) fail("RESTIC_UNAVAILABLE");
+  const common = [
+    ...restic.prefix,
+    "--repo",
+    environment.RESTIC_REPOSITORY,
+    "--password-file",
+    environment.RESTIC_PASSWORD_FILE,
+  ];
+  for (const args of [
+    [
+      "forget",
+      "--tag",
+      "commandry-postgres",
+      "--keep-last",
+      String(policy.RETENTION_LAST),
+      "--keep-daily",
+      String(policy.RETENTION_DAILY),
+      "--keep-weekly",
+      String(policy.RETENTION_WEEKLY),
+      "--keep-monthly",
+      String(policy.RETENTION_MONTHLY),
+      "--prune",
+    ],
+    ["check"],
+  ]) {
+    const result = spawnSync(restic.executable, [...common, ...args], {
+      cwd: root,
+      env: environment,
+      stdio: "ignore",
+      timeout: 30 * 60_000,
+    });
+    if (result.error || result.status !== 0) fail("RETENTION_FAILED");
+  }
+  const retained = spawnSync(
+    restic.executable,
+    [...common, "snapshots", snapshotId, "--json"],
+    {
+      cwd: root,
+      env: environment,
+      encoding: "utf8",
+      maxBuffer: 1024 * 1024,
+      timeout: 60_000,
+    },
+  );
+  if (retained.error || retained.status !== 0) fail("RETENTION_FAILED");
+  try {
+    if (
+      !JSON.parse(retained.stdout).some(
+        (snapshot) => snapshot.id === snapshotId,
+      )
+    )
+      fail("NEW_SNAPSHOT_NOT_RETAINED");
+  } catch (error) {
+    if (error?.message === "NEW_SNAPSHOT_NOT_RETAINED") throw error;
+    fail("RETENTION_OUTPUT");
+  }
+}
+
 try {
   if (Number(process.versions.node.split(".")[0]) !== 24) fail("NODE_VERSION");
   let environment;
@@ -120,6 +210,7 @@ try {
     ])
       trustedSource(resolve(root, "scripts", script));
     statusDir = validateStatusDirectory("/var/lib/commandry", 0);
+    markStarted();
     environment = productionBackupEnvironment(parsePrivateConfig());
   } else if (mode === "rehearse" && process.argv.length === 3) {
     const localRoot = resolve(root, ".agent") + sep;
@@ -127,6 +218,7 @@ try {
     if (!candidate || !resolve(candidate).startsWith(localRoot))
       fail("LOCAL_STATUS_DIRECTORY");
     statusDir = validateStatusDirectory(resolve(candidate), process.getuid?.());
+    markStarted();
     environment = {
       ...process.env,
       APP_ENV: "local",
@@ -136,8 +228,11 @@ try {
     fail("INVOCATION");
   }
 
+  const policy = retentionPolicy(environment);
   phase = "BACKUP";
   const backup = runBackup(environment);
+  phase = "RETENTION";
+  runRetention(environment, policy, backup.snapshotId);
   phase = "STATUS";
   const record = {
     kind: "commandry_scheduled_backup",
@@ -150,6 +245,13 @@ try {
     snapshotId: backup.snapshotId,
     dumpSha256: backup.dumpSha256,
     repositoryCheckPassed: true,
+    retainedSnapshotVerified: true,
+    retentionApplied: {
+      last: policy.RETENTION_LAST,
+      daily: policy.RETENTION_DAILY,
+      weekly: policy.RETENTION_WEEKLY,
+      monthly: policy.RETENTION_MONTHLY,
+    },
     offsiteStored: production,
     restoreVerified: false,
     durationMs: Date.now() - startedMs,
