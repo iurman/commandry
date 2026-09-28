@@ -49,6 +49,10 @@ HTTPS-origin constraints and a production-labeled audit actor. It stays closed
 by default and does not decide the canonical login or recovery method, cover
 loss of VPS operator access, or attribute existing product audit records to a
 human. Preview remains blocked; the other production deployment gates remain.
+An opt-in local restic drill now proves that one synthetic owner's password
+credential survives encrypted backup and clean restore, followed by protected
+reads and session revocation. It does not prove production human recovery,
+offsite storage, or restored VPS access.
 The uninstalled deployment smoke path can provision the first owner during an
 approved release, records an `auth.owner_bootstrapped` audit with an operator
 path, and verifies a protected read plus a separate worker result. It has only

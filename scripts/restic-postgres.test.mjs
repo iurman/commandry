@@ -3,6 +3,7 @@ import { spawnSync } from "node:child_process";
 import { randomBytes, randomUUID } from "node:crypto";
 import { existsSync } from "node:fs";
 import {
+  chmod,
   link,
   mkdir,
   mkdtemp,
@@ -59,10 +60,14 @@ test("streamed restic backup restores synthetic data in an isolated app and reje
   const projectId = randomUUID();
   const captureId = randomUUID();
   const fixture = `Synthetic restic test capture ${captureId}`;
+  const ownerEmail = `restored-owner-${randomBytes(4).toString("hex")}@commandry.test`;
+  const ownerPassword = `Restored-${randomBytes(24).toString("base64url")}`;
   const directory = await mkdtemp(resolve(root, ".agent/restic-test-"));
   const repository = resolve(directory, "repository");
   const configDirectory = resolve(directory, "commandry");
   const passwordFile = resolve(configDirectory, "restic-password");
+  const authProbeFile = resolve(directory, "auth-probe.json");
+  const bootstrapEnvFile = resolve(directory, "bootstrap.env");
   const stateDirectory = resolve(directory, "state");
   await mkdir(configDirectory, { mode: 0o700 });
   await mkdir(stateDirectory, { mode: 0o700 });
@@ -88,6 +93,11 @@ test("streamed restic backup restores synthetic data in an isolated app and reje
   await writeFile(passwordFile, randomBytes(48).toString("base64url"), {
     mode: 0o600,
   });
+  await writeFile(
+    authProbeFile,
+    JSON.stringify({ email: ownerEmail, password: ownerPassword }),
+    { mode: 0o600 },
+  );
   const resticArgs = [
     ...restic.prefix,
     "--repo",
@@ -216,6 +226,87 @@ test("streamed restic backup restores synthetic data in an isolated app and reje
       "select has_table_privilege(current_user, 'public.capture', 'SELECT'), has_table_privilege(current_user, 'public.capture', 'INSERT')",
     ]).trim();
     assert.equal(rolePrivileges, "t|f");
+    const composeBase = compose.slice(0, -3);
+    const postgresContainer = execute(runtime.command, [
+      ...composeBase,
+      "ps",
+      "-q",
+      "postgres",
+    ]).trim();
+    const webContainer = execute(runtime.command, [
+      ...composeBase,
+      "ps",
+      "-q",
+      "web",
+    ]).trim();
+    const networkName = execute(runtime.command, [
+      ...runtime.prefix,
+      "inspect",
+      postgresContainer,
+      "--format",
+      "{{range $name, $network := .NetworkSettings.Networks}}{{println $name}}{{end}}",
+    ]).trim();
+    const webImageId = `sha256:${execute(runtime.command, [
+      ...runtime.prefix,
+      "inspect",
+      webContainer,
+      "--format",
+      "{{.Image}}",
+    ])
+      .trim()
+      .replace(/^sha256:/, "")}`;
+    assert.match(networkName, /^[a-zA-Z0-9_.-]+$/);
+    assert.match(webImageId, /^sha256:[0-9a-f]{64}$/);
+    assert.ok(process.env.DB_ROOT_PASSWORD);
+    await writeFile(
+      bootstrapEnvFile,
+      [
+        "NODE_ENV=production",
+        "APP_ENV=local",
+        "APP_ORIGIN=http://127.0.0.1:3000",
+        `DATABASE_URL=postgresql://postgres:${encodeURIComponent(process.env.DB_ROOT_PASSWORD)}@postgres:5432/${database}`,
+        `BETTER_AUTH_SECRET=${randomBytes(48).toString("base64url")}`,
+        `APP_ENCRYPTION_KEY=${randomBytes(48).toString("base64url")}`,
+        `INITIAL_ADMIN_EMAIL=${ownerEmail}`,
+        "LOCAL_AUTH_MODE=password",
+        "RELEASE_SHA=synthetic-restore",
+        "",
+      ].join("\n"),
+      { mode: 0o600 },
+    );
+    const bootstrapOutput = execute(
+      runtime.command,
+      [
+        ...runtime.prefix,
+        "run",
+        "--rm",
+        "-i",
+        "--network",
+        networkName,
+        "--env-file",
+        bootstrapEnvFile,
+        webImageId,
+        "node",
+        "apps/worker/dist/bootstrap-local-auth.js",
+      ],
+      { input: `${ownerPassword}\n`, timeout: 60_000 },
+    );
+    assert.ok(bootstrapOutput.includes(ownerEmail));
+    assert.equal(
+      inDatabase([
+        "psql",
+        "-X",
+        "-A",
+        "-t",
+        "-U",
+        "postgres",
+        "-d",
+        database,
+        "-c",
+        'select count(*) from "user"',
+      ]).trim(),
+      "1",
+    );
     const backup = JSON.parse(
       execute(process.execPath, ["scripts/restic-postgres.mjs", "backup"], {
         env: scriptEnvironment,
@@ -261,19 +352,30 @@ test("streamed restic backup restores synthetic data in an isolated app and reje
           backup.snapshotId,
           backup.dumpSha256,
         ],
-        { env: scriptEnvironment },
+        {
+          env: {
+            ...scriptEnvironment,
+            RECOVERY_AUTH_PROBE_FILE: authProbeFile,
+          },
+        },
       ),
     );
     assert.equal(isolated.outcome, "passed");
     assert.equal(isolated.sourceLabel, "synthetic-local-test");
     assert.equal(isolated.projectCount, 1);
     assert.equal(isolated.captureCount, 1);
+    assert.equal(isolated.ownerCount, 1);
     assert.equal(isolated.webSmoke.projectRead, true);
     assert.equal(isolated.webSmoke.captureRead, true);
-    assert.equal(isolated.authenticatedReadVerified, false);
+    assert.equal(isolated.webSmoke.unauthenticatedDenied, true);
+    assert.equal(isolated.webSmoke.ownerSignIn, true);
+    assert.equal(isolated.webSmoke.authenticatedPage, true);
+    assert.equal(isolated.webSmoke.signedOut, true);
+    assert.equal(isolated.webSmoke.sessionRevoked, true);
+    assert.equal(isolated.authenticatedReadVerified, true);
     assert.equal(
       isolated.isolatedWebAuthMode,
-      "off-for-read-only-restore-check",
+      "local-synthetic-restored-owner-password",
     );
     assert.equal(isolated.networkInternal, true);
     assert.ok(["{}", "null"].includes(isolated.publishedPorts));
@@ -285,6 +387,35 @@ test("streamed restic backup restores synthetic data in an isolated app and reje
     const saved = JSON.parse(await readFile(isolated.evidencePath, "utf8"));
     assert.equal(saved.id, isolated.id);
     assert.equal(saved.outcome, "passed");
+    const unsafeProbeFile = resolve(directory, "unsafe-auth-probe.json");
+    await writeFile(
+      unsafeProbeFile,
+      JSON.stringify({
+        email: "unsafe-probe@commandry.test",
+        password: "Synthetic-password-not-used",
+      }),
+      { mode: 0o644 },
+    );
+    await chmod(unsafeProbeFile, 0o644);
+    assert.notEqual((await stat(unsafeProbeFile)).mode & 0o077, 0);
+    const unsafeProbe = spawnSync(
+      process.execPath,
+      [
+        "scripts/restic-isolated-restore.mjs",
+        backup.snapshotId,
+        backup.dumpSha256,
+      ],
+      {
+        cwd: root,
+        encoding: "utf8",
+        env: {
+          ...scriptEnvironment,
+          RECOVERY_AUTH_PROBE_FILE: unsafeProbeFile,
+        },
+      },
+    );
+    assert.equal(unsafeProbe.status, 1);
+    assert.equal(JSON.parse(unsafeProbe.stderr).failureCode, "AUTH_PROBE_FILE");
     const directBundle = JSON.parse(
       execute(
         process.execPath,

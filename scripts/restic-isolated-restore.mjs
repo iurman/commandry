@@ -1,6 +1,6 @@
 import { randomBytes, randomUUID } from "node:crypto";
 import { spawnSync } from "node:child_process";
-import { existsSync, lstatSync } from "node:fs";
+import { existsSync, lstatSync, readFileSync } from "node:fs";
 import { mkdir, mkdtemp, rm, writeFile } from "node:fs/promises";
 import { dirname, isAbsolute, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
@@ -43,6 +43,7 @@ let networkCreated = false;
 let volumeCreated = false;
 let postgresStarted = false;
 let webStarted = false;
+let authProbe = null;
 const evidence = {
   kind: "commandry_restic_isolated_restore",
   id,
@@ -62,6 +63,7 @@ const evidence = {
   projectCount: null,
   captureCount: null,
   workCount: null,
+  ownerCount: null,
   networkInternal: false,
   publishedPorts: null,
   webSmoke: null,
@@ -78,6 +80,39 @@ const evidence = {
 
 function fail(code) {
   throw new Error(code);
+}
+
+function loadAuthProbe() {
+  const path = process.env.RECOVERY_AUTH_PROBE_FILE;
+  if (!path) return null;
+  if (production) fail("AUTH_PROBE_LOCAL_ONLY");
+  if (!isAbsolute(path)) fail("AUTH_PROBE_FILE");
+  const entry = lstatSync(path);
+  if (
+    !entry.isFile() ||
+    entry.nlink !== 1 ||
+    entry.uid !== process.getuid() ||
+    (entry.mode & 0o077) !== 0 ||
+    entry.size < 30 ||
+    entry.size > 1024
+  )
+    fail("AUTH_PROBE_FILE");
+  let value;
+  try {
+    value = JSON.parse(readFileSync(path, "utf8"));
+  } catch {
+    fail("AUTH_PROBE_FILE");
+  }
+  if (
+    !value ||
+    typeof value.email !== "string" ||
+    !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(value.email) ||
+    typeof value.password !== "string" ||
+    value.password.length < 12 ||
+    value.password.length > 128
+  )
+    fail("AUTH_PROBE_FILE");
+  return { email: value.email, password: value.password };
 }
 
 function checkedImageId(value) {
@@ -154,6 +189,9 @@ function resticConfig() {
     fail("Expected dump SHA-256 must be a full digest");
   if (process.env.APP_ENV !== "local" && !production)
     fail("Isolated restore requires APP_ENV=local or production");
+  authProbe = loadAuthProbe();
+  if (authProbe)
+    evidence.isolatedWebAuthMode = "local-synthetic-restored-owner-password";
   if (!/^[a-z_][a-z0-9_]{0,62}$/.test(process.env.DB_NAME || ""))
     fail("DB_NAME must be a simple PostgreSQL identifier");
   if (!/^[a-z0-9][a-z0-9_.-]{0,63}$/.test(evidence.sourceLabel))
@@ -235,21 +273,56 @@ const smokeCode = `
     const chunks = [];
     for await (const chunk of process.stdin) chunks.push(chunk);
     const expected = JSON.parse(Buffer.concat(chunks).toString('utf8'));
-    const get = async (path) => {
-      const response = await fetch('http://127.0.0.1:3000' + path, {
+    const base = 'http://127.0.0.1:3000';
+    const get = async (path, cookie) => {
+      const response = await fetch(base + path, {
+        headers: cookie ? { cookie } : {},
         signal: AbortSignal.timeout(4000),
       });
-      return { ok: response.ok, body: await response.json() };
+      return { status: response.status, ok: response.ok, body: await response.json() };
     };
     const live = await get('/health/live');
     const ready = await get('/health/ready');
     const version = await get('/version');
-    const list = await get('/api/v1/projects?limit=1');
+    const denied = expected.auth ? await get('/api/v1/projects?limit=1') : null;
+    let login = null;
+    let cookie = null;
+    if (expected.auth) {
+      login = await fetch(base + '/api/auth/sign-in/email', {
+        method: 'POST',
+        headers: { 'content-type': 'application/json', origin: base },
+        body: JSON.stringify(expected.auth),
+        signal: AbortSignal.timeout(4000),
+      });
+      cookie = login.headers.get('set-cookie')?.split(';', 1)[0] ?? null;
+    }
+    const list = await get('/api/v1/projects?limit=1', cookie);
     const project = expected.project
-      ? await get('/api/v1/projects/' + expected.project.id)
+      ? await get('/api/v1/projects/' + expected.project.id, cookie)
       : null;
     const capture = expected.capture
-      ? await get('/api/v1/captures/' + expected.capture.id)
+      ? await get('/api/v1/captures/' + expected.capture.id, cookie)
+      : null;
+    const page = expected.auth
+      ? await fetch(base + '/projects', {
+          headers: { cookie: cookie ?? '' },
+          signal: AbortSignal.timeout(4000),
+        })
+      : null;
+    const logout = expected.auth
+      ? await fetch(base + '/api/auth/sign-out', {
+          method: 'POST',
+          headers: {
+            'content-type': 'application/json',
+            origin: base,
+            cookie: cookie ?? '',
+          },
+          body: '{}',
+          signal: AbortSignal.timeout(4000),
+        })
+      : null;
+    const revoked = expected.auth
+      ? await get('/api/v1/projects?limit=1', cookie)
       : null;
     const result = {
       live: live.ok && live.body.status === 'alive',
@@ -263,6 +336,13 @@ const smokeCode = `
       captureRead: capture === null ? null : capture.ok &&
         capture.body.id === expected.capture.id &&
         capture.body.originalContent.startsWith(expected.capture.prefix),
+      unauthenticatedDenied: expected.auth ? denied.status === 401 : null,
+      ownerSignIn: expected.auth
+        ? login.status === 200 && Boolean(cookie?.includes('session_token='))
+        : null,
+      authenticatedPage: expected.auth ? page.status === 200 : null,
+      signedOut: expected.auth ? logout.status === 200 : null,
+      sessionRevoked: expected.auth ? revoked.status === 401 : null,
     };
     console.log(JSON.stringify(result));
     process.exitCode = Object.values(result).every((value) => value !== false) ? 0 : 1;
@@ -435,12 +515,12 @@ async function isolate(restic) {
 
   phase = "RESTORED_DATA";
   const counts = databaseQuery(
-    "select (select count(*) from pg_tables where schemaname = 'public') || '|' || (select count(*) from project) || '|' || (select count(*) from capture) || '|' || (select count(*) from work_item)",
+    "select (select count(*) from pg_tables where schemaname = 'public') || '|' || (select count(*) from project) || '|' || (select count(*) from capture) || '|' || (select count(*) from work_item) || '|' || (select count(*) from \"user\")",
   )
     .split("|")
     .map(Number);
   if (
-    counts.length !== 4 ||
+    counts.length !== 5 ||
     counts[0] < 1 ||
     !counts.every((value) => Number.isSafeInteger(value) && value >= 0)
   )
@@ -450,7 +530,9 @@ async function isolate(restic) {
     evidence.projectCount,
     evidence.captureCount,
     evidence.workCount,
+    evidence.ownerCount,
   ] = counts;
+  if (authProbe && evidence.ownerCount !== 1) fail("RESTORED_OWNER");
   const project = sample("project", "name");
   const capture = sample("capture", "original_content");
 
@@ -459,9 +541,17 @@ async function isolate(restic) {
     create role commandry_app login password '${appPassword}';
     grant connect on database "${process.env.DB_NAME}" to commandry_app;
     grant usage on schema public, pgboss to commandry_app;
-    grant select on all tables in schema public, pgboss to commandry_app;
+    ${
+      authProbe
+        ? "grant select, insert, update, delete on all tables in schema public, pgboss to commandry_app;"
+        : "grant select on all tables in schema public, pgboss to commandry_app;"
+    }
     grant usage on all sequences in schema public, pgboss to commandry_app;
-    alter role commandry_app set default_transaction_read_only = on;
+    ${
+      authProbe
+        ? ""
+        : "alter role commandry_app set default_transaction_read_only = on;"
+    }
   `;
   docker(
     [
@@ -491,7 +581,9 @@ async function isolate(restic) {
       `DATABASE_URL=postgresql://commandry_app:${appPassword}@postgres:5432/${process.env.DB_NAME}`,
       `BETTER_AUTH_SECRET=${randomBytes(48).toString("base64url")}`,
       `APP_ENCRYPTION_KEY=${randomBytes(48).toString("base64url")}`,
-      "LOCAL_AUTH_MODE=off",
+      ...(authProbe
+        ? ["INITIAL_ADMIN_EMAIL=" + authProbe.email, "LOCAL_AUTH_MODE=password"]
+        : ["LOCAL_AUTH_MODE=off"]),
       `RELEASE_SHA=${revision}`,
       `RELEASE_IMAGE_DIGEST=${production ? process.env.RECOVERY_WEB_IMAGE : webImageId}`,
       "",
@@ -527,6 +619,7 @@ async function isolate(restic) {
     capture,
     revision,
     imageId: production ? process.env.RECOVERY_WEB_IMAGE : webImageId,
+    auth: authProbe,
   });
   let smoke = null;
   await waitFor(() => {
@@ -542,6 +635,17 @@ async function isolate(restic) {
     }
   }, 45_000);
   evidence.webSmoke = smoke;
+  evidence.authenticatedReadVerified = Boolean(
+    authProbe &&
+    smoke?.unauthenticatedDenied &&
+    smoke?.ownerSignIn &&
+    smoke?.projectList &&
+    smoke?.projectRead &&
+    smoke?.captureRead &&
+    smoke?.authenticatedPage &&
+    smoke?.signedOut &&
+    smoke?.sessionRevoked,
+  );
   evidence.recoveryDurationMs = Date.now() - startedMs;
   evidence.outcome = "passed";
 }

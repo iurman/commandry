@@ -67,10 +67,17 @@ saves a private JSON record under
 `.agent/restic-recovery-evidence/`. It removes the containers, network, volume,
 and temporary credential files on success or failure. The repeatable test also
 checks that a wrong archive digest fails and cleanup succeeds.
-The isolated web process uses local auth-off mode so its read-only database
-role can check restored records without creating a session. Its evidence marks
-`authenticatedReadVerified` false. Production sign-in and worker smoke are
-separate gates that must still pass before a release.
+The default isolated web process uses local auth-off mode so its read-only
+database role can check restored records without creating a session. Its
+evidence marks `authenticatedReadVerified` false. The repeatable local test
+can opt into a synthetic owner probe through a private
+`RECOVERY_AUTH_PROBE_FILE`. It creates the owner in a disposable source
+database, restores that database, then verifies unauthenticated denial, owner
+sign-in, protected Project and Capture reads, a protected page, sign-out, and
+session revocation. The probe uses a writable role only inside the disposable
+restore and never records credentials in evidence. Production rejects this
+probe; production sign-in and worker smoke remain separate gates before a
+release. Neither local mode proves an offsite or VPS restore.
 
 ## Production activation boundary
 

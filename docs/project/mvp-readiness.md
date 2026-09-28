@@ -30,9 +30,12 @@ The Storybook lab is local development tooling and is absent from production
 manifests. The app is responsive at desktop and 390px and 320px phone widths.
 The [host-side restic drill](../../deploy/backup-and-restore.md) has also passed
 with a synthetic Project and Capture in a separate PostgreSQL container, an
-internal web read smoke, and a local encrypted repository. It records measured
-time in a private JSON file. It is separate from the product Recovery screen
-and does not prove an offsite or VPS restore. A separate synthetic host bundle
+internal web read smoke, and a local encrypted repository. An opt-in local
+variant restores one synthetic owner and proves sign-in, protected reads, and
+session revocation against that restored database. The default production
+restore check remains read-only and does not claim authenticated access. Both
+record measured time in private JSON files. They are separate from the
+product Recovery screen and do not prove an offsite or VPS restore. A separate synthetic host bundle
 drill captures and reads back encrypted PostgreSQL globals and private
 configuration, applies roles to a networkless disposable cluster, and extracts
 configuration locally. It does not install either on a replacement VPS.
