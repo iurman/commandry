@@ -60,7 +60,7 @@ function imageMatchesCleanSource() {
       "inspect",
       `commandry-local:${source.revision}`,
       "--format",
-      "{{json .Labels}}",
+      "{{json .Config.Labels}}",
     ],
     { encoding: "utf8", timeout: 15_000 },
   );

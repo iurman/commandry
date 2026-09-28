@@ -407,7 +407,13 @@ async function isolate(restic) {
       : docker(["inspect", webContainer, "--format", "{{.Image}}"]),
   );
   const labels = JSON.parse(
-    docker(["image", "inspect", webImageId, "--format", "{{json .Labels}}"]),
+    docker([
+      "image",
+      "inspect",
+      webImageId,
+      "--format",
+      "{{json .Config.Labels}}",
+    ]),
   );
   const revision = labels["org.opencontainers.image.revision"];
   if (
