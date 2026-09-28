@@ -1,0 +1,228 @@
+import assert from "node:assert/strict";
+import { spawnSync } from "node:child_process";
+import { randomBytes, randomUUID } from "node:crypto";
+import { existsSync } from "node:fs";
+import { mkdtemp, rm, writeFile } from "node:fs/promises";
+import { dirname, resolve } from "node:path";
+import { test } from "node:test";
+import { fileURLToPath } from "node:url";
+import { detectContainerRuntime } from "./container-runtime.mjs";
+
+const root = resolve(dirname(fileURLToPath(import.meta.url)), "..");
+
+function execute(executable, args, options = {}) {
+  const result = spawnSync(executable, args, {
+    cwd: root,
+    encoding: "utf8",
+    maxBuffer: 64 * 1024 * 1024,
+    ...options,
+  });
+  assert.equal(
+    result.status,
+    0,
+    `${executable} exited ${result.status}: ${result.stderr?.slice(-500)}`,
+  );
+  return result.stdout;
+}
+
+test("streamed restic backup restores a synthetic capture and rejects a bad digest", async () => {
+  assert.ok(existsSync(resolve(root, ".env.local")));
+  if (!process.env.APP_ENV) process.loadEnvFile(resolve(root, ".env.local"));
+  assert.equal(process.env.APP_ENV, "local");
+  const sourceDatabase = process.env.DB_NAME;
+  assert.match(sourceDatabase, /^[a-z_][a-z0-9_]{0,62}$/);
+  const runtime = detectContainerRuntime();
+  assert.ok(runtime);
+  const restic = [
+    { executable: "restic", prefix: [] },
+    {
+      executable: "flatpak-spawn",
+      prefix: ["--host", "/home/linuxbrew/.linuxbrew/bin/restic"],
+    },
+  ].find(
+    ({ executable, prefix }) =>
+      spawnSync(executable, [...prefix, "version"], {
+        stdio: "ignore",
+      }).status === 0,
+  );
+  assert.ok(restic);
+  const database = `commandry_restic_test_${randomBytes(4).toString("hex")}`;
+  const captureId = randomUUID();
+  const fixture = `Synthetic restic test capture ${captureId}`;
+  const directory = await mkdtemp(resolve(root, ".agent/restic-test-"));
+  const passwordFile = resolve(directory, "password");
+  const repository = resolve(directory, "repository");
+  await writeFile(passwordFile, randomBytes(48).toString("base64url"), {
+    mode: 0o600,
+  });
+  const resticArgs = [
+    ...restic.prefix,
+    "--repo",
+    repository,
+    "--password-file",
+    passwordFile,
+  ];
+  const compose = [
+    ...runtime.prefix,
+    "compose",
+    "--env-file",
+    ".env.local",
+    "-f",
+    "compose.yaml",
+    "exec",
+    "-T",
+    "postgres",
+  ];
+  const inDatabase = (args, options) =>
+    execute(runtime.command, [...compose, ...args], options);
+  const scriptEnvironment = {
+    ...process.env,
+    APP_ENV: "local",
+    DB_NAME: database,
+    RESTIC_REPOSITORY: repository,
+    RESTIC_PASSWORD_FILE: passwordFile,
+  };
+  let created = false;
+  try {
+    execute(restic.executable, [...resticArgs, "init"]);
+    inDatabase([
+      "psql",
+      "-X",
+      "-v",
+      "ON_ERROR_STOP=1",
+      "-U",
+      "postgres",
+      "-d",
+      sourceDatabase,
+      "-f",
+      "/docker-entrypoint-initdb.d/20-backup-role.sql",
+    ]);
+    inDatabase(["createdb", "-U", "postgres", "-T", "template0", database]);
+    created = true;
+    const schema = inDatabase(
+      [
+        "pg_dump",
+        "-U",
+        "postgres",
+        "-d",
+        sourceDatabase,
+        "--schema-only",
+        "--no-owner",
+        "--no-acl",
+        "-Fc",
+      ],
+      { encoding: null },
+    );
+    inDatabase(
+      [
+        "pg_restore",
+        "-U",
+        "postgres",
+        "-d",
+        database,
+        "--no-owner",
+        "--no-acl",
+        "--exit-on-error",
+      ],
+      { input: schema },
+    );
+    inDatabase([
+      "psql",
+      "-X",
+      "-v",
+      "ON_ERROR_STOP=1",
+      "-U",
+      "postgres",
+      "-d",
+      database,
+      "-c",
+      `insert into capture (id, input_type, original_content) values ('${captureId}', 'text', '${fixture}')`,
+    ]);
+    inDatabase([
+      "psql",
+      "-X",
+      "-v",
+      "ON_ERROR_STOP=1",
+      "-U",
+      "postgres",
+      "-d",
+      database,
+      "-c",
+      `grant connect on database ${database} to commandry_backup`,
+    ]);
+    const rolePrivileges = inDatabase([
+      "psql",
+      "-X",
+      "-A",
+      "-t",
+      "-U",
+      "commandry_backup",
+      "-d",
+      database,
+      "-c",
+      "select has_table_privilege(current_user, 'public.capture', 'SELECT'), has_table_privilege(current_user, 'public.capture', 'INSERT')",
+    ]).trim();
+    assert.equal(rolePrivileges, "t|f");
+    const backup = JSON.parse(
+      execute(process.execPath, ["scripts/restic-postgres.mjs", "backup"], {
+        env: scriptEnvironment,
+      }),
+    );
+    assert.equal(backup.outcome, "passed");
+    assert.match(backup.snapshotId, /^[0-9a-f]{64}$/);
+    assert.match(backup.dumpSha256, /^[0-9a-f]{64}$/);
+    const restored = JSON.parse(
+      execute(
+        process.execPath,
+        [
+          "scripts/restic-postgres.mjs",
+          "verify",
+          backup.snapshotId,
+          backup.dumpSha256,
+        ],
+        { env: scriptEnvironment },
+      ),
+    );
+    assert.equal(restored.outcome, "passed");
+    assert.equal(restored.captureCount, 1);
+    assert.equal(restored.dumpSha256, backup.dumpSha256);
+    assert.ok(restored.tableCount > 0);
+    const badDigest = spawnSync(
+      process.execPath,
+      [
+        "scripts/restic-postgres.mjs",
+        "verify",
+        backup.snapshotId,
+        "0".repeat(64),
+      ],
+      { cwd: root, encoding: "utf8", env: scriptEnvironment },
+    );
+    assert.equal(badDigest.status, 1);
+    assert.equal(JSON.parse(badDigest.stderr).reason, "RESTORE_DIGEST");
+    const residualDatabases = inDatabase([
+      "psql",
+      "-X",
+      "-A",
+      "-t",
+      "-U",
+      "postgres",
+      "-d",
+      sourceDatabase,
+      "-c",
+      "select count(*) from pg_database where datname like 'commandry_restore_%'",
+    ]).trim();
+    assert.equal(residualDatabases, "0");
+  } finally {
+    if (created) {
+      inDatabase([
+        "dropdb",
+        "-U",
+        "postgres",
+        "--if-exists",
+        "--force",
+        database,
+      ]);
+    }
+    await rm(directory, { recursive: true, force: true });
+  }
+});
