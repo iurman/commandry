@@ -1,5 +1,4 @@
 import { z } from "zod";
-import { isIP } from "node:net";
 
 const postgresUrl = z
   .url()
@@ -15,6 +14,23 @@ const optionalString = z.preprocess(
   (value) => (value === "" ? undefined : value),
   z.string().optional(),
 );
+
+function isPrivateIPv4Host(hostname: string): boolean {
+  const parts = hostname.split(".");
+  if (
+    parts.length !== 4 ||
+    parts.some((part) => !/^(0|[1-9]\d{0,2})$/.test(part))
+  ) {
+    return false;
+  }
+  const octets = parts.map(Number);
+  if (octets.some((octet) => octet > 255)) return false;
+  return (
+    octets[0] === 10 ||
+    (octets[0] === 172 && octets[1]! >= 16 && octets[1]! <= 31) ||
+    (octets[0] === 192 && octets[1] === 168)
+  );
+}
 
 const environmentSchema = z.object({
   APP_ENV: z.enum(["local", "test", "preview", "production"]),
@@ -110,9 +126,17 @@ export function loadRuntimeConfig(
 
   const localHosts = new Set(["127.0.0.1", "localhost", "[::1]"]);
   const origin = new URL(value.APP_ORIGIN);
-  if (origin.protocol !== "http:" || !localHosts.has(origin.hostname)) {
+  if (
+    origin.protocol !== "http:" ||
+    !localHosts.has(origin.hostname) ||
+    origin.pathname !== "/" ||
+    origin.search ||
+    origin.hash ||
+    origin.username ||
+    origin.password
+  ) {
     throw new ConfigurationError(
-      "Local runtime APP_ORIGIN must use HTTP on a loopback host.",
+      "Local runtime APP_ORIGIN must be a plain HTTP loopback origin.",
     );
   }
   const databaseHosts = new Set([...localHosts, "postgres"]);
@@ -128,20 +152,14 @@ export function loadRuntimeConfig(
     } catch {
       throw new ConfigurationError("Invalid LOCAL_AUTH_TRUSTED_ORIGIN.");
     }
-    const bytes = trusted.hostname.split(".").map(Number);
-    const firstOctet = bytes[0] ?? -1;
-    const secondOctet = bytes[1] ?? -1;
-    const privateAddress =
-      isIP(trusted.hostname) === 4 &&
-      (firstOctet === 10 ||
-        (firstOctet === 172 && secondOctet >= 16 && secondOctet <= 31) ||
-        (firstOctet === 192 && secondOctet === 168));
     if (
       trusted.protocol !== "http:" ||
-      !privateAddress ||
+      !isPrivateIPv4Host(trusted.hostname) ||
       trusted.pathname !== "/" ||
       trusted.search ||
       trusted.hash ||
+      trusted.username ||
+      trusted.password ||
       !trusted.port
     ) {
       throw new ConfigurationError(

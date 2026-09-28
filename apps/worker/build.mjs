@@ -17,6 +17,7 @@ await build({
     "src/index.ts",
     "src/migrate.ts",
     "src/bootstrap-local-auth.ts",
+    "src/recover-local-auth.ts",
   ],
   outdir: "dist",
   bundle: true,

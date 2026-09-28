@@ -1,4 +1,4 @@
-# Local human sign-in experiment
+# Local human sign-in and recovery experiment
 
 **Status: Operational**
 
@@ -39,6 +39,40 @@ The phone gateway forwards only the needed Better Auth session routes through
 its existing subnet, host, Basic credential, same-origin, and body-size checks.
 It still rejects public sign-up.
 
-This local flow has no account recovery, external identity provider, production
-origin validation, or human actor propagation into Commandry's product audit
-records. These are explicit production gates, not claims of readiness.
+## Offline local owner recovery
+
+After rebuilding the local Compose image with `pnpm compose:up`, the owner can
+replace a lost password through `pnpm auth:recover:local`. The command requires
+the configured owner email and a new 12 to 128 character password on separate
+standard-input lines. The email must match the configured allowlist and the
+database must contain exactly one user with one credential account. The command
+never prints the password or hash. It stops the running local web service while
+the password is replaced, revokes all of that owner's sessions, writes an
+`auth.owner_password_recovered` audit event, and restarts the web service. A
+failed reset also restarts a previously running web service. The operator should
+check web readiness and sign in with the new password afterward.
+
+For a local owner account, enter the new password without placing it in shell
+history:
+
+```sh
+read -r local_owner_email
+read -r -s local_new_password
+printf '%s\n%s\n' "$local_owner_email" "$local_new_password" | pnpm auth:recover:local
+unset local_owner_email local_new_password
+```
+
+This is a **sensitive, operator-only local action**. Its provisional required
+capability is `local_operator.auth_recover`, enforced by access to the local
+Docker socket and environment file rather than an in-product agent grant. The
+explicit command and exact email confirmation are its approval behavior; no
+in-product approval or external action is issued. Its audit event is
+`auth.owner_password_recovered`, with the owner email, revoked-session count,
+and event ID, never a credential value. An agent with only a Commandry product
+session cannot invoke this command.
+
+This recovery requires a working local operator terminal and Docker access. It
+does not prove recovery after losing the VPS, a production origin, an external
+identity provider, or human actor propagation into Commandry's product audit
+records. The production sign-in and recovery decision remains open under
+OQ-003; public environments remain blocked.

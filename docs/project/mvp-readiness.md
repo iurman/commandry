@@ -88,9 +88,12 @@ replace the production gates.
    remain open. Local backup and rollback drills do not satisfy ADR 0009.
 
 2. **Human identity.** [OQ-003](open-questions.md#oq-003-what-is-the-first-human-sign-in-and-recovery-method) must settle production sign-in and account recovery. The
-   optional Better Auth local owner experiment and phone `test`/`pass`
-   review gate are not that decision. `APP_ENV=production` still refuses to
-   start.
+   optional Better Auth local owner experiment now includes an offline local
+   operator reset that revokes sessions and writes an audit event. Its built-app
+   smoke checks access denial and recovered sign-in against disposable
+   PostgreSQL. It cannot recover from loss of VPS operator access. The phone
+   `test`/`pass` review gate is separate. These tests do not decide the
+   production method; `APP_ENV=production` still refuses to start.
 3. **Immutable release and control.** An approved immutable registry image
    digest or signed build chain, production secret handling, deployment
    command restrictions, and rollback rehearsal on the actual host remain to

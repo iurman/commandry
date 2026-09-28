@@ -35,7 +35,11 @@ PostgreSQL sessions on human pages and versioned routes, and offers sign-in and
 sign-out screens. Machine callback, receiver, and MCP POST routes retain their
 own scoped credentials. The local phone proxy can forward only session routes
 through its separate test/pass review gate. This experiment is off by default;
-it does not decide a production login or recovery method, attribute existing
+an offline local operator can now reset that one owner's password, revoke all
+sessions, and record an `auth.owner_password_recovered` audit event while web
+traffic is stopped. The built-app smoke checks sign-in, denial, sign-out, and
+recovery against disposable PostgreSQL. This does not decide a production login
+or recovery method, cover loss of VPS operator access, attribute existing
 product audit records to a human, or lift the preview/production config gate.
 
 ### OQ-005: Which two integrations prove the vertical slice?

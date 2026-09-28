@@ -82,6 +82,32 @@ async function stopService(service) {
   ]);
 }
 
+async function runOneShot(name, entrypoint, environment, input) {
+  const child = spawn(process.execPath, [entrypoint], {
+    cwd: root,
+    env: { ...process.env, ...environment },
+    stdio: ["pipe", "pipe", "pipe"],
+  });
+  let stdout = "";
+  let stderr = "";
+  child.stdout.on("data", (chunk) => {
+    stdout = (stdout + chunk.toString()).slice(-4_000);
+  });
+  child.stderr.on("data", (chunk) => {
+    stderr = (stderr + chunk.toString()).slice(-4_000);
+  });
+  child.stdin.on("error", () => {});
+  child.stdin.end(input);
+  const [code, signal] = await new Promise((resolveExit, reject) => {
+    child.once("error", reject);
+    child.once("exit", (exitCode, exitSignal) =>
+      resolveExit([exitCode, exitSignal]),
+    );
+  });
+  assert.equal(code, 0, `${name} exited with ${signal ?? code}: ${stderr}`);
+  return { stdout, stderr };
+}
+
 async function waitForReady(url, services) {
   const deadline = Date.now() + 20_000;
   while (Date.now() < deadline) {
@@ -661,6 +687,162 @@ async function runSmoke(postgres, adminUrl, runtimePassword) {
   }
 }
 
+async function runAuthSmoke(postgres, adminUrl, runtimePassword) {
+  const webEntry = join(root, "apps/web/.next/standalone/apps/web/server.js");
+  const bootstrapEntry = join(root, "apps/worker/dist/bootstrap-local-auth.js");
+  const recoveryEntry = join(root, "apps/worker/dist/recover-local-auth.js");
+  for (const entry of [webEntry, bootstrapEntry, recoveryEntry]) {
+    if (!existsSync(entry))
+      throw new Error(
+        `Build artifact is missing: ${entry}. Run pnpm build first.`,
+      );
+  }
+  const port = await freeLoopbackPort();
+  const origin = `http://127.0.0.1:${port}`;
+  const email = "auth-smoke-owner@commandry.test";
+  const password = `Auth-Smoke-${randomBytes(16).toString("hex")}`;
+  const recoveredPassword = `Recovered-${randomBytes(16).toString("hex")}`;
+  const runtimeUrl = new URL(adminUrl);
+  runtimeUrl.username = "commandry_app_integration";
+  runtimeUrl.password = runtimePassword;
+  const environment = {
+    NODE_ENV: "production",
+    APP_ENV: "test",
+    APP_ORIGIN: origin,
+    DATABASE_URL: runtimeUrl.toString(),
+    BETTER_AUTH_SECRET: randomBytes(32).toString("hex"),
+    APP_ENCRYPTION_KEY: randomBytes(32).toString("hex"),
+    INITIAL_ADMIN_EMAIL: email,
+    LOCAL_AUTH_MODE: "password",
+    RELEASE_SHA: "auth-integration-smoke",
+    DB_POOL_MAX: "2",
+    PORT: String(port),
+    HOSTNAME: "127.0.0.1",
+  };
+  const bootstrap = await runOneShot(
+    "owner bootstrap",
+    bootstrapEntry,
+    environment,
+    `${password}\n`,
+  );
+  assert.ok(!bootstrap.stdout.includes(password));
+  let web = startService("auth web", webEntry, environment);
+  const postAuth = (path, body, cookie) =>
+    fetch(`${origin}/api/auth/${path}`, {
+      method: "POST",
+      headers: {
+        "content-type": "application/json",
+        origin,
+        ...(cookie ? { cookie } : {}),
+      },
+      body: JSON.stringify(body),
+    });
+  async function signIn(candidatePassword) {
+    const response = await postAuth("sign-in/email", {
+      email,
+      password: candidatePassword,
+    });
+    assert.equal(response.status, 200, await response.text());
+    const cookie = response.headers.get("set-cookie")?.split(";", 1)[0];
+    assert.ok(cookie?.includes("session_token="));
+    return cookie;
+  }
+  try {
+    await waitForReady(`${origin}/health/ready`, [web]);
+    const publicSignIn = await fetch(`${origin}/sign-in`);
+    assert.equal(publicSignIn.status, 200);
+    const deniedRead = await fetch(`${origin}/api/v1/projects`);
+    assert.equal(deniedRead.status, 401);
+    assert.equal((await deniedRead.json()).code, "UNAUTHENTICATED");
+    const deniedWrite = await fetch(`${origin}/api/v1/projects`, {
+      method: "POST",
+      headers: { "content-type": "application/json" },
+      body: JSON.stringify({ name: "Unauthorized smoke", type: "software" }),
+    });
+    assert.equal(deniedWrite.status, 401);
+    const deniedPage = await fetch(`${origin}/projects`, {
+      redirect: "manual",
+    });
+    assert.equal(deniedPage.status, 307);
+    assert.equal(
+      new URL(deniedPage.headers.get("location"), origin).pathname,
+      "/sign-in",
+    );
+    const refusedSignUp = await postAuth("sign-up/email", {
+      name: "Another owner",
+      email: "other@commandry.test",
+      password,
+    });
+    assert.notEqual(refusedSignUp.status, 200);
+
+    const cookie = await signIn(password);
+    const allowedRead = await fetch(`${origin}/api/v1/projects`, {
+      headers: { cookie },
+    });
+    assert.equal(allowedRead.status, 200);
+    const allowedPage = await fetch(`${origin}/projects`, {
+      headers: { cookie },
+    });
+    assert.equal(allowedPage.status, 200);
+    const signOut = await postAuth("sign-out", {}, cookie);
+    assert.equal(signOut.status, 200);
+    const signedOutRead = await fetch(`${origin}/api/v1/projects`, {
+      headers: { cookie },
+    });
+    assert.equal(signedOutRead.status, 401);
+
+    const beforeRecoveryCookie = await signIn(password);
+    await stopService(web);
+    const recovered = await runOneShot(
+      "owner recovery",
+      recoveryEntry,
+      environment,
+      `${email}\n${recoveredPassword}\n`,
+    );
+    assert.ok(!recovered.stdout.includes(recoveredPassword));
+    const evidence = JSON.parse(recovered.stdout);
+    assert.equal(evidence.operation, "auth.owner_password_recovered");
+    assert.equal(evidence.revokedSessionCount, 1);
+    web = startService("recovered auth web", webEntry, environment);
+    await waitForReady(`${origin}/health/ready`, [web]);
+    const revokedRead = await fetch(`${origin}/api/v1/projects`, {
+      headers: { cookie: beforeRecoveryCookie },
+    });
+    assert.equal(revokedRead.status, 401);
+    const oldPassword = await postAuth("sign-in/email", { email, password });
+    assert.notEqual(oldPassword.status, 200);
+    const recoveredCookie = await signIn(recoveredPassword);
+    const recoveredRead = await fetch(`${origin}/api/v1/projects`, {
+      headers: { cookie: recoveredCookie },
+    });
+    assert.equal(recoveredRead.status, 200);
+    const client = postgres.getPgClient("commandry_integration", "127.0.0.1");
+    await client.connect();
+    try {
+      const audit = await client.query(
+        "SELECT actor, details FROM audit_event WHERE id = $1 AND operation = 'auth.owner_password_recovered'",
+        [evidence.auditEventId],
+      );
+      assert.equal(audit.rows[0]?.actor, "local-operator-cli");
+      assert.equal(audit.rows[0]?.details?.revokedSessionCount, 1);
+    } finally {
+      await client.end();
+    }
+    console.log(
+      "Built auth smoke passed: unauthorized page/API denial, closed sign-up, owner sign-in and sign-out, offline password recovery, old-session revocation, and recovered read.",
+    );
+  } finally {
+    await stopService(web);
+    const cleanup = postgres.getPgClient("commandry_integration", "127.0.0.1");
+    await cleanup.connect();
+    try {
+      await cleanup.query('DELETE FROM "user" WHERE email = $1', [email]);
+    } finally {
+      await cleanup.end();
+    }
+  }
+}
+
 const directory = await mkdtemp(join(tmpdir(), "commandry-pg18-"));
 const password = randomBytes(24).toString("hex");
 const runtimePassword = randomBytes(24).toString("hex");
@@ -690,30 +872,47 @@ try {
     runtimePassword,
     "packages/platform/src/foundation.integration.test.ts",
   );
-  const platformTests = (await readdir(resolve(root, "packages/platform/src")))
-    .filter(
-      (file) =>
-        file.endsWith(".integration.test.ts") &&
-        file !== "foundation.integration.test.ts",
+  const authOnly = process.argv.includes("--auth-only");
+  if (!authOnly) {
+    const platformTests = (
+      await readdir(resolve(root, "packages/platform/src"))
     )
-    .sort();
-  for (const file of platformTests)
-    await runTests(
-      connectionString,
-      runtimePassword,
-      `packages/platform/src/${file}`,
-    );
-  if (process.argv.includes("--smoke"))
+      .filter(
+        (file) =>
+          file.endsWith(".integration.test.ts") &&
+          file !== "foundation.integration.test.ts",
+      )
+      .sort();
+    for (const file of platformTests)
+      await runTests(
+        connectionString,
+        runtimePassword,
+        `packages/platform/src/${file}`,
+      );
+  }
+  if (process.argv.includes("--smoke")) {
     await runSmoke(postgres, connectionString, runtimePassword);
-  const repositoryTests = (await readdir(resolve(root, "packages/db/src")))
-    .filter((file) => file.endsWith(".integration.test.ts"))
-    .sort();
-  for (const file of repositoryTests)
+  }
+  if (process.argv.includes("--smoke") || authOnly) {
+    await runAuthSmoke(postgres, connectionString, runtimePassword);
+  }
+  if (authOnly) {
     await runTests(
       connectionString,
       runtimePassword,
-      `packages/db/src/${file}`,
+      "packages/db/src/auth.integration.test.ts",
     );
+  } else {
+    const repositoryTests = (await readdir(resolve(root, "packages/db/src")))
+      .filter((file) => file.endsWith(".integration.test.ts"))
+      .sort();
+    for (const file of repositoryTests)
+      await runTests(
+        connectionString,
+        runtimePassword,
+        `packages/db/src/${file}`,
+      );
+  }
 } catch (error) {
   failed = true;
   console.error(error instanceof Error ? error.message : error);

@@ -30,8 +30,8 @@ export default async function AccountPage() {
             </p>
             <SignOutButton />
             <p className="cmd-form-hint">
-              This password flow is provisional. Production recovery is still
-              undecided under OQ-003.
+              A local operator reset signs out every device. This password flow
+              and production recovery remain provisional under OQ-003.
             </p>
           </>
         ) : (

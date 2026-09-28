@@ -18,7 +18,8 @@ export default function SignInPage() {
         </p>
         <SignInForm />
         <p className="cmd-form-hint">
-          Recovery and production activation remain open under OQ-003.
+          Lost the local password? The local operator can reset it and sign out
+          every device. Production recovery remains open under OQ-003.
         </p>
       </section>
     </main>

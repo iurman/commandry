@@ -85,6 +85,15 @@ describe("runtime configuration", () => {
       loadRuntimeConfig({ ...valid, APP_ORIGIN: "https://commandry.example" }),
     ).toThrow(/loopback/);
     expect(() =>
+      loadRuntimeConfig({ ...valid, APP_ORIGIN: "http://127.0.0.1:3000/path" }),
+    ).toThrow(/loopback/);
+    expect(() =>
+      loadRuntimeConfig({
+        ...valid,
+        APP_ORIGIN: "http://user:pass@127.0.0.1:3000",
+      }),
+    ).toThrow(/loopback/);
+    expect(() =>
       loadRuntimeConfig({
         ...valid,
         DATABASE_URL: "postgresql://user:pass@db.example/commandry",
@@ -108,6 +117,7 @@ describe("runtime configuration", () => {
     for (const untrusted of [
       "https://10.0.0.73:3011",
       "http://public.example:3011",
+      "http://user:pass@10.0.0.73:3011",
       "http://10.0.0.73:3011/path",
       "http://10.0.0.73:3011?query=1",
     ]) {
