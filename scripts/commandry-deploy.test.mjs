@@ -55,7 +55,9 @@ set -euo pipefail
 [[ ! -f "$COMMANDRY_TEST_ROOT/fail-backup" ]] || exit 21
 status=true
 [[ ! -f "$COMMANDRY_TEST_ROOT/non-offsite-backup" ]] || status=false
-printf 'SNAPSHOT=%064d\nCOMPLETED_AT=%s\nOFFSITE=%s\nVERIFIED=true\nRESTORE_PASSED=true\nDUMP_SHA256=%064d\nGLOBALS_SNAPSHOT=%064d\nGLOBALS_SHA256=%064d\nCONFIG_SNAPSHOT=%064d\nCONFIG_SHA256=%064d\n' 0 "$(date -u +%Y-%m-%dT%H:%M:%SZ)" "$status" 1 2 3 4 5 > "$2"
+host_recovery=true
+[[ ! -f "$COMMANDRY_TEST_ROOT/failed-host-recovery" ]] || host_recovery=false
+printf 'SNAPSHOT=%064d\nCOMPLETED_AT=%s\nOFFSITE=%s\nVERIFIED=true\nRESTORE_PASSED=true\nHOST_RECOVERY_DRILL_PASSED=%s\nDUMP_SHA256=%064d\nGLOBALS_SNAPSHOT=%064d\nGLOBALS_SHA256=%064d\nCONFIG_SNAPSHOT=%064d\nCONFIG_SHA256=%064d\n' 0 "$(date -u +%Y-%m-%dT%H:%M:%SZ)" "$status" "$host_recovery" 1 2 3 4 5 > "$2"
 chmod 0600 "$2"
 `;
 
@@ -281,6 +283,19 @@ test("non-offsite backup receipt fails closed", (t) => {
   assert.notEqual(result.status, 0);
   assert.match(result.stderr, /verified offsite snapshot/);
   assert.equal(event(root).rollback, "first_release_stopped");
+});
+
+test("failed isolated host recovery receipt fails before migration", (t) => {
+  const root = harness(t);
+  write(join(root, "failed-host-recovery"), "1");
+  const result = run(root);
+  assert.notEqual(result.status, 0);
+  assert.match(result.stderr, /isolated host recovery/);
+  assert.equal(event(root).rollback, "first_release_stopped");
+  assert.doesNotMatch(
+    readFileSync(join(root, "docker.calls"), "utf8"),
+    /run --rm --no-deps migrate/,
+  );
 });
 
 test("failed smoke after migration restores the prior code image, not the schema", (t) => {

@@ -267,8 +267,9 @@ paths from real-source and production activation evidence.
   emit a production offsite receipt. The gate also captures encrypted
   PostgreSQL globals and private host configuration snapshots, checks their
   readback digests, and links all three snapshots in its receipt. The local
-  drill extracts the configuration bundle and confirms the restic password
-  is excluded. The production path requires root-owned R2 credentials and a
+  drill applies global roles to a separate networkless PostgreSQL cluster,
+  extracts the configuration bundle, confirms the restic password is excluded,
+  and cleans up. The production path requires root-owned R2 credentials and a
   canonical R2 endpoint, then checks the approved web image and an isolated
   read smoke before writing a deployment receipt. No R2 bucket or credentials
   are configured for Commandry, and no timer or VPS restore is active.
@@ -290,12 +291,14 @@ paths from real-source and production activation evidence.
   is active on the VPS, and owner-selected policy values, owner-facing failure
   alerts, monthly clean restore, and accepted recovery targets remain open.
 - An uninstalled monthly service and timer can select a retained snapshot and
-  current release identity, read back the retained host bundles, run the
-  separate-container PostgreSQL and web restore, then record a private result
-  only after read smoke and cleanup pass. Its synthetic local rehearsal is not
-  an offsite or VPS recovery proof. The actual R2 run, installation of host
-  configuration, application of global roles, authenticated production read,
-  and accepted recovery targets remain unverified.
+  current release identity, apply global roles to a disposable cluster, extract
+  private configuration into a disposable directory, and run the
+  separate-container PostgreSQL and web restore. It records a private version
+  3 result only after read smoke and complete cleanup. Its synthetic local
+  rehearsal is not an offsite or VPS recovery proof. The actual R2 run,
+  installation of host configuration and global roles on a replacement VPS,
+  authenticated production read, and accepted recovery targets remain
+  unverified.
 - A host-run local release preflight checks the current Compose PostgreSQL,
   web, worker, and migrator state, shared web/worker image identity, live and
   versioned API reads, a recent worker heartbeat, and the latest passed local

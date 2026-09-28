@@ -49,6 +49,7 @@ for path in "$base" "$runtime_dir" "$script_dir" "$node_bin" "$restic_bin" \
   "$script_dir/host-backup-status.mjs" \
   "$script_dir/restic-postgres.mjs" \
   "$script_dir/restic-host-bundle.mjs" \
+  "$script_dir/restic-host-recovery.mjs" \
   "$script_dir/restic-isolated-restore.mjs" \
   "$script_dir/r2-repository.mjs" \
   "$script_dir/container-runtime.mjs" \

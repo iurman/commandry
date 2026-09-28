@@ -3,11 +3,13 @@ import { spawnSync } from "node:child_process";
 import { randomBytes, randomUUID } from "node:crypto";
 import { existsSync } from "node:fs";
 import {
+  link,
   mkdir,
   mkdtemp,
   readFile,
   rm,
   stat,
+  unlink,
   writeFile,
 } from "node:fs/promises";
 import { dirname, resolve } from "node:path";
@@ -331,6 +333,43 @@ test("streamed restic backup restores synthetic data in an isolated app and reje
       await readFile(resolve(extractedDirectory, "current-release"), "utf8"),
       /^IMAGE=ghcr\.io\/example\/commandry@sha256:/,
     );
+    const hostRecovery = JSON.parse(
+      execute(
+        process.execPath,
+        [
+          "scripts/restic-host-recovery.mjs",
+          "rehearse",
+          directBundle.globals.snapshotId,
+          directBundle.globals.sha256,
+          directBundle.configuration.snapshotId,
+          directBundle.configuration.sha256,
+        ],
+        { env: scriptEnvironment },
+      ),
+    );
+    assert.equal(hostRecovery.outcome, "passed");
+    assert.equal(hostRecovery.globalsApplied, true);
+    assert.equal(hostRecovery.backupReadMembershipVerified, true);
+    assert.equal(hostRecovery.configurationExtracted, true);
+    assert.equal(hostRecovery.configurationInstalled, false);
+    assert.equal(hostRecovery.postgresRoleCount, 2);
+    assert.equal(hostRecovery.isolatedNetwork, true);
+    assert.equal(hostRecovery.resourcesRemoved, true);
+    assert.equal(hostRecovery.offsiteVerified, false);
+    assert.equal(hostRecovery.vpsRecoveryVerified, false);
+    const passwordAlias = resolve(configDirectory, "password-alias");
+    await link(passwordFile, passwordAlias);
+    try {
+      const linkedPassword = spawnSync(
+        process.execPath,
+        ["scripts/restic-host-bundle.mjs", "rehearse"],
+        { cwd: root, encoding: "utf8", env: scriptEnvironment },
+      );
+      assert.equal(linkedPassword.status, 1);
+      assert.equal(JSON.parse(linkedPassword.stderr).reason, "SOURCE_LINKS");
+    } finally {
+      await unlink(passwordAlias);
+    }
     const gate = JSON.parse(
       execute(
         process.execPath,
@@ -346,6 +385,10 @@ test("streamed restic backup restores synthetic data in an isolated app and reje
     assert.equal(gate.isolatedRestorePassed, true);
     assert.equal(gate.receiptWritten, false);
     assert.equal(gate.hostBundle.encryptedReadbackVerified, true);
+    assert.equal(gate.hostRecovery.globalsApplied, true);
+    assert.equal(gate.hostRecovery.backupReadMembershipVerified, true);
+    assert.equal(gate.hostRecovery.configurationExtracted, true);
+    assert.equal(gate.hostRecovery.resourcesRemoved, true);
     assert.match(gate.hostBundle.globals.snapshotId, /^[0-9a-f]{64}$/);
     assert.match(gate.hostBundle.configuration.sha256, /^[0-9a-f]{64}$/);
     assert.match(gate.snapshotId, /^[0-9a-f]{64}$/);
@@ -429,7 +472,7 @@ test("streamed restic backup restores synthetic data in an isolated app and reje
       ),
     );
     assert.equal(monthly.outcome, "passed");
-    assert.equal(monthly.schemaVersion, 2);
+    assert.equal(monthly.schemaVersion, 3);
     assert.equal(monthly.sourceLabel, "synthetic-local-monthly");
     assert.equal(monthly.snapshotId, scheduled.snapshotId);
     assert.equal(monthly.isolatedRestorePassed, true);
@@ -437,6 +480,10 @@ test("streamed restic backup restores synthetic data in an isolated app and reje
     assert.equal(monthly.authenticatedReadVerified, false);
     assert.equal(monthly.vpsRecoveryVerified, false);
     assert.equal(monthly.hostBundle.encryptedReadbackVerified, true);
+    assert.equal(monthly.hostRecovery.globalsApplied, true);
+    assert.equal(monthly.hostRecovery.backupReadMembershipVerified, true);
+    assert.equal(monthly.hostRecovery.configurationExtracted, true);
+    assert.equal(monthly.hostRecovery.resourcesRemoved, true);
     const monthlySuccessPath = resolve(
       statusDir,
       "backup-monthly-last-success.json",

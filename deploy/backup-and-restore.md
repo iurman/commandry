@@ -92,10 +92,12 @@ the intended recovery host, run application smoke checks, and agree on and
 record the achieved recovery point and recovery time. Snapshot age in a local
 drill is not a production recovery point guarantee. The host bundle captures
 PostgreSQL global roles and root-owned Commandry configuration as encrypted
-restic snapshots, then reads them back and checks their SHA-256 digests. It
-does not apply roles or install configuration on a replacement host. Keep the
-restic password outside the configuration archive and in separate secure
-custody.
+restic snapshots, then reads them back and checks their SHA-256 digests. The
+[host recovery drill](../scripts/restic-host-recovery.mjs) applies the original
+global-role SQL to a separate PostgreSQL cluster with no network, extracts the
+configuration into a private disposable directory, and verifies cleanup. It
+does not install configuration on a replacement host. Keep the restic password
+outside the configuration archive and in separate secure custody.
 
 ## Deployment backup gate
 
@@ -115,8 +117,9 @@ separate activation step; the backup gate fails closed until then.
 The production hook accepts only a canonical Cloudflare R2 endpoint, performs
 an upload and download through restic, checks the exact dump digest, and
 restores into isolated PostgreSQL and web containers without public ports. It
-writes the deployment receipt only after those steps, globals and configuration
-readback, and cleanup pass. The receipt links the database, globals, and
+applies globals and extracts configuration in disposable local resources. It
+writes the deployment receipt only after those steps, readback, and cleanup
+pass. The receipt links the database, globals, and
 configuration snapshot IDs to their SHA-256 digests. The candidate web image
 must be the approved digest with the expected clean source
 revision. No R2 or VPS run has occurred.
@@ -124,9 +127,9 @@ revision. No R2 or VPS run has occurred.
 `pnpm backup:restic:test` also invokes the gate with a synthetic repository
 under `.agent/`. That local mode cannot use an S3 address and emits no
 production receipt. It proves orchestration, failure cleanup, and the restored
-read path, plus encrypted readback of synthetic private configuration and
-PostgreSQL global roles. It does not prove offsite storage, applying those
-globals, or installing configuration on a clean host. Record an actual
+read path, plus encrypted readback, isolated global-role application, and
+disposable extraction of synthetic private configuration. It does not prove
+offsite storage or installing configuration on a clean host. Record an actual
 offsite recovery time and point only after the owner approves the bucket and
 the VPS run passes.
 
@@ -199,17 +202,19 @@ production host, the command reads the current immutable image digest and Git
 revision from `/var/lib/commandry/current-release`, then invokes the existing
 separate-container PostgreSQL and web restore against the R2 snapshot and exact
 dump digest. It also reads back the retained PostgreSQL globals and host
-configuration snapshots and rechecks their digests. It requires the restored
-web health, version, and versioned read checks, exact source evidence, no
-published ports, and complete cleanup before
-recording a private mode `0600` monthly success. A failure marks only the
+configuration snapshots, applies the globals to a separate PostgreSQL
+cluster with no network, and extracts configuration into a private disposable
+directory. It requires the restored web health, version, and versioned read
+checks, exact source evidence, no published ports, and complete cleanup before
+recording a private mode `0600` version 3 monthly success. A failure marks only the
 latest monthly attempt and preserves the last successful monthly record.
 
 The local `monthly-rehearse` mode completes that same isolated restore with a
 labeled synthetic snapshot. It marks `offsiteVerified` and
 `vpsRecoveryVerified` false. Even a passing future production run will not
-prove installation of host configuration, application of PostgreSQL global
-roles, or an authenticated human session; its record keeps `vpsRecoveryVerified` and
+prove installation of host configuration, application of global roles on a
+replacement VPS, or an authenticated human session; its record keeps
+`vpsRecoveryVerified` and
 `authenticatedReadVerified` false. A separate clean VPS recovery exercise and
 the production login smoke gate remain required before activation.
 

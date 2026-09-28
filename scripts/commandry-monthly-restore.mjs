@@ -131,7 +131,7 @@ function restore(snapshot, environment) {
   return output;
 }
 
-function verifyHostBundle(snapshot, environment) {
+function recoverHostBundle(snapshot, environment) {
   const bundle = snapshot.hostBundle;
   if (
     bundle?.encryptedReadbackVerified !== true ||
@@ -145,8 +145,8 @@ function verifyHostBundle(snapshot, environment) {
   const result = spawnSync(
     process.execPath,
     [
-      resolve(root, "scripts/restic-host-bundle.mjs"),
-      production ? "verify" : "verify-rehearse",
+      resolve(root, "scripts/restic-host-recovery.mjs"),
+      production ? "verify" : "rehearse",
       bundle.globals.snapshotId,
       bundle.globals.sha256,
       bundle.configuration.snapshotId,
@@ -160,25 +160,30 @@ function verifyHostBundle(snapshot, environment) {
       timeout: 30 * 60_000,
     },
   );
-  if (result.error || result.status !== 0) fail("HOST_BUNDLE_VERIFY_FAILED");
+  if (result.error || result.status !== 0) fail("HOST_RECOVERY_FAILED");
   let output;
   try {
     output = JSON.parse(result.stdout.trim());
   } catch {
-    fail("HOST_BUNDLE_VERIFY_OUTPUT");
+    fail("HOST_RECOVERY_OUTPUT");
   }
   if (
-    output.kind !== "commandry_host_recovery_bundle" ||
+    output.kind !== "commandry_host_recovery_drill" ||
     output.outcome !== "passed" ||
-    output.encryptedReadbackVerified !== true ||
-    output.offsiteStored !== production ||
-    output.globals?.snapshotId !== bundle.globals.snapshotId ||
-    output.globals?.sha256 !== bundle.globals.sha256 ||
-    output.configuration?.snapshotId !== bundle.configuration.snapshotId ||
-    output.configuration?.sha256 !== bundle.configuration.sha256
+    output.globalsSnapshotId !== bundle.globals.snapshotId ||
+    output.configurationSnapshotId !== bundle.configuration.snapshotId ||
+    output.globalsApplied !== true ||
+    output.backupReadMembershipVerified !== true ||
+    output.configurationExtracted !== true ||
+    output.configurationInstalled !== false ||
+    output.isolatedNetwork !== true ||
+    output.resourcesRemoved !== true ||
+    output.offsiteVerified !== production ||
+    output.vpsRecoveryVerified !== false ||
+    output.sourceLabel !== sourceLabel
   )
-    fail("HOST_BUNDLE_VERIFY_RESULT");
-  return bundle;
+    fail("HOST_RECOVERY_RESULT");
+  return output;
 }
 
 try {
@@ -196,6 +201,7 @@ try {
       "host-backup-status.mjs",
       "restic-isolated-restore.mjs",
       "restic-host-bundle.mjs",
+      "restic-host-recovery.mjs",
       "r2-repository.mjs",
       "container-runtime.mjs",
       "stream-process.mjs",
@@ -205,7 +211,7 @@ try {
     statusDir = validateStatusDirectory("/var/lib/commandry", uid);
     atomicStatus(statusDir, "backup-monthly-last-attempt.json", {
       kind: "commandry_monthly_restore",
-      schemaVersion: 2,
+      schemaVersion: 3,
       outcome: "running",
       environment: "production",
       startedAt,
@@ -228,7 +234,7 @@ try {
     statusDir = validateStatusDirectory(resolve(candidate), uid);
     atomicStatus(statusDir, "backup-monthly-last-attempt.json", {
       kind: "commandry_monthly_restore",
-      schemaVersion: 2,
+      schemaVersion: 3,
       outcome: "running",
       environment: "local",
       startedAt,
@@ -245,14 +251,14 @@ try {
   const policy = retentionPolicy(environment);
   phase = "SNAPSHOT";
   const snapshot = checkedSnapshot(uid, policy.MAX_BACKUP_AGE_HOURS);
-  phase = "HOST_BUNDLE";
-  const hostBundle = verifyHostBundle(snapshot, environment);
+  phase = "HOST_RECOVERY";
+  const hostRecovery = recoverHostBundle(snapshot, environment);
   phase = "ISOLATED_RESTORE";
   const restored = restore(snapshot, environment);
   phase = "STATUS";
   const record = {
     kind: "commandry_monthly_restore",
-    schemaVersion: 2,
+    schemaVersion: 3,
     outcome: "passed",
     environment: production ? "production" : "local",
     sourceLabel,
@@ -260,7 +266,8 @@ try {
     completedAt: new Date().toISOString(),
     snapshotId: snapshot.snapshotId,
     dumpSha256: snapshot.dumpSha256,
-    hostBundle,
+    hostBundle: snapshot.hostBundle,
+    hostRecovery,
     offsiteVerified: production,
     isolatedRestorePassed: true,
     authenticatedReadVerified: false,
@@ -276,7 +283,7 @@ try {
 } catch (error) {
   const record = {
     kind: "commandry_monthly_restore",
-    schemaVersion: 2,
+    schemaVersion: 3,
     outcome: "failed",
     environment: production ? "production" : "local",
     sourceLabel,

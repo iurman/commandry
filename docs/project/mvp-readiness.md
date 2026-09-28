@@ -34,8 +34,8 @@ internal web read smoke, and a local encrypted repository. It records measured
 time in a private JSON file. It is separate from the product Recovery screen
 and does not prove an offsite or VPS restore. A separate synthetic host bundle
 drill captures and reads back encrypted PostgreSQL globals and private
-configuration; it extracts the configuration locally without installing it
-on a VPS or applying roles.
+configuration, applies roles to a networkless disposable cluster, and extracts
+configuration locally. It does not install either on a replacement VPS.
 
 ## Local review
 
@@ -112,8 +112,8 @@ replace the production gates.
    test and a built-app local test that creates the first owner, reads through
    a real session, revokes it, and waits for a worker job result. A separate
    backup-gate drill uses a synthetic restic repository and isolated web
-   restore, plus encrypted readback of global roles and private host
-   configuration, but cannot write an offsite receipt. None of these paths
+   restore, plus isolated application of global roles and extraction of
+   private host configuration, but cannot write an offsite receipt. None of these paths
    validates the VPS identity, real R2 storage, or public ingress. The
    unactivated topology and exact procedure are in
    [deploy/README.md](../../deploy/README.md).

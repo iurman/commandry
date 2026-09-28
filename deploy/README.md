@@ -135,14 +135,16 @@ restic executable on its search path. Neither runtime has been installed in
 the controlled location. The receipt must have one each of
 `SNAPSHOT=<64 lowercase hex>`,
 `COMPLETED_AT=<UTC ISO 8601 seconds>`, `OFFSITE=true`, and `VERIFIED=true`;
-it also requires `RESTORE_PASSED=true`, a full `DUMP_SHA256`, and
+it also requires `RESTORE_PASSED=true`, `HOST_RECOVERY_DRILL_PASSED=true`, a
+full `DUMP_SHA256`, and
 `GLOBALS_SNAPSHOT`, `GLOBALS_SHA256`, `CONFIG_SNAPSHOT`, and `CONFIG_SHA256`
 for the encrypted host bundle. The timestamp must be within 30 minutes. The
 hook fails unless the streaming backup, PostgreSQL globals and private
-configuration readback, repository check, exact-digest clean restore, and
-unexposed web read smoke all pass. A local `pnpm backup:restic:test` rehearsal
-uses a synthetic local repository and never writes a production receipt. The hook does not exist on
-the VPS yet, and no R2 bucket or credentials are configured.
+configuration readback, isolated role application and configuration
+extraction, repository check, exact-digest clean restore, and unexposed web
+read smoke all pass. A local `pnpm backup:restic:test` rehearsal uses a
+synthetic local repository and never writes a production receipt. The hook
+does not exist on the VPS yet, and no R2 bucket or credentials are configured.
 
 The uninstalled [nightly host service and timer](systemd/commandry-backup.timer)
 use the same controlled runtime to create encrypted R2 database, PostgreSQL
@@ -150,19 +152,20 @@ globals, and private host configuration snapshots without a release image.
 The configuration archive excludes the restic password file if it is inside
 `/etc/commandry`; that password needs separate secure custody. The command
 applies explicit recent, daily, weekly, and monthly retention values; its
-committed example deliberately sets invalid zeroes. It
-keeps private last-attempt and last-success JSON records and exits nonzero on
+committed example deliberately sets invalid zeroes. It keeps private
+last-attempt and last-success JSON records and exits nonzero on
 failure. A separate uninstalled hourly health unit fails on a failed attempt
 or a snapshot older than the configured maximum age. Local synthetic rehearsals
 exercise retention and those status states. The timers are not an owner alert
 channel or a monthly clean restore; choosing retention and freshness targets,
 owner-facing alerts, R2 access, and installation remain gates.
-An uninstalled monthly timer can read back the retained globals and
-configuration bundles and restore a fresh database snapshot into isolated
-PostgreSQL and web containers using the current approved image. The local
-test runs that path against a synthetic repository. The monthly command does
-not apply global roles or install configuration. A clean VPS recovery and
-authenticated read remain separate requirements.
+An uninstalled monthly timer can apply retained PostgreSQL globals to a
+disposable cluster, extract the private configuration into a disposable
+directory, and restore a fresh database snapshot into isolated PostgreSQL and
+web containers using the current approved image. The local test runs that
+path against a synthetic repository and proves complete cleanup. The monthly
+command does not install configuration on the live host. A clean VPS recovery
+and authenticated read remain separate requirements.
 
 Before migration it stops Commandry's existing Tunnel and Caddy services so
 the candidate web process cannot receive public traffic before smoke passes.

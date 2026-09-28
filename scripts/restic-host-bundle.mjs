@@ -36,6 +36,8 @@ function sourceTree(path, uid) {
     for (const name of readdirSync(path)) sourceTree(resolve(path, name), uid);
   } else if (!entry.isFile()) {
     fail("SOURCE_TYPE");
+  } else if (entry.nlink !== 1) {
+    fail("SOURCE_LINKS");
   }
 }
 

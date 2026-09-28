@@ -62,6 +62,7 @@ function writeReceipt(snapshotId, dumpSha256, hostBundle) {
         "OFFSITE=true",
         "VERIFIED=true",
         "RESTORE_PASSED=true",
+        "HOST_RECOVERY_DRILL_PASSED=true",
         `DUMP_SHA256=${dumpSha256}`,
         `GLOBALS_SNAPSHOT=${hostBundle.globals.snapshotId}`,
         `GLOBALS_SHA256=${hostBundle.globals.sha256}`,
@@ -97,6 +98,7 @@ try {
       "commandry-backup-gate.mjs",
       "restic-postgres.mjs",
       "restic-host-bundle.mjs",
+      "restic-host-recovery.mjs",
       "restic-isolated-restore.mjs",
       "r2-repository.mjs",
       "host-backup-config.mjs",
@@ -185,6 +187,37 @@ try {
   )
     fail("SNAPSHOT_STALE");
 
+  phase = "HOST_RECOVERY";
+  const hostRecovery = runScript(
+    "restic-host-recovery.mjs",
+    [
+      production ? "verify" : "rehearse",
+      hostBundle.globals.snapshotId,
+      hostBundle.globals.sha256,
+      hostBundle.configuration.snapshotId,
+      hostBundle.configuration.sha256,
+    ],
+    environment,
+    30 * 60_000,
+  );
+  if (
+    hostRecovery.kind !== "commandry_host_recovery_drill" ||
+    hostRecovery.outcome !== "passed" ||
+    hostRecovery.globalsSnapshotId !== hostBundle.globals.snapshotId ||
+    hostRecovery.configurationSnapshotId !==
+      hostBundle.configuration.snapshotId ||
+    hostRecovery.globalsApplied !== true ||
+    hostRecovery.backupReadMembershipVerified !== true ||
+    hostRecovery.configurationExtracted !== true ||
+    hostRecovery.configurationInstalled !== false ||
+    hostRecovery.isolatedNetwork !== true ||
+    hostRecovery.resourcesRemoved !== true ||
+    hostRecovery.offsiteVerified !== production ||
+    hostRecovery.vpsRecoveryVerified !== false ||
+    hostRecovery.sourceLabel !== environment.RECOVERY_SOURCE_LABEL
+  )
+    fail("HOST_RECOVERY_RESULT");
+
   if (production) {
     phase = "RECEIPT";
     writeReceipt(backup.snapshotId, backup.dumpSha256, hostBundle);
@@ -205,6 +238,14 @@ try {
       },
       offsiteVerified: production,
       isolatedRestorePassed: true,
+      hostRecovery: {
+        globalsApplied: true,
+        backupReadMembershipVerified: true,
+        configurationExtracted: true,
+        configurationInstalled: false,
+        resourcesRemoved: true,
+        vpsRecoveryVerified: false,
+      },
       receiptWritten: production,
       restoreEvidencePath: restore.evidencePath,
       recoveryDurationMs: restore.recoveryDurationMs,

@@ -15,6 +15,8 @@ export async function pipeAndHash(
   targetCommand,
   cwd,
   onTargetLine,
+  onTargetStderr,
+  streamTransform,
 ) {
   const source = spawn(sourceCommand[0], sourceCommand[1], { cwd });
   const target = spawn(targetCommand[0], targetCommand[1], { cwd });
@@ -49,20 +51,25 @@ export async function pipeAndHash(
     }
   });
   source.stderr.resume();
-  target.stderr.resume();
+  if (onTargetStderr) target.stderr.on("data", onTargetStderr);
+  else target.stderr.resume();
   const results = await Promise.allSettled([
-    pipeline(source.stdout, hasher, target.stdin),
+    pipeline(
+      source.stdout,
+      hasher,
+      ...(streamTransform ? [streamTransform] : []),
+      target.stdin,
+    ),
     onClose(source),
     onClose(target),
   ]);
-  if (
-    invalidOutput ||
-    results.some(
-      (result, index) =>
-        result.status === "rejected" || (index > 0 && result.value !== 0),
-    )
-  )
-    throw new Error("STREAM_FAILED");
+  if (invalidOutput) throw new Error("STREAM_OUTPUT_FAILED");
+  if (results[1].status === "rejected" || results[1].value !== 0)
+    throw new Error("STREAM_SOURCE_FAILED");
+  if (results[2].status === "rejected" || results[2].value !== 0)
+    throw new Error("STREAM_TARGET_FAILED");
+  if (results[0].status === "rejected")
+    throw new Error("STREAM_PIPELINE_FAILED");
   if (pending) onTargetLine?.(pending);
   return hash.digest("hex");
 }
