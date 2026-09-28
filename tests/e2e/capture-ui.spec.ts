@@ -40,7 +40,20 @@ test("Inbox files a note and search reaches the same source-backed project recor
   await page.getByLabel("File as").selectOption("note");
   await page.getByLabel("Title *").fill(`${token} field note`);
   await page.getByLabel("Content Optional").fill("Retained project context.");
+  const filingResponsePromise = page.waitForResponse(
+    (response) =>
+      response.request().method() === "POST" &&
+      /\/api\/v1\/captures\/[^/]+\/file$/.test(
+        new URL(response.url()).pathname,
+      ),
+  );
   await page.getByRole("button", { name: "File as note" }).click();
+  const filingResponse = await filingResponsePromise;
+  expect(filingResponse.status()).toBe(201);
+  const filed = await filingResponse.json();
+  expect(filed.capture.state).toBe("filed");
+  expect(filed.capture.projectId).toBe(project.id);
+  expect(filed.capture.filedRecord.kind).toBe("note");
   await expect(
     page.getByText("Filed as a note in the selected project."),
   ).toBeVisible();
