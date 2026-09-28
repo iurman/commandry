@@ -55,6 +55,9 @@ smoke_job_id=''
 owner_bootstrapped=false
 prior_caddy=false
 prior_cloudflared=false
+ingress_observed=false
+previous_release_existed=false
+previous_release_snapshot=''
 image=''
 revision=''
 approval_id=''
@@ -129,9 +132,22 @@ restore_previous_env() {
   fi
 }
 
+restore_previous_release() {
+  if [[ "$previous_release_existed" == true ]]; then
+    install -m 0600 "$previous_release_snapshot" "$current_release.tmp" || return 1
+    mv -f "$current_release.tmp" "$current_release"
+  else
+    rm -f "$current_release"
+  fi
+}
+
 rollback() {
-  if [[ -f "$current_release" ]]; then
+  if [[ "$previous_release_existed" == true ]]; then
+    if [[ "$ingress_observed" == true ]]; then
+      compose stop cloudflared caddy >/dev/null 2>&1 || return 1
+    fi
     restore_previous_env || return 1
+    restore_previous_release || return 1
     compose up --no-deps -d --wait --wait-timeout 120 web worker >/dev/null 2>&1 || return 1
     local restore_ingress=()
     [[ "$prior_caddy" != true ]] || restore_ingress+=(caddy)
@@ -143,6 +159,7 @@ rollback() {
   else
     compose stop cloudflared caddy web worker >/dev/null 2>&1 || return 1
     restore_previous_env || return 1
+    restore_previous_release || return 1
     rollback_result=first_release_stopped
   fi
 }
@@ -185,7 +202,7 @@ trusted_path "$approval_file" private
 trusted_path "$backup_hook" file
 trusted_path "$smoke_hook" file
 [[ -x "$backup_hook" && -x "$smoke_hook" ]] || reject 'a required backup or application smoke gate is unavailable'
-trap 'rm -f "$env_file.staged" "$env_file.rollback" "$previous_env.tmp" "$current_release.tmp"' EXIT
+trap 'rm -f "$env_file.staged" "$env_file.rollback" "$previous_env.tmp" "$current_release.tmp"; if [[ -n "$previous_release_snapshot" ]]; then rm -f "$previous_release_snapshot"; fi' EXIT
 
 image=$(field "$approval_file" IMAGE) || reject 'approved image is missing or duplicated'
 revision=$(field "$approval_file" REVISION) || reject 'approved revision is missing or duplicated'
@@ -218,6 +235,7 @@ field "$env_file" RELEASE_SHA >/dev/null || reject 'current revision is missing 
 field "$env_file" RELEASE_BUILD_TIME >/dev/null || reject 'current build time is missing or duplicated'
 if [[ -f "$current_release" ]]; then
   trusted_path "$current_release" private
+  previous_release_existed=true
   [[ "$(field "$current_release" IMAGE)" == "$old_image" ]] ||
     reject 'the recorded release differs from the environment file'
   [[ "$old_image" =~ ^ghcr\.io/[a-z0-9][a-z0-9._/-]*/commandry@sha256:[0-9a-f]{64}$ ]] ||
@@ -237,6 +255,11 @@ source_clean=$(docker_cmd image inspect --format '{{index .Config.Labels "org.co
   reject 'image source label is unavailable'
 [[ "$actual_revision" == "$revision" && "$source_clean" == true ]] ||
   reject 'image revision or source provenance differs from approval'
+
+if [[ "$previous_release_existed" == true ]]; then
+  previous_release_snapshot=$(mktemp "$state_dir/current-release.rollback.XXXXXXXX")
+  cp "$current_release" "$previous_release_snapshot"
+fi
 
 step=environment_update
 cp "$env_file" "$previous_env.tmp"
@@ -288,6 +311,7 @@ now_epoch=$(date -u +%s)
 
 step=ingress_quiesce
 running_ingress=$(compose ps --status running --services caddy cloudflared) || failed $?
+ingress_observed=true
 if grep -Fxq caddy <<< "$running_ingress"; then prior_caddy=true; fi
 if grep -Fxq cloudflared <<< "$running_ingress"; then prior_cloudflared=true; fi
 compose stop cloudflared caddy >/dev/null 2>&1 || failed $?
@@ -325,5 +349,5 @@ step=complete
 printf 'IMAGE=%s\nREVISION=%s\n' "$image" "$revision" > "$current_release.tmp"
 chmod 0600 "$current_release.tmp"
 mv -f "$current_release.tmp" "$current_release"
-event succeeded
+event succeeded || failed $?
 printf 'Commandry deployment completed for %s.\n' "$revision"

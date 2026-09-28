@@ -347,6 +347,83 @@ test("rollback preserves an intentionally stopped ingress", (t) => {
   assert.equal(event(root).rollback, "previous_code_restored");
 });
 
+test("a final audit failure restores the prior image and running ingress", (t) => {
+  const root = harness(t);
+  const releasePath = join(root, "var/lib/commandry/current-release");
+  write(releasePath, `IMAGE=${oldImage}\nREVISION=${"2".repeat(40)}\n`);
+  mkdirSync(join(root, "var/lib/commandry/deployments.jsonl"));
+
+  const result = run(root);
+  assert.notEqual(result.status, 0);
+  assert.match(result.stderr, /complete; rollback: previous_code_restored/);
+  assert.match(result.stderr, /deployments\.jsonl: Is a directory/);
+  assert.match(
+    readFileSync(join(root, "etc/commandry/commandry.env"), "utf8"),
+    new RegExp(`COMMANDRY_IMAGE=${oldImage}`),
+  );
+  assert.match(
+    readFileSync(releasePath, "utf8"),
+    new RegExp(`IMAGE=${oldImage}`),
+  );
+  const calls = readFileSync(join(root, "docker.calls"), "utf8");
+  assert.equal((calls.match(/stop cloudflared caddy/g) ?? []).length, 2);
+  assert.equal(
+    (
+      calls.match(
+        /up --no-deps -d --wait --wait-timeout 120 caddy cloudflared/g,
+      ) ?? []
+    ).length,
+    2,
+  );
+});
+
+test("a final audit failure restores intentionally stopped ingress", (t) => {
+  const root = harness(t);
+  const releasePath = join(root, "var/lib/commandry/current-release");
+  write(releasePath, `IMAGE=${oldImage}\nREVISION=${"2".repeat(40)}\n`);
+  write(join(root, "ingress-was-stopped"), "1");
+  mkdirSync(join(root, "var/lib/commandry/deployments.jsonl"));
+
+  const result = run(root);
+  assert.notEqual(result.status, 0);
+  assert.match(result.stderr, /complete; rollback: previous_code_restored/);
+  assert.match(
+    readFileSync(releasePath, "utf8"),
+    new RegExp(`IMAGE=${oldImage}`),
+  );
+  const calls = readFileSync(join(root, "docker.calls"), "utf8");
+  assert.equal((calls.match(/stop cloudflared caddy/g) ?? []).length, 2);
+  assert.equal(
+    (
+      calls.match(
+        /up --no-deps -d --wait --wait-timeout 120 caddy cloudflared/g,
+      ) ?? []
+    ).length,
+    1,
+  );
+});
+
+test("a final audit failure stops a first release and removes its marker", (t) => {
+  const root = harness(t);
+  mkdirSync(join(root, "var/lib/commandry/deployments.jsonl"));
+
+  const result = run(root);
+  assert.notEqual(result.status, 0);
+  assert.match(result.stderr, /complete; rollback: first_release_stopped/);
+  assert.equal(
+    existsSync(join(root, "var/lib/commandry/current-release")),
+    false,
+  );
+  assert.match(
+    readFileSync(join(root, "etc/commandry/commandry.env"), "utf8"),
+    new RegExp(`COMMANDRY_IMAGE=${oldImage}`),
+  );
+  assert.match(
+    readFileSync(join(root, "docker.calls"), "utf8"),
+    /stop cloudflared caddy web worker/,
+  );
+});
+
 test("a mismatched smoke receipt prevents ingress and rolls back", (t) => {
   const root = harness(t);
   write(join(root, "bad-smoke-receipt"), "1");
