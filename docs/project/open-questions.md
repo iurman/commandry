@@ -17,6 +17,11 @@ owner will accept. If it lacks 2 GB of available RAM, reliable storage, recovery
 access, or tested offsite backup, revisit database placement before production
 deployment. Disposable local PostgreSQL work can proceed without this inventory.
 
+The [current VPS audit](mvp-readiness.md#what-prevents-production-activation)
+now identifies the IONOS Linux L server, its active provider firewall, and
+available console. This question remains open until offsite backup, clean
+restore, and recovery targets are proven.
+
 ### OQ-003: What is the first human sign-in and recovery method?
 
 Better Auth, Postgres-backed sessions, separate machine identities, and a

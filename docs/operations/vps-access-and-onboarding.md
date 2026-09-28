@@ -17,9 +17,10 @@ a deployment or a change to an existing VPS service.
   tailnet name with a pinned host key; `ssh commandry-vps-public` is a local
   fallback alias. Both returned the same remote host and user. The local
   Tailscale interface is active, while its CLI is unavailable in this shell.
-- The owner identified IONOS as the VPS provider. The exact IONOS product,
-  region, recovery-console access, and provider firewall policy still require
-  dashboard verification.
+- The IONOS VPS Linux L server in Cloud Panel matches the known public IP.
+  Its configuration is listed as VPS 4-8-240, with four vCores, 8 GB RAM,
+  and a 240 GB NVMe SSD. The data center field says United States without
+  a more specific region.
 - A dedicated local Commandry key is outside the repository and mode `0600`.
   The initial remote account has broad host privileges. A constrained operator
   identity and provider-side host-key check remain access-hardening work
@@ -35,13 +36,11 @@ a deployment or a change to an existing VPS service.
   record is in ignored `.agent/VPS_RETIREMENT.md`. The host now has one
   232 GiB ext4 root filesystem, about 187 GiB free, 7.7 GiB RAM, and 4 GiB
   swap. No application database backup timer appeared in inspected system or
-  user timers. Ephemera PostgreSQL
-  still maps port 5433 on all interfaces. Host UFW is active with default
-  incoming deny; the IONOS firewall policy, recovery console, snapshot, and
-  offsite backup facts remain unverified. One stale configured host UFW rule
-  still allows TCP 3101 from the retired Hermes-to-Paperclip Docker bridge subnet. Nothing
-  listens on that port; removal requires the owner's sudo password in their
-  terminal and has not yet been verified.
+  user timers. Ephemera PostgreSQL still maps port 5433 on all interfaces.
+  Host UFW is active with default incoming deny. One stale configured host
+  UFW rule still allows TCP 3101 from the retired Hermes-to-Paperclip Docker
+  bridge subnet. Nothing listens on that port; removal requires the owner's
+  sudo password in their terminal and has not yet been verified.
 - The owner usually buys domains through Namecheap, but the registrar for
   `commandry.site` and the other domains has not been verified.
 
@@ -49,27 +48,38 @@ Do not send a password, private key, or account token in chat or commit it to
 the repository. The current SSH login is an operator bootstrap path, not the
 constrained `commandry-deploy` identity in the accepted deployment strategy.
 
-## IONOS dashboard verification
+## IONOS dashboard findings
 
-After the owner signs in, match the server entry to its known public IP before
-recording a product tier, region, or recovery capability. In the IONOS Cloud
-Panel, **Servers & Cloud** identifies the server and **Network > Firewall
-Policies** shows the policy assigned to its IP and its inbound rules. Check
-whether TCP 5433 is allowed at that external boundary; do not infer that the
-host's UFW policy blocks a Docker-published port. Inspect backup and recovery
-features actually attached to this server. IONOS documents a **Backup > Backup
-Package** view, but activation requires an agent and may incur additional
-cost. A Cloud Server snapshot article alone does not establish that this VPS
-has snapshots. Verify that a remote console can be opened without rebooting
-or booting a recovery image. Record account and server identifiers only in a
-private operational note.
+- **Firewall:** The active policy assigned to the VPS public IP allows incoming
+  TCP 22, 80, 443, 8443, and 8447 from all IPs. It contains no 5433 rule.
+  At inspection, the host listened on 22 and 5433 but not the other allowed
+  ports. Keep the provider policy and host UFW as separate layers when
+  evaluating Docker-published ports.
+- **Backup and images:** Backup > Backup Package offered only creation, and
+  Infrastructure > Images listed no saved image. The image form offered a
+  240 GB image of this VPS for $17.28/month plus VAT; the form was closed
+  without creating one. The server Actions menu had no snapshot action.
+  IONOS documents snapshots for Cloud Servers, while its image overview also
+  covers VPS. None of these options replaces a tested encrypted offsite
+  PostgreSQL backup and restore for Commandry.
+- **Recovery:** Actions offered Open remote console. It connected to the
+  selected server and was closed without entering commands or rebooting.
+  DVD Drive listed Grml recovery media, which was not mounted. The console
+  path is available; a rescue boot and data restore have not been tested.
+- **Still open:** Cloud Panel identifies the data center only as United
+  States. Provider-side host-key verification, exact facility or region,
+  backup and restore targets, and a constrained deployment identity remain
+  to be established. Account and server identifiers stay in the private
+  operational note.
 
 IONOS documents [VPS firewall policies](https://www.ionos.com/help/server-cloud-infrastructure/firewall-vps/overview-firewall-policies-vps-migrated-cloud-servers-and-vps/),
 [editing the assigned policy](https://www.ionos.com/help/server-cloud-infrastructure/firewall-vps/editing-a-firewall-policy-vps-migrated-cloud-servers-and-vps/),
 the [backup package](https://www.ionos.com/help/server-cloud-infrastructure/cloud-backup/overview-backup-package/),
 and [VPS recovery-console use](https://www.ionos.com/help/server-cloud-infrastructure/default-title-1/vps-linux-using-grml-for-data-recovery/).
-These are navigation references, not evidence that the corresponding options
-are active on this server.
+The [image overview](https://www.ionos.com/help/server-cloud-infrastructure/images/images-general-information/)
+includes VPS; [snapshot basics](https://www.ionos.com/help/server-cloud-infrastructure/snapshots/snapshot-basics/)
+limits that feature to Cloud Servers. These are provider descriptions, not
+restore evidence for this server.
 
 ## Re-establish and harden SSH access
 

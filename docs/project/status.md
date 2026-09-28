@@ -48,8 +48,8 @@ paths from real-source and production activation evidence.
 - The product name is Commandry.
 - The domain `commandry.site` has been purchased.
 - The domain nameservers have been changed to Cloudflare.
-- The owner identified IONOS as the provider of the existing VPS. Its exact
-  product, region, and provider-side recovery settings still need verification.
+- The existing VPS is the IONOS VPS Linux L contract. The Cloud Panel server
+  matches its known public IP; its data center is listed only as United States.
 - The repository has a `main` default branch and an `origin` remote.
 
 ## Local implementation evidence

@@ -63,18 +63,25 @@ replace the production gates.
    After the owner-authorized Hermes and Paperclip retirement on 2026-09-27,
    Ephemera was the only remaining Compose project and remained healthy;
    about 187 GiB of disk was free.
-   The owner identified IONOS as the provider. The host currently has four
-   vCPUs, 7.7 GiB RAM, a 232 GiB root filesystem, and only Ephemera in Docker
-   Compose. Its PostgreSQL container still maps port 5433 on all interfaces.
-   SSH password and root login are disabled in the host configuration, while
-   the existing operator account retains broad sudo and Docker access. Host
-   UFW is active with default incoming deny, but the effective provider
-   firewall policy has not been checked. No application database backup timer
-   appeared in inspected system or user timers. IONOS product, region, recovery-console, snapshot,
-   provider firewall, and backup details still need dashboard verification.
-   ADR 0009 requires an offsite encrypted backup and a clean VPS restore,
-   plus a constrained deployment identity. Local backup and rollback drills
-   do not satisfy these gates.
+   The IONOS VPS Linux L panel matches the known public IP and lists four
+   vCores, 8 GB RAM, a 240 GB NVMe SSD, and a data center identified only as
+   United States. The host has a 232 GiB root filesystem and only Ephemera in
+   Docker Compose. Its PostgreSQL container still maps port 5433 on all
+   interfaces. The assigned active IONOS firewall policy allows TCP 22, 80,
+   443, 8443, and 8447 from all IPs, with no 5433 rule. At inspection, the
+   host listened on 22 and 5433, not 80, 443, 8443, or 8447. SSH password and
+   root login are disabled in the host configuration; the operator account
+   retains broad sudo and Docker access. Host UFW is active with default
+   incoming deny.
+
+   The panel shows no active Backup Package or saved server image. Its remote
+   console connected without a reboot, and Grml recovery media is offered
+   but was not mounted. No snapshot action appeared for this VPS. No
+   application database backup timer appeared in inspected system or user
+   timers. Exact data center region, provider host-key verification, offsite
+   encrypted backup, clean restore, and constrained deployment identity
+   remain open. Local backup and rollback drills do not satisfy ADR 0009.
+
 2. **Human identity.** [OQ-003](open-questions.md#oq-003-what-is-the-first-human-sign-in-and-recovery-method) must settle production sign-in and account recovery. The
    optional Better Auth local owner experiment and phone `test`/`pass`
    review gate are not that decision. `APP_ENV=production` still refuses to
