@@ -48,6 +48,23 @@ printing its values. Passing a real root-owned env path as the command argument
 also requires immutable image digest references and rejects placeholders. This
 is configuration validation, not a deployment readiness check.
 
+`pnpm production:topology:rehearse` runs a disposable local subset of this
+production Compose file using the exact clean committed local application
+image. It starts PostgreSQL 18, the one-shot migrator, web, worker, and Caddy
+under a unique project with no published ports. A synthetic owner password is
+provided through standard input to the production-mode smoke command, which
+bootstraps one account, logs in, reads `/api/v1`, revokes the probe session,
+and waits for a versioned worker job. A second probe signs in through Caddy,
+reads a server-rendered page and versioned API, and signs out. The rehearsal
+copies the init scripts and Caddyfile into a private temporary directory with
+local SELinux mount labels; it leaves this production file unchanged. It
+removes its containers, network, volume, and temporary credentials, then saves
+private synthetic evidence under `.agent/production-topology-evidence/`.
+Cloudflare Tunnel is deliberately not started. The local Caddy image is a
+rehearsal tag, not an approved production digest. The result marks offsite,
+VPS, Tunnel, and public ingress verification false and cannot authorize a
+release. The normal local app and Storybook continue running separately.
+
 Before activation, validate approved image digests and the resolved Compose
 configuration without printing secrets, establish the deployment lock and
 backup gate, and rehearse both release rollback and a real offsite restore.

@@ -36,6 +36,13 @@ and does not prove an offsite or VPS restore. A separate synthetic host bundle
 drill captures and reads back encrypted PostgreSQL globals and private
 configuration, applies roles to a networkless disposable cluster, and extracts
 configuration locally. It does not install either on a replacement VPS.
+The disposable [production topology rehearsal](../../deploy/README.md) now
+passes PostgreSQL migration, production-mode owner login, a protected API and
+server-rendered page through internal Caddy, a completed worker job, session
+revocation, no published ports, and complete container, network, and volume
+cleanup. It uses synthetic credentials and a local application image. Its
+private evidence explicitly leaves offsite, VPS, Tunnel, and public ingress
+verification false.
 
 ## Local review
 
@@ -113,8 +120,10 @@ replace the production gates.
    a real session, revokes it, and waits for a worker job result. A separate
    backup-gate drill uses a synthetic restic repository and isolated web
    restore, plus isolated application of global roles and extraction of
-   private host configuration, but cannot write an offsite receipt. None of these paths
-   validates the VPS identity, real R2 storage, or public ingress. The
+   private host configuration, but cannot write an offsite receipt. The
+   production Compose subset also passes locally through Caddy with a
+   synthetic owner and no public port. None of these paths validates the VPS
+   identity, real R2 storage, Tunnel, or public ingress. The
    unactivated topology and exact procedure are in
    [deploy/README.md](../../deploy/README.md).
 4. **Real sources.** [OQ-005](open-questions.md#oq-005-which-two-integrations-prove-the-vertical-slice) needs one actual development source and one actual

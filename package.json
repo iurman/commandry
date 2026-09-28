@@ -37,6 +37,7 @@
     "auth:bootstrap:local": "node scripts/bootstrap-local-auth.mjs",
     "auth:recover:local": "node scripts/recover-local-auth.mjs",
     "production:config:check": "node scripts/check-production-config.mjs",
+    "production:topology:rehearse": "node scripts/rehearse-production-topology.mjs",
     "production:deploy:test": "node --test scripts/commandry-deploy.test.mjs",
     "lab": "pnpm --filter @commandry/lab dev",
     "lab:check": "pnpm --filter @commandry/lab typecheck && node scripts/check-lab.mjs",

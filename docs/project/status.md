@@ -60,6 +60,11 @@ paths from real-source and production activation evidence.
   evidence, explainable activity and attention, briefs, packets, scoped fake
   agents, simulated approvals, local automation, integration fixtures, and the
   Overnight Queue, and local packet-scoped MCP read sessions.
+- A disposable local production Compose subset now passes PostgreSQL migration,
+  provisional owner sign-in, authenticated versioned and server-rendered reads
+  through Caddy, a separate worker job, session revocation, and complete
+  cleanup. Its synthetic evidence explicitly leaves offsite backup, VPS,
+  Tunnel, and public ingress unverified.
 - Packet-scoped synthetic routing now lists only assigned agents, their active
   fake-run load, fixed read scope, and explicit unassessed matching criteria.
   The same screen can page a saved, unverified fake-run result tied to the exact
