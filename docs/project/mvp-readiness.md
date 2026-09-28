@@ -44,6 +44,12 @@ cleanup. It uses synthetic credentials and a local application image. Its
 private evidence explicitly leaves offsite, VPS, Tunnel, and public ingress
 verification false.
 
+An unrun [manual release candidate workflow](../../.github/workflows/release-candidate.yml)
+now prepares a GHCR image from the exact clean image tested by those local
+checks and verifies the published digest by pulling it back. No GHCR release
+digest, image scan, VPS deployment, or production backup result has been
+verified by this workflow yet.
+
 ## Local review
 
 - App: `http://127.0.0.1:3010/`.

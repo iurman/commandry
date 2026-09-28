@@ -1,0 +1,125 @@
+name: Commandry release candidate
+
+on:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  packages: write
+
+concurrency:
+  group: commandry-release-candidate
+  cancel-in-progress: false
+
+jobs:
+  publish:
+    if: github.ref == 'refs/heads/main'
+    runs-on: ubuntu-24.04
+    timeout-minutes: 90
+    env:
+      CI: "true"
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
+        with:
+          fetch-depth: 0
+          persist-credentials: false
+
+      - name: Verify the selected main commit
+        shell: bash
+        run: |
+          set -euo pipefail
+          test "$(git rev-parse HEAD)" = "$GITHUB_SHA"
+          test "$(git rev-parse origin/main)" = "$GITHUB_SHA"
+          test -z "$(git status --porcelain --untracked-files=normal)"
+
+      - uses: pnpm/action-setup@0977fd99725f1db4007ccb2928dbb4e90d06cc86 # v6
+        with:
+          version: 11.19.0
+
+      - uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7
+        with:
+          node-version: 24.19.0
+          package-manager-cache: false
+
+      - name: Set up local test environment
+        run: pnpm setup
+
+      - name: Check source, contracts, and workflow formatting
+        run: |
+          pnpm check
+          pnpm exec prettier --check .github/workflows/release-candidate.yml
+
+      - name: Run unit and local tests
+        run: pnpm test
+
+      - name: Build and test the application
+        run: |
+          pnpm build
+          pnpm test:smoke
+
+      - name: Restore Next's generated declaration
+        run: |
+          git restore -- apps/web/next-env.d.ts
+          test -z "$(git status --porcelain --untracked-files=normal)"
+
+      - name: Check production Compose configuration
+        run: pnpm production:config:check
+
+      - name: Build and start the exact release image locally
+        run: pnpm compose:up
+
+      - name: Exercise desktop and phone screens
+        env:
+          PLAYWRIGHT_BASE_URL: http://127.0.0.1:3000
+        run: |
+          pnpm exec playwright install --with-deps chromium
+          pnpm test:e2e
+
+      - name: Rehearse production services with the exact image
+        run: pnpm production:topology:rehearse
+
+      - name: Confirm clean image provenance after tests
+        shell: bash
+        run: |
+          set -euo pipefail
+          test -z "$(git status --porcelain --untracked-files=normal)"
+          image="commandry-local:${GITHUB_SHA}"
+          test "$(docker image inspect "$image" --format '{{index .Config.Labels "org.opencontainers.image.revision"}}')" = "$GITHUB_SHA"
+          test "$(docker image inspect "$image" --format '{{index .Config.Labels "org.commandry.source.clean"}}')" = true
+
+      - name: Log in to GitHub Container Registry
+        uses: docker/login-action@c94ce9fb468520275223c153574b00df6fe4bcc9 # v3
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Publish and read back the tested image by digest
+        shell: bash
+        run: |
+          set -euo pipefail
+          source_image="commandry-local:${GITHUB_SHA}"
+          source_id="$(docker image inspect "$source_image" --format '{{.Id}}')"
+          repository="ghcr.io/${GITHUB_REPOSITORY_OWNER,,}/commandry"
+          tag="${repository}:${GITHUB_SHA}-${GITHUB_RUN_ID}-${GITHUB_RUN_ATTEMPT}"
+          docker image tag "$source_image" "$tag"
+          docker push "$tag" | tee "$RUNNER_TEMP/commandry-push.log"
+          digest="$(node -e 'const text=require("node:fs").readFileSync(process.argv[1],"utf8"); const matches=[...text.matchAll(/digest: (sha256:[0-9a-f]{64}) size:/g)]; if(matches.length!==1) process.exit(1); console.log(matches[0][1])' "$RUNNER_TEMP/commandry-push.log")"
+          image_ref="${repository}@${digest}"
+          docker pull "$image_ref" >/dev/null
+          test "$(docker image inspect "$image_ref" --format '{{.Id}}')" = "$source_id"
+          {
+            echo '## Commandry release candidate'
+            echo "- Commit: \`${GITHUB_SHA}\`"
+            echo "- Verified image: \`${image_ref}\`"
+            echo '- Validation: local checks, smoke tests, and synthetic production topology.'
+            echo '- Deployment, offsite restore, Tunnel, and public ingress remain unverified.'
+          } >> "$GITHUB_STEP_SUMMARY"
+
+      - name: Stop disposable local Compose services
+        if: always()
+        shell: bash
+        run: |
+          if command -v pnpm >/dev/null && test -f .env.local; then
+            pnpm compose:down
+          fi

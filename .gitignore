@@ -11,6 +11,7 @@ playwright-report/
 test-results/
 .turbo/
 *.tsbuildinfo
+.agent/
 .agent/local-backups/
 .agent/local-auth-password
 .agent/release-rehearsal-*/

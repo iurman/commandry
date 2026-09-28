@@ -247,6 +247,7 @@ function main() {
   )
     fail("SOURCE_IMAGE");
   imageId = `sha256:${idValue.replace(/^sha256:/, "")}`;
+  mkdirSync(resolve(root, ".agent"), { recursive: true, mode: 0o700 });
   mkdirSync(temporary, { recursive: false, mode: 0o700 });
   const ownerEmail = "owner@commandry.rehearsal.test";
   const ownerPassword = randomBytes(30).toString("base64url");
