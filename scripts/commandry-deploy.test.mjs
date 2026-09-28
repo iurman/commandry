@@ -55,7 +55,7 @@ set -euo pipefail
 [[ ! -f "$COMMANDRY_TEST_ROOT/fail-backup" ]] || exit 21
 status=true
 [[ ! -f "$COMMANDRY_TEST_ROOT/non-offsite-backup" ]] || status=false
-printf 'SNAPSHOT=%064d\nCOMPLETED_AT=%s\nOFFSITE=%s\nVERIFIED=true\nRESTORE_PASSED=true\nDUMP_SHA256=%064d\n' 0 "$(date -u +%Y-%m-%dT%H:%M:%SZ)" "$status" 1 > "$2"
+printf 'SNAPSHOT=%064d\nCOMPLETED_AT=%s\nOFFSITE=%s\nVERIFIED=true\nRESTORE_PASSED=true\nDUMP_SHA256=%064d\nGLOBALS_SNAPSHOT=%064d\nGLOBALS_SHA256=%064d\nCONFIG_SNAPSHOT=%064d\nCONFIG_SHA256=%064d\n' 0 "$(date -u +%Y-%m-%dT%H:%M:%SZ)" "$status" 1 2 3 4 5 > "$2"
 chmod 0600 "$2"
 `;
 

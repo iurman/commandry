@@ -57,6 +57,7 @@ function withHostFixture(callback) {
     "host-backup-config.mjs",
     "host-backup-status.mjs",
     "restic-postgres.mjs",
+    "restic-host-bundle.mjs",
     "restic-isolated-restore.mjs",
     "r2-repository.mjs",
     "container-runtime.mjs",

@@ -58,8 +58,31 @@ test("streamed restic backup restores synthetic data in an isolated app and reje
   const captureId = randomUUID();
   const fixture = `Synthetic restic test capture ${captureId}`;
   const directory = await mkdtemp(resolve(root, ".agent/restic-test-"));
-  const passwordFile = resolve(directory, "password");
   const repository = resolve(directory, "repository");
+  const configDirectory = resolve(directory, "commandry");
+  const passwordFile = resolve(configDirectory, "restic-password");
+  const stateDirectory = resolve(directory, "state");
+  await mkdir(configDirectory, { mode: 0o700 });
+  await mkdir(stateDirectory, { mode: 0o700 });
+  await writeFile(
+    resolve(configDirectory, "commandry.env"),
+    "SYNTHETIC_CONFIG=true\n",
+    {
+      mode: 0o600,
+    },
+  );
+  await writeFile(
+    resolve(configDirectory, "backup.env"),
+    "SYNTHETIC_BACKUP=true\n",
+    {
+      mode: 0o600,
+    },
+  );
+  await writeFile(
+    resolve(stateDirectory, "current-release"),
+    `IMAGE=ghcr.io/example/commandry@sha256:${"a".repeat(64)}\nREVISION=${"b".repeat(40)}\n`,
+    { mode: 0o600 },
+  );
   await writeFile(passwordFile, randomBytes(48).toString("base64url"), {
     mode: 0o600,
   });
@@ -89,6 +112,8 @@ test("streamed restic backup restores synthetic data in an isolated app and reje
     DB_NAME: database,
     RESTIC_REPOSITORY: repository,
     RESTIC_PASSWORD_FILE: passwordFile,
+    COMMANDRY_BACKUP_CONFIG_DIR: configDirectory,
+    COMMANDRY_BACKUP_STATE_DIR: stateDirectory,
     RETENTION_LAST: "3",
     RETENTION_DAILY: "7",
     RETENTION_WEEKLY: "4",
@@ -258,6 +283,54 @@ test("streamed restic backup restores synthetic data in an isolated app and reje
     const saved = JSON.parse(await readFile(isolated.evidencePath, "utf8"));
     assert.equal(saved.id, isolated.id);
     assert.equal(saved.outcome, "passed");
+    const directBundle = JSON.parse(
+      execute(
+        process.execPath,
+        ["scripts/restic-host-bundle.mjs", "rehearse"],
+        {
+          env: scriptEnvironment,
+        },
+      ),
+    );
+    assert.equal(directBundle.outcome, "passed");
+    assert.equal(directBundle.encryptedReadbackVerified, true);
+    assert.equal(directBundle.offsiteStored, false);
+    const configArchive = execute(
+      restic.executable,
+      [
+        ...resticArgs,
+        "dump",
+        directBundle.configuration.snapshotId,
+        "/commandry-config.tar",
+      ],
+      { encoding: null },
+    );
+    const archivePaths = execute(
+      "/usr/bin/tar",
+      ["--ignore-zeros", "-tf", "-"],
+      {
+        input: configArchive,
+      },
+    );
+    assert.match(archivePaths, /commandry\/commandry\.env/);
+    assert.match(archivePaths, /current-release/);
+    assert.doesNotMatch(archivePaths, /commandry\/restic-password/);
+    const extractedDirectory = resolve(directory, "restored-host-bundle");
+    await mkdir(extractedDirectory, { mode: 0o700 });
+    execute("/usr/bin/tar", ["-xf", "-", "-C", extractedDirectory], {
+      input: configArchive,
+    });
+    assert.equal(
+      await readFile(
+        resolve(extractedDirectory, "commandry/commandry.env"),
+        "utf8",
+      ),
+      "SYNTHETIC_CONFIG=true\n",
+    );
+    assert.match(
+      await readFile(resolve(extractedDirectory, "current-release"), "utf8"),
+      /^IMAGE=ghcr\.io\/example\/commandry@sha256:/,
+    );
     const gate = JSON.parse(
       execute(
         process.execPath,
@@ -272,7 +345,27 @@ test("streamed restic backup restores synthetic data in an isolated app and reje
     assert.equal(gate.offsiteVerified, false);
     assert.equal(gate.isolatedRestorePassed, true);
     assert.equal(gate.receiptWritten, false);
+    assert.equal(gate.hostBundle.encryptedReadbackVerified, true);
+    assert.match(gate.hostBundle.globals.snapshotId, /^[0-9a-f]{64}$/);
+    assert.match(gate.hostBundle.configuration.sha256, /^[0-9a-f]{64}$/);
     assert.match(gate.snapshotId, /^[0-9a-f]{64}$/);
+    const bundleWrongDigest = spawnSync(
+      process.execPath,
+      [
+        "scripts/restic-host-bundle.mjs",
+        "verify-rehearse",
+        gate.hostBundle.globals.snapshotId,
+        "0".repeat(64),
+        gate.hostBundle.configuration.snapshotId,
+        gate.hostBundle.configuration.sha256,
+      ],
+      { cwd: root, encoding: "utf8", env: scriptEnvironment },
+    );
+    assert.equal(bundleWrongDigest.status, 1);
+    assert.equal(
+      JSON.parse(bundleWrongDigest.stderr).reason,
+      "READBACK_DIGEST",
+    );
     const gateEvidence = JSON.parse(
       await readFile(gate.restoreEvidencePath, "utf8"),
     );
@@ -294,9 +387,16 @@ test("streamed restic backup restores synthetic data in an isolated app and reje
       ),
     );
     assert.equal(scheduled.outcome, "passed");
+    assert.equal(scheduled.schemaVersion, 2);
     assert.equal(scheduled.sourceLabel, "synthetic-local-rehearsal");
     assert.equal(scheduled.repositoryCheckPassed, true);
     assert.equal(scheduled.retainedSnapshotVerified, true);
+    assert.equal(scheduled.hostBundle.encryptedReadbackVerified, true);
+    assert.match(scheduled.hostBundle.globals.snapshotId, /^[0-9a-f]{64}$/);
+    assert.match(
+      scheduled.hostBundle.configuration.snapshotId,
+      /^[0-9a-f]{64}$/,
+    );
     assert.equal(scheduled.offsiteStored, false);
     assert.equal(scheduled.restoreVerified, false);
     assert.deepEqual(scheduled.retentionApplied, {
@@ -329,12 +429,14 @@ test("streamed restic backup restores synthetic data in an isolated app and reje
       ),
     );
     assert.equal(monthly.outcome, "passed");
+    assert.equal(monthly.schemaVersion, 2);
     assert.equal(monthly.sourceLabel, "synthetic-local-monthly");
     assert.equal(monthly.snapshotId, scheduled.snapshotId);
     assert.equal(monthly.isolatedRestorePassed, true);
     assert.equal(monthly.offsiteVerified, false);
     assert.equal(monthly.authenticatedReadVerified, false);
     assert.equal(monthly.vpsRecoveryVerified, false);
+    assert.equal(monthly.hostBundle.encryptedReadbackVerified, true);
     const monthlySuccessPath = resolve(
       statusDir,
       "backup-monthly-last-success.json",

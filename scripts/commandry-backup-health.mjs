@@ -53,14 +53,20 @@ try {
   const attempt = readStatus(directory, "backup-last-attempt.json", uid);
   if (
     success.kind !== "commandry_scheduled_backup" ||
-    success.schemaVersion !== 1 ||
+    success.schemaVersion !== 2 ||
     success.outcome !== "passed" ||
     success.environment !== (production ? "production" : "local") ||
     success.repositoryCheckPassed !== true ||
     success.retainedSnapshotVerified !== true ||
+    success.hostBundle?.encryptedReadbackVerified !== true ||
+    ![success.hostBundle?.globals, success.hostBundle?.configuration].every(
+      (item) =>
+        /^[0-9a-f]{64}$/.test(item?.snapshotId ?? "") &&
+        /^[0-9a-f]{64}$/.test(item?.sha256 ?? ""),
+    ) ||
     success.offsiteStored !== production ||
     attempt.kind !== "commandry_scheduled_backup" ||
-    attempt.schemaVersion !== 1 ||
+    attempt.schemaVersion !== 2 ||
     attempt.environment !== success.environment ||
     !/^[0-9a-f]{64}$/.test(success.snapshotId ?? "") ||
     !/^[0-9a-f]{64}$/.test(success.dumpSha256 ?? "")

@@ -90,9 +90,12 @@ tests the app read path, but its measured time is not a production recovery
 target. Before production deployment, restore an actual offsite snapshot on
 the intended recovery host, run application smoke checks, and agree on and
 record the achieved recovery point and recovery time. Snapshot age in a local
-drill is not a production recovery point guarantee. These scripts do not
-export cluster-global role definitions or root-owned configuration, so those
-must be captured and tested separately.
+drill is not a production recovery point guarantee. The host bundle captures
+PostgreSQL global roles and root-owned Commandry configuration as encrypted
+restic snapshots, then reads them back and checks their SHA-256 digests. It
+does not apply roles or install configuration on a replacement host. Keep the
+restic password outside the configuration archive and in separate secure
+custody.
 
 ## Deployment backup gate
 
@@ -112,16 +115,20 @@ separate activation step; the backup gate fails closed until then.
 The production hook accepts only a canonical Cloudflare R2 endpoint, performs
 an upload and download through restic, checks the exact dump digest, and
 restores into isolated PostgreSQL and web containers without public ports. It
-writes the deployment receipt only after those steps and cleanup pass. The
-candidate web image must be the approved digest with the expected clean source
+writes the deployment receipt only after those steps, globals and configuration
+readback, and cleanup pass. The receipt links the database, globals, and
+configuration snapshot IDs to their SHA-256 digests. The candidate web image
+must be the approved digest with the expected clean source
 revision. No R2 or VPS run has occurred.
 
 `pnpm backup:restic:test` also invokes the gate with a synthetic repository
 under `.agent/`. That local mode cannot use an S3 address and emits no
 production receipt. It proves orchestration, failure cleanup, and the restored
-read path, but it does not prove offsite storage or recovery of root-owned
-configuration and PostgreSQL global roles. Record an actual offsite recovery
-time and point only after the owner approves the bucket and the VPS run passes.
+read path, plus encrypted readback of synthetic private configuration and
+PostgreSQL global roles. It does not prove offsite storage, applying those
+globals, or installing configuration on a clean host. Record an actual
+offsite recovery time and point only after the owner approves the bucket and
+the VPS run passes.
 
 ## Nightly host backup path, not installed
 
@@ -133,22 +140,29 @@ requires the controlled Node.js 24 and restic binaries described above. The
 nightly wrapper shares the deployment and owner-recovery lock, waiting up to
 15 minutes rather than pruning during a release or password reset. The
 nightly command reads only the private R2 backup configuration, streams a new
-PostgreSQL dump, runs `restic check`, applies the configured recent, daily,
-weekly, and monthly retention counts to `commandry-postgres` snapshots with
+PostgreSQL dump, PostgreSQL global roles, and a tar archive of
+`/etc/commandry` plus `/var/lib/commandry/current-release` into three tagged
+restic snapshots. It excludes the restic password file from the archive if
+that file is within `/etc/commandry`; keep this password separately for
+recovery. It reads back and checks the two host bundle digests, runs
+`restic check`, applies the configured recent, daily, weekly, and monthly
+retention counts to `commandry-postgres` snapshots with
 `restic forget --prune`, then checks the repository again. The real
 `backup.env` must supply positive `RETENTION_LAST`, `RETENTION_DAILY`,
 `RETENTION_WEEKLY`, `RETENTION_MONTHLY`, and `MAX_BACKUP_AGE_HOURS` values;
 the committed example uses invalid zeroes so no owner policy is silently
 chosen. A failed retention or integrity pass leaves the prior success record
-unchanged and marks the latest attempt failed. The command does not require a
-release image or issue a predeploy receipt.
+unchanged and marks the latest attempt failed. It verifies all three new
+snapshot IDs survive retention. The command does not require a release image
+or issue a predeploy receipt.
 
 After a passing run, the command atomically writes mode `0600`
 `/var/lib/commandry/backup-last-success.json` and
 `backup-last-attempt.json`. A failed run writes only the last-attempt record,
-preserving the last confirmed success. The JSON records a snapshot ID, dump
-digest, completion time, repository-check result, and whether storage was
-offsite. It explicitly sets `restoreVerified` to false: the nightly upload is
+preserving the last confirmed success. The JSON records the database snapshot
+and dump digest, both host bundle snapshot IDs and digests, completion time,
+repository-check result, and whether storage was offsite. It explicitly sets
+`restoreVerified` to false: the nightly upload is
 not a clean restore. The service also exits nonzero on failure for the systemd
 journal. These local status files are not an owner notification channel.
 
@@ -184,16 +198,18 @@ maximum-age policy. The root-owned wrapper shares the deployment lock. On a
 production host, the command reads the current immutable image digest and Git
 revision from `/var/lib/commandry/current-release`, then invokes the existing
 separate-container PostgreSQL and web restore against the R2 snapshot and exact
-dump digest. It requires the restored web health, version, and versioned read
-checks, exact source evidence, no published ports, and complete cleanup before
+dump digest. It also reads back the retained PostgreSQL globals and host
+configuration snapshots and rechecks their digests. It requires the restored
+web health, version, and versioned read checks, exact source evidence, no
+published ports, and complete cleanup before
 recording a private mode `0600` monthly success. A failure marks only the
 latest monthly attempt and preserves the last successful monthly record.
 
 The local `monthly-rehearse` mode completes that same isolated restore with a
 labeled synthetic snapshot. It marks `offsiteVerified` and
 `vpsRecoveryVerified` false. Even a passing future production run will not
-prove recovery of host configuration, PostgreSQL global roles, or an
-authenticated human session; its record keeps `vpsRecoveryVerified` and
+prove installation of host configuration, application of PostgreSQL global
+roles, or an authenticated human session; its record keeps `vpsRecoveryVerified` and
 `authenticatedReadVerified` false. A separate clean VPS recovery exercise and
 the production login smoke gate remain required before activation.
 

@@ -71,7 +71,7 @@ function checkedSnapshot(uid, maxAgeHours) {
   const status = readStatus(statusDir, "backup-last-success.json", uid);
   if (
     status.kind !== "commandry_scheduled_backup" ||
-    status.schemaVersion !== 1 ||
+    status.schemaVersion !== 2 ||
     status.outcome !== "passed" ||
     status.environment !== (production ? "production" : "local") ||
     status.offsiteStored !== production ||
@@ -131,6 +131,56 @@ function restore(snapshot, environment) {
   return output;
 }
 
+function verifyHostBundle(snapshot, environment) {
+  const bundle = snapshot.hostBundle;
+  if (
+    bundle?.encryptedReadbackVerified !== true ||
+    ![bundle.globals, bundle.configuration].every(
+      (item) =>
+        /^[0-9a-f]{64}$/.test(item?.snapshotId ?? "") &&
+        /^[0-9a-f]{64}$/.test(item?.sha256 ?? ""),
+    )
+  )
+    fail("HOST_BUNDLE_STATUS");
+  const result = spawnSync(
+    process.execPath,
+    [
+      resolve(root, "scripts/restic-host-bundle.mjs"),
+      production ? "verify" : "verify-rehearse",
+      bundle.globals.snapshotId,
+      bundle.globals.sha256,
+      bundle.configuration.snapshotId,
+      bundle.configuration.sha256,
+    ],
+    {
+      cwd: root,
+      env: environment,
+      encoding: "utf8",
+      maxBuffer: 1024 * 1024,
+      timeout: 30 * 60_000,
+    },
+  );
+  if (result.error || result.status !== 0) fail("HOST_BUNDLE_VERIFY_FAILED");
+  let output;
+  try {
+    output = JSON.parse(result.stdout.trim());
+  } catch {
+    fail("HOST_BUNDLE_VERIFY_OUTPUT");
+  }
+  if (
+    output.kind !== "commandry_host_recovery_bundle" ||
+    output.outcome !== "passed" ||
+    output.encryptedReadbackVerified !== true ||
+    output.offsiteStored !== production ||
+    output.globals?.snapshotId !== bundle.globals.snapshotId ||
+    output.globals?.sha256 !== bundle.globals.sha256 ||
+    output.configuration?.snapshotId !== bundle.configuration.snapshotId ||
+    output.configuration?.sha256 !== bundle.configuration.sha256
+  )
+    fail("HOST_BUNDLE_VERIFY_RESULT");
+  return bundle;
+}
+
 try {
   if (Number(process.versions.node.split(".")[0]) !== 24) fail("NODE_VERSION");
   let environment;
@@ -145,6 +195,7 @@ try {
       "host-backup-config.mjs",
       "host-backup-status.mjs",
       "restic-isolated-restore.mjs",
+      "restic-host-bundle.mjs",
       "r2-repository.mjs",
       "container-runtime.mjs",
       "stream-process.mjs",
@@ -154,7 +205,7 @@ try {
     statusDir = validateStatusDirectory("/var/lib/commandry", uid);
     atomicStatus(statusDir, "backup-monthly-last-attempt.json", {
       kind: "commandry_monthly_restore",
-      schemaVersion: 1,
+      schemaVersion: 2,
       outcome: "running",
       environment: "production",
       startedAt,
@@ -177,7 +228,7 @@ try {
     statusDir = validateStatusDirectory(resolve(candidate), uid);
     atomicStatus(statusDir, "backup-monthly-last-attempt.json", {
       kind: "commandry_monthly_restore",
-      schemaVersion: 1,
+      schemaVersion: 2,
       outcome: "running",
       environment: "local",
       startedAt,
@@ -194,12 +245,14 @@ try {
   const policy = retentionPolicy(environment);
   phase = "SNAPSHOT";
   const snapshot = checkedSnapshot(uid, policy.MAX_BACKUP_AGE_HOURS);
+  phase = "HOST_BUNDLE";
+  const hostBundle = verifyHostBundle(snapshot, environment);
   phase = "ISOLATED_RESTORE";
   const restored = restore(snapshot, environment);
   phase = "STATUS";
   const record = {
     kind: "commandry_monthly_restore",
-    schemaVersion: 1,
+    schemaVersion: 2,
     outcome: "passed",
     environment: production ? "production" : "local",
     sourceLabel,
@@ -207,6 +260,7 @@ try {
     completedAt: new Date().toISOString(),
     snapshotId: snapshot.snapshotId,
     dumpSha256: snapshot.dumpSha256,
+    hostBundle,
     offsiteVerified: production,
     isolatedRestorePassed: true,
     authenticatedReadVerified: false,
@@ -222,7 +276,7 @@ try {
 } catch (error) {
   const record = {
     kind: "commandry_monthly_restore",
-    schemaVersion: 1,
+    schemaVersion: 2,
     outcome: "failed",
     environment: production ? "production" : "local",
     sourceLabel,

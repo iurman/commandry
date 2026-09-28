@@ -267,7 +267,13 @@ backup_offsite=$(field "$backup_receipt" OFFSITE) || reject 'backup location rec
 backup_verified=$(field "$backup_receipt" VERIFIED) || reject 'backup verification receipt is invalid'
 backup_restored=$(field "$backup_receipt" RESTORE_PASSED) || reject 'backup restore receipt is invalid'
 backup_dump_sha=$(field "$backup_receipt" DUMP_SHA256) || reject 'backup digest receipt is invalid'
+globals_snapshot=$(field "$backup_receipt" GLOBALS_SNAPSHOT) || reject 'global roles snapshot receipt is invalid'
+globals_sha=$(field "$backup_receipt" GLOBALS_SHA256) || reject 'global roles digest receipt is invalid'
+config_snapshot=$(field "$backup_receipt" CONFIG_SNAPSHOT) || reject 'host configuration snapshot receipt is invalid'
+config_sha=$(field "$backup_receipt" CONFIG_SHA256) || reject 'host configuration digest receipt is invalid'
 [[ "$received_backup_id" =~ ^[0-9a-f]{64}$ && "$backup_dump_sha" =~ ^[0-9a-f]{64}$ && \
+  "$globals_snapshot" =~ ^[0-9a-f]{64}$ && "$globals_sha" =~ ^[0-9a-f]{64}$ && \
+  "$config_snapshot" =~ ^[0-9a-f]{64}$ && "$config_sha" =~ ^[0-9a-f]{64}$ && \
   "$backup_offsite" == true && "$backup_verified" == true && "$backup_restored" == true ]] ||
   reject 'backup receipt does not prove a verified offsite snapshot'
 backup_id=$received_backup_id

@@ -28,7 +28,7 @@ function fail(code) {
 function markStarted() {
   atomicStatus(statusDir, "backup-last-attempt.json", {
     kind: "commandry_scheduled_backup",
-    schemaVersion: 1,
+    schemaVersion: 2,
     outcome: "running",
     environment: production ? "production" : "local",
     sourceLabel: production ? "production-r2" : "synthetic-local-rehearsal",
@@ -68,7 +68,51 @@ function runBackup(environment) {
   return output;
 }
 
-function runRetention(environment, policy, snapshotId) {
+function runHostBundle(environment) {
+  const result = spawnSync(
+    process.execPath,
+    [
+      resolve(root, "scripts/restic-host-bundle.mjs"),
+      production ? "backup" : "rehearse",
+    ],
+    {
+      cwd: root,
+      env: environment,
+      encoding: "utf8",
+      maxBuffer: 1024 * 1024,
+      timeout: 30 * 60_000,
+    },
+  );
+  if (result.error || result.status !== 0) fail("HOST_BUNDLE_FAILED");
+  let output;
+  try {
+    output = JSON.parse(result.stdout.trim());
+  } catch {
+    fail("HOST_BUNDLE_OUTPUT");
+  }
+  if (
+    output.kind !== "commandry_host_recovery_bundle" ||
+    output.outcome !== "passed" ||
+    output.environment !== (production ? "production" : "local") ||
+    output.offsiteStored !== production ||
+    output.encryptedReadbackVerified !== true ||
+    ![output.globals, output.configuration].every(
+      (item) =>
+        /^[0-9a-f]{64}$/.test(item?.snapshotId ?? "") &&
+        /^[0-9a-f]{64}$/.test(item?.sha256 ?? ""),
+    )
+  )
+    fail("HOST_BUNDLE_RESULT");
+  return {
+    globals: output.globals,
+    configuration: output.configuration,
+    encryptedReadbackVerified: true,
+    globalsApplied: false,
+    configurationInstalled: false,
+  };
+}
+
+function runRetention(environment, policy, snapshotIds) {
   const candidates = environment.RESTIC_BINARY
     ? [{ executable: environment.RESTIC_BINARY, prefix: [] }]
     : [
@@ -119,28 +163,30 @@ function runRetention(environment, policy, snapshotId) {
     });
     if (result.error || result.status !== 0) fail("RETENTION_FAILED");
   }
-  const retained = spawnSync(
-    restic.executable,
-    [...common, "snapshots", snapshotId, "--json"],
-    {
-      cwd: root,
-      env: environment,
-      encoding: "utf8",
-      maxBuffer: 1024 * 1024,
-      timeout: 60_000,
-    },
-  );
-  if (retained.error || retained.status !== 0) fail("RETENTION_FAILED");
-  try {
-    if (
-      !JSON.parse(retained.stdout).some(
-        (snapshot) => snapshot.id === snapshotId,
+  for (const snapshotId of snapshotIds) {
+    const retained = spawnSync(
+      restic.executable,
+      [...common, "snapshots", snapshotId, "--json"],
+      {
+        cwd: root,
+        env: environment,
+        encoding: "utf8",
+        maxBuffer: 1024 * 1024,
+        timeout: 60_000,
+      },
+    );
+    if (retained.error || retained.status !== 0) fail("RETENTION_FAILED");
+    try {
+      if (
+        !JSON.parse(retained.stdout).some(
+          (snapshot) => snapshot.id === snapshotId,
+        )
       )
-    )
-      fail("NEW_SNAPSHOT_NOT_RETAINED");
-  } catch (error) {
-    if (error?.message === "NEW_SNAPSHOT_NOT_RETAINED") throw error;
-    fail("RETENTION_OUTPUT");
+        fail("NEW_SNAPSHOT_NOT_RETAINED");
+    } catch (error) {
+      if (error?.message === "NEW_SNAPSHOT_NOT_RETAINED") throw error;
+      fail("RETENTION_OUTPUT");
+    }
   }
 }
 
@@ -157,6 +203,7 @@ try {
       "host-backup-config.mjs",
       "host-backup-status.mjs",
       "restic-postgres.mjs",
+      "restic-host-bundle.mjs",
       "r2-repository.mjs",
       "container-runtime.mjs",
       "stream-process.mjs",
@@ -184,12 +231,18 @@ try {
   const policy = retentionPolicy(environment);
   phase = "BACKUP";
   const backup = runBackup(environment);
+  phase = "HOST_BUNDLE";
+  const hostBundle = runHostBundle(environment);
   phase = "RETENTION";
-  runRetention(environment, policy, backup.snapshotId);
+  runRetention(environment, policy, [
+    backup.snapshotId,
+    hostBundle.globals.snapshotId,
+    hostBundle.configuration.snapshotId,
+  ]);
   phase = "STATUS";
   const record = {
     kind: "commandry_scheduled_backup",
-    schemaVersion: 1,
+    schemaVersion: 2,
     outcome: "passed",
     environment: production ? "production" : "local",
     sourceLabel: production ? "production-r2" : "synthetic-local-rehearsal",
@@ -197,6 +250,7 @@ try {
     completedAt: new Date().toISOString(),
     snapshotId: backup.snapshotId,
     dumpSha256: backup.dumpSha256,
+    hostBundle,
     repositoryCheckPassed: true,
     retainedSnapshotVerified: true,
     retentionApplied: {
@@ -215,7 +269,7 @@ try {
 } catch (error) {
   const record = {
     kind: "commandry_scheduled_backup",
-    schemaVersion: 1,
+    schemaVersion: 2,
     outcome: "failed",
     environment: production ? "production" : "local",
     sourceLabel: production ? "production-r2" : "synthetic-local-rehearsal",

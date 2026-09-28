@@ -50,7 +50,7 @@ function validDigest(value) {
   return typeof value === "string" && /^[0-9a-f]{64}$/.test(value);
 }
 
-function writeReceipt(snapshotId, dumpSha256) {
+function writeReceipt(snapshotId, dumpSha256, hostBundle) {
   if (existsSync(receiptPath)) fail("RECEIPT_EXISTS");
   const temporary = `${receiptPath}.${randomBytes(6).toString("hex")}.tmp`;
   try {
@@ -63,6 +63,10 @@ function writeReceipt(snapshotId, dumpSha256) {
         "VERIFIED=true",
         "RESTORE_PASSED=true",
         `DUMP_SHA256=${dumpSha256}`,
+        `GLOBALS_SNAPSHOT=${hostBundle.globals.snapshotId}`,
+        `GLOBALS_SHA256=${hostBundle.globals.sha256}`,
+        `CONFIG_SNAPSHOT=${hostBundle.configuration.snapshotId}`,
+        `CONFIG_SHA256=${hostBundle.configuration.sha256}`,
         "",
       ].join("\n"),
       { flag: "wx", mode: 0o600 },
@@ -92,6 +96,7 @@ try {
     for (const script of [
       "commandry-backup-gate.mjs",
       "restic-postgres.mjs",
+      "restic-host-bundle.mjs",
       "restic-isolated-restore.mjs",
       "r2-repository.mjs",
       "host-backup-config.mjs",
@@ -133,6 +138,24 @@ try {
   )
     fail("BACKUP_RESULT");
 
+  phase = "HOST_BUNDLE";
+  const hostBundle = runScript(
+    "restic-host-bundle.mjs",
+    [production ? "backup" : "rehearse"],
+    environment,
+    30 * 60_000,
+  );
+  if (
+    hostBundle.kind !== "commandry_host_recovery_bundle" ||
+    hostBundle.outcome !== "passed" ||
+    hostBundle.offsiteStored !== production ||
+    hostBundle.encryptedReadbackVerified !== true ||
+    ![hostBundle.globals, hostBundle.configuration].every(
+      (item) => validDigest(item?.snapshotId) && validDigest(item?.sha256),
+    )
+  )
+    fail("HOST_BUNDLE_RESULT");
+
   phase = "ISOLATED_RESTORE";
   const restore = runScript(
     "restic-isolated-restore.mjs",
@@ -164,7 +187,7 @@ try {
 
   if (production) {
     phase = "RECEIPT";
-    writeReceipt(backup.snapshotId, backup.dumpSha256);
+    writeReceipt(backup.snapshotId, backup.dumpSha256, hostBundle);
   }
   console.log(
     JSON.stringify({
@@ -173,6 +196,13 @@ try {
       mode: production ? "production" : "local_rehearsal",
       snapshotId: backup.snapshotId,
       dumpSha256: backup.dumpSha256,
+      hostBundle: {
+        globals: hostBundle.globals,
+        configuration: hostBundle.configuration,
+        encryptedReadbackVerified: true,
+        globalsApplied: false,
+        configurationInstalled: false,
+      },
       offsiteVerified: production,
       isolatedRestorePassed: true,
       receiptWritten: production,
