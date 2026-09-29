@@ -79,6 +79,76 @@ restore and never records credentials in evidence. Production rejects this
 probe; production sign-in and worker smoke remain separate gates before a
 release. Neither local mode proves an offsite or VPS restore.
 
+## Initial VPS backup credential intake, not activated
+
+The [interactive root helper](commandry-backup-configure.sh) prepares the first
+private R2 backup configuration. This one-time helper is specific to the
+observed IYU Labs LLC Cloudflare account
+`86b423adc3fb0269c3f4a708c9c7faed`, its reserved
+`commandry-backups` bucket, and the `production` repository prefix. Those
+values are an environment-specific staging target, not a canonical product
+decision. The helper accepts no alternate endpoint or bucket. It creates only
+`/etc/commandry/restic-password` and `/etc/commandry/backup.env` as root-owned
+mode `0600` files and private metadata-only audit events under
+`/var/lib/commandry`. It does not initialize a repository, connect to R2,
+enable a timer, or start a Commandry service.
+
+From a reviewed, clean checkout at the approved commit, stage this script on
+the VPS through the existing `commandry-vps` SSH alias. Compare the local and
+installed SHA-256 digests before running it. The source contains no secrets.
+The staging file may be removed after the installed digest matches.
+
+```bash
+sha256sum deploy/commandry-backup-configure.sh
+scp -o StrictHostKeyChecking=yes deploy/commandry-backup-configure.sh commandry-vps:/home/hermes/commandry-backup-configure.sh
+ssh -t commandry-vps 'sudo install -o root -g root -m 0700 -- /home/hermes/commandry-backup-configure.sh /usr/local/sbin/commandry-backup-configure'
+ssh -t commandry-vps 'sudo sha256sum /usr/local/sbin/commandry-backup-configure'
+```
+
+Stop if the two digests differ. After they match, remove the staging file and
+run the installed helper from an interactive terminal:
+
+```bash
+ssh commandry-vps 'rm -f -- /home/hermes/commandry-backup-configure.sh'
+ssh -tt commandry-vps 'sudo /usr/bin/env -i PATH=/usr/sbin:/usr/bin:/sbin:/bin /usr/local/sbin/commandry-backup-configure'
+```
+
+The root operator must explicitly type `CONFIGURE`, then enter the
+bucket-scoped R2 S3 access key ID and secret, a new restic password twice,
+and positive recent, daily, weekly, monthly, and maximum-age values. Secret
+prompts are silent and require a terminal; arguments, standard-input pipes,
+and backup credential environment variables are rejected by the installed
+command. The documented invocation clears the inherited environment before
+Bash starts, and the helper also clears inherited shell names before reading
+secrets and launches its strict parser with a scrubbed environment. The root
+operator must keep the restic password in separate secure
+custody because [restic cannot recover a repository after its password is lost](https://restic.readthedocs.io/en/stable/030_preparing_a_new_repo.html). The
+helper refuses existing destinations and does not rotate an existing key.
+The committed [example](backup.env.example) remains invalid and contains no
+real credential or default retention decision.
+
+The host action `commandry.host.backup.configure` is **sensitive**. Its scope
+is the two private files for this reserved repository. It requires an owner
+review of the exact token scope and retention values, followed by direct
+root-operator invocation and interactive confirmation. It is outside product
+agent capability grants; the helper's `vps-root-operator-cli` actor identifies
+the operator path, not a verified human. A completed configuration or failed
+post-lock attempt records a root-private, metadata-only event with target,
+outcome, and verification state. Neither the event nor terminal output includes the access
+key, secret key, or restic password. A failed attempt removes files it created;
+an already present configuration is left untouched. After a hard kill or host
+crash, inspect both private file paths and the event directory before retrying;
+the helper refuses an incomplete preexisting configuration.
+
+Creating a Cloudflare R2 token with **Object Read & Write** access restricted
+to **only** `commandry-backups` is a separate owner-approved action. The helper
+cannot infer a token's actual Cloudflare scope from its key string.
+[Cloudflare documents bucket-scoped R2 S3 permissions and once-shown secret
+keys](https://developers.cloudflare.com/r2/api/tokens/). After
+configuration, repository initialization, upload/readback, a clean offsite
+restore, backup alert delivery, and retention approval remain separate gates
+before any backup timer or first production release can be activated.
+
 ## Production activation boundary
 
 The accepted deployment design calls for a root-owned host timer and a private
