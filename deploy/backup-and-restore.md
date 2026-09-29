@@ -82,9 +82,10 @@ release. Neither local mode proves an offsite or VPS restore.
 ## Production activation boundary
 
 The accepted deployment design calls for a root-owned host timer and a private
-Cloudflare R2 restic repository. The timer, R2 bucket, access credentials,
-retention policy, alerting, key custody, and separate-instance restore are not
-activated by this drill. A later production configuration must supply the
+Cloudflare R2 restic repository. A private, empty `commandry-backups` bucket
+has been reserved. The timer, access credentials, retention policy, alerting,
+key custody, and separate-instance restore are not activated by this drill.
+A later production configuration must supply the
 Compose environment file at `/etc/commandry/commandry.env`, an absolute
 root-owned `RESTIC_PASSWORD_FILE` with mode `0600`, an R2
 `RESTIC_REPOSITORY`, and bucket-scoped S3 credentials through a root-owned host
@@ -108,7 +109,7 @@ outside the configuration archive and in separate secure custody.
 
 ## Deployment backup gate
 
-The uninstalled [backup gate](../scripts/commandry-backup-gate.mjs) connects the
+The installed but unconfigured [backup gate](../scripts/commandry-backup-gate.mjs) connects the
 streaming backup to the separate-container restore. Its root-owned
 [host wrapper](commandry-backup-gate.sh) reads a private
 [`backup.env` example](backup.env.example) only after installation under
@@ -118,9 +119,10 @@ credentials. The backup key and S3 secret must stay outside this repository.
 The host wrapper executes only a root-owned Node.js 24 binary at
 `/opt/commandry/runtime/node` and sets `RESTIC_BINARY` to the root-owned
 `/opt/commandry/runtime/restic`. Both binaries must be executable and their
-paths must not be symlinks or group/world writable. This deliberately excludes
-the current VPS's `hermes`-owned nvm runtime. Their verified installation is a
-separate activation step; the backup gate fails closed until then.
+paths must not be symlinks or group/world writable. The commissioner installed
+verified Node.js 24.20.0 and restic 0.19.1 in these root-owned paths. The
+backup gate still fails closed without private R2 configuration and a real
+offsite restore.
 The production hook accepts only a canonical Cloudflare R2 endpoint, performs
 an upload and download through restic, checks the exact dump digest, and
 restores into isolated PostgreSQL and web containers without public ports. It

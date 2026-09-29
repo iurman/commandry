@@ -2,7 +2,7 @@
 
 **Status: Operational**
 
-**Last updated:** 2026-09-28
+**Last updated:** 2026-09-29
 
 ## Current phase
 
@@ -259,13 +259,19 @@ paths from real-source and production activation evidence.
   candidate image, and prior image again after code rollback. The immutable
   record and responsive Recovery view label this local evidence; no database
   migration is reversed and no VPS deployment or production login is implied.
-- An uninstalled host-side deployment command now requires a root-owned release
+- A host-side deployment command now requires a root-owned release
   approval, exact GHCR image digest and clean revision label, fresh verified
   offsite backup receipt, Compose and version health, and an application smoke
   hook before recording success. A synthetic command test proves fail-closed
   behavior and application-code rollback. The backup and smoke hooks, narrow
   SSH identity, on-host permissions, offsite restore, and production sign-in
-  remain unverified; no VPS deployment is implied.
+  remain unverified; no VPS deployment is implied. A one-shot commissioner
+  installed the command, backup and smoke gate wrappers, root-owned controls,
+  and a dedicated locked deploy account on the VPS without starting a service.
+  A live SSH check proved the dedicated key through tailnet and public paths,
+  denial of requested commands and TTY, and no Docker or secret access. The
+  no-argument path failed closed on missing Tunnel configuration. Ephemera
+  remained healthy.
 - An uninstalled backup gate now connects the streaming restic dump and exact
   digest to a separate-container PostgreSQL and web restore. Its local drill
   uses a labeled synthetic repository, rejects remote addresses, and cannot
@@ -274,16 +280,16 @@ paths from real-source and production activation evidence.
   readback digests, and links all three snapshots in its receipt. The local
   drill applies global roles to a separate networkless PostgreSQL cluster,
   extracts the configuration bundle, confirms the restic password is excluded,
-  and cleans up. The production path requires root-owned R2 credentials and a
+  and cleans up. The installed but unconfigured production path requires
+  root-owned R2 credentials and a
   canonical R2 endpoint, then checks the approved web image and an isolated
   read smoke before writing a deployment receipt. No R2 bucket or credentials
-  are configured for Commandry, and no timer or VPS restore is active.
-- Read-only VPS inspection found Node.js 24 under the `hermes` user's nvm
-  directory and no restic executable on the search path. The uninstalled backup
-  gate now requires root-owned Node.js 24 and restic binaries in
-  `/opt/commandry/runtime` and rejects missing or writable paths. Those
-  binaries have not been installed, so the production backup gate remains
-  closed.
+  are configured for Commandry, and no timer or VPS restore is active. A
+  private, empty `commandry-backups` R2 bucket has been reserved.
+- The commissioner installed root-owned Node.js 24.20.0 and restic 0.19.1
+  binaries in `/opt/commandry/runtime` from hash-checked inputs. The backup
+  gate rejects missing or writable paths. Missing R2 configuration and an
+  unproven offsite restore keep the production backup gate closed.
 - An uninstalled root-owned systemd service and nightly timer can run a
   release-independent encrypted PostgreSQL backup, global-role export, private
   configuration archive, and repository check. A passing run records the
@@ -358,7 +364,9 @@ paths from real-source and production activation evidence.
   PostgreSQL checks cover the local paths. On this Bazzite laptop, the
   Docker-compatible Podman service and Compose provider build the image and run
   PostgreSQL, migrations, web, and worker locally. The database, web, and worker
-  report healthy. No VPS or production environment has been provisioned.
+  report healthy. Release workflow `36636036729` passed at exact commit
+  `64cfb06` and published and read back its immutable GHCR digest. No
+  Commandry application or production environment is running on the VPS.
 
 ## Not yet decided
 

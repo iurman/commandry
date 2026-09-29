@@ -47,14 +47,17 @@ cleanup. It uses synthetic credentials and a local application image. Its
 private evidence explicitly leaves offsite, VPS, Tunnel, and public ingress
 verification false.
 
-An unrun [manual release candidate workflow](../../.github/workflows/release-candidate.yml)
-now prepares a GHCR image from the exact clean image tested by those local
+The [manual release candidate workflow](../../.github/workflows/release-candidate.yml)
+prepared a GHCR image from the exact clean image tested by those local
 checks, audits production dependencies, reports high and critical image
 findings, blocks findings with available fixes and high or critical secrets,
 and verifies the published digest by pulling it back. Unfixed vulnerabilities
-are reported rather than silently treated as a clean scan. No GHCR release
-digest, hosted image scan, VPS deployment, or production backup result has
-been verified by this workflow yet.
+are reported rather than silently treated as a clean scan. Run
+`36636036729` passed at commit `64cfb06`, including 75 Vitest files and 202
+tests, 180 desktop and phone browser cases with three conditionally skipped,
+the production topology rehearsal, and the image scan and gate. It published
+and read back `ghcr.io/iurman/commandry@sha256:4db47a62edc5485177a99299d3abdcfc44699b8b6c6b708ed105ad30a8625237`.
+This validates the release artifact, not VPS deployment or production backup.
 
 ## Local review
 
@@ -73,7 +76,7 @@ help can be reviewed on a secure origin later.
 
 ## Local verification at handoff
 
-`pnpm check`, `pnpm test` (200 root tests plus lab and gateway suites),
+`pnpm check`, `pnpm test` (202 root tests plus lab and gateway suites),
 `pnpm test:integration`, `pnpm --filter @commandry/db db:check`, and
 `pnpm test:smoke` passed. The full Playwright run against Compose passed 171
 cases at desktop, 390px, and 320px widths; three cases were skipped by their
@@ -106,11 +109,13 @@ replace the production gates.
    Grml recovery media is offered
    but was not mounted. No snapshot action appeared for this VPS. No
    application database backup timer appeared in inspected system or user
-   timers. Nightly backup, hourly health, and monthly isolated restore timer templates now exist locally;
-   their synthetic rehearsal records private results but they have not been
-   installed or run with R2. Exact data center region, provider host-key verification, offsite
-   encrypted backup, clean restore, and constrained deployment identity
-   remain open. Local backup and rollback drills do not satisfy ADR 0009.
+   timers. Nightly backup, hourly health, and monthly isolated restore timer
+   templates exist locally; their synthetic rehearsal records private results,
+   but they have not been installed or run with R2. A private, empty
+   `commandry-backups` R2 bucket is reserved without Commandry credentials.
+   Exact data center region, provider host-key verification, encrypted offsite
+   backup, clean restore, and owner-approved recovery targets remain open.
+   Local backup and rollback drills do not satisfy ADR 0009.
 
 2. **Human identity.** [OQ-003](open-questions.md#oq-003-what-is-the-first-human-sign-in-and-recovery-method) must settle production sign-in and account recovery. The
    optional Better Auth owner experiment includes an offline operator reset
@@ -122,10 +127,17 @@ replace the production gates.
    it afterward. It cannot recover from loss of VPS operator access. The phone
    `test`/`pass` review gate is separate. These tests do not decide the
    canonical production method or complete its deployment gates.
-3. **Immutable release and control.** An approved immutable registry image
-   digest or signed build chain, production secret handling, deployment
-   command restrictions, and rollback rehearsal on the actual host remain to
-   be validated. A local-only command rehearsal now checks digest and revision
+3. **Immutable release and control.** The exact `64cfb06` image passed CI and
+   GHCR digest readback. A one-shot commissioner installed root-owned inert
+   controls, Node.js 24, restic, and a dedicated password-locked
+   `commandry-deploy` identity on the VPS. Its key authenticated through both
+   verified SSH paths after a scoped key-file permission repair. Requested
+   commands, a TTY, Docker access, secret reads, and an unrestricted root shell
+   were denied. The no-argument deploy path failed closed with absent Tunnel
+   configuration. No Commandry service or ingress started, and Ephemera
+   remained healthy. Production secret handling, an approved release, and a
+   rollback rehearsal on the actual host remain to be validated. A local-only
+   command rehearsal checks digest and revision
    approval, backup and smoke gate failures, and code rollback using synthetic
    Docker. The committed, uninstalled app smoke hook has a separate wrapper
    test and a built-app local test that creates the first owner, reads through
@@ -134,9 +146,9 @@ replace the production gates.
    restore, plus isolated application of global roles and extraction of
    private host configuration, but cannot write an offsite receipt. The
    production Compose subset also passes locally through Caddy with a
-   synthetic owner and no public port. None of these paths validates the VPS
-   identity, real R2 storage, Tunnel, or public ingress. The
-   unactivated topology and exact procedure are in
+   synthetic owner and no public port. The dedicated VPS identity is now
+   validated, but none of these paths validates real R2 restore, Tunnel, or
+   public ingress. The unactivated topology and exact procedure are in
    [deploy/README.md](../../deploy/README.md).
 4. **Real sources.** [OQ-005](open-questions.md#oq-005-which-two-integrations-prove-the-vertical-slice) needs one actual development source and one actual
    operational source. Account ownership, source credentials, webhook or poll

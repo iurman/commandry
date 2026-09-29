@@ -159,6 +159,7 @@ done
 
 stage=$(mktemp -d "$opt_parent/commandry.stage.XXXXXXXX")
 chmod 0700 "$stage"
+identity_creation_attempted=0
 created_identity=0
 installed_key=0
 installed_sudo=0
@@ -196,6 +197,8 @@ cleanup() {
       "$(tool userdel)" commandry-deploy ||
         printf 'Commandry commissioning: urgent: manually lock/remove commandry-deploy\n' >&2
       "$(tool groupdel)" commandry-deploy >/dev/null 2>&1 || true
+    elif (( identity_creation_attempted == 1 )); then
+      printf 'Commandry commissioning: useradd result was not confirmed; inspect and reconcile the commandry-deploy account and group before retrying. They were not deleted automatically.\n' >&2
     fi
     for wrapper in "${installed_wrappers[@]}"; do
       rm -f -- "$bin_parent/$wrapper" ||
@@ -359,31 +362,42 @@ if [[ ! -d "$auth_dir" ]]; then
   created_auth_dir=1
   install -d -m 0755 "$auth_dir"
 fi
+identity_creation_attempted=1
+"$(tool useradd)" --system --user-group --no-create-home --home-dir /nonexistent \
+  --shell /bin/sh --password '!' commandry-deploy ||
+  die 'useradd failed; deploy account creation is unconfirmed'
+created_identity=1
+shadow=$("$(tool getent)" shadow commandry-deploy) || die 'deploy shadow entry is missing'
+[[ "${shadow#*:}" == \!* ]] || die 'deploy password is not locked'
+[[ $("$(tool id)" -nG commandry-deploy) == commandry-deploy ]] ||
+  die 'deploy account has supplementary groups'
+deploy_gid=$("$(tool id)" -g commandry-deploy) || die 'deploy group ID is missing'
+[[ "$deploy_gid" =~ ^[0-9]+$ ]] || die 'deploy group ID is invalid'
+for directory in "$prefix/" "$config_parent" "$ssh_parent" "$auth_dir"; do
+  read -r path_gid path_mode < <(stat -c '%g %a' -- "$directory")
+  if (( (8#$path_mode & 8#001) == 0 )); then
+    [[ "$path_gid" == "$deploy_gid" && $((8#$path_mode & 8#010)) -ne 0 ]] ||
+      die "authorized key path is not traversable by deploy account: $directory"
+  fi
+done
 printf 'restrict,command="/usr/local/sbin/commandry-ssh-dispatch" %s\n' \
   "$(cat -- "$stage/deploy.pub")" > "$stage/authorized-key"
 installed_key=1
-install -m 0600 "$stage/authorized-key" "$auth_file"
+install -m 0640 -g "$deploy_gid" "$stage/authorized-key" "$auth_file"
 installed_sudo=1
 install -m 0440 "$base/deploy/commandry-deploy.sudoers" "$sudo_file"
 trusted_directory "$auth_dir"
 expected_uid=0
 if [[ -n "$test_root" ]]; then expected_uid=$EUID; fi
-for item in "$auth_file:600" "$sudo_file:440"; do
-  path=${item%:*}
-  expected_mode=${item#*:}
-  [[ -f "$path" && ! -L "$path" ]] || die "installed access control is missing or symlinked: $path"
-  read -r uid mode < <(stat -c '%u %a' -- "$path")
-  [[ "$uid" == "$expected_uid" && "$mode" == "$expected_mode" ]] ||
-    die "installed access control has an unsafe owner or mode: $path"
-done
+[[ -f "$auth_file" && ! -L "$auth_file" ]] || die 'installed deploy key is missing or symlinked'
+read -r uid gid mode < <(stat -c '%u %g %a' -- "$auth_file")
+[[ "$uid" == "$expected_uid" && "$gid" == "$deploy_gid" && "$mode" == 640 ]] ||
+  die 'installed deploy key has an unsafe owner, group, or mode'
+[[ -f "$sudo_file" && ! -L "$sudo_file" ]] || die 'installed sudo rule is missing or symlinked'
+read -r uid mode < <(stat -c '%u %a' -- "$sudo_file")
+[[ "$uid" == "$expected_uid" && "$mode" == 440 ]] ||
+  die 'installed sudo rule has an unsafe owner or mode'
 "$(tool visudo)" -cf "$sudo_file" >/dev/null || die 'installed sudoers rule is invalid'
-created_identity=1
-"$(tool useradd)" --system --user-group --no-create-home --home-dir /nonexistent \
-  --shell /bin/sh --password '!' commandry-deploy
-shadow=$("$(tool getent)" shadow commandry-deploy) || die 'deploy shadow entry is missing'
-[[ "${shadow#*:}" == \!* ]] || die 'deploy password is not locked'
-[[ $("$(tool id)" -nG commandry-deploy) == commandry-deploy ]] ||
-  die 'deploy account has supplementary groups'
 
 sshd_temp=$(mktemp "$ssh_parent/.sshd_config.commandry.XXXXXXXX")
 cp -p -- "$stage/sshd_config.candidate" "$sshd_temp"

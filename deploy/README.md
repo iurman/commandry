@@ -86,7 +86,7 @@ configuration without printing secrets, establish the deployment lock and
 backup gate, and rehearse both release rollback and a real offsite restore.
 Code rollback never reverses a PostgreSQL migration.
 
-## Provisional owner sign-in and operator recovery, not installed
+## Provisional owner sign-in and operator recovery, not activated
 
 The single-owner password mode is a reversible implementation option while
 [OQ-003](../docs/project/open-questions.md#oq-003-what-is-the-first-human-sign-in-and-recovery-method)
@@ -107,9 +107,9 @@ worker. If a later gate fails, the account remains in PostgreSQL because
 application rollback does not undo data changes. Recovery after loss of VPS
 operator access and human audit attribution remain open.
 
-The uninstalled [`commandry-owner-recover.sh`](commandry-owner-recover.sh)
-is intended for `/usr/local/sbin/commandry-owner-recover`, owned by root with
-mode `0750`. It accepts no arguments and reads the configured owner email and
+The installed but unactivated [`commandry-owner-recover.sh`](commandry-owner-recover.sh)
+is at `/usr/local/sbin/commandry-owner-recover`, owned by root with mode
+`0750`. It accepts no arguments and reads the configured owner email and
 new password as two standard-input lines from an operator terminal. It requires
 root-owned private configuration, shares the deployment lock, stops web,
 changes the password in PostgreSQL, revokes sessions, records an
@@ -126,9 +126,9 @@ transport and verifies a Secure session cookie; it does not test the real
 Cloudflare Tunnel, Caddy, or VPS access. No production account or recovery
 command has been run on the VPS.
 
-## One-shot host commissioning, not installed
+## One-shot host commissioning
 
-The uninstalled [`commandry-commission.sh`](commandry-commission.sh) prepares
+The [`commandry-commission.sh`](commandry-commission.sh) prepares
 inert host controls and a restricted `commandry-deploy` SSH identity. It is a
 one-shot root operation, not a deployment. It accepts the exact reviewed source
 revision, SHA-256 values for the controls archive and manifest, Node.js and
@@ -156,10 +156,22 @@ reviewed manifest. The installed controls are root-owned. Private state and
 configuration directories have mode `0700`; the installer leaves environment,
 backup, Tunnel, and approval secrets absent. It creates a locked passwordless
 `commandry-deploy` account with a normal shell, no home directory, and only its
-own group. The public key is accepted only through a root-owned authorized-key
-file with a forced dispatcher. A single no-argument sudo rule invokes the
-root-owned deploy command. The appended SSH Match block also requires public
-key authentication and disables TTY, forwarding, and user RC behavior.
+own group. The public key is accepted only through an authorized-key file owned
+by root and the `commandry-deploy` group with mode `0640`, readable by the
+deploy identity but not writable by it. The file contains a forced dispatcher.
+The installer checks that the account can traverse every directory from `/`
+through the key directory and verifies file ownership and mode before
+reloading SSH. If account creation does not return confirmed success, it
+preserves any account or group left behind for operator inspection and removes
+the other new controls.
+
+During the first live SSH check, `root:root` mode `0600` made sshd report
+`Permission denied` while opening this file as `commandry-deploy`;
+`root:commandry-deploy` mode `0640`
+allowed the dedicated key to authenticate. A single no-argument sudo rule
+invokes the root-owned deploy command. The appended SSH Match block also
+requires public key authentication and disables TTY, forwarding, and user RC
+behavior.
 
 Before changing the active SSH configuration, the installer requires explicit
 `--tailnet-context` and `--public-context` arguments. Each contains the actual
@@ -179,8 +191,10 @@ container, timer, Tunnel, firewall rule, network listener, or external
 connection is started. Ephemera is outside every command in this installer.
 
 On a normal failed run, the installer removes only the new Commandry paths it
-created, including inert controls, wrappers, key, sudo rule, and account, so
-the same reviewed command can be retried. If restoring the previous SSH
+created, including inert controls, wrappers, key, and sudo rule. It removes
+the account only after `useradd` returns confirmed success. If `useradd`
+fails ambiguously, it preserves any partial account or group for operator
+inspection before retrying. If restoring the previous SSH
 configuration or reloading it fails, it preserves
 `/var/lib/commandry/sshd_config.before-commission`. Use the IONOS recovery
 console to compare that copy with `/etc/ssh/sshd_config` and repair SSH before
@@ -198,13 +212,26 @@ fixture test proves the install and rollback sequence but does not establish
 actual VPS SSH confinement. Production release, offsite restore, owner sign-in,
 and public ingress remain separate gates.
 
-## Constrained deployment command, not installed
+The initial commissioner ran on the IONOS VPS Linux L from reviewed commit
+`64cfb06`. The first dedicated-key SSH attempt failed because sshd could not
+read the root-owned key file at mode `0600`. A scoped live repair changed only
+that file to `root:commandry-deploy` mode `0640`. The dedicated key then
+authenticated through both tailnet and public paths. Requested commands,
+TTY, Docker socket access, secret reads, and an unrestricted root shell were
+denied; the no-argument deployment command failed closed on missing Tunnel
+configuration. The source installer now creates the readable mode directly.
+No Commandry application, backup timer, or ingress has started on the VPS.
+Ephemera remained healthy after commissioning.
+
+## Constrained deployment command, installed but unconfigured
 
 `commandry-deploy.sh` is a host-side command for a future controlled release.
-No copy of it, its sudo rule, or its gate hooks has been installed on the VPS.
+The command, sudo rule, gate hooks, and dedicated SSH dispatcher are installed
+on the VPS, but private production configuration and a release approval are
+absent.
 The installed path is fixed at `/usr/local/sbin/commandry-deploy`; the
 [`sudoers` template](commandry-deploy.sudoers) allows the `commandry-deploy`
-identity to run that command with no arguments. The uninstalled
+identity to run that command with no arguments. The installed
 [SSH dispatcher](commandry-ssh-dispatch.sh), invalid
 [authorized-key example](commandry-deploy-authorized-keys.example), and
 [sshd Match example](sshd-commandry-deploy.match.example) constrain a
@@ -215,10 +242,10 @@ directives, then checked against the complete effective host configuration;
 it must not be placed in an early included file. The deployment key must be
 distinct from the broad bootstrap operator key. The identity must not join
 the Docker or sudo groups or own any file below `/opt/commandry` or
-`/etc/commandry`. Local tests cover the dispatcher but cannot prove VPS
-account restrictions. On-host `sudo -l`, secret-read denial, Docker-socket
-denial, and an unrestricted root-shell denial remain mandatory before this
-identity can be called constrained.
+`/etc/commandry`. Local tests cover the dispatcher, and the initial on-host
+`sudo -l`, secret-read denial, Docker-socket denial, and unrestricted
+root-shell denial verified the installed identity. Recheck these controls
+after any host SSH or account change.
 
 The host capability is `commandry.host.deploy.approved-release`, with high
 risk. An approved release digest and expiry in the root-owned file authorize
@@ -248,13 +275,12 @@ Before migration, the script requires executable, root-owned
 `/var/lib/commandry/predeploy-backup.receipt`. The hook receives
 `predeploy <receipt-path> <image-digest> <revision>` and must finish a verified
 offsite snapshot and isolated restore. The [host wrapper](commandry-backup-gate.sh)
-and [backup configuration example](backup.env.example) are committed but not
-installed. The wrapper requires root-owned, executable Node.js 24 and restic
+is installed; the [backup configuration example](backup.env.example) remains
+invalid and uninstalled. The wrapper requires root-owned, executable Node.js 24 and restic
 binaries at `/opt/commandry/runtime/node` and
 `/opt/commandry/runtime/restic`, with no symlinks or group/world write access.
-The current VPS has Node only in the `hermes` user's nvm directory and no
-restic executable on its search path. Neither runtime has been installed in
-the controlled location. The receipt must have one each of
+The commissioner installed Node.js 24.20.0 and restic 0.19.1 from
+hash-checked binaries in that controlled location. The receipt must have one each of
 `SNAPSHOT=<64 lowercase hex>`,
 `COMPLETED_AT=<UTC ISO 8601 seconds>`, `OFFSITE=true`, and `VERIFIED=true`;
 it also requires `RESTORE_PASSED=true`, `HOST_RECOVERY_DRILL_PASSED=true`, a
@@ -266,7 +292,7 @@ configuration readback, isolated role application and configuration
 extraction, repository check, exact-digest clean restore, and unexposed web
 read smoke all pass. A local `pnpm backup:restic:test` rehearsal uses a
 synthetic local repository and never writes a production receipt. The hook
-does not exist on the VPS yet. An empty private R2 bucket is reserved, but
+exists on the VPS but is closed by missing configuration. An empty private R2 bucket is reserved, but
 backup credentials and a working offsite restore are not configured.
 
 The uninstalled [nightly host service and timer](systemd/commandry-backup.timer)
@@ -303,13 +329,13 @@ After migration and container health, the script checks `/health/live`,
 It then requires root-owned `/usr/local/sbin/commandry-app-smoke` to verify a
 real login, an authenticated read, and one enqueue-to-worker result. The smoke
 hook receives the environment-file path, image digest, and revision and reads
-the owner email and password from standard input. The committed
+the owner email and password from standard input. The installed
 [`host wrapper`](commandry-app-smoke.sh) runs the one-shot worker command in
 the private Compose network. It writes a fresh mode `0600` receipt under
 `/var/lib/commandry` only after the exact release, login, read, sign-out,
 and worker result match. The deployment command independently validates that
-receipt before ingress starts. The hook is not installed, so production
-deployment still fails closed. After the hook passes, the
+receipt before ingress starts. The hook is installed but lacks production
+configuration and owner credentials, so deployment still fails closed. After the hook passes, the
 script starts Caddy and cloudflared, records a root-only JSON event, and saves
 the current release. On failure it restores the prior application image and
 environment, or stops the first-release application containers. The database

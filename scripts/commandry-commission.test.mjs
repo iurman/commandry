@@ -8,6 +8,7 @@ import {
   mkdtempSync,
   readFileSync,
   rmSync,
+  statSync,
   writeFileSync,
 } from "node:fs";
 import { tmpdir } from "node:os";
@@ -67,10 +68,19 @@ case "$name" in
       *) exit 2 ;;
     esac
     ;;
-  useradd) touch "$root/account.created" ;;
+  useradd)
+    touch "$root/account.created"
+    if [[ -f "$root/fail-useradd-after-account-appears" ]]; then exit 9; fi
+    ;;
   userdel) rm -f "$root/account.created" ;;
   groupdel) : ;;
-  id) printf 'commandry-deploy\n' ;;
+  id)
+    case "$1" in
+      -nG) printf 'commandry-deploy\n' ;;
+      -g) /usr/bin/id -g ;;
+      *) exit 2 ;;
+    esac
+    ;;
   visudo)
     grep -Fq 'NOPASSWD: /usr/local/sbin/commandry-deploy ""' "$2"
     ;;
@@ -115,6 +125,10 @@ CONFIG
     ;;
   systemctl)
     if [[ "$1" == is-active ]]; then exit 0; fi
+    if [[ "$1" == reload && -f "$root/etc/ssh/authorized_keys/commandry-deploy" ]]; then
+      key=$root/etc/ssh/authorized_keys/commandry-deploy
+      [[ $(stat -c '%u %g %a' "$key") == "$(/usr/bin/id -u) $(/usr/bin/id -g) 640" ]] || exit 28
+    fi
     if [[ "$1" == reload && -f "$root/fail-every-reload" ]]; then exit 27; fi
     if [[ "$1" == reload && -f "$root/fail-reload-once" ]]; then
       rm "$root/fail-reload-once"
@@ -305,12 +319,20 @@ test("commission installs inert controls and a restricted deploy identity", (t) 
     join(host, "etc/ssh/authorized_keys/commandry-deploy"),
     "utf8",
   );
+  const keyStats = statSync(
+    join(host, "etc/ssh/authorized_keys/commandry-deploy"),
+  );
+  assert.equal(keyStats.uid, process.geteuid());
+  assert.equal(keyStats.gid, process.getegid());
+  assert.equal(keyStats.mode & 0o777, 0o640);
+  assert.equal(keyStats.mode & 0o020, 0);
   assert.match(
     key,
     /^restrict,command="\/usr\/local\/sbin\/commandry-ssh-dispatch" ssh-ed25519 /,
   );
   const calls = readFileSync(join(host, "tool.calls"), "utf8");
   assert.match(calls, /useradd --system --user-group --no-create-home/);
+  assert.match(calls, /id -g commandry-deploy/);
   assert.match(calls, /systemctl reload ssh/);
   assert.equal((calls.match(/sshd -T -f/g) ?? []).length, 4);
   assert.match(calls, /host=kronos.tailnet,addr=100.67.164.61/);
@@ -318,6 +340,74 @@ test("commission installs inert controls and a restricted deploy identity", (t) 
   assert.match(calls, /host=kronos.example,addr=203.0.113.55/);
   assert.match(calls, /host=203.0.113.55,addr=203.0.113.55/);
   assert.doesNotMatch(calls, /docker|ufw|start|enable|restart/);
+});
+
+test("a preexisting key directory without deploy traversal fails and removes the account", (t) => {
+  const { host, run } = fixture(t);
+  const keyDirectory = join(host, "etc/ssh/authorized_keys");
+  mkdirSync(keyDirectory, { mode: 0o700 });
+  chmodSync(keyDirectory, 0o700);
+  const result = run();
+  assert.notEqual(result.status, 0);
+  assert.match(result.stderr, /authorized key path is not traversable/);
+  assert.equal(existsSync(join(host, "account.created")), false);
+  assert.equal(existsSync(join(keyDirectory, "commandry-deploy")), false);
+  assert.equal(existsSync(join(host, "etc/sudoers.d/commandry-deploy")), false);
+  assert.equal(
+    readFileSync(join(host, "etc/ssh/sshd_config"), "utf8"),
+    "Port 22\n",
+  );
+  const calls = readFileSync(join(host, "tool.calls"), "utf8");
+  assert.doesNotMatch(calls, /systemctl reload ssh/);
+});
+
+test("a non-traversable SSH parent fails before reload and removes a confirmed account", (t) => {
+  const { host, run } = fixture(t);
+  chmodSync(join(host, "etc/ssh"), 0o700);
+  const result = run();
+  assert.notEqual(result.status, 0);
+  assert.match(
+    result.stderr,
+    /authorized key path is not traversable.*etc\/ssh/,
+  );
+  assert.equal(existsSync(join(host, "account.created")), false);
+  assert.equal(
+    existsSync(join(host, "etc/ssh/authorized_keys/commandry-deploy")),
+    false,
+  );
+  assert.equal(existsSync(join(host, "etc/sudoers.d/commandry-deploy")), false);
+  assert.equal(
+    readFileSync(join(host, "etc/ssh/sshd_config"), "utf8"),
+    "Port 22\n",
+  );
+  const calls = readFileSync(join(host, "tool.calls"), "utf8");
+  assert.match(calls, /userdel commandry-deploy/);
+  assert.doesNotMatch(calls, /systemctl reload ssh/);
+});
+
+test("failed useradd preserves an account that appeared after the absence check", (t) => {
+  const { host, run } = fixture(t);
+  write(join(host, "fail-useradd-after-account-appears"), "1");
+  const result = run();
+  assert.notEqual(result.status, 0);
+  assert.match(
+    result.stderr,
+    /useradd failed; deploy account creation is unconfirmed/,
+  );
+  assert.match(result.stderr, /They were not deleted automatically/);
+  assert.equal(existsSync(join(host, "account.created")), true);
+  assert.equal(existsSync(join(host, "opt/commandry")), false);
+  assert.equal(
+    existsSync(join(host, "etc/ssh/authorized_keys/commandry-deploy")),
+    false,
+  );
+  assert.equal(existsSync(join(host, "etc/sudoers.d/commandry-deploy")), false);
+  assert.equal(
+    readFileSync(join(host, "etc/ssh/sshd_config"), "utf8"),
+    "Port 22\n",
+  );
+  const calls = readFileSync(join(host, "tool.calls"), "utf8");
+  assert.doesNotMatch(calls, /userdel|groupdel|systemctl reload ssh/);
 });
 
 test("missing real SSH client contexts is rejected before host mutation", (t) => {
