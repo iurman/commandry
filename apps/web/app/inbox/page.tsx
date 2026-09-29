@@ -471,9 +471,7 @@ export default function InboxPage() {
       );
       locallyFiledCaptures.current.set(captureId, result.capture);
       if (selectedIdRef.current === captureId) {
-        setDetail((current) =>
-          current?.id === captureId ? result.capture : current,
-        );
+        setDetail(result.capture);
       }
       setCaptures((current) =>
         current.map((item) =>
