@@ -152,7 +152,18 @@ test("configured local sources carry synthetic development and operations sample
   const resourceOption = resourceSelect.locator(
     `option[value="${resource.id}"]`,
   );
-  await expect(resourceOption).toBeAttached();
+  await expect
+    .poll(() => resourceSelect.locator('option:not([value=""])').count())
+    .toBeGreaterThan(0);
+  while ((await resourceOption.count()) === 0) {
+    const previousCount = await resourceSelect.locator("option").count();
+    const more = page.getByRole("button", { name: "Load more resources" });
+    await expect(more).toBeVisible();
+    await more.click();
+    await expect
+      .poll(() => resourceSelect.locator("option").count())
+      .toBeGreaterThan(previousCount);
+  }
   await resourceSelect.selectOption(resource.id);
   await page.getByRole("button", { name: "Add local source" }).click();
   const operations = page

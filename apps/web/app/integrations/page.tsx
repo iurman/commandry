@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState, type FormEvent } from "react";
+import { useEffect, useRef, useState, type FormEvent } from "react";
 import type {
   LocalConnectorFeedItem,
   LocalConnectorToken,
@@ -34,6 +34,7 @@ export default function IntegrationsPage() {
   const [projects, setProjects] = useState<ProjectRecord[]>([]);
   const [projectCursor, setProjectCursor] = useState<string | null>(null);
   const [projectId, setProjectId] = useState("");
+  const resourceSelectionEpoch = useRef(0);
   const [resourceLinks, setResourceLinks] = useState<ProjectResourceLink[]>([]);
   const [resourceCursor, setResourceCursor] = useState<string | null>(null);
   const [resourceId, setResourceId] = useState("");
@@ -102,6 +103,7 @@ export default function IntegrationsPage() {
             : projectPage.items,
         );
         setProjectCursor(projectPage.nextCursor);
+        resourceSelectionEpoch.current += 1;
         setProjectId(requestedProject?.id ?? projectPage.items[0]?.id ?? "");
       })
       .catch((cause: unknown) => {
@@ -118,16 +120,22 @@ export default function IntegrationsPage() {
   useEffect(() => {
     if (!projectId) return;
     let active = true;
+    const epoch = resourceSelectionEpoch.current;
     apiJson<PageResponse<ProjectResourceLink>>(
       pagePath(`/api/v1/projects/${encodeURIComponent(projectId)}/resources`),
     )
       .then((page) => {
-        if (!active) return;
-        setResourceLinks(page.items);
-        setResourceCursor(page.nextCursor);
+        if (!active || epoch !== resourceSelectionEpoch.current) return;
+        setResourceLinks((current) =>
+          epoch === resourceSelectionEpoch.current ? page.items : current,
+        );
+        setResourceCursor((current) =>
+          epoch === resourceSelectionEpoch.current ? page.nextCursor : current,
+        );
       })
       .catch((cause: unknown) => {
-        if (active) setError(message(cause));
+        if (active && epoch === resourceSelectionEpoch.current)
+          setError(message(cause));
       });
     return () => {
       active = false;
@@ -180,18 +188,28 @@ export default function IntegrationsPage() {
 
   async function loadMoreResources() {
     if (!resourceCursor || !projectId || busy) return;
+    const epoch = resourceSelectionEpoch.current;
+    const selectedProjectId = projectId;
+    const nextCursor = resourceCursor;
     setBusy(true);
     try {
       const page = await apiJson<PageResponse<ProjectResourceLink>>(
         pagePath(
-          `/api/v1/projects/${encodeURIComponent(projectId)}/resources`,
-          resourceCursor,
+          `/api/v1/projects/${encodeURIComponent(selectedProjectId)}/resources`,
+          nextCursor,
         ),
       );
-      setResourceLinks((current) => [...current, ...page.items]);
-      setResourceCursor(page.nextCursor);
+      if (epoch !== resourceSelectionEpoch.current) return;
+      setResourceLinks((current) =>
+        epoch === resourceSelectionEpoch.current
+          ? [...current, ...page.items]
+          : current,
+      );
+      setResourceCursor((current) =>
+        epoch === resourceSelectionEpoch.current ? page.nextCursor : current,
+      );
     } catch (cause) {
-      setError(message(cause));
+      if (epoch === resourceSelectionEpoch.current) setError(message(cause));
     } finally {
       setBusy(false);
     }
@@ -534,6 +552,7 @@ export default function IntegrationsPage() {
             id="integration-project"
             value={projectId}
             onChange={(event) => {
+              resourceSelectionEpoch.current += 1;
               setProjectId(event.target.value);
               setResourceId("");
               setResourceLinks([]);

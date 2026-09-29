@@ -44,6 +44,9 @@ function linkedCaptureId() {
 
 export default function InboxPage() {
   const detailRef = useRef<HTMLElement>(null);
+  const selectedIdRef = useRef<string | null>(null);
+  const filingInFlight = useRef(new Set<string>());
+  const locallyFiledCaptures = useRef(new Map<string, CaptureRecord>());
   const filingTouched = useRef(false);
   const suggestionPrefilledFor = useRef<string | null>(null);
   const [captures, setCaptures] = useState<CaptureRecord[]>([]);
@@ -86,12 +89,19 @@ export default function InboxPage() {
   const [knowledgeType, setKnowledgeType] = useState<KnowledgeTextType>("note");
   const [title, setTitle] = useState("");
   const [body, setBody] = useState("");
-  const [filing, setFiling] = useState(false);
+  const [filingCaptureIds, setFilingCaptureIds] = useState<ReadonlySet<string>>(
+    new Set(),
+  );
   const [filingError, setFilingError] = useState<string | null>(null);
   const [filingFeedback, setFilingFeedback] = useState<string | null>(null);
   const textInput = inputType !== "url" && inputType !== "file";
   const originalContent = textInput ? textDraft : urlDraft;
   const detailLoading = Boolean(selectedId && !detail && !detailError);
+  const filing = detail ? filingCaptureIds.has(detail.id) : false;
+
+  useEffect(() => {
+    selectedIdRef.current = selectedId;
+  }, [selectedId]);
 
   useEffect(() => {
     let active = true;
@@ -152,16 +162,22 @@ export default function InboxPage() {
     apiJson<CaptureRecord>(`/api/v1/captures/${encodeURIComponent(selectedId)}`)
       .then((record) => {
         if (!active) return;
-        setDetail(record);
+        const currentRecord =
+          record.state === "unfiled"
+            ? (locallyFiledCaptures.current.get(record.id) ?? record)
+            : record;
+        setDetail(currentRecord);
         setCaptures((current) =>
-          current.some((item) => item.id === record.id)
-            ? current.map((item) => (item.id === record.id ? record : item))
-            : [record, ...current],
+          current.some((item) => item.id === currentRecord.id)
+            ? current.map((item) =>
+                item.id === currentRecord.id ? currentRecord : item,
+              )
+            : [currentRecord, ...current],
         );
-        setProjectId(record.projectId ?? "");
-        if (record.inputType === "file") {
+        setProjectId(currentRecord.projectId ?? "");
+        if (currentRecord.inputType === "file") {
           setKind("document");
-          setTitle(record.file?.originalName ?? "");
+          setTitle(currentRecord.file?.originalName ?? "");
         }
       })
       .catch((cause: unknown) => {
@@ -225,6 +241,7 @@ export default function InboxPage() {
   function selectCapture(id: string) {
     detailRef.current?.scrollIntoView?.({ behavior: "smooth", block: "start" });
     if (id === selectedId) return;
+    selectedIdRef.current = id;
     setSelectedId(id);
     filingTouched.current = false;
     suggestionPrefilledFor.current = null;
@@ -424,20 +441,22 @@ export default function InboxPage() {
 
   async function fileCapture(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
+    const captureId = detail?.id;
     if (
-      !detail ||
+      !captureId ||
       detail.state === "filed" ||
       !projectId ||
       !title.trim() ||
-      filing
+      filingInFlight.current.has(captureId)
     )
       return;
-    setFiling(true);
+    filingInFlight.current.add(captureId);
+    setFilingCaptureIds(new Set(filingInFlight.current));
     setFilingError(null);
     setFilingFeedback(null);
     try {
       const result = await apiJson<FiledCaptureResponse>(
-        `/api/v1/captures/${encodeURIComponent(detail.id)}/file`,
+        `/api/v1/captures/${encodeURIComponent(captureId)}/file`,
         {
           method: "POST",
           body: JSON.stringify({
@@ -450,7 +469,12 @@ export default function InboxPage() {
           }),
         },
       );
-      setDetail(result.capture);
+      locallyFiledCaptures.current.set(captureId, result.capture);
+      if (selectedIdRef.current === captureId) {
+        setDetail((current) =>
+          current?.id === captureId ? result.capture : current,
+        );
+      }
       setCaptures((current) =>
         current.map((item) =>
           item.id === result.capture.id ? result.capture : item,
@@ -462,13 +486,18 @@ export default function InboxPage() {
           : kind === "note"
             ? knowledgeTypeLabel(knowledgeType).toLowerCase()
             : kind;
-      setFilingFeedback(
-        `Filed as ${/^[aeiou]/.test(filedType) ? "an" : "a"} ${filedType} in the selected project.`,
-      );
+      if (selectedIdRef.current === captureId) {
+        setFilingFeedback(
+          `Filed as ${/^[aeiou]/.test(filedType) ? "an" : "a"} ${filedType} in the selected project.`,
+        );
+      }
     } catch (cause) {
-      setFilingError(message(cause, "Could not file capture."));
+      if (selectedIdRef.current === captureId) {
+        setFilingError(message(cause, "Could not file capture."));
+      }
     } finally {
-      setFiling(false);
+      filingInFlight.current.delete(captureId);
+      setFilingCaptureIds(new Set(filingInFlight.current));
     }
   }
 
