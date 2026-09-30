@@ -2,7 +2,7 @@
 
 **Status: Operational**
 
-**Last updated:** 2026-09-29
+**Last updated:** 2026-09-30
 
 ## Current phase
 
@@ -283,9 +283,12 @@ paths from real-source and production activation evidence.
   and cleans up. The installed but unconfigured production path requires
   root-owned R2 credentials and a
   canonical R2 endpoint, then checks the approved web image and an isolated
-  read smoke before writing a deployment receipt. No R2 bucket or credentials
-  are configured for Commandry, and no timer or VPS restore is active. A
-  private, empty `commandry-backups` R2 bucket has been reserved.
+  read smoke before writing a deployment receipt. A private, empty
+  `commandry-backups` R2 bucket is reserved, and a dedicated
+  `commandry-vps-backups` token was created with Object Read & Write access
+  limited to that bucket. Its one-time key pair has not been entered on the
+  VPS. The root-only interactive intake helper is installed, but it has not
+  run; no repository, timer, or VPS restore is active.
 - The commissioner installed root-owned Node.js 24.20.0 and restic 0.19.1
   binaries in `/opt/commandry/runtime` from hash-checked inputs. The backup
   gate rejects missing or writable paths. Missing R2 configuration and an

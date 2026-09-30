@@ -112,7 +112,9 @@ replace the production gates.
    timers. Nightly backup, hourly health, and monthly isolated restore timer
    templates exist locally; their synthetic rehearsal records private results,
    but they have not been installed or run with R2. A private, empty
-   `commandry-backups` R2 bucket is reserved without Commandry credentials.
+   `commandry-backups` R2 bucket is reserved and a dedicated bucket-scoped
+   token has been created. Its one-time key pair has not been entered on the
+   VPS; owner custody of both keys is pending confirmation.
    Exact data center region, provider host-key verification, encrypted offsite
    backup, clean restore, and owner-approved recovery targets remain open.
    Local backup and rollback drills do not satisfy ADR 0009.
