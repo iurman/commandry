@@ -1,5 +1,6 @@
 import { existsSync } from "node:fs";
 import { detectContainerRuntime, runContainer } from "./container-runtime.mjs";
+import { assertLocalPostgresAvailable } from "./local-postgres-guard.mjs";
 import {
   getLocalSourceState,
   imageLabelsMatchSource,
@@ -43,6 +44,14 @@ const hostRuntime = source
 const hostEnvironment = { ...process.env, ...overrides };
 
 function runCompose(operation) {
+  if (operation[0] === "up") {
+    try {
+      assertLocalPostgresAvailable(hostRuntime, args);
+    } catch (error) {
+      console.error(error instanceof Error ? error.message : "Startup refused");
+      process.exit(1);
+    }
+  }
   const result = runContainer(hostRuntime, [...args, ...operation], {
     stdio: "inherit",
     env: hostEnvironment,

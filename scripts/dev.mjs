@@ -2,6 +2,7 @@ import { existsSync } from "node:fs";
 import { loadEnvFile } from "node:process";
 import { spawn, spawnSync } from "node:child_process";
 import { detectContainerRuntime, runContainer } from "./container-runtime.mjs";
+import { assertLocalPostgresAvailable } from "./local-postgres-guard.mjs";
 
 if (!existsSync(".env.local")) {
   console.error("Missing .env.local. Run `pnpm setup` first.");
@@ -17,21 +18,25 @@ if (!runtime) {
   process.exit(1);
 }
 
+const composeArgs = [
+  "compose",
+  "--env-file",
+  ".env.local",
+  "-f",
+  "compose.yaml",
+  "-f",
+  "compose.dev.yaml",
+];
+try {
+  assertLocalPostgresAvailable(runtime, composeArgs);
+} catch (error) {
+  console.error(error instanceof Error ? error.message : "Startup refused");
+  process.exit(1);
+}
+
 const postgres = runContainer(
   runtime,
-  [
-    "compose",
-    "--env-file",
-    ".env.local",
-    "-f",
-    "compose.yaml",
-    "-f",
-    "compose.dev.yaml",
-    "up",
-    "-d",
-    "--wait",
-    "postgres",
-  ],
+  [...composeArgs, "up", "-d", "--wait", "postgres"],
   { stdio: "inherit" },
 );
 if (postgres.status !== 0) {
