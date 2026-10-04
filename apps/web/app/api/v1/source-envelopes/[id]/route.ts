@@ -1,5 +1,9 @@
+import { getRealIntegrationService } from "../../../../../lib/real-integrations";
 import { loadRuntimeConfig } from "@commandry/config";
-import { sourceEnvelopeSchema } from "@commandry/contracts";
+import {
+  sourceEnvelopeSchema,
+  realSourceEnvelopeSchema,
+} from "@commandry/contracts";
 import { z } from "zod";
 import {
   getSyntheticEventReadService,
@@ -24,6 +28,14 @@ export async function GET(
       "source_envelopes.invalid_id",
     );
   try {
+    const real = await getRealIntegrationService().getEnvelope(id);
+    if (real)
+      return jsonResponse(
+        request,
+        realSourceEnvelopeSchema.parse(real),
+        200,
+        "source_envelopes.real_read",
+      );
     const item = await getSyntheticEventReadService().getSourceEnvelopeById(id);
     return item
       ? jsonResponse(

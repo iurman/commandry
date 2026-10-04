@@ -30,10 +30,9 @@ test("local shell labels simulated data without claiming live health", async ({
   await expect(
     navigation.getByRole("link", { name: "Infrastructure" }),
   ).toHaveAttribute("href", "/infrastructure");
-  await expect(navigation.getByRole("link", { name: "Signals" })).toHaveAttribute(
-    "href",
-    "/attention-signals",
-  );
+  await expect(
+    navigation.getByRole("link", { name: "Signals" }),
+  ).toHaveAttribute("href", "/attention-signals");
   await expect(navigation.getByRole("link", { name: "Search" })).toBeVisible();
   await expect(
     navigation.getByRole("link", { name: "Activity" }),
@@ -53,7 +52,7 @@ test("local shell labels simulated data without claiming live health", async ({
   await expect(
     navigation.getByRole("link", { name: "Notifications" }),
   ).toHaveAttribute("href", "/notifications");
-  await expect(page.getByText("No live sources")).toBeVisible();
+  await expect(page.getByText("Evidence labeled")).toBeVisible();
   await expect(
     page.getByRole("heading", { name: "Attention", exact: true }),
   ).toBeVisible();
@@ -61,7 +60,9 @@ test("local shell labels simulated data without claiming live health", async ({
     page.getByRole("heading", { name: "Recent change" }),
   ).toBeVisible();
   await expect(
-    page.getByText(/does not report live project or resource health/),
+    page.getByText(
+      /Historical evidence does not establish live project or resource health/,
+    ),
   ).toBeVisible();
   expect(
     await page.evaluate(

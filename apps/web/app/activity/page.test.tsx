@@ -325,7 +325,7 @@ describe("Synthetic activity workspace", () => {
     expect(
       await screen.findByText("No active synthetic attention"),
     ).toBeTruthy();
-    const eventList = screen.getByRole("list", { name: "Synthetic events" });
+    const eventList = screen.getByRole("list", { name: "Source events" });
     expect(
       within(eventList).getAllByRole("link", {
         name: "Inspect synthetic source envelope",

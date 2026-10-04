@@ -46,3 +46,5 @@ export * from "./system-context";
 export * from "./knowledge-project-context";
 export * from "./work-project-context";
 export * from "./owner-password-recovery";
+
+export * from "./real-integrations";

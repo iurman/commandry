@@ -17,10 +17,9 @@ test("Command Center connects recent local attention to exact synthetic sources"
   });
   expect(resourceResponse.status()).toBe(201);
   const resource = await resourceResponse.json();
-  const link = await request.post(
-    `/api/v1/projects/${project.id}/resources`,
-    { data: { resourceId: resource.id, type: "supports" } },
-  );
+  const link = await request.post(`/api/v1/projects/${project.id}/resources`, {
+    data: { resourceId: resource.id, type: "supports" },
+  });
   expect(link.status()).toBe(201);
   const imported = await request.post("/api/v1/synthetic-event-imports", {
     data: {
@@ -50,7 +49,7 @@ test("Command Center connects recent local attention to exact synthetic sources"
   await expect(
     page.getByRole("heading", { name: "Command Center" }),
   ).toBeVisible();
-  await expect(page.getByText("No live sources")).toBeVisible();
+  await expect(page.getByText("Evidence labeled")).toBeVisible();
   const recent = page.getByRole("list", { name: "Recent attention" });
   await expect(recent.locator("li").first()).toBeVisible();
   const first = recent.locator("li").first();

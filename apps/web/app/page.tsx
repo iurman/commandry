@@ -20,7 +20,7 @@ import {
 import { apiJson, type PageResponse } from "./projects/api";
 import {
   activityPagePath,
-  syntheticPage,
+  eventPage,
   type SyntheticEventRecord,
 } from "./activity/api";
 
@@ -124,7 +124,7 @@ export default function HomePage() {
     apiJson<PageResponse<SyntheticEventRecord>>(
       activityPagePath("/api/v1/events", { limit: 1 }),
     )
-      .then(syntheticPage)
+      .then(eventPage)
       .then((page) => {
         if (active) setEvents(page.items);
       })
@@ -190,16 +190,16 @@ export default function HomePage() {
             their source evidence.
           </p>
         </div>
-        <StatusBadge dimension="sync" label="No live sources" tone="neutral" />
+        <StatusBadge dimension="sync" label="Evidence labeled" tone="neutral" />
       </header>
 
       <div className="cmd-notice cmd-synthetic-notice">
-        <h2>Local simulation</h2>
+        <h2>Evidence and simulation</h2>
         <p>
-          No live integrations are connected. Local captures and tasks are real
-          local records; development and operational signals use labeled
-          synthetic fixtures, and agent actions are simulated. This view does
-          not report live project or resource health.
+          Captures and tasks are saved records. Activity labels distinguish real
+          sources from synthetic fixtures; agent actions remain simulated.
+          Historical evidence does not establish live project or resource
+          health.
         </p>
       </div>
 
@@ -350,8 +350,8 @@ export default function HomePage() {
           description={
             eventsError ??
             (!eventsLoading && !recentEvent
-              ? "No synthetic events have been normalized by the local worker."
-              : "Latest normalized synthetic event, with its source envelope.")
+              ? "No source events have been normalized."
+              : "Latest normalized source event, with its original evidence.")
           }
           id="change-title"
           state={
@@ -369,7 +369,7 @@ export default function HomePage() {
             <>
               <SyntheticEventCard {...recentEvent} />
               <p className="cmd-home-panel-link">
-                <a href="/activity#events">Review all synthetic events</a>
+                <a href="/activity#events">Review all source events</a>
               </p>
             </>
           )}

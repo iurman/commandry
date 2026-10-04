@@ -18,6 +18,7 @@ import {
 } from "../projects/api";
 import {
   activityPagePath,
+  eventPage,
   syntheticImport,
   syntheticPage,
   type SyntheticAlertRecord,
@@ -186,7 +187,7 @@ export default function ActivityPage() {
     apiJson<PageResponse<SyntheticEventRecord>>(
       activityPagePath("/api/v1/events", { projectId }),
     )
-      .then(syntheticPage)
+      .then(eventPage)
       .then((page) => {
         if (!active) return;
         setEvents(page.items);
@@ -365,7 +366,7 @@ export default function ActivityPage() {
     setEventsLoadingMore(true);
     setEventsError(null);
     try {
-      const page = syntheticPage(
+      const page = eventPage(
         await apiJson<PageResponse<SyntheticEventRecord>>(
           activityPagePath("/api/v1/events", {
             cursor: nextEventCursor,
@@ -867,7 +868,7 @@ export default function ActivityPage() {
             <div className="cmd-section-heading">
               <div>
                 <p className="cmd-eyebrow">Normalized / Historical</p>
-                <h2 id="normalized-events-heading">Synthetic events</h2>
+                <h2 id="normalized-events-heading">Source events</h2>
               </div>
               {!eventsLoading && (
                 <span className="cmd-count">{events.length} shown</span>
@@ -875,11 +876,11 @@ export default function ActivityPage() {
             </div>
             <p className="cmd-section-intro">
               Occurred and ingested times stay separate. Evidence opens the
-              immutable synthetic source envelope.
+              immutable source envelope.
             </p>
             {eventsLoading && (
               <p className="cmd-inline-state" role="status">
-                Loading synthetic events...
+                Loading source events...
               </p>
             )}
             {eventsError && (
@@ -889,12 +890,12 @@ export default function ActivityPage() {
             )}
             {!eventsLoading && !eventsError && events.length === 0 && (
               <RecordEmptyState
-                title="No synthetic events"
-                description="Import a fixed fixture to see the worker's normalized output here."
+                title="No source events"
+                description="Connect a real source or import a labeled fixture to see evidence here."
               />
             )}
             {events.length > 0 && (
-              <ul className="cmd-activity-list" aria-label="Synthetic events">
+              <ul className="cmd-activity-list" aria-label="Source events">
                 {events.map((event) => (
                   <li key={event.id}>
                     <SyntheticEventCard

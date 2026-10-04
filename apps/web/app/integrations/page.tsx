@@ -1,5 +1,7 @@
 "use client";
 
+import { RealSourcePanel } from "./real-source-panel";
+
 import { useEffect, useRef, useState, type FormEvent } from "react";
 import type {
   LocalConnectorFeedItem,
@@ -65,6 +67,15 @@ export default function IntegrationsPage() {
   const [historyCursors, setHistoryCursors] = useState<
     Record<string, string | null>
   >({});
+
+  function selectProject(id: string) {
+    if (id === projectId) return;
+    resourceSelectionEpoch.current += 1;
+    setProjectId(id);
+    setResourceId("");
+    setResourceLinks([]);
+    setResourceCursor(null);
+  }
 
   async function refreshIntegration(id: string) {
     const updated = await apiJson<LocalIntegration>(
@@ -462,11 +473,20 @@ export default function IntegrationsPage() {
         <p className="cmd-eyebrow">Configured sources</p>
         <h1>Integrations</h1>
         <p>
-          Connect local development and operations fixtures to projects and
-          resources. Every sample here is synthetic. Live providers and
-          credentials are not configured.
+          Connect real sources and local fixtures to project resources. Source
+          labels distinguish provider evidence from synthetic samples.
         </p>
       </header>
+      <RealSourcePanel
+        projects={projects}
+        projectId={projectId}
+        onProjectChange={selectProject}
+        resourceLinks={resourceLinks}
+        hasMoreProjects={Boolean(projectCursor)}
+        hasMoreResources={Boolean(resourceCursor)}
+        loadMoreProjects={loadMoreProjects}
+        loadMoreResources={loadMoreResources}
+      />
       {error && (
         <p className="cmd-inline-state cmd-error" role="alert">
           {error}
@@ -551,13 +571,7 @@ export default function IntegrationsPage() {
           <select
             id="integration-project"
             value={projectId}
-            onChange={(event) => {
-              resourceSelectionEpoch.current += 1;
-              setProjectId(event.target.value);
-              setResourceId("");
-              setResourceLinks([]);
-              setResourceCursor(null);
-            }}
+            onChange={(event) => selectProject(event.target.value)}
             required
           >
             {projects.length === 0 && (

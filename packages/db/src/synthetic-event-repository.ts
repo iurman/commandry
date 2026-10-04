@@ -1,3 +1,7 @@
+import {
+  sourceEnvelopeSchema,
+  normalizedEventSchema,
+} from "@commandry/contracts";
 import { and, desc, eq, gte, inArray, ne, sql } from "drizzle-orm";
 import {
   decideSyntheticMonitorAlert,
@@ -54,7 +58,7 @@ function metricRecord(
 }
 
 function envelopeRecord(row: typeof sourceEnvelope.$inferSelect) {
-  return {
+  return sourceEnvelopeSchema.parse({
     id: row.id,
     importId: row.importId,
     sourceKind: row.sourceKind,
@@ -65,7 +69,7 @@ function envelopeRecord(row: typeof sourceEnvelope.$inferSelect) {
     occurredAt: row.occurredAt.toISOString(),
     receivedAt: row.receivedAt.toISOString(),
     isSynthetic: true as const,
-  };
+  });
 }
 
 function importRecord(
@@ -80,7 +84,7 @@ function importRecord(
     projectId: run.projectId,
     integrationInstanceId: run.integrationInstanceId,
     resourceId: run.resourceId,
-    sourceKind: envelope.sourceKind,
+    sourceKind: sourceEnvelopeSchema.parse(envelopeRecord(envelope)).sourceKind,
     sourceLabel: envelope.sourceLabel as SourceLabel,
     isSynthetic: true as const,
     state: run.state,
@@ -99,7 +103,7 @@ function eventRecord(
   row: typeof normalizedEvent.$inferSelect,
   alertId: string | null,
 ) {
-  return {
+  return normalizedEventSchema.parse({
     id: row.id,
     type: row.type,
     summary: row.summary,
@@ -111,11 +115,11 @@ function eventRecord(
     sourceEnvelopeId: row.sourceEnvelopeId,
     sourceKind: row.sourceKind,
     sourceLabel: row.sourceLabel as SourceLabel,
-    isSynthetic: true as const,
-    processingVersion: row.processingVersion as "synthetic-projection/v1",
+    isSynthetic: row.isSynthetic,
+    processingVersion: row.processingVersion,
     alertId,
     evidenceHref: `/api/v1/source-envelopes/${row.sourceEnvelopeId}`,
-  };
+  });
 }
 
 export function createSyntheticEventImportRepository(db: CommandryDatabase) {
@@ -274,7 +278,9 @@ export function createSyntheticEventImportRepository(db: CommandryDatabase) {
       const [row] = await db
         .select()
         .from(sourceEnvelope)
-        .where(eq(sourceEnvelope.id, id))
+        .where(
+          and(eq(sourceEnvelope.id, id), eq(sourceEnvelope.isSynthetic, true)),
+        )
         .limit(1);
       return row ? envelopeRecord(row) : null;
     },
@@ -400,7 +406,9 @@ export function createSyntheticEventImportRepository(db: CommandryDatabase) {
               sourceLabel: syntheticMetric.source,
               isSynthetic: true,
             })
-            .onConflictDoNothing({ target: metricSample.eventId });
+            .onConflictDoNothing({
+              target: [metricSample.eventId, metricSample.name],
+            });
         }
 
         if (
@@ -667,7 +675,7 @@ export function createSyntheticEventImportRepository(db: CommandryDatabase) {
         .select({ sample: metricSample, resourceName: resource.name })
         .from(metricSample)
         .innerJoin(resource, eq(resource.id, metricSample.resourceId))
-        .where(eq(metricSample.id, id))
+        .where(and(eq(metricSample.id, id), eq(metricSample.isSynthetic, true)))
         .limit(1);
       return row ? metricRecord(row.sample, row.resourceName) : null;
     },

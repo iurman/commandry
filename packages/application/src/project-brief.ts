@@ -396,12 +396,12 @@ export function assembleProjectBrief(
           `/api/v1/events/${event.id}`,
           event.ingestedAt,
           event.sourceLabel,
-          true,
+          event.isSynthetic,
           event.occurredAt,
         ),
       ],
       sourceLabel: event.sourceLabel,
-      isSynthetic: true,
+      isSynthetic: event.isSynthetic,
     }),
   );
   const attention = snapshot.attention.items.map((alert) =>
@@ -509,7 +509,7 @@ export function assembleProjectBrief(
         activity,
         snapshot.events.nextCursor,
         `/api/v1/events?projectId=${projectId}`,
-        "No synthetic activity is recorded in this preview.",
+        "No source activity is recorded in this preview.",
       ),
       attention: section(
         attention,

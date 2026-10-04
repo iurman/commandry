@@ -1,6 +1,7 @@
 import { randomUUID } from "node:crypto";
 import {
   createAgentContextService,
+  createRealIntegrationPoller,
   createCaptureTriageProcessor,
   createLocalAgentRunProcessor,
   createLocalAttentionService,
@@ -32,6 +33,7 @@ import {
 } from "@commandry/contracts";
 import {
   createBriefRepository,
+  createRealIntegrationRepository,
   createCaptureTriageRepository,
   createDatabase,
   createLocalAgentRunRepository,
@@ -51,6 +53,7 @@ import {
 } from "@commandry/db";
 import {
   CAPTURE_TRIAGE_QUEUE,
+  createGitHubActivityReader,
   createPgBossProducer,
   createLocalAgentRunSubmission,
   createSyntheticEventImportSubmission,
@@ -583,6 +586,25 @@ const localAttentionTimer = setInterval(
   10_000,
 );
 localAttentionTimer.unref();
+const realSourcePoller = createRealIntegrationPoller(
+  createRealIntegrationRepository(database.db),
+  createGitHubActivityReader(),
+);
+let pollingRealSources = false;
+async function pollRealSources() {
+  if (pollingRealSources) return;
+  pollingRealSources = true;
+  try {
+    await realSourcePoller.pollNext();
+  } catch {
+    log("error", "integration.real_reconciliation_failed", {});
+  } finally {
+    pollingRealSources = false;
+  }
+}
+await pollRealSources();
+const realSourceTimer = setInterval(() => void pollRealSources(), 5_000);
+realSourceTimer.unref();
 log("info", "worker.started", { workerId });
 
 let stopping = false;
@@ -590,6 +612,7 @@ async function shutdown(signal: string) {
   if (stopping) return;
   stopping = true;
   clearInterval(timer);
+  clearInterval(realSourceTimer);
   clearInterval(approvalExpiryTimer);
   clearInterval(recurringTimer);
   clearInterval(workRecurrenceTimer);

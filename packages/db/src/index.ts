@@ -50,3 +50,5 @@ export * from "./system-context-repository";
 export * from "./knowledge-project-repository";
 export * from "./work-project-repository";
 export * as schema from "./schema";
+
+export * from "./real-integration-repository";

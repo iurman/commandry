@@ -73,7 +73,9 @@ test("a previous project's late resource page cannot replace the selected projec
   const resourceSelect = page.getByLabel("Linked resource");
   const loadMore = page.getByRole("button", { name: "Load more resources" });
   await expect(projectSelect).toHaveValue("project-a");
-  await page.getByLabel("Source category").selectOption("synthetic-operations");
+  await page
+    .getByLabel("Source category", { exact: true })
+    .selectOption("synthetic-operations");
   await expect(resourceSelect.locator('option[value="a-1"]')).toHaveCount(1);
   await loadMore.click();
   await oldPageRequested;

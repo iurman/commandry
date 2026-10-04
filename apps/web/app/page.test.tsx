@@ -102,11 +102,9 @@ describe("Command Center", () => {
       ),
     ).toBeTruthy();
     expect(
-      await screen.findByText(
-        "No synthetic events have been normalized by the local worker.",
-      ),
+      await screen.findByText("No source events have been normalized."),
     ).toBeTruthy();
-    expect(screen.getByText("No live sources")).toBeTruthy();
+    expect(screen.getByText("Evidence labeled")).toBeTruthy();
     expect(
       await screen.findByText(
         "No open task has a local due date. Set one on a filed task to see it here.",
@@ -204,7 +202,7 @@ describe("Command Center", () => {
     );
     render(<HomePage />);
     expect(await screen.findAllByText("Data unavailable")).toHaveLength(5);
-    expect(screen.getByText("No live sources")).toBeTruthy();
+    expect(screen.getByText("Evidence labeled")).toBeTruthy();
     expect(
       screen.queryByRole("link", { name: "Review captures in Inbox" }),
     ).toBeNull();

@@ -11,7 +11,7 @@ import {
 } from "@commandry/ui";
 import {
   activityPagePath,
-  syntheticPage,
+  eventPage,
   type SyntheticEventRecord,
 } from "../../activity/api";
 import {
@@ -110,7 +110,7 @@ export default function ResourceDetail({ resourceId }: { resourceId: string }) {
     )
       .then((page) => {
         if (!active) return;
-        const checked = syntheticPage(page);
+        const checked = eventPage(page);
         setEvents(checked.items);
         setEventCursor(checked.nextCursor);
         setEventsError(null);
@@ -120,7 +120,7 @@ export default function ResourceDetail({ resourceId }: { resourceId: string }) {
           setEventsError(
             cause instanceof Error
               ? cause.message
-              : "Synthetic event history is unavailable.",
+              : "Source event history is unavailable.",
           );
       })
       .finally(() => {
@@ -136,7 +136,7 @@ export default function ResourceDetail({ resourceId }: { resourceId: string }) {
     setEventsMoreLoading(true);
     setEventsError(null);
     try {
-      const page = syntheticPage(
+      const page = eventPage(
         await apiJson<PageResponse<SyntheticEventRecord>>(
           activityPagePath("/api/v1/events", {
             resourceId,
@@ -284,21 +284,21 @@ export default function ResourceDetail({ resourceId }: { resourceId: string }) {
             aria-labelledby="resource-synthetic-heading"
           >
             <p className="cmd-eyebrow">
-              Historical fixtures / Never live health
+              Historical evidence / Separate from health
             </p>
-            <h2 id="resource-synthetic-heading">Synthetic context</h2>
+            <h2 id="resource-synthetic-heading">Source context</h2>
             <p>
-              These local development and operational events are labeled
-              synthetic. They do not change the resource health above.
+              Source labels distinguish real evidence from synthetic fixtures.
+              Historical observations do not establish current resource health.
             </p>
-            {eventsLoading && <p role="status">Loading synthetic events...</p>}
+            {eventsLoading && <p role="status">Loading source events...</p>}
             {eventsError && (
               <p className="cmd-inline-state cmd-error" role="alert">
                 {eventsError}
               </p>
             )}
             {!eventsLoading && events.length === 0 && !eventsError && (
-              <p>No synthetic events are linked to this resource.</p>
+              <p>No source events are linked to this resource.</p>
             )}
             {events.length > 0 && (
               <div className="cmd-resource-events">
@@ -325,9 +325,7 @@ export default function ResourceDetail({ resourceId }: { resourceId: string }) {
                 onClick={loadMoreEvents}
                 type="button"
               >
-                {eventsMoreLoading
-                  ? "Loading..."
-                  : "Load more synthetic events"}
+                {eventsMoreLoading ? "Loading..." : "Load more source events"}
               </Button>
             )}
           </section>

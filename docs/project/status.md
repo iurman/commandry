@@ -2,7 +2,7 @@
 
 **Status: Operational**
 
-**Last updated:** 2026-09-30
+**Last updated:** 2026-10-04
 
 ## Current phase
 
@@ -23,6 +23,16 @@ deferring a locally feasible module. Open product choices remain provisional
 and production prerequisites remain gates.
 The [local MVP and VPS handoff](mvp-readiness.md) separates the running local
 paths from real-source and production activation evidence.
+
+The October 4 real-source candidate adds read-only public GitHub activity and
+token-scoped Linux host telemetry through the shared evidence pipeline.
+A live read-only check imported 43 actual `iurman/commandry` events and an
+actual `electra` sample into disposable local PostgreSQL. Real-source ingestion
+also passed through the built worker and HTTP receiver. The candidate adds
+source configuration, disable/token controls and paginated evidence in
+Integrations. [Source deployment notes](../../deploy/real-integrations.md)
+record the contracts and outstanding VPS gates. The VPS still runs Ephemera;
+these integrations are not activated there.
 
 ## Established direction
 

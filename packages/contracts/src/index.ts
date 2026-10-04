@@ -1853,6 +1853,8 @@ export const normalizedEventSchema = z.object({
     "git.pull_request.merged",
     "monitor.down",
     "monitor.recovered",
+    "git.repository.activity",
+    "host.telemetry.sampled",
   ]),
   summary: z.string(),
   severity: z.enum(["info", "critical"]),
@@ -1861,10 +1863,20 @@ export const normalizedEventSchema = z.object({
   occurredAt: z.iso.datetime({ offset: true }),
   ingestedAt: z.iso.datetime({ offset: true }),
   sourceEnvelopeId: z.uuid(),
-  sourceKind: syntheticSourceKindSchema,
-  sourceLabel: syntheticSourceLabelSchema,
-  isSynthetic: z.literal(true),
-  processingVersion: z.literal("synthetic-projection/v1"),
+  sourceKind: z.enum([
+    "synthetic-development",
+    "synthetic-operations",
+    "github-repository",
+    "linux-host",
+  ]),
+  sourceLabel: z.enum([
+    "Synthetic development fixture",
+    "Synthetic operational fixture",
+    "GitHub repository activity",
+    "Linux host telemetry",
+  ]),
+  isSynthetic: z.boolean(),
+  processingVersion: z.enum(["synthetic-projection/v1", "real-projection/v1"]),
   alertId: z.uuid().nullable(),
   evidenceHref: z.string().startsWith("/api/v1/source-envelopes/"),
 });
@@ -2059,6 +2071,7 @@ export const projectFlowKindSchema = z.enum([
   "resource_link",
   "system_resource_link",
   "synthetic_event",
+  "source_event",
   "local_agent_run",
   "automation_run",
   "simulated_approval",
@@ -3511,3 +3524,5 @@ export type DeploymentSmokeResultV1 = z.infer<
   typeof deploymentSmokeResultV1Schema
 >;
 export type SyntheticRunResponse = z.infer<typeof syntheticRunSchema>;
+
+export * from "./real-integrations";

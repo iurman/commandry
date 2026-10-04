@@ -1,5 +1,6 @@
 export interface SyntheticEventCardProps {
   id: string;
+  isSynthetic?: boolean;
   type: string;
   summary: string;
   severity: string;
@@ -14,6 +15,7 @@ export interface SyntheticEventCardProps {
 
 export function SyntheticEventCard({
   id,
+  isSynthetic = true,
   type,
   summary,
   severity,
@@ -28,7 +30,9 @@ export function SyntheticEventCard({
   return (
     <article className="cmd-synthetic-event" id={`event-${id}`}>
       <div className="cmd-synthetic-event-top">
-        <span className="cmd-synthetic-stamp">Synthetic event</span>
+        <span className="cmd-synthetic-stamp">
+          {isSynthetic ? "Synthetic event" : "Source event"}
+        </span>
         <span className="cmd-synthetic-event-type">{type}</span>
       </div>
       <h3>{summary}</h3>
@@ -54,7 +58,11 @@ export function SyntheticEventCard({
       <div className="cmd-synthetic-evidence">
         <span>{sourceLabel}</span>
         {alertId && <span>Alert {alertId}</span>}
-        <a href={evidenceHref}>Inspect synthetic source envelope</a>
+        <a href={evidenceHref}>
+          {isSynthetic
+            ? "Inspect synthetic source envelope"
+            : "Inspect source envelope"}
+        </a>
       </div>
     </article>
   );

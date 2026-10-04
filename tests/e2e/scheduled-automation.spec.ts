@@ -42,7 +42,8 @@ test("a scheduled local summary waits for its due time and preserves one audited
   const deviceTime = await page.evaluate(() => {
     const due = new Date(Date.now() + 25_000);
     const pad = (value: number) => String(value).padStart(2, "0");
-    return `${due.getFullYear()}-${pad(due.getMonth() + 1)}-${pad(due.getDate())}T${pad(due.getHours())}:${pad(due.getMinutes())}:${pad(due.getSeconds())}`;
+    const seconds = due.getSeconds();
+    return `${due.getFullYear()}-${pad(due.getMonth() + 1)}-${pad(due.getDate())}T${pad(due.getHours())}:${pad(due.getMinutes())}${seconds ? `:${pad(seconds)}` : ""}`;
   });
   await page
     .getByLabel("Schedule one local run (device time)")

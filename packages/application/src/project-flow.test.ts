@@ -47,6 +47,36 @@ const rows: ProjectFlowRawRow[] = [
 ];
 
 describe("project flow projection", () => {
+  it("keeps real observations distinct from synthetic runs and links their event evidence", async () => {
+    const service = createProjectFlowService({
+      getProjectById: async () => ({ id: projectId, name: "Harbor" }),
+      listRaw: async () => ({
+        items: [
+          {
+            ...rows[0]!,
+            kind: "source_event",
+            title: "electra host telemetry",
+            sourceLabel: "Linux host electra",
+            isSynthetic: false,
+            primaryId: resourceId,
+            primaryName: "electra",
+            secondaryId: null,
+            secondaryName: null,
+          },
+        ],
+        hasMore: false,
+      }),
+    });
+    expect(
+      (await service.list(projectId, { limit: 1 })).items[0],
+    ).toMatchObject({
+      kind: "source_event",
+      isSynthetic: false,
+      sourceHref: `/api/v1/events/${runId}`,
+      related: [{ kind: "resource", id: resourceId }],
+    });
+  });
+
   it("maps persisted run and approval to source-linked historical entries and pages", async () => {
     const listRaw = vi
       .fn()

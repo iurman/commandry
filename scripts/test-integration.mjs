@@ -2,13 +2,14 @@ import { spawn } from "node:child_process";
 import { randomBytes, randomUUID } from "node:crypto";
 import assert from "node:assert/strict";
 import { existsSync } from "node:fs";
-import { mkdtemp, readdir, rm } from "node:fs/promises";
+import { cp, mkdir, mkdtemp, readFile, readdir, rm } from "node:fs/promises";
 import { createServer } from "node:net";
 import { tmpdir } from "node:os";
 import { join, resolve } from "node:path";
 import { setTimeout as delay } from "node:timers/promises";
 import { fileURLToPath } from "node:url";
 import EmbeddedPostgres from "embedded-postgres";
+import { sendLinuxHost } from "./linux-host-collector.mjs";
 
 const root = resolve(fileURLToPath(new URL("..", import.meta.url)));
 
@@ -129,6 +130,87 @@ async function waitForReady(url, services) {
   throw new Error(
     `Web readiness timed out: ${services.map((service) => service.tail).join("\n")}`,
   );
+}
+
+async function runRealSourceBrowser(
+  adminUrl,
+  runtimePassword,
+  allPages = false,
+  liveOnly = false,
+) {
+  const webEntry = join(root, "apps/web/.next/standalone/apps/web/server.js");
+  const webPort = await freeLoopbackPort();
+  const runtimeUrl = new URL(adminUrl);
+  runtimeUrl.username = "commandry_app_integration";
+  runtimeUrl.password = runtimePassword;
+  const origin = `http://127.0.0.1:${webPort}`;
+  await mkdir(join(root, "apps/web/.next/standalone/apps/web/.next"), {
+    recursive: true,
+  });
+  await cp(
+    join(root, "apps/web/.next/static"),
+    join(root, "apps/web/.next/standalone/apps/web/.next/static"),
+    { recursive: true },
+  );
+  await cp(
+    join(root, "apps/web/public"),
+    join(root, "apps/web/.next/standalone/apps/web/public"),
+    { recursive: true },
+  );
+  const web = startService("real source browser web", webEntry, {
+    NODE_ENV: "production",
+    APP_ENV: "local",
+    APP_ORIGIN: origin,
+    DATABASE_URL: runtimeUrl.toString(),
+    BETTER_AUTH_SECRET: randomBytes(32).toString("hex"),
+    APP_ENCRYPTION_KEY: randomBytes(32).toString("hex"),
+    RELEASE_SHA: "real-source-browser-candidate",
+    PORT: String(webPort),
+    HOSTNAME: "127.0.0.1",
+  });
+  const worker = startService(
+    "real source browser worker",
+    join(root, "apps/worker/dist/index.js"),
+    {
+      NODE_ENV: "production",
+      APP_ENV: "local",
+      APP_ORIGIN: origin,
+      DATABASE_URL: runtimeUrl.toString(),
+      BETTER_AUTH_SECRET: randomBytes(32).toString("hex"),
+      APP_ENCRYPTION_KEY: randomBytes(32).toString("hex"),
+      RELEASE_SHA: "real-source-browser-candidate",
+    },
+  );
+  try {
+    await waitForReady(`${origin}/health/ready`, [web, worker]);
+    if (liveOnly) {
+      await realSourceLiveApiSmoke(origin);
+      return;
+    }
+    const child = spawn(
+      process.execPath,
+      [
+        "node_modules/@playwright/test/cli.js",
+        "test",
+        ...(allPages
+          ? []
+          : ["real-integrations.spec.ts", "integrations.spec.ts"]),
+      ],
+      {
+        cwd: root,
+        env: { ...process.env, PLAYWRIGHT_BASE_URL: origin },
+        stdio: "inherit",
+      },
+    );
+    const code = await new Promise((resolveExit, reject) => {
+      child.once("error", reject);
+      child.once("exit", resolveExit);
+    });
+    if (code !== 0) throw new Error("Real source browser checks failed");
+  } finally {
+    await stopService(web);
+    await stopService(worker);
+  }
 }
 
 async function runSmoke(postgres, adminUrl, runtimePassword) {
@@ -679,12 +761,266 @@ async function runSmoke(postgres, adminUrl, runtimePassword) {
     const unchangedResource = await resourceAfterApproval.json();
     assert.equal(unchangedResource.state, null);
     assert.equal(unchangedResource.lastObservedAt, null);
+    await realSourceApiSmoke(origin);
     console.log(
       "Built web and worker smoke passed: health, pagination, queue processing, synthetic attention lifecycle, real health isolation, cited brief, immutable packet, scoped fake agent run, policy audit, and no-effect simulated approval.",
     );
   } finally {
     await Promise.all(services.reverse().map(stopService));
   }
+}
+
+async function realSourceApiSmoke(origin, cookie, trustedOrigin, hostSample) {
+  const headers = {
+    "content-type": "application/json",
+    ...(cookie ? { cookie } : {}),
+    ...(trustedOrigin ? { origin: trustedOrigin } : {}),
+  };
+  async function write(path, body, expected = 201) {
+    const response = await fetch(`${origin}${path}`, {
+      method: "POST",
+      headers,
+      body: JSON.stringify(body),
+    });
+    assert.equal(response.status, expected, await response.clone().text());
+    return response.json();
+  }
+  const project = await write("/api/v1/projects", {
+    name: "Real receiver API smoke",
+    type: "software",
+  });
+  const resource = await write("/api/v1/resources", {
+    name: "Receiver host",
+    kind: "host",
+  });
+  await write(`/api/v1/projects/${project.id}/resources`, {
+    resourceId: resource.id,
+    type: "supports",
+  });
+  const source = await write("/api/v1/real-integrations", {
+    name: "Host API smoke",
+    kind: "linux-host",
+    identifier: "electra",
+    projectId: project.id,
+    resourceId: resource.id,
+  });
+  assert.equal(source.isSynthetic, false);
+  const issuedResponse = await fetch(
+    `${origin}/api/v1/real-integrations/${source.id}/token`,
+    { method: "POST", headers },
+  );
+  assert.equal(issuedResponse.status, 201);
+  const issued = await issuedResponse.json();
+  const sample = hostSample ?? {
+    hostname: "electra",
+    sampleId: randomUUID(),
+    observedAt: new Date().toISOString(),
+    memory: { totalBytes: 1000, availableBytes: 500 },
+    disk: { totalBytes: 1000, availableBytes: 750 },
+    uptimeSeconds: 10,
+    load1Milli: 100,
+  };
+  const receiver = `${origin}/api/v1/real-integrations/${source.id}/receive`;
+  const machineHeaders = {
+    "content-type": "application/json",
+    authorization: `Bearer ${issued.token}`,
+  };
+  assert.equal(
+    (
+      await fetch(receiver, {
+        method: "POST",
+        headers: { "content-type": "application/json" },
+        body: JSON.stringify(sample),
+      })
+    ).status,
+    401,
+  );
+  await sendLinuxHost(sample, {
+    COMMANDRY_HOST_RECEIVER_URL: receiver,
+    COMMANDRY_HOST_RECEIVER_TOKEN: issued.token,
+  });
+  assert.equal(
+    (
+      await fetch(receiver, {
+        method: "POST",
+        headers: machineHeaders,
+        body: JSON.stringify(sample),
+      })
+    ).status,
+    202,
+  );
+  assert.equal(
+    (
+      await fetch(receiver, {
+        method: "POST",
+        headers: machineHeaders,
+        body: JSON.stringify({ ...sample, uptimeSeconds: 11 }),
+      })
+    ).status,
+    409,
+  );
+  assert.equal(
+    (
+      await fetch(receiver, {
+        method: "POST",
+        headers: machineHeaders,
+        body: JSON.stringify({ ...sample, hostname: "wrong-host" }),
+      })
+    ).status,
+    400,
+  );
+  assert.equal(
+    (
+      await fetch(receiver, {
+        method: "POST",
+        headers: machineHeaders,
+        body: JSON.stringify({ padding: "x".repeat(131073) }),
+      })
+    ).status,
+    400,
+  );
+  const observations = await fetch(
+    `${origin}/api/v1/real-integrations/${source.id}/observations`,
+    { headers },
+  );
+  assert.equal(observations.status, 200);
+  const page = await observations.json();
+  assert.equal(page.items.length, 1);
+  assert.equal(page.items[0].metrics.length, 4);
+  const evidence = await fetch(`${origin}${page.items[0].evidenceHref}`, {
+    headers,
+  });
+  assert.equal(evidence.status, 200);
+  const envelope = await evidence.json();
+  assert.equal(envelope.isSynthetic, false);
+  assert.deepEqual(envelope.rawPayload, sample);
+  const events = await fetch(
+    `${origin}/api/v1/events?projectId=${project.id}`,
+    { headers },
+  );
+  assert.equal(events.status, 200);
+  assert.equal((await events.json()).items[0].isSynthetic, false);
+  const briefResponse = await fetch(
+    `${origin}/api/v1/projects/${project.id}/brief`,
+    { headers },
+  );
+  assert.equal(briefResponse.status, 200);
+  const brief = await briefResponse.json();
+  assert.equal(brief.sections.activity.items[0].isSynthetic, false);
+  assert.equal(brief.sections.activity.items[0].evidence[0].isSynthetic, false);
+  const flowResponse = await fetch(
+    `${origin}/api/v1/projects/${project.id}/flow`,
+    { headers },
+  );
+  assert.equal(flowResponse.status, 200);
+  const flow = await flowResponse.json();
+  assert.ok(
+    flow.items.some(
+      (item) =>
+        item.kind === "source_event" &&
+        item.isSynthetic === false &&
+        item.sourceHref === `/api/v1/events/${page.items[0].id}`,
+    ),
+  );
+  const protectedToken = await fetch(
+    `${origin}/api/v1/real-integrations/${source.id}/token`,
+    {
+      method: "POST",
+      headers: { ...headers, origin: "https://untrusted.example" },
+    },
+  );
+  assert.equal(protectedToken.status, 401);
+  const disabled = await fetch(
+    `${origin}/api/v1/real-integrations/${source.id}`,
+    { method: "PUT", headers, body: JSON.stringify({ enabled: false }) },
+  );
+  assert.equal(disabled.status, 200);
+  assert.equal(
+    (
+      await fetch(receiver, {
+        method: "POST",
+        headers: machineHeaders,
+        body: JSON.stringify(sample),
+      })
+    ).status,
+    409,
+  );
+  console.log(
+    "Real host API smoke passed: authenticated management, scoped machine receipt, replay, conflict, size limit, origin denial, preserved evidence and disable.",
+  );
+  return project;
+}
+
+async function realSourceLiveApiSmoke(origin) {
+  const sample = JSON.parse(
+    await readFile(process.env.COMMANDRY_LIVE_HOST_SAMPLE_PATH, "utf8"),
+  );
+  const project = await realSourceApiSmoke(
+    origin,
+    undefined,
+    undefined,
+    sample,
+  );
+  const headers = { "content-type": "application/json" };
+  async function write(path, body) {
+    const response = await fetch(`${origin}${path}`, {
+      method: "POST",
+      headers,
+      body: JSON.stringify(body),
+    });
+    assert.equal(response.status, 201, await response.clone().text());
+    return response.json();
+  }
+  const resource = await write("/api/v1/resources", {
+    name: "Actual public Commandry repository",
+    kind: "repository",
+  });
+  await write(`/api/v1/projects/${project.id}/resources`, {
+    resourceId: resource.id,
+    type: "supports",
+  });
+  const source = await write("/api/v1/real-integrations", {
+    name: "Actual public GitHub worker read",
+    kind: "github-repository",
+    identifier: "iurman/commandry",
+    projectId: project.id,
+    resourceId: resource.id,
+  });
+  const deadline = Date.now() + 30_000;
+  let status;
+  do {
+    const response = await fetch(
+      `${origin}/api/v1/real-integrations/${source.id}`,
+    );
+    assert.equal(response.status, 200);
+    status = await response.json();
+    assert.equal(status.lastError, null);
+    if (status.lastSuccessAt) break;
+    await delay(250);
+  } while (Date.now() < deadline);
+  assert.ok(
+    status.lastSuccessAt,
+    "Built worker must poll the actual public repository",
+  );
+  const response = await fetch(
+    `${origin}/api/v1/real-integrations/${source.id}/observations?limit=100`,
+  );
+  assert.equal(response.status, 200);
+  const observations = await response.json();
+  assert.ok(observations.items.length > 0);
+  assert.ok(observations.items.every((item) => item.isSynthetic === false));
+  const raw = await fetch(`${origin}${observations.items[0].evidenceHref}`);
+  assert.equal(raw.status, 200);
+  assert.equal((await raw.json()).rawPayload.repo.name, source.identifier);
+  console.log(
+    JSON.stringify({
+      checked: "built API, actual collector sender and actual GitHub worker",
+      githubEventsOnFirstPage: observations.items.length,
+      host: sample.hostname,
+      sampledAt: sample.observedAt,
+      productionActivated: false,
+    }),
+  );
 }
 
 async function runAuthSmoke(
@@ -815,6 +1151,19 @@ async function runAuthSmoke(
       body: JSON.stringify({ name: "Unauthorized smoke", type: "software" }),
     });
     assert.equal(deniedWrite.status, 401);
+    assert.equal(
+      (await fetch(`${origin}/api/v1/real-integrations`)).status,
+      401,
+    );
+    assert.equal(
+      (
+        await fetch(
+          `${origin}/api/v1/real-integrations/${randomUUID()}/token`,
+          { method: "POST" },
+        )
+      ).status,
+      401,
+    );
     const deniedPage = await fetch(`${origin}/projects`, {
       redirect: "manual",
     });
@@ -839,6 +1188,7 @@ async function runAuthSmoke(
       headers: { cookie },
     });
     assert.equal(allowedPage.status, 200);
+    await realSourceApiSmoke(origin, cookie, appOrigin);
     const signOut = await postAuth("sign-out", {}, cookie);
     assert.equal(signOut.status, 200);
     const signedOutRead = await fetch(`${origin}/api/v1/projects`, {
@@ -932,7 +1282,27 @@ try {
     "packages/platform/src/foundation.integration.test.ts",
   );
   const authOnly = process.argv.includes("--auth-only");
-  if (!authOnly) {
+  const realLiveOnly = process.argv.includes("--real-live");
+  const realBrowserOnly =
+    process.argv.includes("--real-browser") ||
+    process.argv.includes("--real-browser-all");
+  if (realLiveOnly) {
+    if (!process.env.COMMANDRY_LIVE_HOST_SAMPLE_PATH)
+      throw new Error("A real electra sample file is required");
+    await runTests(
+      connectionString,
+      runtimePassword,
+      "packages/platform/src/real-source-live.integration.test.ts",
+    );
+    await runRealSourceBrowser(connectionString, runtimePassword, false, true);
+  }
+  if (realBrowserOnly)
+    await runRealSourceBrowser(
+      connectionString,
+      runtimePassword,
+      process.argv.includes("--real-browser-all"),
+    );
+  if (!authOnly && !realLiveOnly && !realBrowserOnly) {
     const platformTests = (
       await readdir(resolve(root, "packages/platform/src"))
     )
@@ -962,7 +1332,7 @@ try {
       runtimePassword,
       "packages/db/src/auth.integration.test.ts",
     );
-  } else {
+  } else if (!realLiveOnly && !realBrowserOnly) {
     const repositoryTests = (await readdir(resolve(root, "packages/db/src")))
       .filter((file) => file.endsWith(".integration.test.ts"))
       .sort();

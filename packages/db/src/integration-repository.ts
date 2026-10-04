@@ -1,5 +1,8 @@
 import { and, desc, eq, sql } from "drizzle-orm";
-import type { CreateLocalIntegrationRequest } from "@commandry/contracts";
+import {
+  localIntegrationSchema,
+  type CreateLocalIntegrationRequest,
+} from "@commandry/contracts";
 import {
   classifyObservationFreshness,
   LocalIntegrationError,
@@ -64,7 +67,7 @@ function record(row: {
   lastReceivedAt: Date | null;
   lastEnvelopeId: string | null;
 }) {
-  return {
+  return localIntegrationSchema.parse({
     id: row.instance.id,
     name: row.instance.name,
     kind: row.instance.kind,
@@ -103,7 +106,7 @@ function record(row: {
     cursor: null,
     createdAt: row.instance.createdAt.toISOString(),
     updatedAt: row.instance.updatedAt.toISOString(),
-  };
+  });
 }
 
 export function createLocalIntegrationRepository(db: CommandryDatabase) {
@@ -128,7 +131,12 @@ export function createLocalIntegrationRepository(db: CommandryDatabase) {
 
   async function get(id: string) {
     const [row] = await baseSelect()
-      .where(eq(integrationInstance.id, id))
+      .where(
+        and(
+          eq(integrationInstance.id, id),
+          sql`${integrationInstance.kind} in ('synthetic-development', 'synthetic-operations')`,
+        ),
+      )
       .limit(1);
     return row ? record(row) : null;
   }
@@ -225,6 +233,7 @@ export function createLocalIntegrationRepository(db: CommandryDatabase) {
       const rows = await baseSelect()
         .where(
           and(
+            sql`${integrationInstance.kind} in ('synthetic-development', 'synthetic-operations')`,
             query.projectId
               ? eq(integrationInstance.projectId, query.projectId)
               : undefined,

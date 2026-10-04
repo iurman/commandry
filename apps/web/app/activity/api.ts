@@ -35,8 +35,8 @@ export interface SyntheticEventRecord {
   sourceEnvelopeId: string;
   sourceKind: string;
   sourceLabel: string;
-  isSynthetic: true;
-  processingVersion: number;
+  isSynthetic: boolean;
+  processingVersion: string | number;
   alertId: string | null;
   evidenceHref: string;
 }
@@ -108,3 +108,9 @@ export function syntheticImport(record: SyntheticImportRecord) {
   return record;
 }
 import type { PageResponse } from "../projects/api";
+
+export function eventPage(page: PageResponse<SyntheticEventRecord>) {
+  if (page.items.some((item) => typeof item.isSynthetic !== "boolean"))
+    throw new Error("Unlabeled source data cannot appear in activity.");
+  return page;
+}

@@ -310,6 +310,7 @@ export function createLocalAttentionRepository(db: CommandryDatabase) {
           limit 1
         ) latest on true
         where i.enabled = true
+          and i.kind in ('synthetic-development', 'synthetic-operations')
       `);
       return rows.rows.map((row) => ({
         ...row,

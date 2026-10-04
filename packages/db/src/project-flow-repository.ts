@@ -89,7 +89,7 @@ export function createProjectFlowRepository(db: CommandryDatabase) {
           )
 
           union all
-          select e.id, 'synthetic_event'::text,
+          select e.id, case when e.is_synthetic then 'synthetic_event' else 'source_event' end::text,
             e.occurred_at, e.ingested_at, e.summary,
             e.severity::text, e.type::text, e.source_label,
             e.is_synthetic, r.id, r.name, null::uuid, null::text

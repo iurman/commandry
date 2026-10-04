@@ -4,6 +4,14 @@ import { fileURLToPath } from "node:url";
 import { z } from "zod";
 import {
   captureSchema,
+  createRealIntegrationRequestSchema,
+  realIntegrationSchema,
+  listRealIntegrationsResponseSchema,
+  linuxHostSampleSchema,
+  realSourceEnvelopeSchema,
+  listRealObservationsResponseSchema,
+  realReceiverTokenSchema,
+  setRealIntegrationEnabledRequestSchema,
   savedViewDefinitionSchema,
   savedViewSchema,
   createSavedViewRequestSchema,
@@ -3857,6 +3865,120 @@ export function generateOpenApi(): string {
           },
         },
       },
+      "/api/v1/real-integrations": {
+        get: {
+          operationId: "listRealIntegrations",
+          parameters: pageParameters,
+          responses: {
+            "200": {
+              description: "Real source page",
+              content: jsonContent("ListRealIntegrationsResponse"),
+            },
+          },
+        },
+        post: {
+          operationId: "createRealIntegration",
+          requestBody: {
+            required: true,
+            content: jsonContent("CreateRealIntegrationRequest"),
+          },
+          responses: {
+            "201": {
+              description: "Owner configured read-only source",
+              content: jsonContent("RealIntegration"),
+            },
+            "401": {
+              description: "Owner authentication required",
+              content: jsonContent("ErrorResponse"),
+            },
+            "409": {
+              description: "Project/resource binding rejected",
+              content: jsonContent("ErrorResponse"),
+            },
+          },
+        },
+      },
+      "/api/v1/real-integrations/{id}": {
+        get: {
+          operationId: "getRealIntegration",
+          parameters: [idParameter],
+          responses: {
+            "200": {
+              description: "Real source status",
+              content: jsonContent("RealIntegration"),
+            },
+          },
+        },
+        put: {
+          operationId: "setRealIntegrationEnabled",
+          parameters: [idParameter],
+          requestBody: {
+            required: true,
+            content: jsonContent("SetRealIntegrationEnabledRequest"),
+          },
+          responses: {
+            "200": {
+              description: "Source state",
+              content: jsonContent("RealIntegration"),
+            },
+          },
+        },
+      },
+      "/api/v1/real-integrations/{id}/token": {
+        post: {
+          operationId: "rotateRealHostToken",
+          parameters: [idParameter],
+          responses: {
+            "201": {
+              description: "Scoped host token, shown once",
+              content: jsonContent("RealReceiverToken"),
+            },
+          },
+        },
+      },
+      "/api/v1/real-integrations/{id}/receive": {
+        post: {
+          operationId: "receiveRealHostSample",
+          summary: "Token-scoped, bounded Linux host ingestion",
+          parameters: [
+            idParameter,
+            {
+              name: "Authorization",
+              in: "header",
+              required: true,
+              schema: { type: "string" },
+              description: "Bearer token issued for this host integration",
+            },
+          ],
+          requestBody: {
+            required: true,
+            content: jsonContent("LinuxHostSample"),
+          },
+          responses: {
+            "202": { description: "Persisted host observation" },
+            "401": {
+              description: "Invalid scoped token",
+              content: jsonContent("ErrorResponse"),
+            },
+            "409": {
+              description: "Disabled, unlinked or conflicting source",
+              content: jsonContent("ErrorResponse"),
+            },
+          },
+        },
+      },
+      "/api/v1/real-integrations/{id}/observations": {
+        get: {
+          operationId: "listRealSourceObservations",
+          parameters: [idParameter, ...pageParameters],
+          responses: {
+            "200": {
+              description: "Evidence-linked observations and metrics",
+              content: jsonContent("ListRealObservationsResponse"),
+            },
+          },
+        },
+      },
       "/api/v1/integrations": {
         get: {
           operationId: "listLocalIntegrations",
@@ -4154,7 +4276,7 @@ export function generateOpenApi(): string {
       "/api/v1/events": {
         get: {
           operationId: "listNormalizedEvents",
-          summary: "Page through normalized synthetic activity",
+          summary: "Page through explicitly labeled normalized activity",
           parameters: [
             ...pageParameters,
             projectFilterParameter,
@@ -4233,7 +4355,7 @@ export function generateOpenApi(): string {
           parameters: [idParameter],
           responses: {
             "200": {
-              description: "Immutable synthetic source evidence",
+              description: "Immutable original source evidence",
               content: jsonContent("SourceEnvelope"),
             },
             "404": {
@@ -4537,6 +4659,23 @@ export function generateOpenApi(): string {
         ),
         CreateCaptureRequest: component(createCaptureRequestSchema),
         Capture: component(captureSchema),
+        CreateRealIntegrationRequest: component(
+          createRealIntegrationRequestSchema,
+        ),
+        RealIntegration: component(realIntegrationSchema),
+        ListRealIntegrationsResponse: component(
+          listRealIntegrationsResponseSchema,
+        ),
+        LinuxHostSample: component(linuxHostSampleSchema),
+        RealSourceEnvelope: component(realSourceEnvelopeSchema),
+        ListRealObservationsResponse: component(
+          listRealObservationsResponseSchema,
+        ),
+        RealReceiverToken: component(realReceiverTokenSchema),
+        SetRealIntegrationEnabledRequest: component(
+          setRealIntegrationEnabledRequestSchema,
+        ),
+
         SavedViewDefinition: component(savedViewDefinitionSchema),
         SavedView: component(savedViewSchema),
         CreateSavedViewRequest: component(createSavedViewRequestSchema),
@@ -4895,7 +5034,9 @@ export function generateOpenApi(): string {
         ListSyntheticEventImportsResponse: component(
           listSyntheticEventImportsResponseSchema,
         ),
-        SourceEnvelope: component(sourceEnvelopeSchema),
+        SourceEnvelope: component(
+          z.union([sourceEnvelopeSchema, realSourceEnvelopeSchema]),
+        ),
         NormalizedEvent: component(normalizedEventSchema),
         SyntheticMetricSample: component(syntheticMetricSampleSchema),
         ListSyntheticMetricsResponse: component(

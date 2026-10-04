@@ -103,3 +103,14 @@ An integration is not complete merely because it fetches data. It should:
 - emit useful health and failure events;
 - document which actions exist and how they are verified;
 - degrade safely when the provider is unavailable.
+
+## Current implementation evidence
+
+The October 4 candidate implements read-only public GitHub activity and scoped
+Linux host telemetry, alongside the existing fixture adapters. They share the
+common integration, envelope, event and metric tables while retaining explicit
+real versus synthetic provenance. [Deployment and contract notes](../../deploy/real-integrations.md)
+describe polling, receiver authentication, original payload retention,
+freshness, pagination and the inactive VPS collector templates. This evidence
+does not establish production deployment, real external actions, alert
+delivery or adapters for the remaining candidate categories.

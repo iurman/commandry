@@ -30,7 +30,10 @@ test("configured local sources carry synthetic development and operations sample
     page.getByRole("heading", { name: "Integrations" }),
   ).toBeVisible();
   await expect(
-    page.getByText("Live providers and credentials are not configured."),
+    page.getByText(
+      "Source labels distinguish provider evidence from synthetic samples.",
+      { exact: false },
+    ),
   ).toBeVisible();
   await expect(page.getByText("Loading integrations...")).toBeHidden();
   const projectSelect = page.getByLabel("Project", { exact: true });
@@ -49,7 +52,9 @@ test("configured local sources carry synthetic development and operations sample
   }
   await projectSelect.selectOption(project.id);
 
-  await page.getByLabel("Source name").fill(`Repository fixture ${suffix}`);
+  await page
+    .getByLabel("Source name", { exact: true })
+    .fill(`Repository fixture ${suffix}`);
   await page.getByRole("button", { name: "Add local source" }).click();
   const development = page
     .getByRole("article")
@@ -146,8 +151,12 @@ test("configured local sources carry synthetic development and operations sample
     "local-poll-feed",
   );
 
-  await page.getByLabel("Source category").selectOption("synthetic-operations");
-  await page.getByLabel("Source name").fill(`Operations fixture ${suffix}`);
+  await page
+    .getByLabel("Source category", { exact: true })
+    .selectOption("synthetic-operations");
+  await page
+    .getByLabel("Source name", { exact: true })
+    .fill(`Operations fixture ${suffix}`);
   const resourceSelect = page.getByLabel("Linked resource");
   const resourceOption = resourceSelect.locator(
     `option[value="${resource.id}"]`,

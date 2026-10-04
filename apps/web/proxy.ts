@@ -19,6 +19,7 @@ export function isMachineAuthPath(pathname: string, method: string): boolean {
   if (method !== "POST") return false;
   return (
     pathname === "/mcp" ||
+    /^\/api\/v1\/real-integrations\/[0-9a-f-]{36}\/receive$/.test(pathname) ||
     /^\/api\/v1\/integrations\/[^/]+\/receive$/.test(pathname) ||
     /^\/api\/v1\/agent-runs\/[^/]+\/callbacks$/.test(pathname)
   );

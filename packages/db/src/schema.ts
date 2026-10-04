@@ -2779,7 +2779,12 @@ export const integrationInstance = pgTable(
     id: uuid("id").primaryKey(),
     name: text("name").notNull(),
     kind: text("kind", {
-      enum: ["synthetic-development", "synthetic-operations"],
+      enum: [
+        "synthetic-development",
+        "synthetic-operations",
+        "github-repository",
+        "linux-host",
+      ],
     }).notNull(),
     projectId: uuid("project_id")
       .notNull()
@@ -2802,7 +2807,7 @@ export const integrationInstance = pgTable(
     index("integration_instance_created_idx").on(table.createdAt, table.id),
     check(
       "integration_instance_kind_valid",
-      sql`${table.kind} in ('synthetic-development', 'synthetic-operations')`,
+      sql`${table.kind} in ('synthetic-development', 'synthetic-operations', 'github-repository', 'linux-host')`,
     ),
     check(
       "integration_instance_resource_required",
@@ -2946,11 +2951,20 @@ export const sourceEnvelope = pgTable(
   "source_envelope",
   {
     id: uuid("id").primaryKey(),
-    importId: uuid("import_id")
-      .notNull()
-      .references(() => syntheticEventImport.id, { onDelete: "restrict" }),
+    importId: uuid("import_id").references(() => syntheticEventImport.id, {
+      onDelete: "restrict",
+    }),
+    integrationInstanceId: uuid("integration_instance_id").references(
+      () => integrationInstance.id,
+      { onDelete: "restrict" },
+    ),
     sourceKind: text("source_kind", {
-      enum: ["synthetic-development", "synthetic-operations"],
+      enum: [
+        "synthetic-development",
+        "synthetic-operations",
+        "github-repository",
+        "linux-host",
+      ],
     }).notNull(),
     sourceLabel: text("source_label").notNull(),
     sourceSchemaVersion: text("source_schema_version").notNull(),
@@ -2970,14 +2984,13 @@ export const sourceEnvelope = pgTable(
       table.sourceKind,
       table.sourceEventId,
     ),
-    check("source_envelope_synthetic_only", sql`${table.isSynthetic} = true`),
     check(
-      "source_envelope_kind_valid",
-      sql`${table.sourceKind} in ('synthetic-development', 'synthetic-operations')`,
+      "source_envelope_provenance_valid",
+      sql`(${table.isSynthetic} = true and ${table.importId} is not null and ${table.integrationInstanceId} is null and ${table.sourceKind} in ('synthetic-development', 'synthetic-operations') and ${table.sourceSchemaVersion} = 'synthetic-fixture/v1') or (${table.isSynthetic} = false and ${table.importId} is null and ${table.integrationInstanceId} is not null and ((${table.sourceKind} = 'github-repository' and ${table.sourceSchemaVersion} = 'github-events/v1') or (${table.sourceKind} = 'linux-host' and ${table.sourceSchemaVersion} = 'linux-host/v1')))`,
     ),
     check(
-      "source_envelope_version_valid",
-      sql`${table.sourceSchemaVersion} = 'synthetic-fixture/v1'`,
+      "source_envelope_kind_valid",
+      sql`${table.sourceKind} in ('synthetic-development', 'synthetic-operations', 'github-repository', 'linux-host')`,
     ),
   ],
 );
@@ -2986,14 +2999,20 @@ export const normalizedEvent = pgTable(
   "normalized_event",
   {
     id: uuid("id").primaryKey(),
-    importId: uuid("import_id")
-      .notNull()
-      .references(() => syntheticEventImport.id, { onDelete: "restrict" }),
+    importId: uuid("import_id").references(() => syntheticEventImport.id, {
+      onDelete: "restrict",
+    }),
     sourceEnvelopeId: uuid("source_envelope_id")
       .notNull()
       .references(() => sourceEnvelope.id, { onDelete: "restrict" }),
     type: text("type", {
-      enum: ["git.pull_request.merged", "monitor.down", "monitor.recovered"],
+      enum: [
+        "git.pull_request.merged",
+        "monitor.down",
+        "monitor.recovered",
+        "git.repository.activity",
+        "host.telemetry.sampled",
+      ],
     }).notNull(),
     projectId: uuid("project_id")
       .notNull()
@@ -3008,7 +3027,12 @@ export const normalizedEvent = pgTable(
       .notNull()
       .defaultNow(),
     sourceKind: text("source_kind", {
-      enum: ["synthetic-development", "synthetic-operations"],
+      enum: [
+        "synthetic-development",
+        "synthetic-operations",
+        "github-repository",
+        "linux-host",
+      ],
     }).notNull(),
     sourceLabel: text("source_label").notNull(),
     processingVersion: text("processing_version").notNull(),
@@ -3020,10 +3044,13 @@ export const normalizedEvent = pgTable(
     index("normalized_event_time_idx").on(table.occurredAt, table.id),
     index("normalized_event_project_idx").on(table.projectId),
     index("normalized_event_resource_idx").on(table.resourceId),
-    check("normalized_event_synthetic_only", sql`${table.isSynthetic} = true`),
+    check(
+      "normalized_event_provenance_valid",
+      sql`(${table.isSynthetic} = true and ${table.importId} is not null and ${table.sourceKind} in ('synthetic-development', 'synthetic-operations') and ${table.processingVersion} = 'synthetic-projection/v1') or (${table.isSynthetic} = false and ${table.importId} is null and ${table.sourceKind} in ('github-repository', 'linux-host') and ${table.processingVersion} = 'real-projection/v1')`,
+    ),
     check(
       "normalized_event_type_valid",
-      sql`${table.type} in ('git.pull_request.merged', 'monitor.down', 'monitor.recovered')`,
+      sql`${table.type} in ('git.pull_request.merged', 'monitor.down', 'monitor.recovered', 'git.repository.activity', 'host.telemetry.sampled')`,
     ),
   ],
 );
@@ -3056,7 +3083,7 @@ export const metricSample = pgTable(
     isSynthetic: boolean("is_synthetic").notNull(),
   },
   (table) => [
-    uniqueIndex("metric_sample_event_idx").on(table.eventId),
+    uniqueIndex("metric_sample_event_name_idx").on(table.eventId, table.name),
     index("metric_sample_resource_time_idx").on(
       table.resourceId,
       table.sampledAt,
@@ -3728,4 +3755,29 @@ export const syntheticRunRelations = relations(
     attempts: many(syntheticRunAttempt),
     effect: one(syntheticRunEffect),
   }),
+);
+
+export const realIntegrationState = pgTable(
+  "real_integration_state",
+  {
+    integrationInstanceId: uuid("integration_instance_id")
+      .primaryKey()
+      .references(() => integrationInstance.id, { onDelete: "restrict" }),
+    identifier: text("identifier").notNull(),
+    page: integer("page").notNull().default(1),
+    etag: text("etag"),
+    pendingEtag: text("pending_etag"),
+    leaseId: uuid("lease_id"),
+    leaseUntil: timestamp("lease_until", { withTimezone: true }),
+    nextAttemptAt: timestamp("next_attempt_at", { withTimezone: true })
+      .notNull()
+      .defaultNow(),
+    lastAttemptAt: timestamp("last_attempt_at", { withTimezone: true }),
+    lastSuccessAt: timestamp("last_success_at", { withTimezone: true }),
+    lastObservedAt: timestamp("last_observed_at", { withTimezone: true }),
+    lastError: text("last_error"),
+  },
+  (table) => [
+    check("real_integration_page_valid", sql`${table.page} between 1 and 3`),
+  ],
 );

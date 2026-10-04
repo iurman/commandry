@@ -1,3 +1,4 @@
+import { normalizedEventSchema } from "@commandry/contracts";
 import { and, asc, desc, eq, inArray, isNotNull, or, sql } from "drizzle-orm";
 import {
   projectResourceRelationship,
@@ -580,23 +581,24 @@ export function createBriefRepository(db: CommandryDatabase) {
             events: page(
               eventRows,
               query.limit,
-              (row) => ({
-                id: row.id,
-                type: row.type,
-                summary: row.summary,
-                severity: row.severity,
-                projectId: row.projectId,
-                resourceId: row.resourceId,
-                occurredAt: row.occurredAt.toISOString(),
-                ingestedAt: row.ingestedAt.toISOString(),
-                sourceEnvelopeId: row.sourceEnvelopeId,
-                sourceKind: row.sourceKind,
-                sourceLabel: row.sourceLabel as SourceLabel,
-                isSynthetic: true as const,
-                processingVersion: "synthetic-projection/v1" as const,
-                alertId: eventAlertIds.get(row.id) ?? null,
-                evidenceHref: `/api/v1/source-envelopes/${row.sourceEnvelopeId}`,
-              }),
+              (row) =>
+                normalizedEventSchema.parse({
+                  id: row.id,
+                  type: row.type,
+                  summary: row.summary,
+                  severity: row.severity,
+                  projectId: row.projectId,
+                  resourceId: row.resourceId,
+                  occurredAt: row.occurredAt.toISOString(),
+                  ingestedAt: row.ingestedAt.toISOString(),
+                  sourceEnvelopeId: row.sourceEnvelopeId,
+                  sourceKind: row.sourceKind,
+                  sourceLabel: row.sourceLabel as SourceLabel,
+                  isSynthetic: row.isSynthetic,
+                  processingVersion: row.processingVersion,
+                  alertId: eventAlertIds.get(row.id) ?? null,
+                  evidenceHref: `/api/v1/source-envelopes/${row.sourceEnvelopeId}`,
+                }),
               (row) => row.id,
             ),
             attention: page(

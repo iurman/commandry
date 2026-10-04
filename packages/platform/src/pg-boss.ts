@@ -501,7 +501,13 @@ export function createSyntheticEventAutomationReconciler(
         .from(schema.normalizedEvent)
         .where(eq(schema.normalizedEvent.id, eventId))
         .limit(1);
-      if (!event?.isSynthetic) return 0;
+      if (
+        !event?.isSynthetic ||
+        (event.type !== "git.pull_request.merged" &&
+          event.type !== "monitor.down" &&
+          event.type !== "monitor.recovered")
+      )
+        return 0;
       const candidates = await db
         .select({ id: schema.automationDefinition.id })
         .from(schema.automationDefinition)
