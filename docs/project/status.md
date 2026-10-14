@@ -46,6 +46,12 @@ record the contracts and activation procedure. Both sources were activated on
 electra on October 14. Authenticated production reads verified fresh GitHub
 observations and actual systemd-delivered host observations with four metrics
 per sample. Ephemera remains healthy and was not reconfigured.
+Pleiades, iu-amp and iu-ionos now also deliver real host samples through
+unprivileged minute timers using their existing Python runtimes. Each has its
+own token and a five-minute freshness window. API evidence and exact root
+capacity checks passed; existing VM, AMP and Velocity processes were preserved.
+These observations describe host capacity. Continuous Proxmox guest, AMP
+instance, TrueNAS and Home Assistant application adapters remain unfinished.
 
 ## Established direction
 

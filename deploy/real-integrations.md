@@ -22,6 +22,14 @@ The collector runs every minute. Ephemera remains healthy. Telegram backup alert
 host timer; its labeled firing/recovery test and quiet healthy check passed.
 A full lost-VPS recovery and independent outage monitoring remain unproven.
 
+Pleiades, iu-amp and iu-ionos now also submit host samples every minute from
+their existing Python installations. Each source has a five-minute freshness
+window and its own scoped receiver token. Authenticated production reads
+verified actual source envelopes and four metrics per sample, with root
+capacity matching the host. Existing VM, AMP and Velocity process identities
+were preserved. These are host capacity sources; continuous Proxmox guest,
+AMP instance and service-availability adapters remain unimplemented.
+
 ## Source and security contract
 
 An owner creates a source in Integrations with an active project link to a
@@ -113,7 +121,7 @@ restart or reconfigure Ephemera.
 ### Hosts without Node
 
 `scripts/linux-host-collector.py` implements the same `linux-host/v1` sample
-and receiver contract using Python 3.11 or later and its standard library.
+and receiver contract using Python 3.10 or later and its standard library.
 It reads the host's exact hostname, `/proc` counters and root filesystem
 capacity without privileged commands. This avoids installing an application
 runtime on a hypervisor or game host. It does not query Proxmox guests, AMP
@@ -128,6 +136,14 @@ each host. The service runs under a dynamic unprivileged identity with no
 capabilities. Its token submits only that host's observations. HTTPS certificate
 verification stays enabled, redirects are refused, and receipt parsing is
 bounded to 16 KiB. Errors do not print the receiver configuration.
+The collector identifies itself as `Commandry-Linux-Host-Collector/1.0`;
+Cloudflare rejected the default Python client signature with error 1010 during
+the first Pleiades attempt. The named client delivered successfully without
+changing ingress protection.
+
+Disk use is derived from total blocks minus blocks available to an unprivileged
+process. Filesystem reservations therefore count as unavailable and can make
+this percentage higher than the allocated-block percentage shown by `df`.
 
 Before installation, inventory the target, confirm recovery SSH access and
 record running workloads. Refuse to overwrite an existing collector. Stage
@@ -138,6 +154,8 @@ timer. Verify a second timer-delivered observation and unchanged existing
 workload process start times. Rollback stops/disables only this new timer and
 service, disables its Commandry source and removes the newly installed files;
 retain the evidence and installation audit.
+The activated hosts retain their audit at
+`/var/lib/commandry-collector/installation.json` and `activation.json`.
 
 Tests are included in `scripts/linux-host-collector.test.mjs` and require
 `python3`. They cover counter interpretation, invalid capacities, configuration
