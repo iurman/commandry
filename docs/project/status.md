@@ -2,7 +2,7 @@
 
 **Status: Operational**
 
-**Last updated:** 2026-10-04
+**Last updated:** 2026-10-14
 
 ## Current phase
 
@@ -13,9 +13,17 @@ schema and migrations, a separate pg-boss worker, shared contracts, and the
 local experience lab. The autonomous local MVP campaign now exercises the
 interconnected project, capture, Work, Knowledge, infrastructure, activity,
 agent, approval, automation, integration fixture, and morning review paths.
-The accepted architecture and local code do not establish that the VPS is
-ready, that offsite backups and VPS restores work, or that human
-authentication is complete. There is no production deployment.
+The control plane is now deployed at `https://commandry.site` on electra using
+the reviewed e62401b application image. Production verification passed owner
+password sign-in, protected reads, session revocation, worker execution,
+encrypted R2 backup readback, and an isolated database and configuration restore.
+The first monthly restore also passed against the fresh production backup,
+including application reads and complete removal of its disposable resources.
+The separate recovery password has a private copy off the VPS. Full recovery
+after losing the VPS is not yet proven, and an owner-facing backup alert
+destination remains pending. Synthetic agent execution, automation, and attention
+features remain development-only; the production home attention card currently
+reports that restriction as an unavailable state.
 
 The user expanded the local campaign target to MVP-depth coverage of every
 roadmap workstream. Planned phases now guide implementation order without
@@ -31,8 +39,10 @@ actual `electra` sample into disposable local PostgreSQL. Real-source ingestion
 also passed through the built worker and HTTP receiver. The candidate adds
 source configuration, disable/token controls and paginated evidence in
 Integrations. [Source deployment notes](../../deploy/real-integrations.md)
-record the contracts and outstanding VPS gates. The VPS still runs Ephemera;
-these integrations are not activated there.
+record the contracts and activation procedure. Both sources were activated on
+electra on October 14. Authenticated production reads verified fresh GitHub
+observations and actual systemd-delivered host observations with four metrics
+per sample. Ephemera remains healthy and was not reconfigured.
 
 ## Established direction
 

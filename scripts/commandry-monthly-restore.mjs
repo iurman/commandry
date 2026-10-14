@@ -5,6 +5,7 @@ import { fileURLToPath } from "node:url";
 import {
   localBackupConfig,
   parsePrivateConfig,
+  parseCurrentRelease,
   productionBackupEnvironment,
   retentionPolicy,
   trustedSource,
@@ -40,11 +41,6 @@ function currentRelease() {
     entry.size > 512
   )
     fail("CURRENT_RELEASE");
-  const match =
-    /^IMAGE=(ghcr\.io\/[^\s@]+@sha256:[0-9a-f]{64})\nREVISION=([0-9a-f]{40})\n$/.exec(
-      readFileSync(path, "utf8"),
-    );
-  if (!match) fail("CURRENT_RELEASE");
   const environmentPath = "/etc/commandry/commandry.env";
   const environmentEntry = lstatSync(environmentPath);
   if (
@@ -54,17 +50,10 @@ function currentRelease() {
     environmentEntry.size > 65536
   )
     fail("CURRENT_RELEASE");
-  const environment = readFileSync(environmentPath, "utf8");
-  const images = [...environment.matchAll(/^COMMANDRY_IMAGE=(.+)$/gm)];
-  const revisions = [...environment.matchAll(/^RELEASE_SHA=(.+)$/gm)];
-  if (
-    images.length !== 1 ||
-    revisions.length !== 1 ||
-    images[0][1] !== match[1] ||
-    revisions[0][1] !== match[2]
-  )
-    fail("CURRENT_RELEASE");
-  return { image: match[1], revision: match[2] };
+  return parseCurrentRelease(
+    readFileSync(path, "utf8"),
+    readFileSync(environmentPath, "utf8"),
+  );
 }
 
 function checkedSnapshot(uid, maxAgeHours) {
@@ -180,7 +169,7 @@ function recoverHostBundle(snapshot, environment) {
     output.resourcesRemoved !== true ||
     output.offsiteVerified !== production ||
     output.vpsRecoveryVerified !== false ||
-    output.sourceLabel !== sourceLabel
+    output.sourceLabel !== (production ? "production-r2" : sourceLabel)
   )
     fail("HOST_RECOVERY_RESULT");
   return output;

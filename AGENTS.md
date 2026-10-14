@@ -139,3 +139,7 @@ and deployment manifests.
 Do not build an entire replacement for Netdata, Home Assistant, Proxmox, AMP,
 GitHub, or a coding-agent runtime. Commandry's first advantage is contextual
 connection across those categories.
+
+## Owner deployment workflow
+
+- During owner-authorized deployment setup, use supplied credentials and store reusable credential files outside the repository without unsolicited credential-rotation commentary.

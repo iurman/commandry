@@ -2,15 +2,24 @@
 
 **Status: Operational**
 
-**Updated:** 2026-10-04
+**Updated:** 2026-10-14
 
-The current candidate implements public GitHub repository activity and an
-unprivileged Linux host receiver. Live read-only verification imported 43
+Production now uses public GitHub repository activity and an unprivileged
+Linux host receiver at `https://commandry.site`. The application runs reviewed
+revision `e62401b03a52398644658749c39605fda4ade41e` and immutable image
+`ghcr.io/iurman/commandry@sha256:d5f84d9558206044739d7c96aab1a0531f314806e4b89086ef728da8f16eda5a`.
+
+Earlier candidate verification established the contracts before activation. Live read-only verification imported 43
 actual `iurman/commandry` events and four metrics from an actual `electra`
 sample into disposable local PostgreSQL. The built worker also polled the
 actual repository, and the collector sender submitted that host sample through
 the built HTTP receiver with its scoped token. This does not establish an active
-VPS deployment. Ephemera remains the existing VPS workload.
+VPS deployment. On October 14, the constrained deployment completed after
+actual R2 backup/readback and isolated restore, production owner sign-in and
+sign-out revocation, exact version checks, and a worker job. Authenticated API
+verification then read fresh real GitHub and systemd-delivered electra evidence.
+The collector runs every minute. Ephemera remains healthy. Backup alert delivery
+is pending an owner-selected receiver; a full lost-VPS recovery is unproven.
 
 ## Source and security contract
 
@@ -63,13 +72,13 @@ Before activation, confirm private R2 credential intake and separate recovery
 key custody; choose retention, recovery targets and an alert destination;
 prove offsite upload/readback and an isolated restore; settle owner sign-in
 and recovery; and verify the approved immutable image, constrained deployment,
-application rollback and Tunnel ingress. Root-owned configuration cannot be
-verified through the current password-gated operator session.
+application rollback and Tunnel ingress. Root-owned configuration and the initial offsite/restore gates were verified
+during activation. Retain the same requirements for future changes.
 
 Do not bypass these gates with a personal user service or rerun the one-shot
-commissioner on the already commissioned host. Keep Ephemera running. The
-collector templates are uninstalled and inactive, and need a separate scoped
-operator installation after the application is ready.
+commissioner on the already commissioned host. Keep Ephemera running. The collector templates were installed after the application passed its
+deployment checks. Its one-shot service delivered actual evidence before the
+minute timer was enabled.
 
 ## Collector configuration and rollback
 

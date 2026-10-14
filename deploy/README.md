@@ -5,9 +5,9 @@
 For the initial operator connection and a safe inventory of the existing VPS,
 use the [VPS access and onboarding runbook](../docs/operations/vps-access-and-onboarding.md).
 
-`compose.production.yaml` describes the accepted VPS topology but is
-unactivated. It has no published web or database port. Cloudflare Tunnel would
-reach Caddy through the private Compose network. The web application, worker,
+`compose.production.yaml` describes the VPS topology activated on October 14, 2026. It has no published web or database port. Cloudflare Tunnel reaches Caddy
+through the private Compose network. Current evidence and remaining limitations
+are recorded in [project status](../docs/project/status.md). The web application, worker,
 and one-shot migrator use the same approved image digest. The local Storybook
 lab is absent.
 
@@ -42,6 +42,16 @@ deployment will read the real root-owned
 configuration and credentials belong under the root-owned
 `/etc/commandry/cloudflared/` directory. A deployment identity must not be
 able to read either secret location.
+
+The cloudflared image runs as container UID 0 to read these root-owned files.
+Its container drops every Linux capability, prevents privilege escalation, and
+uses a read-only filesystem. PostgreSQL initialization files contain no secrets;
+their mounted directory must be mode `0755` because PostgreSQL reads it after
+dropping root privileges. The non-secret `scripts` directory must also be mode
+`0755` so the unprivileged host collector can read its reviewed entry point. Keep
+private configuration restricted. The commissioner also creates root-private `/opt/commandry/.agent`
+scratch space for isolated restore commands; each command removes its temporary
+resources after the drill.
 
 `pnpm production:config:check` validates the example's service shape without
 printing its values. Passing a real root-owned env path as the command argument
@@ -329,7 +339,8 @@ After migration and container health, the script checks `/health/live`,
 It then requires root-owned `/usr/local/sbin/commandry-app-smoke` to verify a
 real login, an authenticated read, and one enqueue-to-worker result. The smoke
 hook receives the environment-file path, image digest, and revision and reads
-the owner email and password from standard input. The installed
+the owner email and password from standard input. Earlier Docker commands
+receive `/dev/null` so they cannot consume the smoke credentials. The installed
 [`host wrapper`](commandry-app-smoke.sh) runs the one-shot worker command in
 the private Compose network. It writes a fresh mode `0600` receipt under
 `/var/lib/commandry` only after the exact release, login, read, sign-out,

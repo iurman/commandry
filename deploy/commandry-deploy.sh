@@ -105,9 +105,9 @@ trusted_path() {
 
 docker_cmd() {
   if [[ "$mode" == production ]]; then
-    env -i HOME=/root PATH="$PATH" DOCKER_HOST=unix:///var/run/docker.sock docker "$@"
+    env -i HOME=/root PATH="$PATH" DOCKER_HOST=unix:///var/run/docker.sock docker "$@" </dev/null
   else
-    env -i HOME="$test_root" PATH="$PATH" COMMANDRY_TEST_ROOT="$test_root" docker "$@"
+    env -i HOME="$test_root" PATH="$PATH" COMMANDRY_TEST_ROOT="$test_root" docker "$@" </dev/null
   fi
 }
 
