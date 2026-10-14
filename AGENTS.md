@@ -110,6 +110,10 @@ planned behavior as though it already exists.
 
 ## Implementation guardrails
 
+Before renaming Tailscale devices or their corresponding Commandry, operating
+system, hypervisor or provider identities, agree the exact old-to-new naming
+map with the owner. Discovery and naming proposals do not authorize renames.
+
 Before changing the existing VPS, identify its host and inventory running
 services, containers, bound ports, network routes, backups, and recovery access.
 Do not stop or reconfigure an existing service without a scoped change and
