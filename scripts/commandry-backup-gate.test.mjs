@@ -117,14 +117,14 @@ function withHostFixture(callback) {
       ],
       { encoding: "utf8" },
     );
-  const runAlert = () =>
+  const runAlert = (mode = "alert") =>
     spawnSync(
       "bash",
       [
         resolve(root, "deploy/commandry-backup-gate.sh"),
         "--test-root",
         fixture,
-        "alert",
+        mode,
       ],
       { encoding: "utf8" },
     );
@@ -206,6 +206,14 @@ test("host backup gate uses a fixed trusted Node 24 runtime", () => {
         resolve(base, "scripts/commandry-backup-alert.mjs"),
         "alert",
       ]);
+      for (const mode of ["alert-test-firing", "alert-test-resolved"]) {
+        const deliveryTest = runAlert(mode);
+        assert.equal(deliveryTest.status, 0, deliveryTest.stderr);
+        assert.deepEqual(deliveryTest.stdout.trim().split("\n"), [
+          resolve(base, "scripts/commandry-backup-alert.mjs"),
+          mode,
+        ]);
+      }
       const monthly = runMonthly();
       assert.equal(monthly.status, 0, monthly.stderr);
       assert.deepEqual(monthly.stdout.trim().split("\n"), [

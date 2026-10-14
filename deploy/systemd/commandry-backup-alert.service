@@ -1,5 +1,5 @@
 [Unit]
-Description=Deliver Commandry backup health alerts through an approved webhook
+Description=Deliver Commandry backup health alerts through an approved webhook or Telegram
 Documentation=file:/opt/commandry/deploy/backup-and-restore.md
 
 [Service]

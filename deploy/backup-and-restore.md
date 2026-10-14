@@ -311,48 +311,59 @@ success remains fresh; an attempt still running after the service's 90-minute
 limit fails as stalled. A local rehearsal checks healthy, in-progress, stalled,
 failed, and stale states. The
 probe's nonzero systemd result and journal entry are machine-readable host
-signals. The separate notification path below remains uninstalled.
+signals. Owner notification delivery uses the separate alert path below.
 
-## Provisional backup alert transport, not installed
+## Backup alert transport
 
 The [alert service](systemd/commandry-backup-alert.service) and
-[fifteen-minute timer](systemd/commandry-backup-alert.timer) can run the same
-backup health probe and POST a small JSON firing or resolved event to an
-owner-approved HTTPS webhook. This is a configurable local implementation, not
-a decision about the canonical alert provider or a running owner notification.
-The invalid [example](alert.env.example) documents the private
-`/etc/commandry/alert.env` and separate bearer-token file. Both must be
-root-owned, mode `0600`, and under `/etc/commandry`. The webhook URL cannot
-contain credentials, a query, or a fragment. Redirects are rejected. The
-payload contains the condition, health reason, timestamp, environment, and a
-stable event ID. It contains no backup credential or response body. The
-production payload labels its source as VPS offsite backup health.
+[fifteen-minute timer](systemd/commandry-backup-alert.timer) evaluate the existing
+backup health probe. The transport supports an owner-approved HTTPS webhook or
+Telegram bot. The webhook [example](alert.env.example) remains compatible with
+configurations that omit `TRANSPORT`. The Telegram
+[example](alert.telegram.env.example) declares `TRANSPORT=telegram`, a private bot
+token file, and the exact approved numeric chat ID. The config and token files
+must be root-owned, mode `0600`, beneath `/etc/commandry`; actual values never
+belong in this repository.
 
-The host capability is `commandry.host.backup_alert.dispatch`, with medium
+Production Telegram dispatch uses only `https://api.telegram.org` and
+[`sendMessage`](https://core.telegram.org/bots/api#sendmessage). It sends plain
+text describing the firing or recovered condition, check time and Commandry
+link, without backup credentials. Redirects are rejected. A successful HTTP
+status alone is insufficient: the bounded JSON response must contain `ok=true`,
+a positive message ID and the configured chat ID. The private attempt audit
+records the transport and provider message ID without the bot token, URL or
+response body. Local rehearsal accepts only an explicit loopback Telegram
+origin; production rejects an origin override.
+
+The host capability remains `commandry.host.backup_alert.dispatch`, with medium
 risk because it sends operational status outside the VPS. It is not exposed to
-product agents. Activation requires explicit owner approval of the receiver,
-its token and delivery policy, plus root-controlled installation of the unit.
-After activation, each delivery or failure records a private mode `0600`
-`/var/lib/commandry/backup-alert-last-attempt.json` audit record. Successful
-delivery updates `backup-alert-state.json`; the next timer run suppresses a
-repeat of the same unresolved reason. A failed delivery remains retryable with
-the same event ID. A healthy probe sends one resolution for an active incident.
-The controlled host wrapper uses a separate lock so overlapping runs cannot
-duplicate delivery, and alert dispatch does not depend on a working restic
-binary. A provider's receipt or acknowledgement semantics, repeat reminders,
-and the final owner channel remain open choices.
+product agents. Activation requires owner approval of the receiver, credential
+and delivery policy, plus root-controlled installation. This owner selected
+`commandry_bot` and its private chat. The existing 36-hour backup freshness
+policy is evaluated every fifteen minutes. Successful delivery updates
+`backup-alert-state.json`; an unchanged unresolved reason is suppressed. A
+healthy probe sends one resolution. Failed or invalid receipts preserve the
+previous state and retry with the same event ID. Telegram does not promise
+exactly-once delivery if a response is lost after acceptance.
 
-`node --test scripts/commandry-backup-alert.test.mjs` rehearses a healthy
-probe, a synthetic failed backup, duplicate suppression, rejected delivery,
-retry, and resolution against a loopback receiver. Its JSON explicitly marks
-the event as simulated and the source as synthetic. It makes no external
-request. Neither the service nor the timer is installed on the VPS.
+The root-controlled wrapper also accepts `alert-test-firing` and
+`alert-test-resolved`. These modes send explicitly labeled TEST messages using
+isolated private state in `/var/lib/commandry/backup-alert-delivery-test`; they do
+not change real backup records or production alert state. Prepare that directory
+as root, mode `0700`. Before enabling the timer, run both modes, verify the two
+Telegram receipts, run the normal alert against actual health and confirm that
+it remains quiet when healthy. Use the existing alert lock for all modes.
+Rollback disables only `commandry-backup-alert.timer` and restores the prior
+root-controlled alert files and configuration. Preserve backup services,
+retained evidence, the reviewed application image and Ephemera.
 
-Before enabling the timers, select retention and maximum-age values based on
-measured data growth and accepted recovery targets, approve and install an
-owner-facing failure and staleness alert channel, test a monthly clean restore, and record
-achieved recovery point and time. None of those choices is implied by these
-uninstalled units. Do not treat the nightly status file as restore evidence.
+`node --test scripts/commandry-backup-alert.test.mjs scripts/commandry-backup-gate.test.mjs`
+checks failure/resolution, duplicate suppression, rejected and malformed
+receipts, wrong chats, redirects, rate limiting, retry identity, token redaction,
+local-origin restrictions and the constrained wrapper. These tests use synthetic
+loopback receivers and make no external requests. Live activation evidence is
+recorded separately; transport tests do not prove lost-VPS monitoring or full
+recovery.
 
 ## Monthly isolated restore path, not installed
 
