@@ -66,6 +66,7 @@ class CollectorTests(unittest.TestCase):
             def open_request(request, timeout):
                 self.assertEqual(timeout, 15)
                 self.assertEqual(request.get_header("Authorization"), "Bearer cmdry_host_" + "a" * 43)
+                self.assertEqual(request.get_header("User-agent"), "Commandry-Linux-Host-Collector/1.0")
                 return response
             opener = SimpleNamespace(open=open_request)
             if accepted:

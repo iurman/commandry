@@ -61,7 +61,8 @@ def send_linux_host(sample, environment=None, opener=None):
             or not re.fullmatch(r"cmdry_host_[A-Za-z0-9_-]{43}", token)):
         raise ValueError("Invalid scoped receiver configuration")
     request = urllib.request.Request(address, data=json.dumps(sample).encode(), method="POST",
-                                     headers={"Content-Type": "application/json", "Authorization": "Bearer " + token})
+                                     headers={"Content-Type": "application/json", "Authorization": "Bearer " + token,
+                                              "User-Agent": "Commandry-Linux-Host-Collector/1.0"})
     if opener is None:
         opener = urllib.request.build_opener(urllib.request.ProxyHandler({}), RefuseRedirects())
     with opener.open(request, timeout=15) as response:
