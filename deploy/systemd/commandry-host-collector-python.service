@@ -1,0 +1,26 @@
+[Unit]
+Description=Commandry read-only Linux host collector
+Documentation=file:/opt/commandry/deploy/real-integrations.md
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+Type=oneshot
+DynamicUser=yes
+EnvironmentFile=/etc/commandry/host-collector.env
+ExecStart=/usr/bin/python3 -B /opt/commandry/scripts/linux-host-collector.py --send
+TimeoutStartSec=30
+UMask=0077
+NoNewPrivileges=yes
+ProtectSystem=strict
+ProtectHome=yes
+PrivateTmp=yes
+PrivateDevices=yes
+ProtectKernelTunables=yes
+ProtectKernelModules=yes
+ProtectControlGroups=yes
+RestrictSUIDSGID=yes
+CapabilityBoundingSet=
+RestrictAddressFamilies=AF_UNIX AF_INET AF_INET6
+StandardOutput=journal
+StandardError=journal

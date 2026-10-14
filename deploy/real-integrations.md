@@ -110,6 +110,40 @@ disabling that source in Commandry, and removing only the new collector unit
 files if needed. Preserve source evidence and audit records. Do not stop,
 restart or reconfigure Ephemera.
 
+### Hosts without Node
+
+`scripts/linux-host-collector.py` implements the same `linux-host/v1` sample
+and receiver contract using Python 3.11 or later and its standard library.
+It reads the host's exact hostname, `/proc` counters and root filesystem
+capacity without privileged commands. This avoids installing an application
+runtime on a hypervisor or game host. It does not query Proxmox guests, AMP
+instances, additional storage pools or service availability.
+
+For these hosts, install the script at
+`/opt/commandry/scripts/linux-host-collector.py` and install
+`deploy/systemd/commandry-host-collector-python.service` as
+`/etc/systemd/system/commandry-host-collector.service`. Use the existing timer
+template and a separate source and root-owned mode 0600 environment file for
+each host. The service runs under a dynamic unprivileged identity with no
+capabilities. Its token submits only that host's observations. HTTPS certificate
+verification stays enabled, redirects are refused, and receipt parsing is
+bounded to 16 KiB. Errors do not print the receiver configuration.
+
+Before installation, inventory the target, confirm recovery SSH access and
+record running workloads. Refuse to overwrite an existing collector. Stage
+credentials privately, verify installed source hashes and systemd unit syntax,
+then start only the new one-shot service. Read its persisted source envelope
+and compare root capacity against host counters before enabling the minute
+timer. Verify a second timer-delivered observation and unchanged existing
+workload process start times. Rollback stops/disables only this new timer and
+service, disables its Commandry source and removes the newly installed files;
+retain the evidence and installation audit.
+
+Tests are included in `scripts/linux-host-collector.test.mjs` and require
+`python3`. They cover counter interpretation, invalid capacities, configuration
+validation, bounded truthful receipts, actual loopback delivery, redirect
+refusal and redacted CLI failures.
+
 Migration 0056 extends provenance and allows several named metrics per event.
 It preserves fixture records. Once real records exist, a fixture-only old image
 is not a proven application rollback target. Select and test a compatible
