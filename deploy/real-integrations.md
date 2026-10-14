@@ -18,8 +18,9 @@ VPS deployment. On October 14, the constrained deployment completed after
 actual R2 backup/readback and isolated restore, production owner sign-in and
 sign-out revocation, exact version checks, and a worker job. Authenticated API
 verification then read fresh real GitHub and systemd-delivered electra evidence.
-The collector runs every minute. Ephemera remains healthy. Backup alert delivery
-is pending an owner-selected receiver; a full lost-VPS recovery is unproven.
+The collector runs every minute. Ephemera remains healthy. Telegram backup alert delivery is active through the separate root-controlled
+host timer; its labeled firing/recovery test and quiet healthy check passed.
+A full lost-VPS recovery and independent outage monitoring remain unproven.
 
 ## Source and security contract
 

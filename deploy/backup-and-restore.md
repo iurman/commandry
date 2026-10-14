@@ -315,6 +315,13 @@ signals. Owner notification delivery uses the separate alert path below.
 
 ## Backup alert transport
 
+On October 14, 2026, the Telegram transport was activated on electra after
+a labeled firing/recovery delivery pair, duplicate suppression and a quiet
+healthy evaluation passed. The fifteen-minute timer is enabled. Actual backup
+records and the production alert state were unchanged by the delivery test;
+Commandry and Ephemera remained healthy. This is backup-health notification,
+not independent monitoring after the VPS is lost.
+
 The [alert service](systemd/commandry-backup-alert.service) and
 [fifteen-minute timer](systemd/commandry-backup-alert.timer) evaluate the existing
 backup health probe. The transport supports an owner-approved HTTPS webhook or

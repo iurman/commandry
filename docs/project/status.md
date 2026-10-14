@@ -20,8 +20,11 @@ encrypted R2 backup readback, and an isolated database and configuration restore
 The first monthly restore also passed against the fresh production backup,
 including application reads and complete removal of its disposable resources.
 The separate recovery password has a private copy off the VPS. Full recovery
-after losing the VPS is not yet proven, and an owner-facing backup alert
-destination remains pending. Synthetic agent execution, automation, and attention
+after losing the VPS is not yet proven. Telegram backup failure and recovery
+alerts are active through the root-controlled fifteen-minute host timer, with
+a 36-hour stale threshold. A labeled live delivery pair and quiet healthy
+checks passed; browser push, email and independent lost-VPS monitoring remain
+unimplemented. Synthetic agent execution, automation, and attention
 features remain development-only; the production home attention card currently
 reports that restriction as an unavailable state.
 
