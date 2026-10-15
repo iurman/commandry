@@ -9,6 +9,7 @@ import { join, resolve } from "node:path";
 import { setTimeout as delay } from "node:timers/promises";
 import { fileURLToPath } from "node:url";
 import EmbeddedPostgres from "embedded-postgres";
+import { knowledgeAccessSmoke } from "./knowledge-access-smoke.mjs";
 import { sendLinuxHost } from "./linux-host-collector.mjs";
 
 const root = resolve(fileURLToPath(new URL("..", import.meta.url)));
@@ -1189,6 +1190,7 @@ async function runAuthSmoke(
     });
     assert.equal(allowedPage.status, 200);
     await realSourceApiSmoke(origin, cookie, appOrigin);
+    await knowledgeAccessSmoke(origin, cookie, appOrigin);
     const signOut = await postAuth("sign-out", {}, cookie);
     assert.equal(signOut.status, 200);
     const signedOutRead = await fetch(`${origin}/api/v1/projects`, {
@@ -1281,6 +1283,7 @@ try {
     runtimePassword,
     "packages/platform/src/foundation.integration.test.ts",
   );
+  const knowledgeOnly = process.argv.includes("--knowledge-only");
   const authOnly = process.argv.includes("--auth-only");
   const realLiveOnly = process.argv.includes("--real-live");
   const realBrowserOnly =
@@ -1302,7 +1305,7 @@ try {
       runtimePassword,
       process.argv.includes("--real-browser-all"),
     );
-  if (!authOnly && !realLiveOnly && !realBrowserOnly) {
+  if (!authOnly && !knowledgeOnly && !realLiveOnly && !realBrowserOnly) {
     const platformTests = (
       await readdir(resolve(root, "packages/platform/src"))
     )
@@ -1322,7 +1325,7 @@ try {
   if (process.argv.includes("--smoke")) {
     await runSmoke(postgres, connectionString, runtimePassword);
   }
-  if (process.argv.includes("--smoke") || authOnly) {
+  if (process.argv.includes("--smoke") || authOnly || knowledgeOnly) {
     await runAuthSmoke(postgres, connectionString, runtimePassword);
     await runAuthSmoke(postgres, connectionString, runtimePassword, true);
   }
@@ -1334,7 +1337,16 @@ try {
     );
   } else if (!realLiveOnly && !realBrowserOnly) {
     const repositoryTests = (await readdir(resolve(root, "packages/db/src")))
-      .filter((file) => file.endsWith(".integration.test.ts"))
+      .filter(
+        (file) =>
+          file.endsWith(".integration.test.ts") &&
+          (!knowledgeOnly ||
+            [
+              "knowledge-access.integration.test.ts",
+              "brief-repository.integration.test.ts",
+              "local-mcp-repository.integration.test.ts",
+            ].includes(file)),
+      )
       .sort();
     for (const file of repositoryTests)
       await runTests(

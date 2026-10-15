@@ -3526,3 +3526,5 @@ export type DeploymentSmokeResultV1 = z.infer<
 export type SyntheticRunResponse = z.infer<typeof syntheticRunSchema>;
 
 export * from "./real-integrations";
+
+export * from "./knowledge-access";

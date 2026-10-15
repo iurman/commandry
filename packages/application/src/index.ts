@@ -48,3 +48,5 @@ export * from "./work-project-context";
 export * from "./owner-password-recovery";
 
 export * from "./real-integrations";
+
+export * from "./knowledge-access";

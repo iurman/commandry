@@ -94,6 +94,59 @@ export const verification = pgTable(
 
 export const authSchema = { user, session, account, verification };
 
+export const knowledgeClient = pgTable(
+  "knowledge_client",
+  {
+    id: uuid("id").primaryKey(),
+    name: text("name").notNull(),
+    projectId: uuid("project_id")
+      .notNull()
+      .references(() => project.id, { onDelete: "restrict" }),
+    tokenDigest: text("token_digest").notNull().unique(),
+    createdBy: text("created_by").notNull(),
+    createdAt: createdAt(),
+    expiresAt: timestamp("expires_at", { withTimezone: true }).notNull(),
+    revokedAt: timestamp("revoked_at", { withTimezone: true }),
+  },
+  (table) => [
+    check(
+      "knowledge_client_digest_valid",
+      sql`${table.tokenDigest} ~ '^[a-f0-9]{64}$'`,
+    ),
+    check(
+      "knowledge_client_expiry_valid",
+      sql`${table.expiresAt} > ${table.createdAt}`,
+    ),
+    check(
+      "knowledge_client_name_valid",
+      sql`length(trim(${table.name})) between 1 and 160`,
+    ),
+  ],
+);
+
+export const knowledgeClientAudit = pgTable(
+  "knowledge_client_audit",
+  {
+    id: uuid("id").primaryKey(),
+    clientId: uuid("client_id")
+      .notNull()
+      .references(() => knowledgeClient.id, { onDelete: "restrict" }),
+    actor: text("actor").notNull(),
+    operation: text("operation").notNull(),
+    decision: text("decision", { enum: ["allowed", "denied"] }).notNull(),
+    code: text("code").notNull(),
+    targetId: uuid("target_id"),
+    createdAt: createdAt(),
+  },
+  (table) => [
+    index("knowledge_client_audit_client_idx").on(table.clientId, table.id),
+    check(
+      "knowledge_client_audit_decision_valid",
+      sql`${table.decision} in ('allowed','denied')`,
+    ),
+  ],
+);
+
 export const domain = pgTable(
   "domain",
   {

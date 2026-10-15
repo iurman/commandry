@@ -49,7 +49,17 @@ function page<T, R>(
   };
 }
 
-export function createBriefRepository(db: CommandryDatabase) {
+type BriefTransaction = Parameters<
+  Parameters<CommandryDatabase["transaction"]>[0]
+>[0];
+
+export function createBriefRepository(
+  db: CommandryDatabase,
+  existingTransaction?: BriefTransaction,
+) {
+  const transaction: CommandryDatabase["transaction"] = existingTransaction
+    ? async (read) => read(existingTransaction)
+    : db.transaction.bind(db);
   return {
     async readProjectSnapshot(projectId: string, query: { limit: number }) {
       if (
@@ -59,9 +69,10 @@ export function createBriefRepository(db: CommandryDatabase) {
       ) {
         throw new Error("Brief section limit must be between 1 and 100");
       }
-      return db.transaction(
+      return transaction(
         async (tx) => {
-          await tx.execute(sql`set transaction read only`);
+          if (!existingTransaction)
+            await tx.execute(sql`set transaction read only`);
           const [currentProject] = await tx
             .select({
               record: project,

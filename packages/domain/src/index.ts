@@ -42,3 +42,5 @@ export * from "./project-metadata";
 export * from "./project-presentation";
 
 export * from "./real-integrations";
+
+export * from "./knowledge-access";

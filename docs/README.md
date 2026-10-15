@@ -54,6 +54,8 @@ feature has been implemented.
   connector contract and event flow
 - [Agent interface](architecture/agent-interface.md) — API/MCP concepts and
   execution packets
+- [Read-only project knowledge MCP](architecture/knowledge-mcp.md) - independent
+  client scope, owner-issued credentials, tools, verification, and activation gates
 - [Security and permissions](architecture/security-and-permissions.md) —
   capabilities, secrets, risk, approval, and audit
 - [Information architecture](ux/information-architecture.md) — navigation and
