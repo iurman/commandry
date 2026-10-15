@@ -155,22 +155,17 @@ export function projectWells(
     let x: number;
     let z: number;
     if (mode === "hosts") {
-      const positions = portrait
-        ? [
-            { x: -1.5, z: -17 },
-            { x: 1, z: -6 },
-            { x: -1, z: 5 },
-            { x: 1.5, z: 16 },
-          ]
-        : [
-            { x: -7, z: 3.4 },
-            { x: -4.4, z: -5.6 },
-            { x: 5.3, z: -5.5 },
-            { x: 6, z: 3.8 },
-          ];
-      const base = positions[index];
-      x = base?.x ?? -0.5 + Math.cos(index * 2.4) * 3;
-      z = base?.z ?? (portrait ? 27 : 10) + Math.sin(index * 2.4) * 1.5;
+      // An irregular sunflower seed fills two dimensions at every aspect ratio.
+      // Identity adds bounded variation, never frame-by-frame layout noise.
+      const identity = [...host.id].reduce(
+        (hash, letter) => (hash * 31 + letter.charCodeAt(0)) >>> 0,
+        7,
+      );
+      const variation = (identity % 997) / 997;
+      const bearing = index * 2.399963 + 0.55 + variation * 0.55;
+      const distance = 5.4 * Math.sqrt(index + 1) * (0.94 + variation * 0.12);
+      x = Math.cos(bearing) * distance * (portrait ? 0.85 : 1.1);
+      z = Math.sin(bearing) * distance * (portrait ? 1.1 : 0.9);
     } else {
       const center = sectors.find((s) => s.id === sector)!.center;
       const siblings = hosts.filter(

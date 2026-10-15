@@ -19,6 +19,7 @@ import {
 } from "./gravity/model";
 import {
   fittedPose,
+  fittedLandscapePose,
   landscapeBounds,
   presentationPose,
 } from "./gravity/presentation";
@@ -77,6 +78,35 @@ beforeEach(() => {
 afterEach(cleanup);
 
 describe("gravity projection semantics", () => {
+  it("fills both dimensions organically at narrow and wide aspects without relocating existing resources on arrival", () => {
+    for (const portrait of [false, true])
+      for (const basis of ["services", "capacity", "uniform"] as const) {
+        const before = projectWells(fixtureHosts, "hosts", {}, basis, portrait);
+        const after = projectWells(
+          [...fixtureHosts, arrivalHost],
+          "hosts",
+          {},
+          basis,
+          portrait,
+        );
+        for (const well of before)
+          expect(after.find((item) => item.id === well.id)).toEqual(well);
+        const hosts = before.filter((well) => well.kind === "host");
+        const width =
+          Math.max(...hosts.map((host) => host.x)) -
+          Math.min(...hosts.map((host) => host.x));
+        const depth =
+          Math.max(...hosts.map((host) => host.z)) -
+          Math.min(...hosts.map((host) => host.z));
+        expect(width / depth).toBeGreaterThan(0.4);
+        expect(width / depth).toBeLessThan(2.5);
+        const [a, b, c] = hosts;
+        const area = Math.abs(
+          (b!.x - a!.x) * (c!.z - a!.z) - (b!.z - a!.z) * (c!.x - a!.x),
+        );
+        expect(area / (width * depth)).toBeGreaterThan(0.2);
+      }
+  });
   it("preserves each resource once across projections and keeps custom grouping out of source data", () => {
     const before = JSON.stringify(fixtureHosts);
     const identity = projectWells(fixtureHosts, "hosts", {})
@@ -330,6 +360,41 @@ describe("observatory presentation", () => {
         );
       }
   });
+  it("frames the occupied cluster without cropping hosts or reserving empty aggregate corners", () => {
+    for (const portrait of [false, true]) {
+      const wells = projectWells(
+        [...fixtureHosts, arrivalHost],
+        "hosts",
+        {},
+        "capacity",
+        portrait,
+      );
+      for (const aspect of [0.5, 1, 2.3])
+        for (let azimuth = 0; azimuth < Math.PI * 2; azimuth += Math.PI / 4) {
+          const pose = fittedLandscapePose(wells, aspect, azimuth);
+          const camera = new PerspectiveCamera(40, aspect, 0.1, 500);
+          camera.position.set(
+            pose.position.x,
+            pose.position.y,
+            pose.position.z,
+          );
+          camera.lookAt(pose.target.x, pose.target.y, pose.target.z);
+          camera.updateMatrixWorld();
+          for (const host of wells.filter((well) => well.kind === "host")) {
+            const footprint = host.radius * Math.max(1, host.aspect) * 1.7;
+            for (const x of [-footprint, footprint])
+              for (const y of [-5, 5])
+                for (const z of [-footprint, footprint]) {
+                  const point = new Vector3(host.x + x, y, host.z + z).project(
+                    camera,
+                  );
+                  expect(Math.abs(point.x)).toBeLessThan(0.95);
+                  expect(Math.abs(point.y)).toBeLessThan(0.95);
+                }
+          }
+        }
+    }
+  });
   it("fits the complete landscape in portrait and wide views throughout orbit", () => {
     const wells = projectWells(
       [...fixtureHosts, arrivalHost],
@@ -441,12 +506,18 @@ describe("stable terrain labels", () => {
   it("anchors above each structural crest independently of ambient waves and neighbouring wells", () => {
     const wells = projectWells(fixtureHosts, "hosts", {});
     for (const well of wells) {
-      const height = labelHeight(well);
+      const parent =
+        well.kind === "service"
+          ? wells.find((item) => item.id === well.hostId)
+          : undefined;
+      const height = labelHeight(well, parent);
       for (const time of [0, 20, 200])
         expect(height).toBeGreaterThan(
           surfaceHeight(well.x, well.z, wells, time, 1),
         );
-      expect(labelHeight({ ...well, depth: well.depth * 2 })).toBe(height);
+      expect(labelHeight({ ...well, depth: well.depth * 2 }, parent)).toBe(
+        height,
+      );
     }
   });
 

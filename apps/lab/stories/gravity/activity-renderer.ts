@@ -3,8 +3,10 @@ import { surfaceHeight } from "./model";
 import type { Palette, Well } from "./model";
 import type { ActivitySnapshot, Transfer } from "./activity";
 
+type Position = { x: number; y: number; z: number };
+
 export function transferMatchesSelection(
-  flow: Transfer,
+  flow: Pick<Transfer, "from" | "to">,
   selected: string,
   wells: Well[],
 ) {
@@ -18,79 +20,134 @@ export function transferMatchesSelection(
   );
 }
 
+export function arrivalEffects(snapshot: ActivitySnapshot) {
+  return snapshot.events.filter(
+    (event) =>
+      event.effect &&
+      snapshot.time >= event.at &&
+      snapshot.time - event.at < 1.4,
+  );
+}
+
 export function transferPoint(
   flow: Transfer,
   progress: number,
   wells: Well[],
   time = 0,
   ambient = 0,
-) {
+): Position | null {
   const source = wells.find((well) => well.id === flow.from);
   const target = wells.find((well) => well.id === flow.to);
   if (!source || !target) return null;
   const t = Math.max(0, Math.min(1, progress));
-  let x: number, z: number;
   if (flow.phase === "processing") {
-    const angle = t * Math.PI * 4;
-    const radius = target.radius * 2 + 0.5;
-    x = target.x + Math.cos(angle) * radius;
-    z = target.z + Math.sin(angle) * radius;
-  } else {
-    const dx = target.x - source.x,
-      dz = target.z - source.z;
-    const distance = Math.max(1, Math.hypot(dx, dz));
-    const bend = Math.sin(t * Math.PI) * Math.min(distance * 0.22, 3);
-    const spiral = Math.sin(t * Math.PI) * target.radius * 0.5;
-    x =
-      source.x +
-      dx * t -
-      (dz / distance) * bend +
-      Math.sin(t * Math.PI * 4) * spiral;
-    z =
-      source.z +
-      dz * t +
-      (dx / distance) * bend +
-      Math.cos(t * Math.PI * 4) * spiral;
+    const host = wells.find((well) => well.id === target.hostId) ?? target;
+    const angle = t * Math.PI * 2 - Math.PI / 2;
+    const localX = Math.cos(angle) * host.radius * host.aspect * 1.3;
+    const localZ = Math.sin(angle) * host.radius * 1.3;
+    const x =
+      host.x + localX * Math.cos(host.angle) - localZ * Math.sin(host.angle);
+    const z =
+      host.z + localX * Math.sin(host.angle) + localZ * Math.cos(host.angle);
+    return { x, y: surfaceHeight(x, z, wells, time, ambient) + 0.3, z };
   }
+  // Canonical endpoint ordering makes a response retrace the same corridor.
+  const forward = source.id < target.id;
+  const a = forward ? source : target;
+  const b = forward ? target : source;
+  const u = forward ? t : 1 - t;
+  const dx = b.x - a.x;
+  const dz = b.z - a.z;
+  const distance = Math.max(0.1, Math.hypot(dx, dz));
+  const arch = Math.sin(u * Math.PI);
+  const bend = arch * Math.min(distance * 0.12, 1.8);
+  const x = a.x + dx * u - (dz / distance) * bend;
+  const z = a.z + dz * u + (dx / distance) * bend;
+  const fromHeight = surfaceHeight(a.x, a.z, wells, time, ambient);
+  const toHeight = surfaceHeight(b.x, b.z, wells, time, ambient);
   return {
     x,
-    y:
-      surfaceHeight(x, z, wells, time, ambient) +
-      0.18 +
-      (flow.phase === "processing" ? 0.08 : Math.sin(t * Math.PI) * 0.55),
+    y: Math.max(
+      surfaceHeight(x, z, wells, time, ambient) + 0.22,
+      fromHeight +
+        (toHeight - fromHeight) * u +
+        0.22 +
+        arch * Math.min(4, 0.9 + distance * 0.18),
+    ),
     z,
   };
 }
 
+const vertexShader = `
+  attribute vec4 tint;
+  varying vec4 vTint;
+  void main() {
+    vTint = tint;
+    gl_Position = projectionMatrix * modelViewMatrix * vec4(position, 1.0);
+  }
+`;
+const fragmentShader = `
+  varying vec4 vTint;
+  void main() { gl_FragColor = vTint; }
+`;
+
 export class ActivityRenderer {
   readonly group = new THREE.Group();
   private linesGeometry = new THREE.BufferGeometry();
+  private ribbonsGeometry = new THREE.BufferGeometry();
   private pointsGeometry = new THREE.BufferGeometry();
   private linesMaterial = new THREE.LineBasicMaterial({
     vertexColors: true,
     transparent: true,
-    opacity: 0.48,
+    opacity: 0.15,
     depthWrite: false,
   });
-  private pointsMaterial = new THREE.PointsMaterial({
-    vertexColors: true,
-    size: 0.14,
+  private ribbonsMaterial = new THREE.ShaderMaterial({
+    vertexShader,
+    fragmentShader,
     transparent: true,
-    opacity: 0.95,
     depthWrite: false,
-    sizeAttenuation: true,
+    side: THREE.DoubleSide,
+  });
+  private pointsMaterial = new THREE.ShaderMaterial({
+    uniforms: { uPixelRatio: { value: 1 } },
+    vertexShader: `
+      attribute vec4 tint;
+      attribute float size;
+      uniform float uPixelRatio;
+      varying vec4 vTint;
+      void main() {
+        vTint = tint;
+        gl_Position = projectionMatrix * modelViewMatrix * vec4(position, 1.0);
+        gl_PointSize = size * uPixelRatio;
+      }
+    `,
+    fragmentShader: `
+      varying vec4 vTint;
+      void main() {
+        float radius = length(gl_PointCoord - 0.5) * 2.0;
+        if (radius > 1.0) discard;
+        float glow = pow(1.0 - radius, 1.5);
+        vec3 core = mix(vTint.rgb, vec3(1.0), (1.0 - smoothstep(0.0, 0.28, radius)) * 0.65);
+        gl_FragColor = vec4(core, vTint.a * glow);
+      }
+    `,
+    transparent: true,
+    depthWrite: false,
   });
   private lines = new THREE.LineSegments(
     this.linesGeometry,
     this.linesMaterial,
   );
+  private ribbons = new THREE.Mesh(this.ribbonsGeometry, this.ribbonsMaterial);
   private points = new THREE.Points(this.pointsGeometry, this.pointsMaterial);
   private capacity = 0;
 
   constructor() {
-    this.lines.frustumCulled = false;
-    this.points.frustumCulled = false;
-    this.group.add(this.lines, this.points);
+    for (const object of [this.lines, this.ribbons, this.points]) {
+      object.frustumCulled = false;
+      this.group.add(object);
+    }
   }
 
   update(
@@ -103,125 +160,282 @@ export class ActivityRenderer {
     elapsed: number,
     ambient: boolean,
     night: boolean,
+    pixelRatio = 1,
   ) {
     const flows = snapshot.transfers;
-    if (flows.length > this.capacity) {
-      this.linesGeometry.dispose();
-      this.pointsGeometry.dispose();
-      this.capacity = Math.max(16, flows.length * 2);
-      this.linesGeometry.setAttribute(
-        "position",
-        new THREE.BufferAttribute(
-          new Float32Array(this.capacity * 24 * 2 * 3),
-          3,
-        ),
-      );
-      this.linesGeometry.setAttribute(
-        "color",
-        new THREE.BufferAttribute(
-          new Float32Array(this.capacity * 24 * 2 * 3),
-          3,
-        ),
-      );
+    const effects = arrivalEffects(snapshot);
+    const population = flows.length + effects.length;
+    if (population > this.capacity) {
+      this.capacity = Math.max(16, population * 2);
+      for (const [geometry, vertices, colorSize] of [
+        [this.linesGeometry, 128, 3],
+        [this.ribbonsGeometry, 1024, 4],
+        [this.pointsGeometry, 16, 4],
+      ] as const) {
+        geometry.dispose();
+        geometry.setAttribute(
+          "position",
+          new THREE.BufferAttribute(
+            new Float32Array(this.capacity * vertices * 3),
+            3,
+          ),
+        );
+        geometry.setAttribute(
+          colorSize === 3 ? "color" : "tint",
+          new THREE.BufferAttribute(
+            new Float32Array(this.capacity * vertices * colorSize),
+            colorSize,
+          ),
+        );
+      }
       this.pointsGeometry.setAttribute(
-        "position",
-        new THREE.BufferAttribute(new Float32Array(this.capacity * 7 * 3), 3),
-      );
-      this.pointsGeometry.setAttribute(
-        "color",
-        new THREE.BufferAttribute(new Float32Array(this.capacity * 7 * 3), 3),
+        "size",
+        new THREE.BufferAttribute(new Float32Array(this.capacity * 16), 1),
       );
     }
+    this.pointsMaterial.uniforms.uPixelRatio!.value = pixelRatio;
     let lineIndex = 0,
+      ribbonIndex = 0,
       pointIndex = 0;
     const color = new THREE.Color();
     const at = (flow: Transfer, t: number) =>
       transferPoint(flow, t, wells, elapsed, ambient ? 1 : 0);
+    const fadeFor = (item: {
+      correlationId: string;
+      from: string;
+      to: string;
+    }) =>
+      (
+        trace
+          ? item.correlationId !== trace
+          : follow && selected
+            ? !transferMatchesSelection(item, selected, wells)
+            : false
+      )
+        ? 0.08
+        : 1;
+    const tintFor = (item: Pick<Transfer, "kind" | "outcome">) => {
+      color.set(
+        item.outcome === "timeout"
+          ? palette.unhealthy
+          : item.outcome === "slow"
+            ? palette.attention
+            : item.kind === "probe"
+              ? palette.reporting
+              : item.kind === "job"
+                ? "#bb97e4"
+                : item.kind === "artifact"
+                  ? "#d4af6d"
+                  : "#53b5e2",
+      );
+      color.multiplyScalar(night ? 1.25 : 0.65);
+    };
+    const line = (a: Position, b: Position, alpha: number) => {
+      for (const point of [a, b]) {
+        this.linesGeometry.attributes.position!.setXYZ(
+          lineIndex,
+          point.x,
+          point.y,
+          point.z,
+        );
+        this.linesGeometry.attributes.color!.setXYZ(
+          lineIndex++,
+          color.r * alpha,
+          color.g * alpha,
+          color.b * alpha,
+        );
+      }
+    };
+    const ribbon = (
+      a: Position,
+      b: Position,
+      widthA: number,
+      widthB: number,
+      alphaA: number,
+      alphaB: number,
+    ) => {
+      const length = Math.max(0.0001, Math.hypot(b.x - a.x, b.z - a.z));
+      const nx = -(b.z - a.z) / length;
+      const nz = (b.x - a.x) / length;
+      for (const [point, side, width, alpha] of [
+        [a, -1, widthA, alphaA],
+        [a, 1, widthA, alphaA],
+        [b, -1, widthB, alphaB],
+        [b, -1, widthB, alphaB],
+        [a, 1, widthA, alphaA],
+        [b, 1, widthB, alphaB],
+      ] as const) {
+        this.ribbonsGeometry.attributes.position!.setXYZ(
+          ribbonIndex,
+          point.x + nx * width * side,
+          point.y,
+          point.z + nz * width * side,
+        );
+        this.ribbonsGeometry.attributes.tint!.setXYZW(
+          ribbonIndex++,
+          color.r,
+          color.g,
+          color.b,
+          alpha,
+        );
+      }
+    };
+    const point = (position: Position, size: number, alpha: number) => {
+      this.pointsGeometry.attributes.position!.setXYZ(
+        pointIndex,
+        position.x,
+        position.y + 0.02,
+        position.z,
+      );
+      this.pointsGeometry.attributes.tint!.setXYZW(
+        pointIndex,
+        color.r,
+        color.g,
+        color.b,
+        alpha,
+      );
+      this.pointsGeometry.attributes.size!.setX(pointIndex++, size);
+    };
+    const pulse = (
+      well: Well,
+      radius: number,
+      alpha: number,
+      broken = false,
+    ) => {
+      const ringPoint = (t: number) => {
+        const angle = t * Math.PI * 2;
+        const x = well.x + Math.cos(angle) * radius;
+        const z = well.z + Math.sin(angle) * radius;
+        return {
+          x,
+          y: surfaceHeight(x, z, wells, elapsed, ambient ? 1 : 0) + 0.26,
+          z,
+        };
+      };
+      for (let segment = 0; segment < 48; segment++) {
+        if (broken && segment % 6 < 2) continue;
+        ribbon(
+          ringPoint(segment / 48),
+          ringPoint((segment + 1) / 48),
+          0.035,
+          0.035,
+          alpha,
+          alpha,
+        );
+      }
+    };
     for (const flow of flows) {
+      tintFor(flow);
+      const fade = fadeFor(flow);
       const progress = Math.max(
         0,
         Math.min(1, (snapshot.time - flow.start) / flow.duration),
       );
-      const faded = trace
-        ? flow.correlationId !== trace
-        : follow && selected
-          ? !transferMatchesSelection(flow, selected, wells)
-          : false;
-      color.set(
-        flow.outcome === "timeout"
-          ? palette.unhealthy
-          : flow.outcome === "slow"
-            ? palette.attention
-            : flow.kind === "probe"
-              ? palette.reporting
-              : flow.kind === "job"
-                ? "#bb97e4"
-                : flow.kind === "artifact"
-                  ? "#d4af6d"
-                  : "#53b5e2",
-      );
-      color.multiplyScalar(faded ? 0.12 : night ? 1.6 : 0.7);
-      const end = flow.outcome === "timeout" ? progress * 0.84 : progress;
-      const tail = flow.phase === "processing" ? 0.2 : 0.34;
-      for (let segment = 0; segment < 24; segment++) {
-        // Health probes are dotted; traffic is a short travelling stream, never a permanent edge.
-        if (flow.kind === "probe" && segment % 3 === 0) continue;
-        const a = at(flow, Math.max(0, end - tail + (tail * segment) / 24));
-        const b = at(
-          flow,
-          Math.max(0, end - tail + (tail * (segment + 1)) / 24),
-        );
-        if (!a || !b) continue;
-        for (const point of [a, b]) {
-          this.linesGeometry.attributes.position!.setXYZ(
-            lineIndex,
-            point.x,
-            point.y,
-            point.z,
-          );
-          this.linesGeometry.attributes.color!.setXYZ(
-            lineIndex++,
-            color.r,
-            color.g,
-            color.b,
-          );
+      const processing = flow.phase === "processing";
+      if (processing) {
+        for (let segment = 0; segment < 64; segment++) {
+          const a = at(flow, segment / 64),
+            b = at(flow, (segment + 1) / 64);
+          if (!a || !b) continue;
+          line(a, b, fade);
+          const end = Math.min(progress, (segment + 1) / 64);
+          if (end > segment / 64) {
+            const finish = at(flow, end)!;
+            ribbon(a, finish, 0.075, 0.075, fade * 0.85, fade * 0.85);
+          }
         }
+        const head = at(flow, progress);
+        if (head) point(head, 11, fade);
+        continue;
       }
-      for (let bead = 0; bead < 7; bead++) {
-        const point = at(flow, Math.max(0, end - bead * 0.018));
-        if (!point) continue;
-        this.pointsGeometry.attributes.position!.setXYZ(
-          pointIndex,
-          point.x,
-          point.y + 0.04,
-          point.z,
-        );
-        const brightness =
-          (1 - bead / 8) *
-          (flow.outcome === "timeout" ? 1 - progress * 0.8 : 1);
-        this.pointsGeometry.attributes.color!.setXYZ(
-          pointIndex++,
-          color.r * brightness,
-          color.g * brightness,
-          color.b * brightness,
-        );
+      // Quiet lanes exist only for live transfers. The tapered body and bright nose carry direction.
+      if (flow.kind !== "probe")
+        for (let segment = 0; segment < 32; segment++) {
+          const a = at(flow, segment / 32),
+            b = at(flow, (segment + 1) / 32);
+          if (a && b) line(a, b, fade * (flow.phase === "response" ? 0.5 : 1));
+        }
+      const stalled = flow.outcome === "timeout";
+      const headAt = stalled ? Math.min(1, progress / 0.6) * 0.85 : progress;
+      const opacity =
+        fade * (stalled ? 1 - Math.max(0, (progress - 0.6) / 0.4) * 0.9 : 1);
+      const tail = flow.kind === "probe" ? 0.1 : 0.2;
+      const width =
+        flow.kind === "artifact" ? 0.12 : flow.kind === "job" ? 0.09 : 0.065;
+      for (let segment = 0; segment < 24; segment++) {
+        const u = segment / 24,
+          v = (segment + 1) / 24;
+        const a = at(flow, Math.max(0, headAt - tail + tail * u));
+        const b = at(flow, Math.max(0, headAt - tail + tail * v));
+        if (!a || !b) continue;
+        if (flow.kind === "probe") {
+          if (segment % 6 === 0) point(b, 3, opacity * v * 0.6);
+        } else
+          ribbon(
+            a,
+            b,
+            width * u,
+            width * v,
+            opacity * u * 0.1,
+            opacity * v * 0.9,
+          );
       }
+      const head = at(flow, headAt);
+      if (head)
+        point(
+          head,
+          flow.kind === "probe" ? 5 : flow.kind === "artifact" ? 12 : 10,
+          opacity,
+        );
+      if (flow.kind === "artifact")
+        for (const offset of [0.02, 0.04]) {
+          const cargo = at(flow, Math.max(0, headAt - offset));
+          if (cargo) point(cargo, 6, opacity * 0.75);
+        }
+      const source = wells.find((well) => well.id === flow.from);
+      const departure = (snapshot.time - flow.start) / 0.85;
+      if (source && departure < 1)
+        pulse(
+          source,
+          0.3 + departure * 1.1,
+          (1 - departure) * fade * (flow.kind === "probe" ? 0.2 : 0.7),
+        );
     }
-    this.group.visible = flows.length > 0;
+    for (const event of effects) {
+      const target = wells.find((well) => well.id === event.to);
+      if (!target) continue;
+      tintFor(event);
+      const age = (snapshot.time - event.at) / 1.4;
+      const alpha =
+        (1 - age) ** 2 * fadeFor(event) * (event.kind === "probe" ? 0.25 : 0.9);
+      pulse(target, 0.35 + age * 1.8, alpha, event.effect === "failure");
+    }
+    this.group.visible = population > 0;
     if (this.capacity) {
-      this.linesGeometry.setDrawRange(0, lineIndex);
-      this.pointsGeometry.setDrawRange(0, pointIndex);
-      for (const geometry of [this.linesGeometry, this.pointsGeometry]) {
-        geometry.attributes.position!.needsUpdate = true;
-        geometry.attributes.color!.needsUpdate = true;
+      for (const [geometry, count] of [
+        [this.linesGeometry, lineIndex],
+        [this.ribbonsGeometry, ribbonIndex],
+        [this.pointsGeometry, pointIndex],
+      ] as const) {
+        geometry.setDrawRange(0, count);
+        for (const attribute of Object.values(geometry.attributes))
+          attribute.needsUpdate = true;
       }
     }
   }
 
   dispose() {
-    this.linesGeometry.dispose();
-    this.pointsGeometry.dispose();
-    this.linesMaterial.dispose();
-    this.pointsMaterial.dispose();
+    for (const geometry of [
+      this.linesGeometry,
+      this.ribbonsGeometry,
+      this.pointsGeometry,
+    ])
+      geometry.dispose();
+    for (const material of [
+      this.linesMaterial,
+      this.ribbonsMaterial,
+      this.pointsMaterial,
+    ])
+      material.dispose();
   }
 }

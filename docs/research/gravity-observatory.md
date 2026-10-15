@@ -126,7 +126,7 @@ shape profiles so a wider storage profile does not defeat the size mapping.
 Synthetic general, compute and storage profiles control well proportions,
 curvature, depth and raised shoulders. Broad terrain relief connects them.
 Footprint placement avoids host overlap, preserves existing host positions when
-an arrival is appended, and uses a vertical arrangement in portrait stages.
+an arrival is appended, and uses an irregular cluster at narrow and wide aspects.
 Profile and terrain depth remain presentation choices, not health indicators.
 
 Three camera modes are implemented:
@@ -227,7 +227,7 @@ record, or infrastructure mutation.
 | Scenario | Behavior |
 | --- | --- |
 | Steady traffic | Health batches from Pleiades Metrics, Electra Web to Pleiades API requests, API to Maia NAS requests, occasional builds |
-| Build pipeline | Electra Worker dispatches to Titan Builder, processing orbits the service, artifacts move to Maia NAS, and the result returns to the original requester; an arriving Atlas also accepts work |
+| Build pipeline | Electra Worker dispatches to Titan Builder, a progress ring fills around the receiving host, artifacts move to Maia NAS, and the result returns to the original requester; an arriving Atlas also accepts work |
 | Failure / recovery | A repeating 48-second condition cycle slows Builder, makes it unavailable, then restores it; checks observe those changes later, and requests/jobs retry with four-second backoff and at most three attempts |
 | Traffic burst | The same routes represent batches of 40 and 24 requests with explicit grouped counts, rather than one visible particle system per request |
 
@@ -247,11 +247,12 @@ views predating the unavailable color receive its default when restored.
 
 ### Presentation and controls
 
-Streams follow the current displaced terrain with directional heads and short
-tails; they are bounded event activity, not permanent topology edges. Processing
-orbits the receiving service, and timed-out streams fade before completing their
-journey. Travel time is illustrative and does not claim to equal measured
-latency. The focus camera renders the same activity geometry as the overview.
+Streams clear the current displaced terrain with directional heads and tapered
+tails; they are bounded event activity, not permanent topology edges. A build
+progress ring fills around the receiving host, and timed-out packets stall and
+fade before completing their journey. Travel time is illustrative and does not
+claim to equal measured latency. The focus camera renders the same activity
+geometry as the overview.
 Following a correlation chain dims unrelated flows; selected-resource emphasis
 also follows sector membership in custom layouts.
 
@@ -299,3 +300,46 @@ scene and its current clock. Unavailable rendering also reports unavailable
 simulation instead of a running badge. The final scoped tests, types, formatting
 and lint passed. Reduced-motion and WebGL-unavailable coverage use mocks rather
 than a physical accessibility configuration or GPU interruption.
+
+## Organic placement and activity legibility
+
+The owner reported a portrait lineup and activity that was hard to interpret.
+Both host-view seed layouts now use a two-dimensional sunflower distribution
+with bounded, identity-derived angular and radial variation. Footprint packing
+still prevents overlap and places only the arriving item. Narrow layouts remain
+clusters instead of becoming a column. Composed and automatic cameras fit
+individual occupied footprints, avoiding the empty corners of an aggregate box.
+Service labels use the static parent surface beneath their structural anchors;
+ambient motion and unrelated neighbours do not move those anchors.
+
+Activity now has distinct departure, travel, processing, and receiving cues:
+
+- A brief source pulse launches a tapered packet with a soft circular head.
+  Smooth, elevated corridors clear the terrain without arbitrary spirals.
+- A response retraces the same corridor in reverse. Grouped health packets are
+  smaller and quieter than request, build, or artifact activity.
+- A running build fills a progress ring around its host once, rather than
+  endlessly circling a service. Gold packet bundles carry the resulting artifact.
+- A receiving ripple lasts 1.4 seconds and comes from an explicit completion
+  event. Timeouts stall and fade, then produce a broken failure ripple instead
+  of a successful arrival.
+- A scene caption names the current source, destination, and stage. Build
+  captions expose Dispatch, Build, Store, and Reply; clicking opens the matching
+  trace. The caption becomes two concise lines on small screens.
+
+Ribbons, points, and transient lanes use three reusable geometry buffers. Their
+capacity grows with active transfers and feedback rather than dropping events;
+trace/resource emphasis applies to pulses and arrival feedback too. Overview
+and focus use the same geometry and simulation clock. This remains synthetic
+activity with illustrative travel times, not a network or physics measurement.
+
+Thirty-three lab tests and the workspace check pass. New coverage verifies
+two-dimensional spread, arrival stability under each size basis, occupied-host
+framing, exact request/response corridor reversal, evidence-backed bounded
+feedback, finite geometry within allocated buffers, and focused build captions.
+The two pre-existing unrelated GitHub activity lint warnings remain. Browser
+checks cover both themes, narrow and desktop layouts, caption clearance, all
+four service labels in focus, and an unavailable Titan at 25 simulated seconds.
+With activity visible, observed draw counts are five for overview and eleven
+for focus. These counts and sampled browser cadence are local evidence, not a
+physical-TV or large-inventory performance benchmark.

@@ -34,6 +34,7 @@ export function fittedPose(
   aspect: number,
   azimuth = 0.18,
   elevation = 0.95,
+  subjects: Bounds[] = [bounds],
 ): CameraPose {
   const direction = {
     x: Math.sin(azimuth) * Math.cos(elevation),
@@ -48,18 +49,22 @@ export function fittedPose(
   };
   const tangent = Math.tan((40 * Math.PI) / 360);
   let distance = 0;
-  for (const x of [-bounds.half.x, bounds.half.x])
-    for (const y of [-bounds.half.y, bounds.half.y])
-      for (const z of [-bounds.half.z, bounds.half.z]) {
-        const depth = x * direction.x + y * direction.y + z * direction.z;
-        distance = Math.max(
-          distance,
-          Math.abs(x * right.x + z * right.z) /
-            (tangent * Math.max(0.2, aspect)) +
-            depth,
-          Math.abs(x * up.x + y * up.y + z * up.z) / tangent + depth,
-        );
-      }
+  for (const subject of subjects)
+    for (const sx of [-subject.half.x, subject.half.x])
+      for (const sy of [-subject.half.y, subject.half.y])
+        for (const sz of [-subject.half.z, subject.half.z]) {
+          const x = subject.center.x + sx - bounds.center.x;
+          const y = subject.center.y + sy - bounds.center.y;
+          const z = subject.center.z + sz - bounds.center.z;
+          const depth = x * direction.x + y * direction.y + z * direction.z;
+          distance = Math.max(
+            distance,
+            Math.abs(x * right.x + z * right.z) /
+              (tangent * Math.max(0.2, aspect)) +
+              depth,
+            Math.abs(x * up.x + y * up.y + z * up.z) / tangent + depth,
+          );
+        }
   distance *= 1.18;
   return {
     target: { ...bounds.center },
@@ -72,6 +77,33 @@ export function fittedPose(
   };
 }
 
+export function fittedLandscapePose(
+  wells: Well[],
+  aspect: number,
+  azimuth = 0.18,
+  elevation = 0.95,
+): CameraPose {
+  const bounds = landscapeBounds(wells);
+  const subjects = wells
+    .filter((well) => well.kind === "host")
+    .map((well) => ({
+      center: { x: well.x, y: 0, z: well.z },
+      half: {
+        x: well.radius * Math.max(1, well.aspect) * 1.7,
+        y: 5,
+        z: well.radius * Math.max(1, well.aspect) * 1.7,
+      },
+    }));
+  // Fit occupied host footprints, rather than empty corners of the aggregate box.
+  return fittedPose(
+    bounds,
+    aspect,
+    azimuth,
+    elevation,
+    subjects.length ? subjects : [bounds],
+  );
+}
+
 export function presentationPose(
   wells: Well[],
   aspect: number,
@@ -81,8 +113,8 @@ export function presentationPose(
 ): CameraPose {
   const bounds = landscapeBounds(wells);
   const azimuth = startAzimuth + time * (tour ? 0.045 : 0.025);
-  const wide = fittedPose(
-    bounds,
+  const wide = fittedLandscapePose(
+    wells,
     aspect,
     azimuth,
     tour ? 0.23 : 0.23 + Math.sin(time * 0.08) * 0.025,

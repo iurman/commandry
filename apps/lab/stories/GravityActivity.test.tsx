@@ -9,9 +9,105 @@ import {
 import {
   transferPoint,
   transferMatchesSelection,
+  arrivalEffects,
+  ActivityRenderer,
 } from "./gravity/activity-renderer";
+import { initialPalette } from "./gravity/model";
+import { featuredTransfer } from "./gravity/ActivityCaption";
 
 describe("operational activity simulation", () => {
+  it("retraces the request corridor in reverse and draws no decorative detour at the endpoints", () => {
+    const simulation = new ActivitySimulation(fixtureHosts);
+    simulation.advance(2);
+    const flow = simulation
+      .snapshot()
+      .transfers.find((item) => item.kind === "request")!;
+    const response = {
+      ...flow,
+      from: flow.to,
+      to: flow.from,
+      phase: "response" as const,
+    };
+    for (const portrait of [false, true]) {
+      const wells = projectWells(
+        fixtureHosts,
+        "hosts",
+        {},
+        "services",
+        portrait,
+      );
+      for (const progress of [0, 0.01, 0.25, 0.5, 0.9, 1]) {
+        const outbound = transferPoint(flow, progress, wells)!;
+        const inbound = transferPoint(response, 1 - progress, wells)!;
+        for (const axis of ["x", "y", "z"] as const)
+          expect(inbound[axis]).toBeCloseTo(outbound[axis], 8);
+      }
+    }
+  });
+  it("emits bounded receiving feedback only from completed evidence and keeps geometry within its allocated buffers", () => {
+    const simulation = new ActivitySimulation(
+      [...fixtureHosts, arrivalHost],
+      "incident",
+    );
+    const wells = projectWells([...fixtureHosts, arrivalHost], "hosts", {});
+    const renderer = new ActivityRenderer();
+    let received = false,
+      failed = false;
+    for (let index = 0; index < 100; index++) {
+      simulation.advance(0.5);
+      const snapshot = simulation.snapshot();
+      const effects = arrivalEffects(snapshot);
+      for (const event of effects) {
+        expect(event.at).toBeLessThanOrEqual(snapshot.time);
+        expect(snapshot.time - event.at).toBeLessThan(1.4);
+        if (event.effect === "failure") {
+          failed = true;
+          expect(event.outcome).toBe("timeout");
+        } else {
+          received = true;
+          expect(event.outcome).not.toBe("timeout");
+        }
+      }
+      renderer.update(
+        snapshot,
+        wells,
+        initialPalette,
+        null,
+        null,
+        false,
+        0,
+        false,
+        true,
+      );
+      for (const object of renderer.group.children) {
+        const geometry = (object as import("three").Mesh).geometry;
+        expect(geometry.drawRange.count).toBeLessThanOrEqual(
+          geometry.attributes.position!.count,
+        );
+        for (const attribute of Object.values(geometry.attributes))
+          expect(Array.from(attribute.array).every(Number.isFinite)).toBe(true);
+      }
+    }
+    expect(received && failed).toBe(true);
+    renderer.dispose();
+  });
+  it("explains the active build stage and never replaces a selected settled trace with unrelated traffic", () => {
+    const simulation = new ActivitySimulation(fixtureHosts, "build");
+    simulation.advance(6);
+    const snapshot = simulation.snapshot();
+    const featured = featuredTransfer(snapshot, null)!;
+    expect(featured).toMatchObject({ kind: "job", phase: "processing" });
+    expect(featuredTransfer(snapshot, featured.correlationId)?.id).toBe(
+      featured.id,
+    );
+    simulation.advance(10);
+    expect(
+      featuredTransfer(
+        simulation.snapshot(featured.correlationId),
+        featured.correlationId,
+      ),
+    ).toBeUndefined();
+  });
   it("keeps a complete build trace after it leaves the recent feed and returns the result to its requester", () => {
     const simulation = new ActivitySimulation(fixtureHosts);
     simulation.advance(2);

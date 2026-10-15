@@ -12,9 +12,9 @@ type State = { x: number; y: number; opacity: number };
 type Separation = { axis: "x" | "y"; direction: number };
 
 // Labels belong to the structural crest, not the animated floor or a neighbour.
-export function labelHeight(well: Well) {
+export function labelHeight(well: Well, parent?: Well) {
   return (
-    surfaceHeight(well.x, well.z, []) +
+    surfaceHeight(well.x, well.z, parent ? [parent] : []) +
     well.elevation +
     well.radius * 0.13 +
     0.8

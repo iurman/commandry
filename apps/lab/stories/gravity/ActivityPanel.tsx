@@ -146,8 +146,9 @@ export function ActivityPanel({
         <span>{flows.length} active</span>
       </div>
       <p className="gravity-simulation-note">
-        Dotted: checks. Blue: requests. Violet: jobs. Gold: artifacts. Color and
-        result labels identify delayed or failed transfers.
+        A pulse sends a packet; a ripple confirms arrival. Replies retrace the
+        request. Dotted: checks. Blue: requests. Violet rings: build progress.
+        Gold bundles: artifacts. Broken red ripples mark timeouts.
       </p>
       {flows.length === 0 ? (
         <p className="gravity-simulation-note gravity-transfers-empty">

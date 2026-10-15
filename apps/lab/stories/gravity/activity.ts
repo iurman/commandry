@@ -38,6 +38,7 @@ export type ActivityEvent = {
   kind: Transfer["kind"];
   outcome: Outcome;
   summary: string;
+  effect: "arrival" | "failure" | null;
 };
 export type ActivitySnapshot = {
   time: number;
@@ -220,11 +221,16 @@ export class ActivitySimulation {
               : kind === "job"
                 ? `Job dispatched${attempt > 1 ? `, retry ${attempt - 1}` : ""}`
                 : `${kind === "artifact" ? "Artifact" : "Request"} dispatched${count > 1 ? ` (${count} grouped)` : ""}`,
+        phase === "processing" ? "arrival" : null,
       );
     }
   }
 
-  private record(flow: Transfer, summary: string) {
+  private record(
+    flow: Transfer,
+    summary: string,
+    effect: ActivityEvent["effect"] = null,
+  ) {
     this.events.unshift({
       id: `event-${++this.totalEvents}`,
       at: this.time,
@@ -234,6 +240,7 @@ export class ActivitySimulation {
       kind: flow.kind,
       outcome: flow.outcome,
       summary,
+      effect,
     });
     this.events = this.events.filter((event) => event.at >= this.time - 120);
   }
@@ -288,7 +295,7 @@ export class ActivitySimulation {
     for (const flow of finished) {
       if (flow.kind === "probe") {
         if (flow.phase === "response") {
-          this.record(flow, "Health response received");
+          this.record(flow, "Health response received", "arrival");
           continue;
         }
         const host = this.hosts.find((item) =>
@@ -341,7 +348,11 @@ export class ActivitySimulation {
               flow.correlationId,
               "response",
             );
-          this.record(flow, "Health batch completed");
+          this.record(
+            flow,
+            "Health batch completed",
+            flow.outcome === "timeout" ? "failure" : "arrival",
+          );
         }
         continue;
       }
@@ -350,6 +361,7 @@ export class ActivitySimulation {
         this.record(
           flow,
           flow.kind === "job" ? "Job timed out" : "Request timed out",
+          "failure",
         );
         if (flow.attempt < 3)
           this.launch(
@@ -377,7 +389,7 @@ export class ActivitySimulation {
         );
       } else if (flow.kind === "job" && flow.phase === "processing") {
         this.jobs++;
-        this.record(flow, "Build completed; artifact ready");
+        this.record(flow, "Build completed; artifact ready", "arrival");
         this.launch(
           flow.to,
           "maia/NAS",
@@ -398,6 +410,7 @@ export class ActivitySimulation {
             : flow.outcome === "slow"
               ? "Slow request completed"
               : `${flow.count > 1 ? `${flow.count} grouped requests` : "Request"} completed`,
+          "arrival",
         );
         this.launch(
           flow.to,
@@ -407,7 +420,7 @@ export class ActivitySimulation {
           flow.correlationId,
           "response",
         );
-      } else this.record(flow, "Response received");
+      } else this.record(flow, "Response received", "arrival");
     }
   }
 }

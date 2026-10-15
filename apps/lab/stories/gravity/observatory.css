@@ -270,6 +270,94 @@
   font-size: 9px;
   background: var(--gravity-panel);
 }
+.gravity-activity-caption {
+  --activity-tint: #53b5e2;
+}
+.gravity-study .gravity-activity-bar .gravity-activity-caption {
+  flex: 0 0 100%;
+  max-width: 370px;
+  min-height: 98px;
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  justify-content: center;
+  gap: 3px;
+  padding: 8px 12px;
+  border: 0;
+  border-left: 2px solid var(--activity-tint);
+  border-radius: 0;
+  background: transparent;
+  text-align: left;
+  letter-spacing: 0.3px;
+}
+.gravity-activity-caption[data-kind="job"] {
+  --activity-tint: #bb97e4;
+}
+.gravity-activity-caption[data-kind="artifact"] {
+  --activity-tint: #d4af6d;
+}
+.gravity-activity-caption[data-kind="probe"] {
+  --activity-tint: var(--gravity-reporting);
+}
+.gravity-activity-caption[data-outcome="slow"] {
+  --activity-tint: var(--gravity-warning);
+}
+.gravity-activity-caption[data-outcome="timeout"] {
+  --activity-tint: var(--gravity-unhealthy);
+}
+.gravity-activity-caption > span:first-child {
+  color: var(--activity-tint);
+  font-size: 8px;
+  letter-spacing: 1px;
+}
+.gravity-activity-caption small {
+  color: var(--gravity-muted);
+  font-size: inherit;
+}
+.gravity-activity-caption strong {
+  color: var(--gravity-text);
+  font-size: 12px;
+  font-weight: 500;
+}
+.gravity-caption-route {
+  color: var(--gravity-muted);
+  font-size: 9px;
+}
+.gravity-caption-stages {
+  display: flex;
+  gap: 14px;
+  margin-top: 4px;
+  color: var(--gravity-muted);
+  font-size: 8px;
+}
+.gravity-caption-stages > span {
+  border-bottom: 1px solid var(--gravity-line);
+  padding-bottom: 3px;
+}
+.gravity-caption-stages > [data-current="true"] {
+  color: var(--gravity-text);
+  border-color: var(--activity-tint);
+}
+.gravity-caption-stages > [data-complete="true"] {
+  color: var(--activity-tint);
+}
+@media (max-width: 700px) {
+  .gravity-study .gravity-activity-bar .gravity-activity-caption {
+    min-height: 44px;
+    padding: 4px 8px;
+    gap: 2px;
+  }
+  .gravity-activity-caption > span:first-child,
+  .gravity-activity-caption .gravity-caption-stages {
+    display: none;
+  }
+  .gravity-activity-caption strong {
+    font-size: 10px;
+  }
+  .gravity-caption-route {
+    font-size: 8px;
+  }
+}
 .gravity-activity {
   margin-top: 24px;
   border-top: 1px solid var(--gravity-line);

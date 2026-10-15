@@ -29,6 +29,9 @@ The refined study defaults to service-count sizing, with RAM capacity and
 uniform sizing in Settings. Host profiles vary the well proportions and raised
 terrain. Composed frames the complete layout, Slow orbit circles it, and Guided
 tour approaches each host in turn. Dragging interrupts automatic cameras.
+Hosts form an irregular two-dimensional cluster in both narrow and wide views.
+New arrivals find free space without moving existing hosts. The camera fits
+occupied footprints rather than empty corners around the cluster.
 Ambient field controls decorative floor waves, light sweeps and star shimmer;
 it is independent of event activity. Disable it for a still composed field, or
 Pause motion to freeze the atmosphere, events and automatic camera together.
@@ -52,11 +55,15 @@ atmosphere; Step +5s, Restart, and 0.5x through 4x speed support inspection.
 Global Pause motion freezes the simulation too. Stepping remains available with
 reduced motion. Hidden/offscreen scenes freeze their synthetic clock.
 
-Dotted streams are grouped health checks, blue streams are requests, violet
-orbits are running jobs, and gold streams carry artifacts. Return streams have
-the reverse direction. Slow and timed-out transfers use attention colors plus
-explicit result labels. Bursts group requests into counted streams. Health
-starts unknown and changes only after checks complete, independently of fixture
+Dotted packets are quiet grouped health checks. Blue packets carry requests,
+violet progress rings fill around the host running a build, and gold bundles
+carry artifacts. A source pulse marks dispatch and a receiving ripple confirms
+arrival. Replies retrace their request's corridor in reverse. Timed-out packets
+stall and fade, followed by a broken failure ripple. A scene caption identifies
+the current route and build stage; click it to inspect that trace. Slow and
+timed-out transfers also have explicit result labels. Bursts group requests
+into counted streams. Health starts unknown and changes only after checks
+complete, independently of fixture
 memory and disk utilization.
 
 Select a transfer or timeline event to follow its correlation chain across

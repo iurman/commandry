@@ -12,7 +12,7 @@ import {
   skyVertex,
   skyFragment,
 } from "./materials";
-import { fittedPose, landscapeBounds, presentationPose } from "./presentation";
+import { fittedLandscapePose, presentationPose } from "./presentation";
 import { LabelLayout, labelHeight } from "./labels";
 
 export type RenderStats = {
@@ -348,8 +348,8 @@ export class ObservatoryRenderer {
   }
 
   preset(preset: "overview" | "top" | "angle") {
-    const pose = fittedPose(
-      landscapeBounds(this.targets),
+    const pose = fittedLandscapePose(
+      this.targets,
       this.camera.aspect,
       preset === "angle" ? -0.65 : 0.18,
       preset === "top" ? 1.55 : preset === "angle" ? 0.72 : 0.95,
@@ -644,6 +644,7 @@ export class ObservatoryRenderer {
         this.elapsed,
         this.settings.ambient,
         this.settings.theme === "midnight",
+        this.renderer.getPixelRatio(),
       );
       this.renderer.info.reset();
       this.renderer.setRenderTarget(null);
@@ -679,6 +680,15 @@ export class ObservatoryRenderer {
     this.frame = requestAnimationFrame(this.animate);
   };
 
+  private anchorHeight(well: Well) {
+    return labelHeight(
+      well,
+      well.kind === "service"
+        ? this.targets.find((target) => target.id === well.hostId)
+        : undefined,
+    );
+  }
+
   private publishAnchors(dt: number) {
     const anchors: Anchor[] = this.wells
       .filter(
@@ -693,7 +703,7 @@ export class ObservatoryRenderer {
         attention: well.attention,
         sector: well.sector,
         opacity: 0,
-        ...this.project(well.x, labelHeight(well), well.z),
+        ...this.project(well.x, this.anchorHeight(well), well.z),
       }));
     for (const anchor of anchors)
       if (anchor.kind === "project" && this.settings.focus)
@@ -715,9 +725,11 @@ export class ObservatoryRenderer {
       for (const well of this.wells.filter(
         (w) => w.kind === "service" && w.hostId === this.settings.selected,
       )) {
-        const p = new THREE.Vector3(well.x, labelHeight(well), well.z).project(
-          this.focusCamera,
-        );
+        const p = new THREE.Vector3(
+          well.x,
+          this.anchorHeight(well),
+          well.z,
+        ).project(this.focusCamera);
         anchors.push({
           id: `lens-${well.id}`,
           label: well.label,

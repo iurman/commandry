@@ -23,6 +23,7 @@ import {
   initialActivityControls,
 } from "./ActivityPanel";
 import type { ActivityControls } from "./ActivityPanel";
+import { ActivityCaption } from "./ActivityCaption";
 import "./observatory.css";
 
 function Icon({
@@ -559,6 +560,19 @@ export function GravityObservatory() {
               >
                 Clear {activityControls.trace}
               </button>
+            )}
+            {!error && (
+              <ActivityCaption
+                snapshot={activity}
+                trace={activityControls.trace}
+                inspect={(id, destination) => {
+                  setActivityControls((previous) => ({
+                    ...previous,
+                    trace: id,
+                  }));
+                  selectResource(destination);
+                }}
+              />
             )}
           </div>
           <div
