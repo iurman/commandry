@@ -147,6 +147,16 @@ test("map, list, evidence, project focus and wallboard work across themes and vi
     await expect(
       page.getByRole("button", { name: "TV style" }),
     ).toHaveAttribute("aria-pressed", "true");
+    const labelsFit = await page
+      .locator(".cmd-network-node strong")
+      .evaluateAll((labels) =>
+        labels.every(
+          (label) =>
+            label.getBoundingClientRect().height >=
+            parseFloat(getComputedStyle(label).lineHeight) - 1,
+        ),
+      );
+    expect(labelsFit).toBe(true);
     await page
       .getByRole("button", { name: "Pause updates", exact: true })
       .click();

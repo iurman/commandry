@@ -3938,3 +3938,24 @@ textarea {
     font-size: 0.7rem;
   }
 }
+
+/* Keep labels at their full line height in narrow wallboard panels. */
+.cmd-network-node > * {
+  flex-shrink: 0;
+  line-height: 1.1;
+}
+.cmd-network-wallboard .cmd-network-node {
+  height: 74px;
+  padding: 0.35rem 0.7rem;
+  gap: 0.15rem;
+}
+.cmd-network-wallboard .cmd-network-node svg {
+  width: 16px;
+  height: 16px;
+}
+.cmd-network-wallboard .cmd-network-node strong {
+  font-size: 1.1rem;
+}
+.cmd-network-wallboard .cmd-network-node-kind {
+  font-size: 0.68rem;
+}

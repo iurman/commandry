@@ -119,6 +119,15 @@ The screenshot below is from that local 1920x1080 test.
 | Refresh failure test   | Next's route announcer also uses `role=alert`.               | Scope the assertion to the actual delayed-refresh message; all three viewport checks pass.          |
 | Dependency impact link | The existing impact view is an anchor on the resource page.  | Link to `#dependency-impact`, retaining the canonical resource route.                               |
 
+### Preview follow-up, 2026-10-15
+
+The owner's narrow in-app browser exposed vertically clipped node names.
+Preventing flex shrink on node labels and applying compact wallboard spacing at
+all widths corrected it. The production build and all nine overview browser
+checks passed again, now including a measured full-line-height assertion on node
+names in every configured viewport and theme. The owner requested merging and
+an interactive local preview; the preview is intentionally retained for review.
+
 ### Limits
 
 No production deployment, infrastructure change, source reconfiguration, or
