@@ -7,12 +7,18 @@ import {
   waitFor,
 } from "@testing-library/react";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
+import { PerspectiveCamera, Vector3 } from "three";
 import {
   arrivalHost,
   fixtureHosts,
   projectWells,
   surfaceHeight,
 } from "./gravity/model";
+import {
+  fittedPose,
+  landscapeBounds,
+  presentationPose,
+} from "./gravity/presentation";
 
 const mock = vi.hoisted(() => ({
   update: vi.fn(),
@@ -76,7 +82,7 @@ describe("gravity projection semantics", () => {
     expect(after.filter((w) => w.hostId === "atlas")).toHaveLength(3);
     const atlas = after.find((w) => w.id === "atlas")!;
     expect(surfaceHeight(atlas.x, atlas.z, after)).toBeLessThan(
-      surfaceHeight(atlas.x, atlas.z, before) - 2,
+      surfaceHeight(atlas.x, atlas.z, before) - 0.8,
     );
     expect(surfaceHeight(100, 100, after)).toBeCloseTo(
       surfaceHeight(100, 100, before),
@@ -154,7 +160,7 @@ describe("gravity study controls", () => {
     );
     fireEvent.click(screen.getByRole("button", { name: "Inspect Titan" }));
     expect(screen.getByRole("heading", { name: "Titan" })).toBeTruthy();
-    expect(screen.getAllByText("Unknown")).toHaveLength(4);
+    expect(screen.getAllByText("Unknown")).toHaveLength(3);
     expect(
       (
         screen.getByRole("button", {
@@ -172,10 +178,129 @@ describe("gravity study controls", () => {
     render(<GravityObservatory />);
     expect(screen.getByRole("button", { name: "Resume motion" })).toBeTruthy();
     expect(
-      (screen.getByRole("button", { name: "Auto orbit" }) as HTMLButtonElement)
+      (screen.getByRole("button", { name: "Slow orbit" }) as HTMLButtonElement)
         .disabled,
     ).toBe(true);
     fireEvent.click(screen.getByRole("button", { name: "Top" }));
     expect(mock.preset).toHaveBeenCalledWith("top");
+  });
+});
+
+describe("observatory presentation", () => {
+  it("uses service count by default and supports capacity sizing without changing identity", () => {
+    const services = projectWells(fixtureHosts, "hosts", {});
+    const ram = projectWells(
+      [...fixtureHosts, arrivalHost],
+      "hosts",
+      {},
+      "capacity",
+    );
+    expect(
+      services.find((well) => well.id === "pleiades")!.radius,
+    ).toBeGreaterThan(services.find((well) => well.id === "titan")!.radius);
+    const compute = services.find((well) => well.id === "pleiades")!;
+    const storage = services.find((well) => well.id === "maia")!;
+    expect(compute.radius ** 2 * compute.aspect).toBeGreaterThan(
+      storage.radius ** 2 * storage.aspect,
+    );
+    expect(ram.find((well) => well.id === "atlas")!.radius).toBeGreaterThan(
+      ram.find((well) => well.id === "electra")!.radius,
+    );
+    const hosts = services.filter((well) => well.kind === "host");
+    expect(new Set(hosts.map((well) => well.aspect)).size).toBeGreaterThan(1);
+    for (let i = 0; i < hosts.length; i++)
+      for (let j = i + 1; j < hosts.length; j++) {
+        const a = hosts[i]!,
+          b = hosts[j]!;
+        expect(Math.hypot(a.x - b.x, a.z - b.z)).toBeGreaterThanOrEqual(
+          (a.radius * Math.max(1, a.aspect) +
+            b.radius * Math.max(1, b.aspect)) *
+            1.75,
+        );
+      }
+  });
+  it("fits the complete landscape in portrait and wide views throughout orbit", () => {
+    const wells = projectWells(
+      [...fixtureHosts, arrivalHost],
+      "hosts",
+      {},
+      "capacity",
+    );
+    const bounds = landscapeBounds(wells);
+    for (const aspect of [0.5, 1, 2.3])
+      for (const elevation of [0.28, 0.95])
+        for (let azimuth = 0; azimuth < Math.PI * 2; azimuth += Math.PI / 4) {
+          const pose = fittedPose(bounds, aspect, azimuth, elevation);
+          const camera = new PerspectiveCamera(40, aspect, 0.1, 500);
+          camera.position.set(
+            pose.position.x,
+            pose.position.y,
+            pose.position.z,
+          );
+          camera.lookAt(pose.target.x, pose.target.y, pose.target.z);
+          camera.updateMatrixWorld();
+          for (const x of [-bounds.half.x, bounds.half.x])
+            for (const y of [-bounds.half.y, bounds.half.y])
+              for (const z of [-bounds.half.z, bounds.half.z]) {
+                const point = new Vector3(
+                  bounds.center.x + x,
+                  y,
+                  bounds.center.z + z,
+                ).project(camera);
+                expect(Math.abs(point.x)).toBeLessThan(0.95);
+                expect(Math.abs(point.y)).toBeLessThan(0.95);
+              }
+        }
+  });
+  it("visits every host and crosses tour handoffs without a camera jump", () => {
+    const wells = projectWells(fixtureHosts, "hosts", {});
+    const visited = new Set(
+      fixtureHosts.map(
+        (_, index) =>
+          presentationPose(wells, 1.5, (index + 0.5) * 14, true).featured,
+      ),
+    );
+    expect(visited).toEqual(new Set(fixtureHosts.map((host) => host.id)));
+    const before = presentationPose(wells, 1.5, 14 - 0.0001, true);
+    const after = presentationPose(wells, 1.5, 14 + 0.0001, true);
+    expect(
+      Math.hypot(
+        before.position.x - after.position.x,
+        before.position.y - after.position.y,
+        before.position.z - after.position.z,
+      ),
+    ).toBeLessThan(0.01);
+    expect(
+      Math.hypot(
+        before.target.x - after.target.x,
+        before.target.z - after.target.z,
+      ),
+    ).toBeLessThan(0.01);
+  });
+  it("keeps ambient waves bounded and exposes deliberate controls for presentation", () => {
+    const wells = projectWells(fixtureHosts, "hosts", {});
+    for (const time of [0, 30, 300])
+      expect(
+        Math.abs(
+          surfaceHeight(0, 0, wells, time, 1) -
+            surfaceHeight(0, 0, wells, time, 0),
+        ),
+      ).toBeLessThanOrEqual(0.055);
+    render(<GravityObservatory />);
+    expect(mock.update.mock.lastCall?.[1].cameraMode).toBe("composed");
+    fireEvent.click(screen.getByRole("button", { name: "Guided tour" }));
+    expect(mock.update.mock.lastCall?.[1].cameraMode).toBe("tour");
+    fireEvent.click(screen.getByRole("button", { name: "Pause motion" }));
+    expect(mock.update.mock.lastCall?.[1].motion).toBe(false);
+    expect(mock.update.mock.lastCall?.[1].cameraMode).toBe("tour");
+    fireEvent.click(
+      screen.getByRole("button", { name: "Observatory settings" }),
+    );
+    fireEvent.change(screen.getByRole("combobox", { name: "Well size" }), {
+      target: { value: "capacity" },
+    });
+    fireEvent.click(screen.getByRole("checkbox", { name: "Ambient field" }));
+    expect(mock.update.mock.lastCall?.[1].ambient).toBe(false);
+    expect(screen.getByRole("main").getAttribute("data-size")).toBe("capacity");
   });
 });

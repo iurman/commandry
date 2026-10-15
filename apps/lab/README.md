@@ -25,6 +25,14 @@ Settings expose Porcelain/Midnight materials, sector and signal colors, custom
 sector assignments, and device-local save/restore. Pause motion freezes the
 simulation while leaving inspection and camera presets available.
 
+The refined study defaults to service-count sizing, with RAM capacity and
+uniform sizing in Settings. Host profiles vary the well proportions and raised
+terrain. Composed frames the complete layout, Slow orbit circles it, and Guided
+tour approaches each host in turn. Dragging interrupts automatic cameras.
+Ambient field controls decorative floor waves, light sweeps and star shimmer;
+it is independent of event activity. Disable it for a still composed field, or
+Pause motion to freeze the atmosphere, events and automatic camera together.
+
 The [renderer investigation](../../docs/research/gravity-observatory.md) records
 the implementation choice, verification, and limits. This is a finite material
 and interaction study, not production-scale monitoring or a public lab build.

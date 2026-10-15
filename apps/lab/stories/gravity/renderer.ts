@@ -1,7 +1,15 @@
 import * as THREE from "three";
 import { OrbitControls } from "three/addons/controls/OrbitControls.js";
-import { sectors, surfaceHeight } from "./model";
-import type { Palette, SurfaceTheme, Well } from "./model";
+import { surfaceHeight } from "./model";
+import type { CameraMode, Palette, SurfaceTheme, Well } from "./model";
+import {
+  capacity,
+  terrainVertex,
+  terrainFragment,
+  skyVertex,
+  skyFragment,
+} from "./materials";
+import { fittedPose, landscapeBounds, presentationPose } from "./presentation";
 
 export type RenderStats = {
   fps: number;
@@ -23,7 +31,8 @@ type Settings = {
   theme: SurfaceTheme;
   palette: Palette;
   motion: boolean;
-  orbit: boolean;
+  cameraMode: CameraMode;
+  ambient: boolean;
   selected: string | null;
   focus: boolean;
 };
@@ -33,100 +42,13 @@ type Hooks = {
   select: (id: string) => void;
   interrupted: () => void;
   unavailable: (message: string) => void;
+  viewport: (portrait: boolean) => void;
 };
-
-const capacity = 64;
-const field = `
-uniform vec4 uWells[${capacity}];
-uniform vec3 uColors[${capacity}];
-uniform float uAttention[${capacity}];
-uniform int uCount;
-float heightAt(vec2 p) {
-  float h = sin(p.x * 0.32 + p.y * 0.17) * 0.035 + cos(p.y * 0.42 - p.x * 0.12) * 0.02;
-  for (int i = 0; i < ${capacity}; i++) {
-    if (i >= uCount) break;
-    vec4 w = uWells[i];
-    float r2 = dot(p - w.xy, p - w.xy) / (w.z * w.z);
-    h -= w.w * exp(-r2 * 1.5);
-    h += 0.13 * w.z * exp(-pow(sqrt(r2) - 1.05, 2.0) * 12.0) * min(1.0, w.w);
-  }
-  return h;
-}`;
-const vertexShader = `${field}
-varying vec3 vWorld;
-varying vec3 vColor;
-varying float vRim;
-varying float vAlert;
-varying float vDash;
-void main() {
-  vec3 p = position;
-  p.y = heightAt(p.xz);
-  vWorld = p;
-  vec3 tint = vec3(0.25, 0.55, 0.8) * 0.04;
-  float weight = 0.04;
-  vRim = 0.0; vAlert = 0.0; vDash = 0.0;
-  for (int i = 0; i < ${capacity}; i++) {
-    if (i >= uCount) break;
-    vec4 w = uWells[i];
-    vec2 d = p.xz - w.xy;
-    float r = length(d) / w.z;
-    float influence = exp(-r * r * 0.55) * min(1.0, w.w);
-    tint += uColors[i] * influence;
-    weight += influence;
-    float rim = exp(-pow((r - 1.08) * 28.0, 2.0)) * min(1.0, w.w);
-    vRim = max(vRim, rim);
-    vAlert = max(vAlert, uAttention[i] * exp(-r * r * 0.25) * min(1.0, w.w));
-    vDash = max(vDash, rim * uAttention[i] * step(0.0, sin(atan(d.y, d.x) * 28.0)));
-  }
-  vColor = tint / weight;
-  gl_Position = projectionMatrix * modelViewMatrix * vec4(p, 1.0);
-}`;
-const fragmentShader = `
-uniform float uNight;
-uniform vec3 uWarning;
-uniform vec3 uReporting;
-uniform float uContour;
-uniform vec2 uSelection;
-uniform float uSelected;
-varying vec3 vWorld;
-varying vec3 vColor;
-varying float vRim;
-varying float vAlert;
-varying float vDash;
-void main() {
-  vec3 normal = normalize(cross(dFdx(vWorld), dFdy(vWorld)));
-  if (normal.y < 0.0) normal = -normal;
-  vec3 light = normalize(vec3(-0.5, 1.0, 0.65));
-  float diffuse = max(dot(normal, light), 0.0);
-  float depth = clamp(-vWorld.y / 3.6, 0.0, 1.0);
-  vec3 color = mix(vec3(0.94, 0.945, 0.93), vec3(0.012, 0.025, 0.041), uNight);
-  vec3 core = mix(vec3(0.012, 0.105, 0.29), vColor * 0.18, 0.25);
-  color = mix(color, core, smoothstep(0.0, 0.77, depth));
-  color *= 0.40 + diffuse * 0.65;
-  color += vColor * exp(-pow((depth - 0.28) * 9.0, 2.0)) * mix(0.03, 0.10, uNight);
-  float band = vWorld.y * 13.5;
-  float contour = 1.0 - smoothstep(0.0, max(fwidth(band) * 1.2, 0.045), abs(fract(band - 0.5) - 0.5));
-  vec3 ink = mix(vColor * 0.30, vColor * 0.9, uNight);
-  color = mix(color, ink, contour * uContour * mix(0.72, 0.83, uNight) * smoothstep(0.02, 0.28, -vWorld.y));
-  vec2 grid = abs(fract(vWorld.xz * 1.0 - 0.5) - 0.5) / max(fwidth(vWorld.xz), vec2(0.001));
-  float line = 1.0 - min(min(grid.x, grid.y), 1.0);
-  color = mix(color, mix(vec3(0.49, 0.58, 0.62), vec3(0.16, 0.23, 0.28), uNight), line * 0.12);
-  vec3 rimColor = mix(mix(vColor, uReporting, 0.25), uWarning, smoothstep(0.15, 0.55, vAlert));
-  color += rimColor * vRim * mix(0.24, 0.65, uNight);
-  color = mix(color, uWarning * 1.2, vDash * 0.9);
-  float selection = exp(-pow((length(vWorld.xz - uSelection) - 3.45) * 12.0, 2.0)) * uSelected;
-  color += vec3(0.15, 0.43, 0.62) * selection * 0.6;
-  float distanceFade = smoothstep(20.0, 32.0, length(vWorld.xz));
-  color = mix(color, mix(vec3(0.95, 0.95, 0.935), vec3(0.025, 0.045, 0.07), uNight), distanceFade);
-  gl_FragColor = vec4(color, 1.0);
-  #include <tonemapping_fragment>
-  #include <colorspace_fragment>
-}`;
 
 export class ObservatoryRenderer {
   private renderer: THREE.WebGLRenderer;
   private scene = new THREE.Scene();
-  private camera = new THREE.PerspectiveCamera(40, 1, 0.1, 300);
+  private camera = new THREE.PerspectiveCamera(40, 1, 0.1, 500);
   private controls: OrbitControls;
   private geometry = new THREE.PlaneGeometry(68, 58, 400, 340).rotateX(
     -Math.PI / 2,
@@ -141,20 +63,42 @@ export class ObservatoryRenderer {
     uColors: {
       value: Array.from({ length: capacity }, () => new THREE.Color()),
     },
+    uShapes: {
+      value: Array.from(
+        { length: capacity },
+        () => new THREE.Vector4(1, 0, 0, 1),
+      ),
+    },
     uAttention: { value: new Float32Array(capacity) },
     uCount: { value: 0 },
     uNight: { value: 0 },
     uWarning: { value: new THREE.Color() },
     uReporting: { value: new THREE.Color() },
-    uContour: { value: 1 },
-    uSelection: { value: new THREE.Vector2() },
+    uTime: { value: 0 },
+    uAmbient: { value: 1 },
+    uSelection: { value: new THREE.Vector4(0, 0, 1, 1) },
+    uSelectedAngle: { value: 0 },
     uSelected: { value: 0 },
+    uFogStart: { value: 70 },
   };
   private material = new THREE.ShaderMaterial({
-    vertexShader,
-    fragmentShader,
+    vertexShader: terrainVertex,
+    fragmentShader: terrainFragment,
     uniforms: this.uniforms,
   });
+  private skyGeometry = new THREE.SphereGeometry(180, 32, 16);
+  private skyMaterial = new THREE.ShaderMaterial({
+    vertexShader: skyVertex,
+    fragmentShader: skyFragment,
+    uniforms: {
+      uNight: this.uniforms.uNight,
+      uTime: this.uniforms.uTime,
+      uAmbient: this.uniforms.uAmbient,
+    },
+    side: THREE.BackSide,
+    depthWrite: false,
+  });
+  private sky = new THREE.Mesh(this.skyGeometry, this.skyMaterial);
   private wells: Well[] = [];
   private targets: Well[] = [];
   private settings: Settings;
@@ -163,6 +107,9 @@ export class ObservatoryRenderer {
   private frame = 0;
   private previous = 0;
   private elapsed = 0;
+  private presentationElapsed = 0;
+  private presentationInterrupted = false;
+  private featuredId: string | null = null;
   private nextStats = 0;
   private frames: number[] = [];
   private lastAnchors = 0;
@@ -235,12 +182,14 @@ export class ObservatoryRenderer {
     this.controls.target.set(0, -0.6, 0);
     this.controls.enableDamping = false;
     this.controls.minDistance = 9;
-    this.controls.maxDistance = 90;
+    this.controls.maxDistance = 220;
     this.controls.minPolarAngle = 0.05;
-    this.controls.maxPolarAngle = Math.PI * 0.43;
-    this.controls.autoRotateSpeed = 0.32;
+    this.controls.maxPolarAngle = Math.PI * 0.44;
     this.controls.update();
     this.scene.add(new THREE.Mesh(this.geometry, this.material));
+    this.sky.renderOrder = -10;
+    this.sky.frustumCulled = false;
+    this.scene.add(this.sky);
     this.lensMaterial = new THREE.MeshBasicMaterial({
       map: this.target.texture,
       depthTest: false,
@@ -265,6 +214,7 @@ export class ObservatoryRenderer {
     };
     const start = () => {
       this.cameraTween = null;
+      this.presentationInterrupted = true;
       this.hooks.interrupted();
     };
     this.controls.addEventListener("change", change);
@@ -321,25 +271,36 @@ export class ObservatoryRenderer {
       throw new Error(
         `This finite study supports ${capacity} surface contributions; it does not truncate resources.`,
       );
+    const layoutChanged = wells !== this.targets;
+    const cameraChanged = settings.cameraMode !== this.settings.cameraMode;
     this.targets = wells;
     this.settings = settings;
-    this.controls.autoRotate = settings.orbit && settings.motion;
+    if (cameraChanged) {
+      this.presentationInterrupted = false;
+      this.presentationElapsed = 0;
+      this.featuredId = null;
+    }
+    if (settings.cameraMode === "composed" && (layoutChanged || cameraChanged))
+      this.preset("overview");
+    if (settings.cameraMode === "orbit" || settings.cameraMode === "tour")
+      this.cameraTween = null;
     this.uniforms.uWarning.value.set(settings.palette.attention);
     this.uniforms.uReporting.value.set(settings.palette.reporting);
     this.needsDraw = true;
   }
 
   preset(preset: "overview" | "top" | "angle") {
-    const positions = {
-      overview: new THREE.Vector3(9, 20, 26).multiplyScalar(this.fitScale()),
-      top: new THREE.Vector3(0, 33, 0.1).multiplyScalar(this.fitScale()),
-      angle: new THREE.Vector3(-20, 16, 25).multiplyScalar(this.fitScale()),
-    };
+    const pose = fittedPose(
+      landscapeBounds(this.targets),
+      this.camera.aspect,
+      preset === "angle" ? -0.65 : 0.18,
+      preset === "top" ? 1.55 : preset === "angle" ? 0.72 : 0.95,
+    );
     this.cameraTween = {
       from: this.camera.position.clone(),
-      to: positions[preset],
+      to: new THREE.Vector3(pose.position.x, pose.position.y, pose.position.z),
       targetFrom: this.controls.target.clone(),
-      targetTo: new THREE.Vector3(0, -0.6, 0),
+      targetTo: new THREE.Vector3(pose.target.x, pose.target.y, pose.target.z),
       time: 0,
     };
     this.needsDraw = true;
@@ -351,26 +312,19 @@ export class ObservatoryRenderer {
   }
 
   private resize() {
-    const previousScale = this.fitScale();
     this.width = Math.max(this.container.clientWidth, 1);
     this.height = Math.max(this.container.clientHeight, 1);
+    this.hooks.viewport(this.width / this.height < 0.9);
     this.renderer.setSize(this.width, this.height);
     this.camera.aspect = this.width / this.height;
-    this.camera.position
-      .sub(this.controls.target)
-      .multiplyScalar(this.fitScale() / previousScale)
-      .add(this.controls.target);
     this.camera.updateProjectionMatrix();
     this.overlayCamera.left = -this.width / 2;
     this.overlayCamera.right = this.width / 2;
     this.overlayCamera.top = this.height / 2;
     this.overlayCamera.bottom = -this.height / 2;
     this.overlayCamera.updateProjectionMatrix();
+    if (this.settings.cameraMode === "composed") this.preset("overview");
     this.needsDraw = true;
-  }
-
-  private fitScale() {
-    return Math.max(0.85, Math.min(2, 1.15 / this.camera.aspect));
   }
 
   private pick(e: PointerEvent) {
@@ -389,7 +343,7 @@ export class ObservatoryRenderer {
     for (const well of this.wells.filter((w) => w.kind !== "service")) {
       const p = this.project(
         well.x,
-        surfaceHeight(well.x, well.z, this.wells) + 0.4,
+        this.heightAt(well.x, well.z) + 0.4,
         well.z,
       );
       const d = Math.hypot(p.x - x, p.y - y);
@@ -411,6 +365,16 @@ export class ObservatoryRenderer {
     };
   }
 
+  private heightAt(x: number, z: number) {
+    return surfaceHeight(
+      x,
+      z,
+      this.wells,
+      this.uniforms.uTime.value,
+      this.uniforms.uAmbient.value,
+    );
+  }
+
   private animate = (now: number) => {
     if (document.hidden || !this.visible || this.lost) return;
     const interval = this.previous ? now - this.previous : 1000 / 60;
@@ -418,6 +382,8 @@ export class ObservatoryRenderer {
     this.previous = now;
     const moving = this.settings.motion;
     if (moving) this.elapsed += dt;
+    this.uniforms.uTime.value = this.elapsed;
+    this.uniforms.uAmbient.value = this.settings.ambient ? 1 : 0;
     let changing = false;
     const factor = moving ? 1 - Math.exp(-dt * 4) : 1;
     const existing = new Map(this.wells.map((w) => [w.id, w]));
@@ -436,7 +402,16 @@ export class ObservatoryRenderer {
           radius: target.radius * 1.3,
         };
         const value = { ...target };
-        for (const key of ["x", "z", "radius", "depth"] as const) {
+        for (const key of [
+          "x",
+          "z",
+          "radius",
+          "depth",
+          "aspect",
+          "angle",
+          "elevation",
+          "profile",
+        ] as const) {
           value[key] = THREE.MathUtils.lerp(current[key], target[key], factor);
           if (Math.abs(value[key] - target[key]) > 0.002) changing = true;
           else value[key] = target[key];
@@ -453,6 +428,12 @@ export class ObservatoryRenderer {
         well.depth,
       );
       this.uniforms.uColors.value[i]!.set(this.settings.palette[well.sector]);
+      this.uniforms.uShapes.value[i]!.set(
+        well.aspect,
+        well.angle,
+        well.elevation,
+        well.profile,
+      );
       this.uniforms.uAttention.value[i] = well.attention ? 1 : 0;
     });
     const targetNight = this.settings.theme === "midnight" ? 1 : 0;
@@ -465,7 +446,15 @@ export class ObservatoryRenderer {
     changing ||= Math.abs(oldNight - targetNight) > 0.002;
     const selected = this.wells.find((w) => w.id === this.settings.selected);
     this.uniforms.uSelected.value = selected ? 1 : 0;
-    if (selected) this.uniforms.uSelection.value.set(selected.x, selected.z);
+    if (selected) {
+      this.uniforms.uSelection.value.set(
+        selected.x,
+        selected.z,
+        selected.radius,
+        selected.aspect,
+      );
+      this.uniforms.uSelectedAngle.value = selected.angle;
+    }
     const targetLens = this.settings.focus && selected ? 1 : 0;
     this.lensAmount = THREE.MathUtils.lerp(this.lensAmount, targetLens, factor);
     changing ||= Math.abs(this.lensAmount - targetLens) > 0.002;
@@ -488,12 +477,41 @@ export class ObservatoryRenderer {
       if (t === 1) this.cameraTween = null;
       changing = true;
     }
+    const automatic =
+      !this.presentationInterrupted &&
+      (this.settings.cameraMode === "orbit" ||
+        this.settings.cameraMode === "tour");
+    if (automatic && moving) {
+      this.presentationElapsed += dt;
+      const pose = presentationPose(
+        this.targets,
+        this.camera.aspect,
+        this.presentationElapsed,
+        this.settings.cameraMode === "tour",
+      );
+      const smoothing = 1 - Math.exp(-dt * 2.5);
+      this.camera.position.lerp(
+        new THREE.Vector3(pose.position.x, pose.position.y, pose.position.z),
+        smoothing,
+      );
+      this.controls.target.lerp(
+        new THREE.Vector3(pose.target.x, pose.target.y, pose.target.z),
+        smoothing,
+      );
+      if (pose.featured && pose.featured !== this.featuredId) {
+        this.featuredId = pose.featured;
+        this.hooks.select(pose.featured);
+      }
+      changing = true;
+    }
     this.controls.update(dt);
+    this.uniforms.uFogStart.value =
+      this.camera.position.distanceTo(this.controls.target) + 18;
     this.updateParticles();
     if (
       this.needsDraw ||
       changing ||
-      this.controls.autoRotate ||
+      (this.settings.ambient && moving) ||
       (this.event && moving)
     ) {
       this.renderer.info.reset();
@@ -501,6 +519,7 @@ export class ObservatoryRenderer {
       this.renderer.setClearColor(
         this.settings.theme === "midnight" ? 0x08101a : 0xf6f5f0,
       );
+      this.sky.position.copy(this.camera.position);
       this.renderer.render(this.scene, this.camera);
       if (this.lensAmount > 0.005 && selected) this.renderLens(selected);
       this.needsDraw = false;
@@ -531,8 +550,7 @@ export class ObservatoryRenderer {
       .filter(
         (w) =>
           this.targets.some((target) => target.id === w.id) &&
-          (w.kind !== "service" ||
-            (this.settings.selected === w.hostId && !this.settings.focus)),
+          w.kind !== "service",
       )
       .map((well) => ({
         id: well.id,
@@ -542,7 +560,8 @@ export class ObservatoryRenderer {
         sector: well.sector,
         ...this.project(
           well.x,
-          well.kind === "service" ? 0.5 : 0.8,
+          this.heightAt(well.x + well.radius * well.aspect * 0.85, well.z) +
+            (well.kind === "service" ? 0.5 : 1.1),
           well.kind === "project" ? well.z - 4.2 : well.z,
         ),
       }));
@@ -565,7 +584,7 @@ export class ObservatoryRenderer {
       )) {
         const p = new THREE.Vector3(
           well.x,
-          surfaceHeight(well.x, well.z, this.wells) + 0.3,
+          this.heightAt(well.x, well.z) + 0.5,
           well.z,
         ).project(this.focusCamera);
         anchors.push({
@@ -580,17 +599,33 @@ export class ObservatoryRenderer {
         });
       }
     }
-    for (const sector of this.wells.some((well) => well.kind === "project")
-      ? []
-      : sectors) {
-      anchors.push({
-        id: `label-${sector.id}`,
-        label: sector.label,
-        kind: "project",
-        attention: false,
-        sector: sector.id,
-        ...this.project(sector.center.x - 1, 0.3, sector.center.z - 4.8),
-      });
+    const occupied: { x: number; y: number; width: number; height: number }[] =
+      [];
+    for (const anchor of anchors
+      .filter((item) => item.visible)
+      .sort(
+        (a, b) => (a.kind === "host" ? 0 : 1) - (b.kind === "host" ? 0 : 1),
+      )) {
+      const width =
+        anchor.kind === "host" ? 108 : anchor.kind === "service" ? 72 : 100;
+      const height = anchor.kind === "host" ? 42 : 26;
+      anchor.x = Math.max(
+        width / 2 + 8,
+        Math.min(this.width - width / 2 - 8, anchor.x),
+      );
+      anchor.y = Math.max(70, Math.min(this.height - 110, anchor.y));
+      for (
+        let attempt = 0;
+        attempt < 6 &&
+        occupied.some(
+          (box) =>
+            Math.abs(anchor.x - box.x) < (width + box.width) / 2 + 4 &&
+            Math.abs(anchor.y - box.y) < (height + box.height) / 2 + 4,
+        );
+        attempt++
+      )
+        anchor.y = Math.max(65, anchor.y - 22);
+      occupied.push({ x: anchor.x, y: anchor.y, width, height });
     }
     this.hooks.anchors(anchors);
   }
@@ -600,17 +635,23 @@ export class ObservatoryRenderer {
   }
 
   private renderLens(selected: Well) {
-    const center = new THREE.Vector3(selected.x, -0.5, selected.z);
+    const center = new THREE.Vector3(selected.x, 0.4, selected.z);
     const direction = this.camera.position
       .clone()
       .sub(this.controls.target)
       .normalize();
     this.focusCamera.position
       .copy(center)
-      .addScaledVector(direction, selected.kind === "project" ? 17 : 14);
+      .addScaledVector(
+        direction,
+        selected.kind === "project"
+          ? 22
+          : Math.max(10, selected.radius * Math.max(1, selected.aspect) * 5),
+      );
     this.focusCamera.lookAt(center);
     this.focusCamera.updateMatrixWorld();
     this.renderer.setRenderTarget(this.target);
+    this.sky.position.copy(this.focusCamera.position);
     this.renderer.render(this.scene, this.focusCamera);
     this.renderer.setRenderTarget(null);
     const radius = this.lensRadius() * this.lensAmount;
@@ -643,8 +684,7 @@ export class ObservatoryRenderer {
       const x = destination.x + Math.cos(angle) * radius;
       const z = destination.z + Math.sin(angle) * radius;
       this.positions[i * 3] = x;
-      this.positions[i * 3 + 1] =
-        surfaceHeight(x, z, this.wells) + 0.14 + (1 - t) * 0.3;
+      this.positions[i * 3 + 1] = this.heightAt(x, z) + 0.14 + (1 - t) * 0.3;
       this.positions[i * 3 + 2] = z;
     }
     this.particlesGeometry.attributes.position!.needsUpdate = true;
@@ -660,6 +700,8 @@ export class ObservatoryRenderer {
     this.controls.dispose();
     this.geometry.dispose();
     this.material.dispose();
+    this.skyGeometry.dispose();
+    this.skyMaterial.dispose();
     this.particlesGeometry.dispose();
     this.particlesMaterial.dispose();
     this.lensGeometry.dispose();

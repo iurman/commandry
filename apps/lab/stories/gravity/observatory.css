@@ -232,6 +232,10 @@
   border-radius: 4px;
   background: rgb(246 246 239 / 74%);
   box-shadow: 0 2px 20px rgb(242 243 238 / 35%);
+  transition:
+    left 120ms linear,
+    top 120ms linear,
+    opacity 120ms linear;
 }
 [data-theme="midnight"] .gravity-anchor {
   background: rgb(9 18 28 / 75%);
@@ -322,6 +326,7 @@
   background: var(--gravity-panel);
   border: 1px solid var(--gravity-line);
   box-shadow: 0 3px 25px rgb(17 36 45 / 6%);
+  max-width: calc(100% - 24px);
 }
 .gravity-camera-controls button {
   font-size: 10px;
@@ -330,6 +335,39 @@
 }
 .gravity-camera-controls button[aria-pressed="true"] {
   background: var(--gravity-button);
+}
+.gravity-control-separator {
+  align-self: stretch;
+  width: 1px;
+  background: var(--gravity-line);
+  margin: 5px 2px;
+}
+.gravity-size-select {
+  width: 100%;
+  padding: 9px;
+  border: 1px solid var(--gravity-line);
+  color: var(--gravity-text);
+  background: var(--gravity-bg);
+  border-radius: 4px;
+  font-size: 11px;
+}
+.gravity-ambient-toggle {
+  display: flex;
+  gap: 9px;
+  align-items: center;
+  font-size: 11px;
+}
+.gravity-ambient-toggle input {
+  accent-color: var(--gravity-commandry);
+}
+.gravity-sizing-note {
+  color: var(--gravity-muted);
+  font-size: 9px;
+  margin: -12px 0 18px;
+}
+.gravity-sizing-note span {
+  opacity: 0.6;
+  margin: 0 3px;
 }
 .gravity-camera-controls svg {
   width: 15px;
@@ -793,6 +831,11 @@
   flex: 1;
   font-size: 10px;
 }
+@media (prefers-reduced-motion: reduce) {
+  .gravity-study .gravity-anchor {
+    transition: none;
+  }
+}
 @media (min-width: 1700px) {
   .gravity-body {
     grid-template-columns: minmax(0, 1fr) 340px;
@@ -843,6 +886,17 @@
     padding: 5px 8px;
   }
   .gravity-camera-controls span {
+    display: none;
+  }
+  .gravity-camera-controls button:nth-child(-n + 3) span {
+    display: inline;
+    font-size: 9px;
+  }
+  .gravity-camera-controls button {
+    gap: 5px;
+    padding-inline: 6px;
+  }
+  .gravity-compass {
     display: none;
   }
   .gravity-compass {

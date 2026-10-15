@@ -6,7 +6,14 @@ import {
   projectWells,
   sectors,
 } from "./model";
-import type { Palette, SectorId, SurfaceTheme, ViewMode } from "./model";
+import type {
+  CameraMode,
+  SizeBasis,
+  Palette,
+  SectorId,
+  SurfaceTheme,
+  ViewMode,
+} from "./model";
 import { ObservatoryRenderer } from "./renderer";
 import type { Anchor, RenderStats } from "./renderer";
 import "./observatory.css";
@@ -94,7 +101,10 @@ export function GravityObservatory() {
   const [hosts, setHosts] = useState(fixtureHosts);
   const [selected, setSelected] = useState<string | null>("electra");
   const [focus, setFocus] = useState(false);
-  const [orbit, setOrbit] = useState(false);
+  const [cameraMode, setCameraMode] = useState<CameraMode>("composed");
+  const [sizeBasis, setSizeBasis] = useState<SizeBasis>("services");
+  const [ambient, setAmbient] = useState(true);
+  const [portrait, setPortrait] = useState(false);
   const [motion, setMotion] = useState(
     () => !window.matchMedia("(prefers-reduced-motion: reduce)").matches,
   );
@@ -107,16 +117,16 @@ export function GravityObservatory() {
   ]);
   const [saved, setSaved] = useState(false);
   const wells = useMemo(
-    () => projectWells(hosts, mode, assignments),
-    [hosts, mode, assignments],
+    () => projectWells(hosts, mode, assignments, sizeBasis, portrait),
+    [hosts, mode, assignments, sizeBasis, portrait],
   );
   const settings = useMemo(
-    () => ({ theme, palette, motion, orbit, selected, focus }),
-    [theme, palette, motion, orbit, selected, focus],
+    () => ({ theme, palette, motion, cameraMode, ambient, selected, focus }),
+    [theme, palette, motion, cameraMode, ambient, selected, focus],
   );
   const callbacks = useRef({
     select: (id: string) => setSelected(id),
-    interrupted: () => setOrbit(false),
+    interrupted: () => setCameraMode("manual"),
   });
 
   useEffect(() => {
@@ -129,6 +139,7 @@ export function GravityObservatory() {
         select: (id) => callbacks.current.select(id),
         interrupted: () => callbacks.current.interrupted(),
         unavailable: setError,
+        viewport: setPortrait,
       });
       renderer.current = instance;
     } catch {
@@ -155,7 +166,7 @@ export function GravityObservatory() {
     const change = () => {
       if (query.matches) {
         setMotion(false);
-        setOrbit(false);
+        setCameraMode("manual");
       }
     };
     query.addEventListener("change", change);
@@ -170,6 +181,11 @@ export function GravityObservatory() {
   const serviceCount = hosts.reduce((sum, h) => sum + h.services.length, 0);
   const addEvent = (message: string) =>
     setEvents((previous) => [message, ...previous].slice(0, 5));
+
+  function selectResource(id: string) {
+    setSelected(id);
+    if (cameraMode === "tour") setCameraMode("manual");
+  }
 
   function spawn() {
     if (hosts.some((h) => h.id === arrivalHost.id)) return;
@@ -187,7 +203,15 @@ export function GravityObservatory() {
     try {
       window.localStorage.setItem(
         "commandry.gravity-study.v1",
-        JSON.stringify({ mode, theme, palette, assignments }),
+        JSON.stringify({
+          mode,
+          theme,
+          palette,
+          assignments,
+          sizeBasis,
+          ambient,
+          cameraMode,
+        }),
       );
       setSaved(true);
       addEvent("View grouping and appearance saved on this device.");
@@ -209,6 +233,9 @@ export function GravityObservatory() {
         theme: SurfaceTheme;
         palette: Palette;
         assignments: Record<string, SectorId>;
+        sizeBasis?: SizeBasis;
+        ambient?: boolean;
+        cameraMode?: CameraMode;
       };
       if (
         !["hosts", "projects", "custom"].includes(data.mode) ||
@@ -228,6 +255,19 @@ export function GravityObservatory() {
       setTheme(data.theme);
       setPalette(data.palette);
       setAssignments(data.assignments);
+      setSizeBasis(
+        data.sizeBasis &&
+          ["services", "capacity", "uniform"].includes(data.sizeBasis)
+          ? data.sizeBasis
+          : "services",
+      );
+      setAmbient(data.ambient !== false);
+      setCameraMode(
+        data.cameraMode &&
+          ["composed", "orbit", "tour", "manual"].includes(data.cameraMode)
+          ? data.cameraMode
+          : "composed",
+      );
       addEvent("Saved study view restored.");
     } catch {
       addEvent(
@@ -243,6 +283,8 @@ export function GravityObservatory() {
       data-mode={mode}
       data-focused={focus}
       data-motion={motion}
+      data-camera={cameraMode}
+      data-size={sizeBasis}
       style={
         {
           "--gravity-commandry": palette.commandry,
@@ -299,6 +341,7 @@ export function GravityObservatory() {
               onClick={() => {
                 setMode(view);
                 setFocus(false);
+                setCameraMode("composed");
                 addEvent(`Landscape arranged by ${view}.`);
               }}
             >
@@ -330,7 +373,13 @@ export function GravityObservatory() {
                   : "YOUR ARRANGEMENT"}
             </span>
             <span>
-              Depth: structural <span className="gravity-divider">/</span>{" "}
+              Size:{" "}
+              {sizeBasis === "capacity"
+                ? "RAM capacity"
+                : sizeBasis === "services"
+                  ? "service count"
+                  : "uniform"}{" "}
+              <span className="gravity-divider">/</span>{" "}
               {mode === "hosts"
                 ? "Host wells + service satellites"
                 : "Sector basins + nested hosts"}
@@ -357,7 +406,9 @@ export function GravityObservatory() {
                     key={anchor.id}
                     className={`gravity-anchor gravity-anchor-${anchor.kind} ${anchor.attention ? "is-attention" : ""} ${selected === anchor.id ? "is-selected" : ""} ${focus && !anchor.id.startsWith("lens-") ? "is-background" : ""}`}
                     style={{ left: anchor.x, top: anchor.y }}
-                    onClick={() => setSelected(anchor.id.replace("lens-", ""))}
+                    onClick={() =>
+                      selectResource(anchor.id.replace("lens-", ""))
+                    }
                     aria-label={`Select ${anchor.label}`}
                   >
                     <span>{anchor.label}</span>
@@ -365,7 +416,9 @@ export function GravityObservatory() {
                       <small>
                         {anchor.attention
                           ? "! Needs attention"
-                          : "Source reporting"}
+                          : sectors.find(
+                              (sector) => sector.id === anchor.sector,
+                            )?.label}
                       </small>
                     )}
                   </button>
@@ -415,45 +468,57 @@ export function GravityObservatory() {
             role="group"
             aria-label="Camera controls"
           >
-            <button
-              aria-label="Overview"
-              onClick={() => {
-                setOrbit(false);
-                renderer.current?.preset("overview");
-              }}
-            >
-              <Icon name="focus" />
-              <span>Overview</span>
-            </button>
-            <button
-              aria-label="Top"
-              onClick={() => {
-                setOrbit(false);
-                renderer.current?.preset("top");
-              }}
-            >
-              <Icon name="top" />
-              <span>Top</span>
-            </button>
-            <button
-              aria-label="Angle"
-              onClick={() => {
-                setOrbit(false);
-                renderer.current?.preset("angle");
-              }}
-            >
-              <Icon name="orbit" />
-              <span>Angle</span>
-            </button>
-            <button
-              aria-label="Auto orbit"
-              aria-pressed={orbit}
-              disabled={!motion}
-              onClick={() => setOrbit(!orbit)}
-            >
-              <Icon name="orbit" />
-              <span>Auto orbit</span>
-            </button>
+            {(["composed", "orbit", "tour"] as const).map((camera) => (
+              <button
+                key={camera}
+                aria-label={
+                  camera === "composed"
+                    ? "Composed overview"
+                    : camera === "orbit"
+                      ? "Slow orbit"
+                      : "Guided tour"
+                }
+                aria-pressed={cameraMode === camera}
+                disabled={camera !== "composed" && !motion}
+                onClick={() => {
+                  setCameraMode(camera);
+                  setFocus(false);
+                  if (camera === "composed")
+                    renderer.current?.preset("overview");
+                }}
+              >
+                <Icon
+                  name={
+                    camera === "composed"
+                      ? "focus"
+                      : camera === "orbit"
+                        ? "orbit"
+                        : "play"
+                  }
+                />
+                <span>
+                  {camera === "composed"
+                    ? "Composed"
+                    : camera === "orbit"
+                      ? "Slow orbit"
+                      : "Guided tour"}
+                </span>
+              </button>
+            ))}
+            <span className="gravity-control-separator" />
+            {(["top", "angle"] as const).map((preset) => (
+              <button
+                key={preset}
+                aria-label={preset === "top" ? "Top" : "Angle"}
+                onClick={() => {
+                  setCameraMode("manual");
+                  renderer.current?.preset(preset);
+                }}
+              >
+                <Icon name={preset === "top" ? "top" : "orbit"} />
+                <span>{preset === "top" ? "Top" : "Angle"}</span>
+              </button>
+            ))}
           </div>
           <div className="gravity-stage-legend">
             <span>
@@ -491,6 +556,40 @@ export function GravityObservatory() {
                 </button>
               </div>
               <h2>Observatory settings</h2>
+              <fieldset className="gravity-setting">
+                <legend>Well size</legend>
+                <select
+                  className="gravity-size-select"
+                  aria-label="Well size"
+                  value={sizeBasis}
+                  onChange={(e) => setSizeBasis(e.target.value as SizeBasis)}
+                >
+                  <option value="services">Service count</option>
+                  <option value="capacity">RAM capacity</option>
+                  <option value="uniform">Uniform</option>
+                </select>
+                <p className="gravity-help">
+                  Service count reserves room for satellites. RAM uses total
+                  capacity, not current utilization. Shapes distinguish the
+                  synthetic compute, storage and general profiles.
+                </p>
+              </fieldset>
+              <fieldset className="gravity-setting">
+                <legend>Atmosphere</legend>
+                <label className="gravity-ambient-toggle">
+                  <input
+                    type="checkbox"
+                    checked={ambient}
+                    onChange={(e) => setAmbient(e.target.checked)}
+                  />
+                  Ambient field
+                </label>
+                <p className="gravity-help">
+                  Subtle floor waves, light sweeps and star shimmer. Decorative
+                  motion, independent of simulated events. Pause motion freezes
+                  all three camera modes and atmosphere.
+                </p>
+              </fieldset>
               <fieldset className="gravity-setting">
                 <legend>Surface</legend>
                 <div className="gravity-theme-picker">
@@ -618,6 +717,12 @@ export function GravityObservatory() {
                 <span>/</span> {selectedSector?.label ?? "Overview"}
               </p>
               {host && (
+                <p className="gravity-sizing-note">
+                  {host.services.length} services <span>/</span> {host.ramGiB}{" "}
+                  GiB RAM <span>/</span> {host.profile} profile
+                </p>
+              )}
+              {host && (
                 <>
                   <div
                     className={`gravity-health ${host.attention ? "is-attention" : ""}`}
@@ -662,7 +767,10 @@ export function GravityObservatory() {
                 className="gravity-primary gravity-focus-button"
                 disabled={!selectedWell || !!error}
                 aria-pressed={focus}
-                onClick={() => setFocus(!focus)}
+                onClick={() => {
+                  setFocus(!focus);
+                  setCameraMode("manual");
+                }}
               >
                 <Icon name="focus" />
                 {focus ? "Return to overview" : "Open focus lens"}
@@ -680,7 +788,7 @@ export function GravityObservatory() {
                     <button
                       key={service}
                       onClick={() => {
-                        setSelected(`${host.id}/${service}`);
+                        selectResource(`${host.id}/${service}`);
                         setFocus(false);
                       }}
                     >
@@ -719,7 +827,7 @@ export function GravityObservatory() {
                       key={resource.id}
                       aria-label={`Inspect ${resource.name}`}
                       aria-pressed={host?.id === resource.id}
-                      onClick={() => setSelected(resource.id)}
+                      onClick={() => selectResource(resource.id)}
                     >
                       <span
                         className={
@@ -762,7 +870,7 @@ export function GravityObservatory() {
         </span>
         <span
           className="gravity-performance"
-          title="Frame intervals measured while drawing; idle frames are not rendered."
+          title="Sampled animation cadence, not GPU timing. Switch off Ambient field for on-demand rendering in a composed view."
         >
           {stats.fps
             ? `${stats.frameMs} ms frame interval`
@@ -773,7 +881,6 @@ export function GravityObservatory() {
           aria-pressed={!motion}
           onClick={() => {
             setMotion(!motion);
-            if (motion) setOrbit(false);
           }}
         >
           <Icon name={motion ? "pause" : "play"} />

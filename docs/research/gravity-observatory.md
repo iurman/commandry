@@ -66,7 +66,7 @@ three grouping modes, camera presets and orbiting, a real focus camera,
 Porcelain/Midnight appearance, editable sector/state colors, and motion pause.
 No backend, production route, infrastructure mutation, or deployment is needed.
 
-## Verification results
+## Initial verification results
 
 The local in-app browser rendered the real WebGL study with no captured shader,
 console warning, or runtime errors. Browser interactions exercised the three
@@ -94,7 +94,7 @@ draws. Hidden/offscreen scenes cancel their animation loop in the implementation
 
 ## Limits and next decision
 
-This finite fixture starts with four hosts and sixteen services; the deliberate
+The initial fixture started with four hosts and sixteen services; the deliberate
 arrival adds Atlas and two services. Its shader budget is 64 well contributions,
 with an explicit guard instead of silent truncation. Large inventories need
 spatial tiling, level of detail, label collision handling, and a data texture or
@@ -113,3 +113,60 @@ feel. If accepted, benchmark representative resource counts and TV resolutions,
 then compare the current GLSL material with a TSL implementation before choosing
 a production backend. Keep the canonical resource projection outside the
 renderer, and preserve the accessible list as the complete inspection path.
+
+## Terrain and presentation refinement
+
+The owner selected service count as the default size mapping. More services
+reserve more footprint; total RAM capacity and uniform area remain selectable.
+The fixture now has four hosts with 4, 8, 6, and 3 actual service entries, rather
+than four equal counts. RAM capacity is separate synthetic fixture data and is
+never inferred from percentage utilization. Ellipse area is normalized across
+shape profiles so a wider storage profile does not defeat the size mapping.
+
+Synthetic general, compute and storage profiles control well proportions,
+curvature, depth and raised shoulders. Broad terrain relief connects them.
+Footprint placement avoids host overlap, preserves existing host positions when
+an arrival is appended, and uses a vertical arrangement in portrait stages.
+Profile and terrain depth remain presentation choices, not health indicators.
+
+Three camera modes are implemented:
+
+- **Composed:** frames all host footprints using the camera aspect and field
+  of view. It refits after layout, size, arrival, or viewport changes.
+- **Slow orbit:** circles the landscape with aspect-aware framing and a gently
+  varying low camera elevation.
+- **Guided tour:** circles while approaching a host, lingering, and receding to
+  the overview before the next approach. Each host has a fourteen-second phase;
+  a smooth periodic blend makes phase boundaries continuous. The inspector
+  follows the featured host. Manual dragging interrupts immediately, and
+  deliberate resource selection or opening the lens stops a tour.
+
+The atmosphere is procedural: horizon haze, a restrained night star field and
+nebula tint, fine terrain grain, a softer etched grid, slow light sweeps, and
+bounded ambient height waves. The sky is naturally visible at low viewing
+angles. These are decorative effects, separate from simulated event trails.
+Ambient field can be disabled for on-demand rendering in a settled composed
+view. Pause motion freezes atmosphere, events, and automatic cameras without
+advancing their clocks. Reduced motion disables camera autoplay and label
+transitions. Hidden/offscreen suspension and GPU disposal remain in place.
+
+Device-local save/restore now also remembers size basis, ambient preference,
+and camera mode. Earlier saved views fall back to service count and the composed
+camera. Arbitrary sectors, multiple named views, and free camera-pose persistence
+remain outside this study.
+
+Twelve lab tests now cover the earlier invariants plus size semantics, collision
+spacing, complete frustum fitting across aspect ratios and azimuths, tour visits
+and continuous handoffs, bounded ambient displacement, and the new controls.
+The sky adds one draw call per scene pass: two for overview and five with the
+lens, with two more for event particles in focus. All counts and timings remain
+local study evidence, not a physical-TV or large-inventory benchmark.
+
+The follow-up browser pass confirmed all five host labels after an arrival in
+Composed, a tour handoff from Electra to Pleiades, manual dragging changing the
+camera mode to manual, RAM/uniform selection, and restoration of RAM sizing plus
+the disabled ambient preference from device-local storage. The wide low orbit
+showed stars and terrain silhouettes. Temporary viewport overrides were reset,
+and the review tab remains open with service-count sizing. `pnpm check`, scoped
+lint/types, and all twelve lab tests passed; the two unrelated lint warnings
+described above remain. The final shader/runtime error capture was empty.

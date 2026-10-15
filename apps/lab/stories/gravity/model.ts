@@ -1,5 +1,7 @@
 export type ViewMode = "hosts" | "projects" | "custom";
 export type SurfaceTheme = "porcelain" | "midnight";
+export type SizeBasis = "capacity" | "services" | "uniform";
+export type CameraMode = "composed" | "orbit" | "tour" | "manual";
 export type SectorId = "commandry" | "work" | "home";
 export type Point = { x: number; z: number };
 export type Palette = Record<SectorId, string> & {
@@ -13,6 +15,8 @@ export type Host = {
   memory: number;
   disk: number;
   load: number;
+  ramGiB: number;
+  profile: "general" | "compute" | "storage";
   attention: boolean;
   services: string[];
 };
@@ -24,6 +28,10 @@ export type Well = Point & {
   sector: SectorId;
   radius: number;
   depth: number;
+  aspect: number;
+  angle: number;
+  elevation: number;
+  profile: number;
   attention: boolean;
 };
 
@@ -47,6 +55,8 @@ export const fixtureHosts: Host[] = [
     memory: 62,
     disk: 41,
     load: 0.8,
+    ramGiB: 8,
+    profile: "general",
     attention: false,
     services: ["Web", "Worker", "Database", "Storage"],
   },
@@ -57,8 +67,19 @@ export const fixtureHosts: Host[] = [
     memory: 38,
     disk: 24,
     load: 1.2,
+    ramGiB: 64,
+    profile: "compute",
     attention: false,
-    services: ["API", "Actions", "Queue", "Metrics"],
+    services: [
+      "API",
+      "Actions",
+      "Queue",
+      "Metrics",
+      "Scheduler",
+      "Gateway",
+      "Search",
+      "Events",
+    ],
   },
   {
     id: "maia",
@@ -67,8 +88,10 @@ export const fixtureHosts: Host[] = [
     memory: 47,
     disk: 58,
     load: 0.4,
+    ramGiB: 32,
+    profile: "storage",
     attention: false,
-    services: ["NAS", "DNS", "Home Assistant", "Proxy"],
+    services: ["NAS", "DNS", "Home Assistant", "Proxy", "Backups", "Media"],
   },
   {
     id: "titan",
@@ -77,8 +100,10 @@ export const fixtureHosts: Host[] = [
     memory: 86,
     disk: 63,
     load: 2.1,
+    ramGiB: 16,
+    profile: "compute",
     attention: true,
-    services: ["Builder", "Registry", "Runner", "Cache"],
+    services: ["Builder", "Registry", "Runner"],
   },
 ];
 export const arrivalHost: Host = {
@@ -88,6 +113,8 @@ export const arrivalHost: Host = {
   memory: 18,
   disk: 12,
   load: 0.2,
+  ramGiB: 128,
+  profile: "compute",
   attention: false,
   services: ["Build agent", "Artifacts"],
 };
@@ -96,8 +123,11 @@ export function projectWells(
   hosts: Host[],
   mode: ViewMode,
   assignments: Record<string, SectorId>,
+  sizeBasis: SizeBasis = "services",
+  portrait = false,
 ): Well[] {
   const wells: Well[] = [];
+  const footprints: (Point & { radius: number })[] = [];
   if (mode !== "hosts") {
     for (const sector of sectors) {
       wells.push({
@@ -109,6 +139,10 @@ export function projectWells(
         sector: sector.id,
         radius: 5.2,
         depth: 0.75,
+        aspect: sector.id === "work" ? 1.25 : 1.05,
+        angle: 0,
+        elevation: 0.6,
+        profile: 0.9,
         attention: false,
       });
     }
@@ -119,15 +153,22 @@ export function projectWells(
     let x: number;
     let z: number;
     if (mode === "hosts") {
-      const positions = [
-        { x: -7, z: 3.4 },
-        { x: -4.4, z: -5.6 },
-        { x: 5.3, z: -5.5 },
-        { x: 6, z: 3.8 },
-      ];
+      const positions = portrait
+        ? [
+            { x: -1.5, z: -17 },
+            { x: 1, z: -6 },
+            { x: -1, z: 5 },
+            { x: 1.5, z: 16 },
+          ]
+        : [
+            { x: -7, z: 3.4 },
+            { x: -4.4, z: -5.6 },
+            { x: 5.3, z: -5.5 },
+            { x: 6, z: 3.8 },
+          ];
       const base = positions[index];
       x = base?.x ?? -0.5 + Math.cos(index * 2.4) * 3;
-      z = base?.z ?? 10 + Math.sin(index * 2.4) * 1.5;
+      z = base?.z ?? (portrait ? 27 : 10) + Math.sin(index * 2.4) * 1.5;
     } else {
       const center = sectors.find((s) => s.id === sector)!.center;
       const siblings = hosts.filter(
@@ -141,7 +182,36 @@ export function projectWells(
       x = center.x + Math.cos(angle) * offset;
       z = center.z + Math.sin(angle) * offset;
     }
-    const radius = mode === "hosts" ? 2.65 : 1.65;
+    const scale =
+      sizeBasis === "capacity"
+        ? 1.6 + Math.log2(1 + host.ramGiB / 8) * 0.47
+        : sizeBasis === "services"
+          ? 1.4 + Math.sqrt(host.services.length) * 0.54
+          : 2.65;
+    const aspect =
+      host.profile === "storage"
+        ? 1.34
+        : host.profile === "compute"
+          ? 0.9
+          : 1.1;
+    const radius = (scale * (mode === "hosts" ? 1 : 0.7)) / Math.sqrt(aspect);
+    const angle = index * 0.9 + 0.3;
+    const footprint = radius * Math.max(1, aspect) * 1.75;
+    // Place only the arriving item. Appending a host preserves existing landmarks.
+    const seed = { x, z };
+    for (
+      let attempt = 0;
+      footprints.some(
+        (p) => Math.hypot(x - p.x, z - p.z) < footprint + p.radius,
+      );
+      attempt++
+    ) {
+      const a = (attempt + 1) * 2.399963;
+      const distance = Math.sqrt(attempt + 1) * 1.1;
+      x = seed.x + Math.cos(a) * distance;
+      z = seed.z + Math.sin(a) * distance;
+    }
+    footprints.push({ x, z, radius: footprint });
     wells.push({
       id: host.id,
       label: host.name,
@@ -151,22 +221,43 @@ export function projectWells(
       x,
       z,
       radius,
-      depth: mode === "hosts" ? 2.8 : 2,
+      depth: radius * (host.profile === "compute" ? 1.5 : 1.15),
+      aspect,
+      angle,
+      elevation: host.profile === "storage" ? 1.2 : 1.8,
+      profile:
+        host.profile === "compute"
+          ? 1.2
+          : host.profile === "storage"
+            ? 0.82
+            : 1,
       attention: host.attention,
     });
     host.services.forEach((service, serviceIndex) => {
       const angle = (serviceIndex / host.services.length) * Math.PI * 2 + 0.6;
-      const distance = radius * 1.12;
+      const distance = radius * 1.25;
+      const localX = Math.cos(angle) * distance * aspect;
+      const localZ = Math.sin(angle) * distance;
       wells.push({
         id: `${host.id}/${service}`,
         label: service,
         kind: "service",
         hostId: host.id,
         sector,
-        x: x + Math.cos(angle) * distance,
-        z: z + Math.sin(angle) * distance,
+        x:
+          x +
+          localX * Math.cos(index * 0.9 + 0.3) -
+          localZ * Math.sin(index * 0.9 + 0.3),
+        z:
+          z +
+          localX * Math.sin(index * 0.9 + 0.3) +
+          localZ * Math.cos(index * 0.9 + 0.3),
         radius: mode === "hosts" ? 0.51 : 0.34,
         depth: 0.58,
+        aspect: 1,
+        angle: 0,
+        elevation: 0.08,
+        profile: 1,
         attention: false,
       });
     });
@@ -175,13 +266,30 @@ export function projectWells(
 }
 
 // Same height function is used by the GPU, DOM anchors, and event trajectories.
-export function surfaceHeight(x: number, z: number, wells: Well[]): number {
+export function surfaceHeight(
+  x: number,
+  z: number,
+  wells: Well[],
+  time = 0,
+  ambient = 0,
+): number {
   let height =
-    Math.sin(x * 0.32 + z * 0.17) * 0.035 +
-    Math.cos(z * 0.42 - x * 0.12) * 0.02;
+    Math.sin(x * 0.14 + z * 0.11) * 0.55 + Math.cos(z * 0.18 - x * 0.09) * 0.35;
+  height +=
+    Math.sin(Math.hypot(x, z) * 0.7 - time * 0.35) *
+    Math.cos(x * 0.12 + z * 0.09) *
+    0.055 *
+    ambient;
   for (const well of wells) {
-    const r2 = ((x - well.x) ** 2 + (z - well.z) ** 2) / well.radius ** 2;
-    height -= well.depth * Math.exp(-r2 * 1.5);
+    const dx = x - well.x;
+    const dz = z - well.z;
+    const localX = dx * Math.cos(well.angle) + dz * Math.sin(well.angle);
+    const localZ = -dx * Math.sin(well.angle) + dz * Math.cos(well.angle);
+    const r2 =
+      (localX / (well.radius * well.aspect)) ** 2 + (localZ / well.radius) ** 2;
+    const strength = Math.min(1, well.depth);
+    height += well.elevation * Math.exp(-r2 * 0.23) * strength;
+    height -= well.depth * Math.exp(-(r2 ** well.profile) * 1.5);
     height +=
       0.13 *
       well.radius *
