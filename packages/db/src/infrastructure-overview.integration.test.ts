@@ -99,6 +99,7 @@ test("overview preserves real evidence, cross-project identity, typed edges and 
     assert.equal(all.total, 2);
     const observed = all.items.find((item) => item.id === host.id)!;
     assert.equal(observed.projects.length, 2);
+    assert.equal(observed.childCount, 1);
     assert.equal(observed.telemetry, "reporting");
     assert.equal(observed.health, "unknown");
     assert.equal(
@@ -141,6 +142,11 @@ test("overview preserves real evidence, cross-project identity, typed edges and 
       cursor: page1.nextCursor,
     });
     assert.equal(page2.nextCursor, null);
+    assert.equal(
+      [...page1.items, ...page2.items].find((item) => item.id === host.id)
+        ?.childCount,
+      1,
+    );
     assert.equal(
       new Set([...page1.items, ...page2.items].map((item) => item.id)).size,
       2,

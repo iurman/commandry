@@ -88,6 +88,7 @@ test("map, list, evidence, project focus and wallboard work across themes and vi
     await expect(
       page.getByText("2 of 2 matching resources / page 1", { exact: true }),
     ).toBeVisible();
+    await page.getByRole("button", { name: "Topology", exact: true }).click();
     await page
       .getByRole("button", {
         name: `Inspect ${f.host.name}, Reporting`,
@@ -122,7 +123,7 @@ test("map, list, evidence, project focus and wallboard work across themes and vi
         exact: true,
       }),
     ).toContainText("No real source is connected");
-    await page.getByRole("button", { name: "Map", exact: true }).click();
+    await page.getByRole("button", { name: "Topology", exact: true }).click();
     await page
       .getByRole("button", { name: `Focus project ${f.name}`, exact: true })
       .click();
@@ -275,6 +276,7 @@ test("new persisted observations cue once and wallboard rotation stops for manua
   }
   await page.clock.install();
   await page.goto(`/infrastructure/wallboard?projectId=${f.project.id}`);
+  await page.getByRole("button", { name: "Topology", exact: true }).click();
   await expect(
     page.getByText("6 of 7 matching resources / page 1", { exact: true }),
   ).toBeVisible();
@@ -342,4 +344,123 @@ test("new persisted observations cue once and wallboard rotation stops for manua
       fullPage: true,
     });
   }
+});
+
+test("Gravity uses canonical resources, persisted appearance, focus and truthful source evidence", async ({
+  page,
+  request,
+}, testInfo) => {
+  test.setTimeout(120000);
+  const f = await fixture(request);
+  const errors: string[] = [];
+  page.on("pageerror", (error) => errors.push(error.message));
+  await page.goto(`/infrastructure?projectId=${f.project.id}`);
+  const gravity = page.getByRole("region", {
+    name: "Gravity Observatory",
+    exact: true,
+  });
+  await expect(
+    gravity.getByRole("combobox", { name: "Gravity grouping" }),
+  ).toBeVisible();
+  const host = gravity.getByRole("button", {
+    name: `Select ${f.host.name}, host, Reporting`,
+    exact: true,
+  });
+  await host.click();
+  await expect(
+    page.getByRole("region", {
+      name: `Selected resource ${f.host.name}`,
+      exact: true,
+    }),
+  ).toContainText("Service health: unknown");
+  await expect(
+    gravity.getByText("Reporting / Service health: unknown", { exact: true }),
+  ).toBeVisible();
+  await expect(gravity.locator("canvas")).toBeVisible();
+  await gravity
+    .getByRole("button", { name: "Open focus lens", exact: true })
+    .click();
+  await expect(
+    gravity.getByRole("button", { name: "Close focus lens", exact: true }),
+  ).toBeVisible();
+  await gravity.locator("canvas").scrollIntoViewIfNeeded();
+  await expect
+    .poll(async () =>
+      gravity.locator(".cmd-gravity-lens").evaluate((element) => {
+        const stage = element.parentElement!.getBoundingClientRect();
+        return (
+          Math.abs(
+            element.getBoundingClientRect().width -
+              Math.min(stage.height * 0.72, stage.width * 0.62),
+          ) < 1
+        );
+      }),
+    )
+    .toBe(true);
+  await gravity
+    .getByRole("button", { name: "Close focus lens", exact: true })
+    .click();
+  await gravity.getByLabel("Gravity grouping").selectOption("custom");
+  await gravity.getByLabel("Custom layout sector").fill("Home lab");
+  await gravity.getByText("Appearance", { exact: true }).click();
+  await gravity.getByLabel("Gravity surface").selectOption("midnight");
+  await gravity.getByText("Appearance", { exact: true }).click();
+  await page.reload();
+  await expect(gravity.getByLabel("Gravity grouping")).toHaveValue("custom");
+  await gravity
+    .getByRole("button", {
+      name: `Select ${f.host.name}, host, Reporting`,
+      exact: true,
+    })
+    .click();
+  await expect(gravity.getByLabel("Custom layout sector")).toHaveValue(
+    "Home lab",
+  );
+  await gravity.getByLabel("Gravity grouping").selectOption("projects");
+  await expect(
+    gravity.getByText(/inspector shows every membership/),
+  ).toBeVisible();
+  await gravity
+    .getByRole("button", { name: "Pause scene motion", exact: true })
+    .click();
+  await expect(
+    gravity.getByRole("button", { name: "Resume scene motion", exact: true }),
+  ).toBeVisible();
+  await page.getByRole("button", { name: "List", exact: true }).click();
+  await expect(
+    page.getByRole("region", { name: "Resource list", exact: true }),
+  ).toContainText(f.web.name);
+  await page.getByRole("button", { name: "Gravity", exact: true }).click();
+  expect(
+    await page.evaluate(
+      () => document.documentElement.scrollWidth <= innerWidth + 1,
+    ),
+  ).toBe(true);
+  await page.getByRole("link", { name: "Open wallboard", exact: true }).click();
+  await expect(page.getByLabel("Gravity grouping")).toHaveValue("projects");
+  if (testInfo.project.name === "desktop") {
+    await page.setViewportSize({ width: 1920, height: 1080 });
+    expect(
+      await page.evaluate(
+        () => document.documentElement.scrollHeight <= innerHeight + 1,
+      ),
+    ).toBe(true);
+    expect(
+      await page
+        .locator(".cmd-gravity-stage")
+        .evaluate((element) => element.getBoundingClientRect().height >= 160),
+    ).toBe(true);
+  }
+  await page.getByText("Resources on this page (2)", { exact: true }).click();
+  await expect(
+    page.getByRole("button", {
+      name: `Select ${f.web.name}, service, No observation`,
+      exact: true,
+    }),
+  ).toBeVisible();
+  await page.screenshot({
+    path: testInfo.outputPath("gravity-wallboard.png"),
+    fullPage: true,
+  });
+  expect(errors).toEqual([]);
 });

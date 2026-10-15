@@ -15,8 +15,8 @@ availability without playing sound or triggering haptics.
 ## Gravity Observatory study
 
 Open [the rendering study](http://127.0.0.1:6006/iframe.html?id=experiments-gravity-observatory--study&viewMode=story)
-after starting `pnpm lab`. It uses synthetic data and a lab-only Three.js
-dependency. It does not access the running application or infrastructure.
+after starting `pnpm lab`. It uses synthetic data and the shared Three.js
+renderer. It does not access the running application or infrastructure.
 
 Try Hosts, Projects, and Custom view; drag to orbit, scroll to zoom, or use the
 camera presets. Select a host and open its focus lens. Spawn a host to watch a
@@ -73,3 +73,9 @@ hosts, services, and sector basins. The recent feed shows the latest 30 events;
 selected traces retain their complete history for a 120-second window. Disclosure
 controls expose every active transfer and retained event. No real requests are
 sent to the named infrastructure.
+
+The renderer now lives in `packages/ui/src/gravity` and is shared with the
+production infrastructure integration. Fixtures, the operational simulator,
+scenario controls and study-only UI remain in this lab. The production view
+uses canonical overview records and recorded subject pulses, never the lab's
+synthetic requests or build flows.

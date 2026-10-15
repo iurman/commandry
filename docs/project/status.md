@@ -72,6 +72,13 @@ arrival cues are implemented. Agent/build-machine flows and new availability
 providers remain future work. See the [implementation record](../implementation/infrastructure-network.md)
 for local verification. This candidate has not been deployed to production.
 
+The follow-up Gravity integration promotes the approved renderer into shared
+production UI while retaining all simulation in the lab. The production
+candidate uses the same authorized paginated inventory and recorded-event
+evidence, with source freshness distinct from unknown service availability.
+[Integration evidence](../implementation/gravity-infrastructure.md) records
+verification and deployment status.
+
 ## Established direction
 
 - Commandry is a personal control plane spanning projects, knowledge,

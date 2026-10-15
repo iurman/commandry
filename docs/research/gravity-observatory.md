@@ -343,3 +343,13 @@ four service labels in focus, and an unavailable Titan at 25 simulated seconds.
 With activity visible, observed draw counts are five for overview and eleven
 for focus. These counts and sampled browser cadence are local evidence, not a
 physical-TV or large-inventory performance benchmark.
+
+## Production promotion
+
+The owner approved integrating this renderer into the actual infrastructure
+overview and wallboard after accepting the study v1. Shared graphics now live
+in `packages/ui/src/gravity`; the lab remains the sole owner of its fixtures,
+synthetic engine and scenario controls. The production adapter consumes canonical
+resource identities and recorded observations. [ADR 0013](../decisions/0013-share-the-gravity-renderer-with-production.md)
+and the [integration record](../implementation/gravity-infrastructure.md)
+define the accepted boundary and current verification/deployment evidence.

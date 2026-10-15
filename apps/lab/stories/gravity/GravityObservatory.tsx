@@ -339,7 +339,7 @@ export function GravityObservatory() {
       data.palette.unhealthy ??= initialPalette.unhealthy;
       if (
         !Object.keys(initialPalette).every((key) =>
-          /^#[0-9a-f]{6}$/i.test(data.palette[key as keyof Palette]),
+          /^#[0-9a-f]{6}$/i.test(data.palette[key as keyof Palette] ?? ""),
         ) ||
         !Object.values(data.assignments).every((s) =>
           sectors.some((sector) => sector.id === s),

@@ -5,7 +5,9 @@
   "type": "module",
   "exports": {
     ".": "./src/index.ts",
-    "./tokens.css": "./src/tokens.css"
+    "./tokens.css": "./src/tokens.css",
+    "./gravity/*": "./src/gravity/*.ts",
+    "./gravity-infrastructure": "./src/components/GravityInfrastructure.tsx"
   },
   "scripts": {
     "typecheck": "tsc --noEmit -p tsconfig.json"
@@ -16,6 +18,11 @@
   "devDependencies": {
     "@types/react": "19.3.0",
     "react": "19.3.0",
-    "typescript": "5.9.3"
+    "typescript": "5.9.3",
+    "@types/three": "0.186.0"
+  },
+  "dependencies": {
+    "@commandry/contracts": "workspace:*",
+    "three": "0.186.1"
   }
 }

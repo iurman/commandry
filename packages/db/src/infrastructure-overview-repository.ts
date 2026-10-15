@@ -59,6 +59,14 @@ export function createInfrastructureOverviewRepository(
               edges: [],
               events: [],
             };
+          const children = await tx
+            .select({
+              parent: resource.parentResourceId,
+              count: sql<number>`count(*)::int`,
+            })
+            .from(resource)
+            .where(inArray(resource.parentResourceId, ids))
+            .groupBy(resource.parentResourceId);
           const links = await tx
             .select({
               resourceId: projectResourceLink.resourceId,
@@ -154,6 +162,8 @@ export function createInfrastructureOverviewRepository(
               name: row.name,
               kind: row.kind,
               parentResourceId: row.parentResourceId,
+              childCount:
+                children.find((child) => child.parent === row.id)?.count ?? 0,
               projects: [
                 ...new Map(
                   links

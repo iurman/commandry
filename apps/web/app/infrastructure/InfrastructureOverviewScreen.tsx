@@ -1,6 +1,11 @@
 "use client";
 
 import { useRouter } from "next/navigation";
+import dynamic from "next/dynamic";
+const GravityInfrastructure = dynamic(
+  () => import("@commandry/ui/gravity-infrastructure"),
+  { ssr: false, loading: () => <p role="status">Loading Gravity view...</p> },
+);
 
 import { useEffect, useRef, useState, type FormEvent } from "react";
 import type {
@@ -77,7 +82,7 @@ export default function InfrastructureOverviewScreen({
   const [loading, setLoading] = useState(true);
   const [epoch, setEpoch] = useState(0);
   const [paused, setPaused] = useState(false);
-  const [view, setView] = useState<"map" | "list">("map");
+  const [view, setView] = useState<"gravity" | "map" | "list">("gravity");
   const [selectedId, setSelectedId] = useState<string | null>(null);
   const [follow, setFollow] = useState(false);
   const [tv, setTv] = useState(wallboard);
@@ -445,8 +450,14 @@ export default function InfrastructureOverviewScreen({
           role="group"
           aria-label="Infrastructure view"
         >
+          <Button
+            aria-pressed={view === "gravity"}
+            onClick={() => setView("gravity")}
+          >
+            Gravity
+          </Button>
           <Button aria-pressed={view === "map"} onClick={() => setView("map")}>
-            Map
+            Topology
           </Button>
           <Button
             aria-pressed={view === "list"}
@@ -530,13 +541,21 @@ export default function InfrastructureOverviewScreen({
         <div className="cmd-network-workspace">
           <section
             className="cmd-network-main"
-            aria-label={view === "map" ? "Resource topology" : "Resource list"}
+            aria-label={
+              view === "gravity"
+                ? "Gravity Observatory"
+                : view === "map"
+                  ? "Resource topology"
+                  : "Resource list"
+            }
           >
             <div className="cmd-network-section-heading">
               <h2>
-                {view === "map"
-                  ? "The infrastructure map"
-                  : "All resources in view"}
+                {view === "gravity"
+                  ? "Gravity Observatory"
+                  : view === "map"
+                    ? "The infrastructure map"
+                    : "All resources in view"}
               </h2>
               <Button
                 aria-pressed={follow}
@@ -545,7 +564,19 @@ export default function InfrastructureOverviewScreen({
                 Follow attention
               </Button>
             </div>
-            {view === "map" ? (
+            {view === "gravity" ? (
+              <GravityInfrastructure
+                key={`${scope.projectId}/${scope.q}/${scope.cursor}`}
+                snapshot={data}
+                compact={wallboard}
+                dark={tv}
+                selectedId={selected?.id ?? null}
+                onSelect={select}
+                onProject={(id) => changeScope(id)}
+                paused={paused}
+                delayed={!!error}
+              />
+            ) : view === "map" ? (
               <InfrastructureMap
                 resources={data.items}
                 compact={wallboard}
@@ -605,6 +636,9 @@ export default function InfrastructureOverviewScreen({
                   {label(selected)}
                 </p>
                 <p>Service health: unknown</p>
+                {selected.childCount !== undefined && (
+                  <p>Child resources: {selected.childCount}</p>
+                )}
                 <Capacity resource={selected} />
                 {selected.metrics
                   .filter(
