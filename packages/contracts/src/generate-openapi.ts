@@ -8,6 +8,7 @@ import {
   createdKnowledgeClientSchema,
   listKnowledgeClientsSchema,
   captureSchema,
+  infrastructureOverviewSchema,
   createRealIntegrationRequestSchema,
   realIntegrationSchema,
   listRealIntegrationsResponseSchema,
@@ -975,6 +976,49 @@ export function generateOpenApi(): string {
             },
             "404": {
               description: "Resource not found",
+              content: jsonContent("ErrorResponse"),
+            },
+          },
+        },
+      },
+      "/api/v1/infrastructure/overview": {
+        get: {
+          operationId: "getInfrastructureOverview",
+          summary:
+            "Read a page of canonical resources, real telemetry and typed relationships",
+          parameters: [
+            {
+              in: "query",
+              name: "limit",
+              schema: { type: "integer", minimum: 1, maximum: 50, default: 12 },
+            },
+            {
+              in: "query",
+              name: "cursor",
+              schema: { type: "string", format: "uuid" },
+            },
+            {
+              in: "query",
+              name: "projectId",
+              schema: { type: "string", format: "uuid" },
+            },
+            {
+              in: "query",
+              name: "q",
+              schema: { type: "string", maxLength: 160 },
+            },
+          ],
+          responses: {
+            "200": {
+              description: "A consistent, source-backed infrastructure page",
+              content: jsonContent("InfrastructureOverview"),
+            },
+            "400": {
+              description: "Invalid scope or cursor",
+              content: jsonContent("ErrorResponse"),
+            },
+            "503": {
+              description: "Overview unavailable",
               content: jsonContent("ErrorResponse"),
             },
           },
@@ -4647,6 +4691,7 @@ export function generateOpenApi(): string {
         CorrelationMetadata: component(correlationMetadataSchema),
         VersionResponse: component(versionResponseSchema),
         ResourceSummary: component(resourceSummarySchema),
+        InfrastructureOverview: component(infrastructureOverviewSchema),
         CreateResourceRequest: component(createResourceRequestSchema),
         ListResourcesResponse: component(listResourcesResponseSchema),
         SetResourceParentRequest: component(setResourceParentRequestSchema),

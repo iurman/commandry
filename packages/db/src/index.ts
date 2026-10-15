@@ -54,3 +54,5 @@ export * as schema from "./schema";
 export * from "./real-integration-repository";
 
 export * from "./knowledge-access-repository";
+
+export * from "./infrastructure-overview-repository";

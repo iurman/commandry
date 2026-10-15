@@ -141,3 +141,13 @@ export type {
 export type { RelationshipResource } from "./components/RelationshipCard";
 export type { StatePanelState } from "./components/StatePanel";
 export type { StatusDimension, StatusTone } from "./components/StatusBadge";
+
+export {
+  InfrastructureMap,
+  infrastructureTelemetryLabels,
+  isInfrastructureHost,
+} from "./components/InfrastructureMap";
+export type {
+  InfrastructureMapResource,
+  InfrastructureMapEdge,
+} from "./components/InfrastructureMap";

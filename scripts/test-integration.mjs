@@ -193,9 +193,11 @@ async function runRealSourceBrowser(
       [
         "node_modules/@playwright/test/cli.js",
         "test",
-        ...(allPages
-          ? []
-          : ["real-integrations.spec.ts", "integrations.spec.ts"]),
+        ...(process.env.COMMANDRY_E2E_FILES
+          ? process.env.COMMANDRY_E2E_FILES.split(",")
+          : allPages
+            ? []
+            : ["real-integrations.spec.ts", "integrations.spec.ts"]),
       ],
       {
         cwd: root,
@@ -1146,6 +1148,18 @@ async function runAuthSmoke(
     const deniedRead = await fetch(`${origin}/api/v1/projects`);
     assert.equal(deniedRead.status, 401);
     assert.equal((await deniedRead.json()).code, "UNAUTHENTICATED");
+    assert.equal(
+      (await fetch(`${origin}/api/v1/infrastructure/overview`)).status,
+      401,
+    );
+    assert.equal(
+      (
+        await fetch(`${origin}/infrastructure/wallboard`, {
+          redirect: "manual",
+        })
+      ).status,
+      307,
+    );
     const deniedWrite = await fetch(`${origin}/api/v1/projects`, {
       method: "POST",
       headers: { "content-type": "application/json" },
@@ -1189,6 +1203,11 @@ async function runAuthSmoke(
       headers: { cookie },
     });
     assert.equal(allowedPage.status, 200);
+    const allowedOverview = await fetch(
+      `${origin}/api/v1/infrastructure/overview`,
+      { headers: { cookie } },
+    );
+    assert.equal(allowedOverview.status, 200);
     await realSourceApiSmoke(origin, cookie, appOrigin);
     await knowledgeAccessSmoke(origin, cookie, appOrigin);
     const signOut = await postAuth("sign-out", {}, cookie);
