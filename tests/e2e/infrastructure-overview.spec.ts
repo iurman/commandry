@@ -354,6 +354,8 @@ test("Gravity uses canonical resources, persisted appearance, focus and truthful
   const f = await fixture(request);
   const errors: string[] = [];
   page.on("pageerror", (error) => errors.push(error.message));
+  // Geometry assertions measure the settled view independently of GPU cadence.
+  await page.emulateMedia({ reducedMotion: "reduce" });
   await page.goto(`/infrastructure?projectId=${f.project.id}`);
   const gravity = page.getByRole("region", {
     name: "Gravity Observatory",
@@ -420,6 +422,12 @@ test("Gravity uses canonical resources, persisted appearance, focus and truthful
   await expect(
     gravity.getByText(/inspector shows every membership/),
   ).toBeVisible();
+  await page.emulateMedia({ reducedMotion: "no-preference" });
+  await expect(
+    gravity.getByRole("option", { name: "Slow orbit", exact: true }),
+  ).toBeEnabled();
+  await gravity.getByLabel("Gravity camera").selectOption("orbit");
+  await expect(gravity.getByLabel("Gravity camera")).toHaveValue("orbit");
   await gravity
     .getByRole("button", { name: "Pause scene motion", exact: true })
     .click();
