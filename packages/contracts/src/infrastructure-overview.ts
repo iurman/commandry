@@ -20,6 +20,7 @@ export const infrastructureResourceSchema = z.object({
   name: z.string(),
   kind: z.string(),
   parentResourceId: z.uuid().nullable(),
+  childCount: z.number().int().nonnegative().optional(),
   projects: z.array(z.object({ id: z.uuid(), name: z.string() })),
   sources: z.array(infrastructureSourceSchema),
   telemetry: z.enum([

@@ -125,3 +125,14 @@ sound is silent. New provider monitoring and alert suppression are outside this
 read-only slice. Existing signal review keeps its existing development-only
 policy. Local evidence and remaining limits are recorded in the
 [implementation and verification record](../implementation/infrastructure-network.md).
+
+## Gravity presentation (2026-10-15)
+
+The approved Gravity renderer now has a production integration candidate using
+the same canonical overview API. It adds host/project/custom layouts, nested
+resource wells, focus and automatic cameras, source-backed event pulses,
+complete direct-child counts and device-local appearance. It preserves source
+freshness versus unknown service availability and the paginated topology/list
+alternatives. See the [implementation record](../implementation/gravity-infrastructure.md)
+and [ADR 0013](../decisions/0013-share-the-gravity-renderer-with-production.md).
+Production deployment requires the ordinary validated release workflow.

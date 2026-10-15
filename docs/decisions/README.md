@@ -31,6 +31,8 @@ contributors need. They do not record minor implementation details.
 | [0011](0011-self-host-postgres-and-preserve-a-managed-exit.md) | Self-host PostgreSQL and preserve a managed exit | Accepted |
 | [0012](0012-use-postgres-backed-background-work.md) | Use PostgreSQL-backed background work | Accepted |
 
+| [0013](0013-share-the-gravity-renderer-with-production.md) | Share the Gravity renderer with production infrastructure views | Accepted |
+
 ## Creating an ADR
 
 Copy [the template](template.md), assign the next four-digit number, use a short
