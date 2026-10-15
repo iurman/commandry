@@ -97,3 +97,10 @@ permanent process.
 - Tool descriptions must state side effects and risk class.
 - Tool responses should be structured enough for deterministic use and concise
   enough not to exhaust agent context.
+
+## Initial independent-client implementation
+
+The [read-only project knowledge MCP](knowledge-mcp.md) documents the bounded
+first implementation, owner-issued credentials, retrieval population, audit,
+and verification. Production activation and actual native client compatibility
+remain pending; the local packet preview remains separate.

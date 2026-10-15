@@ -3,6 +3,10 @@ import { dirname } from "node:path";
 import { fileURLToPath } from "node:url";
 import { z } from "zod";
 import {
+  createKnowledgeClientSchema,
+  knowledgeClientSchema,
+  createdKnowledgeClientSchema,
+  listKnowledgeClientsSchema,
   captureSchema,
   createRealIntegrationRequestSchema,
   realIntegrationSchema,
@@ -3865,6 +3869,55 @@ export function generateOpenApi(): string {
           },
         },
       },
+      "/api/v1/knowledge-clients": {
+        get: {
+          operationId: "listKnowledgeClients",
+          parameters: pageParameters,
+          responses: {
+            "200": {
+              description: "Owner-only credential metadata; no tokens",
+              content: jsonContent("ListKnowledgeClients"),
+            },
+            "401": {
+              description: "Owner sign-in required",
+              content: jsonContent("ErrorResponse"),
+            },
+          },
+        },
+        post: {
+          operationId: "createKnowledgeClient",
+          requestBody: {
+            required: true,
+            content: jsonContent("CreateKnowledgeClient"),
+          },
+          responses: {
+            "201": {
+              description: "Owner-approved project read credential, shown once",
+              content: jsonContent("CreatedKnowledgeClient"),
+            },
+            "401": {
+              description: "Owner sign-in required",
+              content: jsonContent("ErrorResponse"),
+            },
+          },
+        },
+      },
+      "/api/v1/knowledge-clients/{id}/revoke": {
+        post: {
+          operationId: "revokeKnowledgeClient",
+          parameters: [idParameter],
+          responses: {
+            "200": {
+              description: "Owner revoked credential",
+              content: jsonContent("KnowledgeClient"),
+            },
+            "401": {
+              description: "Owner sign-in required",
+              content: jsonContent("ErrorResponse"),
+            },
+          },
+        },
+      },
       "/api/v1/real-integrations": {
         get: {
           operationId: "listRealIntegrations",
@@ -4585,6 +4638,10 @@ export function generateOpenApi(): string {
         },
       },
       schemas: {
+        CreateKnowledgeClient: component(createKnowledgeClientSchema),
+        KnowledgeClient: component(knowledgeClientSchema),
+        CreatedKnowledgeClient: component(createdKnowledgeClientSchema),
+        ListKnowledgeClients: component(listKnowledgeClientsSchema),
         HealthResponse: component(healthResponseSchema),
         ErrorResponse: component(errorResponseSchema),
         CorrelationMetadata: component(correlationMetadataSchema),

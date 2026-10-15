@@ -19,6 +19,7 @@ export function isMachineAuthPath(pathname: string, method: string): boolean {
   if (method !== "POST") return false;
   return (
     pathname === "/mcp" ||
+    pathname === "/mcp/knowledge" ||
     /^\/api\/v1\/real-integrations\/[0-9a-f-]{36}\/receive$/.test(pathname) ||
     /^\/api\/v1\/integrations\/[^/]+\/receive$/.test(pathname) ||
     /^\/api\/v1\/agent-runs\/[^/]+\/callbacks$/.test(pathname)
@@ -55,7 +56,11 @@ export async function proxy(request: NextRequest) {
     });
   }
 
-  if (path.startsWith("/api/") || path === "/mcp") {
+  if (
+    path.startsWith("/api/") ||
+    path === "/mcp" ||
+    path === "/mcp/knowledge"
+  ) {
     return NextResponse.json(
       { code: "UNAUTHENTICATED", message: "Sign in to Commandry." },
       { status: 401, headers: { "cache-control": "no-store" } },
