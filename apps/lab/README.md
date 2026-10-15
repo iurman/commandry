@@ -11,3 +11,20 @@ the production boundary, and `pnpm lab:test` runs the local component tests.
 The State panel stories cover normal, loading, empty, error, disabled, and
 permission-denied states. The feedback preference story simulates channel
 availability without playing sound or triggering haptics.
+
+## Gravity Observatory study
+
+Open [the rendering study](http://127.0.0.1:6006/iframe.html?id=experiments-gravity-observatory--study&viewMode=story)
+after starting `pnpm lab`. It uses synthetic data and a lab-only Three.js
+dependency. It does not access the running application or infrastructure.
+
+Try Hosts, Projects, and Custom view; drag to orbit, scroll to zoom, or use the
+camera presets. Select a host and open its focus lens. Spawn a host to watch a
+new depression form, and Send event to see a bounded simulated delivery.
+Settings expose Porcelain/Midnight materials, sector and signal colors, custom
+sector assignments, and device-local save/restore. Pause motion freezes the
+simulation while leaving inspection and camera presets available.
+
+The [renderer investigation](../../docs/research/gravity-observatory.md) records
+the implementation choice, verification, and limits. This is a finite material
+and interaction study, not production-scale monitoring or a public lab build.
