@@ -55,7 +55,7 @@ feature has been implemented.
 - [Agent interface](architecture/agent-interface.md) — API/MCP concepts and
   execution packets
 - [Read-only project knowledge MCP](architecture/knowledge-mcp.md) - independent
-  client scope, owner-issued credentials, tools, verification, and activation gates
+  client scope, owner-issued credentials, tools, and verified activation evidence
 - [Security and permissions](architecture/security-and-permissions.md) —
   capabilities, secrets, risk, approval, and audit
 - [Information architecture](ux/information-architecture.md) — navigation and
@@ -76,6 +76,9 @@ feature has been implemented.
 - [Domain and deployment facts](operations/domain-and-deployment.md)
 - [Hosting and stack evaluation](research/hosting-and-stack-evaluation.md) —
   Cloudflare, Vercel, Neon, D1, VPS, Docker, and client research
+- [Agent orchestration and shared context](research/agent-orchestration-and-shared-context.md) -
+  confirmed owner priorities, subscription constraints, runtime alternatives, and
+  incremental validation; broader dispatch remains proposed
 
 ## Document status key
 
