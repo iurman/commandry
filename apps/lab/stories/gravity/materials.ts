@@ -66,6 +66,7 @@ export const terrainFragment = `
 uniform float uNight;
 uniform vec3 uWarning;
 uniform vec3 uReporting;
+uniform vec3 uFailure;
 uniform float uTime;
 uniform float uAmbient;
 uniform vec4 uSelection;
@@ -107,9 +108,10 @@ void main() {
   color += grain * mix(1.0, 0.25, uNight);
   float sweep = pow(0.5 + 0.5 * sin(vWorld.x * 0.24 + vWorld.z * 0.17 - uTime * 0.20), 24.0);
   color += vec3(0.035, 0.10, 0.15) * sweep * uAmbient * mix(0.025, 0.05, uNight);
-  vec3 rimColor = mix(mix(vColor, uReporting, 0.2), uWarning, smoothstep(0.15, 0.55, vAlert));
+  vec3 alertColor = mix(uWarning, uFailure, smoothstep(0.65, 0.85, vAlert));
+  vec3 rimColor = mix(mix(vColor, uReporting, 0.2), alertColor, smoothstep(0.15, 0.4, vAlert));
   color += rimColor * vRim * mix(0.20, 0.56, uNight);
-  color = mix(color, uWarning * 1.1, vDash * 0.8);
+  color = mix(color, alertColor * 1.1, vDash * 0.8);
   vec2 selectedDelta = vWorld.xz - uSelection.xy;
   float c = cos(uSelectedAngle), s = sin(uSelectedAngle);
   vec2 selectedOffset = vec2(selectedDelta.x * c + selectedDelta.y * s, -selectedDelta.x * s + selectedDelta.y * c) / vec2(uSelection.z * uSelection.w, uSelection.z);

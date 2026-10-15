@@ -40,6 +40,7 @@ export class LabelLayout {
     height: number,
     dt: number,
     motion: boolean,
+    top = 52,
   ): T[] {
     const active = new Set(anchors.map((anchor) => anchor.id));
     for (const id of this.states.keys()) {
@@ -69,7 +70,7 @@ export class LabelLayout {
         Math.min(width - box.width / 2 - 8, box.x),
       );
       box.y = Math.max(
-        52 + box.height / 2,
+        top + box.height / 2,
         Math.min(height - 100 - box.height / 2, box.y),
       );
     };

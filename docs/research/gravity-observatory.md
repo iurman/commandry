@@ -211,3 +211,91 @@ document's observed client/scroll widths were 468/468. This evidence is a local
 browser check, not a frame-by-frame hardware benchmark. Temporary viewport
 overrides were reset. Workspace checks and all eighteen lab tests passed;
 the two pre-existing warnings in GitHub activity tests remain unrelated.
+
+## Operational activity simulation
+
+The owner approved a complete controlled activity study after reviewing the
+terrain and motion. The earlier single-destination delivery cue is replaced by
+a deterministic activity model, a terrain-following stream renderer, and a
+synchronized transfer/health/trace inspector. These files remain entirely in
+the local experience lab. Simulation controls affect ephemeral fixture state;
+they introduce no product action capability, external job, HTTP request, audit
+record, or infrastructure mutation.
+
+### Scenarios and meaning
+
+| Scenario | Behavior |
+| --- | --- |
+| Steady traffic | Health batches from Pleiades Metrics, Electra Web to Pleiades API requests, API to Maia NAS requests, occasional builds |
+| Build pipeline | Electra Worker dispatches to Titan Builder, processing orbits the service, artifacts move to Maia NAS, and the result returns to the original requester; an arriving Atlas also accepts work |
+| Failure / recovery | A repeating 48-second condition cycle slows Builder, makes it unavailable, then restores it; checks observe those changes later, and requests/jobs retry with four-second backoff and at most three attempts |
+| Traffic burst | The same routes represent batches of 40 and 24 requests with explicit grouped counts, rather than one visible particle system per request |
+
+Every transfer has stable source/destination resource IDs, a correlation ID,
+kind, stage, start time, duration, result, count, and attempt. Dispatch,
+processing, completion, storage, response, timeout, retry, and recovery events
+share their chain. Resources keep the same identities through host, project,
+custom-sector, capacity-size, and arrival transitions.
+
+Availability begins unknown. A completed simulated batch records individual
+service check results, latency or timeout, reason, and observation time. A
+failing Builder does not make Registry or Runner unavailable. A host summarizes
+its worst child check; fixture capacity percentages never determine availability.
+The live legend, health names, timeout labels, dotted checks and dashed failures
+provide meaning alongside editable healthy/degraded/unavailable colors. Saved
+views predating the unavailable color receive its default when restored.
+
+### Presentation and controls
+
+Streams follow the current displaced terrain with directional heads and short
+tails; they are bounded event activity, not permanent topology edges. Processing
+orbits the receiving service, and timed-out streams fade before completing their
+journey. Travel time is illustrative and does not claim to equal measured
+latency. The focus camera renders the same activity geometry as the overview.
+Following a correlation chain dims unrelated flows; selected-resource emphasis
+also follows sector membership in custom layouts.
+
+The scene exposes scenario and run/pause controls without scrolling. The
+inspector adds speed, five-second steps, restart, manual dispatch, counters,
+transfer progress, and evidence. Activity can pause while the camera and ambient
+field continue. Global motion pause freezes all clocks, with deliberate stepping
+still available in reduced-motion mode. Hidden/offscreen suspension does not
+advance the synthetic clock or replay a burst on return.
+
+The recent feed contains the latest 30 events. Complete selected traces remain
+available within a 120-second retention window. Disclosure controls expose every
+active transfer and retained event. These finite lab policies are not a proposed
+retention policy for real operational evidence. A future production adapter must
+project authorized canonical events and distinguish delayed/disconnected sources
+from this explicitly synthetic playback.
+
+### Verification
+
+Twenty-eight lab tests cover the previous terrain/motion invariants plus observed
+health, individual service failure and recovery, correlated builds and return to
+the requester, retry bounds, deterministic stepping, burst aggregation, arrivals,
+bounded active populations, trace retention, current-terrain endpoints, sector
+selection, simulation controls, and trace inspection. Workspace checks passed;
+the same two unrelated GitHub activity lint warnings remain.
+
+The browser exercised degraded Builder checks at simulation time 20 seconds,
+unhealthy checks at 25 seconds, and healthy checks after recovery at 40 seconds.
+A selected failed-request trace exposed dispatch, timeout, queued backoff, and
+retry. The build trace showed artifact storage and response arrival back at
+Electra Worker. Burst counts of 40/24 were explicit, and adding Atlas preserved
+the paused clock while its new services awaited and then received checks.
+With active streams the scene uses four overview draw calls and nine with the
+lens. Observed local cadence remained approximately 8.3 to 8.5 ms between frames;
+this is browser sampling, not GPU timing or a physical-TV benchmark.
+
+The narrow follow-up observed matching client/scroll widths at both 276 and
+393 CSS pixels. It exposed and corrected toolbar/label overlap: labels now
+reserve the toolbar's measured height through a dedicated ResizeObserver.
+At 393 pixels the nearest host label retained more than eleven pixels of
+clearance below wrapped controls. Independent activity pause and global motion
+pause both froze the simulation clock. Explicit steps publish state immediately,
+including when the canvas is offscreen; the inspector reports the suspended
+scene and its current clock. Unavailable rendering also reports unavailable
+simulation instead of a running badge. The final scoped tests, types, formatting
+and lint passed. Reduced-motion and WebGL-unavailable coverage use mocks rather
+than a physical accessibility configuration or GPU interruption.

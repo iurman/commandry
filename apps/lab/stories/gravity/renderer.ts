@@ -1,7 +1,10 @@
 import * as THREE from "three";
 import { OrbitControls } from "three/addons/controls/OrbitControls.js";
 import { surfaceHeight } from "./model";
-import type { CameraMode, Palette, SurfaceTheme, Well } from "./model";
+import type { CameraMode, Host, Palette, SurfaceTheme, Well } from "./model";
+import { ActivitySimulation, resourceHealth } from "./activity";
+import type { ActivitySnapshot, Scenario } from "./activity";
+import { ActivityRenderer } from "./activity-renderer";
 import {
   capacity,
   terrainVertex,
@@ -37,6 +40,14 @@ type Settings = {
   ambient: boolean;
   selected: string | null;
   focus: boolean;
+  simulation: {
+    hosts: Host[];
+    scenario: Scenario;
+    running: boolean;
+    speed: number;
+    follow: boolean;
+    trace: string | null;
+  };
 };
 type Hooks = {
   anchors: (anchors: Anchor[]) => void;
@@ -46,6 +57,8 @@ type Hooks = {
   unavailable: (message: string) => void;
   viewport: (portrait: boolean) => void;
   lens: (amount: number) => void;
+  activity: (snapshot: ActivitySnapshot) => void;
+  visibility: (visible: boolean) => void;
 };
 
 export class ObservatoryRenderer {
@@ -77,6 +90,7 @@ export class ObservatoryRenderer {
     uNight: { value: 0 },
     uWarning: { value: new THREE.Color() },
     uReporting: { value: new THREE.Color() },
+    uFailure: { value: new THREE.Color() },
     uTime: { value: 0 },
     uAmbient: { value: 1 },
     uSelection: { value: new THREE.Vector4(0, 0, 1, 1) },
@@ -105,6 +119,10 @@ export class ObservatoryRenderer {
   private wells: Well[] = [];
   private targets: Well[] = [];
   private settings: Settings;
+  private simulation: ActivitySimulation;
+  private activityRenderer = new ActivityRenderer();
+  private activitySnapshot: ActivitySnapshot;
+  private nextActivity = 0;
   private width = 1;
   private height = 1;
   private frame = 0;
@@ -126,6 +144,8 @@ export class ObservatoryRenderer {
   private needsDraw = true;
   private lost = false;
   private observer: ResizeObserver;
+  private labelObserver: ResizeObserver;
+  private labelTop = 52;
   private intersection: IntersectionObserver;
   private visible = true;
   private focusCamera = new THREE.PerspectiveCamera(42, 1, 0.1, 100);
@@ -139,18 +159,6 @@ export class ObservatoryRenderer {
   private lensGeometry = new THREE.CircleGeometry(1, 100);
   private lensMaterial: THREE.MeshBasicMaterial;
   private lens: THREE.Mesh;
-  private particlesGeometry = new THREE.BufferGeometry();
-  private particlesMaterial = new THREE.PointsMaterial({
-    size: 0.12,
-    color: 0x7ad8f6,
-    transparent: true,
-    opacity: 0.9,
-    blending: THREE.AdditiveBlending,
-    depthWrite: false,
-  });
-  private particles: THREE.Points;
-  private event: { wellId: string; start: number } | null = null;
-  private positions = new Float32Array(80 * 3);
   private cameraTween: {
     from: THREE.Vector3;
     to: THREE.Vector3;
@@ -167,6 +175,11 @@ export class ObservatoryRenderer {
     private hooks: Hooks,
   ) {
     this.settings = settings;
+    this.simulation = new ActivitySimulation(
+      settings.simulation.hosts,
+      settings.simulation.scenario,
+    );
+    this.activitySnapshot = this.simulation.snapshot(settings.simulation.trace);
     this.renderer = new THREE.WebGLRenderer({
       antialias: true,
       alpha: false,
@@ -212,17 +225,7 @@ export class ObservatoryRenderer {
     this.lens = new THREE.Mesh(this.lensGeometry, this.lensMaterial);
     this.lens.position.z = -1;
     this.overlayScene.add(this.lens);
-    this.particlesGeometry.setAttribute(
-      "position",
-      new THREE.BufferAttribute(this.positions, 3),
-    );
-    this.particles = new THREE.Points(
-      this.particlesGeometry,
-      this.particlesMaterial,
-    );
-    this.particles.visible = false;
-    this.particles.frustumCulled = false;
-    this.scene.add(this.particles);
+    this.scene.add(this.activityRenderer.group);
     const change = () => {
       this.needsDraw = true;
     };
@@ -253,6 +256,7 @@ export class ObservatoryRenderer {
     });
     this.listen(document, "visibilitychange", () => {
       cancelAnimationFrame(this.frame);
+      this.hooks.visibility?.(this.visible && !document.hidden);
       if (!document.hidden) {
         this.previous = 0;
         this.needsDraw = true;
@@ -261,8 +265,21 @@ export class ObservatoryRenderer {
     });
     this.observer = new ResizeObserver(() => this.resize());
     this.observer.observe(container);
+    const toolbar = container.parentElement?.querySelector<HTMLElement>(
+      ".gravity-activity-bar",
+    );
+    const measureToolbar = () => {
+      this.labelTop = toolbar
+        ? toolbar.offsetTop + toolbar.offsetHeight + 12
+        : 52;
+      this.needsDraw = true;
+    };
+    this.labelObserver = new ResizeObserver(measureToolbar);
+    if (toolbar) this.labelObserver.observe(toolbar);
+    measureToolbar();
     this.intersection = new IntersectionObserver(([entry]) => {
       this.visible = entry?.isIntersecting ?? false;
+      this.hooks.visibility?.(this.visible && !document.hidden);
       cancelAnimationFrame(this.frame);
       if (this.visible && !document.hidden) {
         this.previous = 0;
@@ -287,8 +304,25 @@ export class ObservatoryRenderer {
       );
     const layoutChanged = wells !== this.targets;
     const cameraChanged = settings.cameraMode !== this.settings.cameraMode;
+    const activityChanged =
+      settings.simulation.scenario !== this.settings.simulation.scenario ||
+      settings.simulation.hosts !== this.settings.simulation.hosts ||
+      settings.simulation.trace !== this.settings.simulation.trace;
+    if (settings.simulation.trace !== this.settings.simulation.trace)
+      this.nextActivity = 0;
+    if (settings.simulation.scenario !== this.settings.simulation.scenario) {
+      this.simulation = new ActivitySimulation(
+        settings.simulation.hosts,
+        settings.simulation.scenario,
+      );
+      this.nextActivity = 0;
+    } else if (settings.simulation.hosts !== this.settings.simulation.hosts) {
+      this.simulation.setHosts(settings.simulation.hosts);
+      this.nextActivity = 0;
+    }
     this.targets = wells;
     this.settings = settings;
+    if (activityChanged) this.publishActivity();
     if (cameraChanged) {
       this.presentationInterrupted = false;
       this.presentationElapsed = 0;
@@ -309,6 +343,7 @@ export class ObservatoryRenderer {
       this.cameraTween = null;
     this.uniforms.uWarning.value.set(settings.palette.attention);
     this.uniforms.uReporting.value.set(settings.palette.reporting);
+    this.uniforms.uFailure.value.set(settings.palette.unhealthy);
     this.needsDraw = true;
   }
 
@@ -330,7 +365,29 @@ export class ObservatoryRenderer {
   }
 
   emit(wellId: string) {
-    this.event = { wellId, start: this.elapsed };
+    this.simulation.sendJob(wellId.split("/")[0]);
+    this.publishActivity();
+  }
+
+  resetActivity() {
+    this.simulation = new ActivitySimulation(
+      this.settings.simulation.hosts,
+      this.settings.simulation.scenario,
+    );
+    this.publishActivity();
+  }
+
+  stepActivity() {
+    this.simulation.advance(5);
+    this.publishActivity();
+  }
+
+  private publishActivity() {
+    this.activitySnapshot = this.simulation.snapshot(
+      this.settings.simulation.trace,
+    );
+    this.hooks.activity?.(this.activitySnapshot);
+    this.nextActivity = 0;
     this.needsDraw = true;
   }
 
@@ -408,6 +465,16 @@ export class ObservatoryRenderer {
     const dt = Math.min(interval / 1000, 0.05);
     this.previous = now;
     const moving = this.settings.motion;
+    const simulating = moving && this.settings.simulation.running;
+    if (simulating)
+      this.simulation.advance(dt * this.settings.simulation.speed);
+    this.activitySnapshot = this.simulation.snapshot(
+      this.settings.simulation.trace,
+    );
+    if (now >= this.nextActivity) {
+      this.hooks.activity?.(this.activitySnapshot);
+      this.nextActivity = now + 250;
+    }
     if (moving) this.elapsed += dt;
     this.uniforms.uTime.value = this.elapsed;
     this.uniforms.uAmbient.value = this.settings.ambient ? 1 : 0;
@@ -461,7 +528,9 @@ export class ObservatoryRenderer {
         well.elevation,
         well.profile,
       );
-      this.uniforms.uAttention.value[i] = well.attention ? 1 : 0;
+      const health = resourceHealth(this.activitySnapshot, well.id).state;
+      this.uniforms.uAttention.value[i] =
+        health === "unhealthy" ? 1 : health === "degraded" ? 0.5 : 0;
     });
     const targetNight = this.settings.theme === "midnight" ? 1 : 0;
     const oldNight = this.uniforms.uNight.value;
@@ -558,13 +627,24 @@ export class ObservatoryRenderer {
     changing = this.controls.update(dt) || changing;
     this.uniforms.uFogStart.value =
       this.camera.position.distanceTo(this.controls.target) + 18;
-    this.updateParticles();
     if (
       this.needsDraw ||
       changing ||
       (this.settings.ambient && moving) ||
-      (this.event && moving)
+      simulating
     ) {
+      const activity = this.settings.simulation;
+      this.activityRenderer.update(
+        this.activitySnapshot,
+        this.wells,
+        this.settings.palette,
+        this.settings.selected,
+        activity.trace,
+        activity.follow,
+        this.elapsed,
+        this.settings.ambient,
+        this.settings.theme === "midnight",
+      );
       this.renderer.info.reset();
       this.renderer.setRenderTarget(null);
       this.renderer.setClearColor(
@@ -658,6 +738,7 @@ export class ObservatoryRenderer {
         this.height,
         dt,
         this.settings.motion,
+        this.labelTop,
       ),
     );
   }
@@ -707,37 +788,10 @@ export class ObservatoryRenderer {
     this.renderer.autoClear = true;
   }
 
-  private updateParticles() {
-    if (!this.event) {
-      this.particles.visible = false;
-      return;
-    }
-    const destination = this.wells.find((w) => w.id === this.event!.wellId);
-    if (!destination || this.elapsed - this.event.start > 5.5) {
-      this.event = null;
-      this.particles.visible = false;
-      this.needsDraw = true;
-      return;
-    }
-    const age = this.elapsed - this.event.start;
-    for (let i = 0; i < 80; i++) {
-      const t = Math.max(0, Math.min(1, (age - i * 0.018) / 3.3));
-      const angle = t * Math.PI * 5 + i * 0.017;
-      const radius = (1 - t) * 5.5;
-      const x = destination.x + Math.cos(angle) * radius;
-      const z = destination.z + Math.sin(angle) * radius;
-      this.positions[i * 3] = x;
-      this.positions[i * 3 + 1] = this.heightAt(x, z) + 0.14 + (1 - t) * 0.3;
-      this.positions[i * 3 + 2] = z;
-    }
-    this.particlesGeometry.attributes.position!.needsUpdate = true;
-    this.particles.visible = true;
-    this.particlesMaterial.opacity = Math.min(0.95, (5.5 - age) * 0.6);
-  }
-
   dispose() {
     cancelAnimationFrame(this.frame);
     this.observer.disconnect();
+    this.labelObserver.disconnect();
     this.intersection.disconnect();
     this.listeners.forEach((remove) => remove());
     this.controls.dispose();
@@ -745,8 +799,7 @@ export class ObservatoryRenderer {
     this.material.dispose();
     this.skyGeometry.dispose();
     this.skyMaterial.dispose();
-    this.particlesGeometry.dispose();
-    this.particlesMaterial.dispose();
+    this.activityRenderer.dispose();
     this.lensGeometry.dispose();
     this.lensMaterial.dispose();
     this.target.dispose();

@@ -9,6 +9,8 @@ import {
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { PerspectiveCamera, Vector3 } from "three";
 import type { Anchor } from "./gravity/renderer";
+import { ActivitySimulation } from "./gravity/activity";
+import type { ActivitySnapshot } from "./gravity/activity";
 import {
   arrivalHost,
   fixtureHosts,
@@ -26,10 +28,14 @@ const mock = vi.hoisted(() => ({
   dispose: vi.fn(),
   emit: vi.fn(),
   preset: vi.fn(),
+  step: vi.fn(),
+  reset: vi.fn(),
   fail: false,
   hooks: null as null | {
     anchors: (anchors: Anchor[]) => void;
     lens: (amount: number) => void;
+    activity: (snapshot: ActivitySnapshot) => void;
+    visibility: (visible: boolean) => void;
   },
 }));
 vi.mock("./gravity/renderer", () => ({
@@ -46,6 +52,8 @@ vi.mock("./gravity/renderer", () => ({
     dispose = mock.dispose;
     emit = mock.emit;
     preset = mock.preset;
+    stepActivity = mock.step;
+    resetActivity = mock.reset;
     measureAnchor = vi.fn();
   },
 }));
@@ -105,6 +113,46 @@ describe("gravity projection semantics", () => {
 });
 
 describe("gravity study controls", () => {
+  it("keeps deliberate stepping and its clock visible when the canvas is offscreen", () => {
+    render(<GravityObservatory />);
+    act(() => mock.hooks!.visibility(false));
+    expect(screen.getByText(/Scene offscreen at 00:00/)).toBeTruthy();
+    fireEvent.click(screen.getByRole("button", { name: "Step +5s" }));
+    expect(mock.step).toHaveBeenCalledOnce();
+    const simulation = new ActivitySimulation(fixtureHosts);
+    simulation.advance(5);
+    act(() => mock.hooks!.activity(simulation.snapshot()));
+    expect(screen.getByText(/Scene offscreen at 00:05/)).toBeTruthy();
+  });
+  it("controls simulation independently, steps while paused, and follows a transfer's evidence", () => {
+    render(<GravityObservatory />);
+    fireEvent.change(
+      screen.getByRole("combobox", { name: "Activity scenario" }),
+      { target: { value: "incident" } },
+    );
+    fireEvent.change(
+      screen.getByRole("combobox", { name: "Simulation speed" }),
+      { target: { value: "4" } },
+    );
+    fireEvent.click(screen.getByRole("button", { name: "Pause simulation" }));
+    expect(mock.update.mock.lastCall?.[1].simulation).toMatchObject({
+      scenario: "incident",
+      running: false,
+      speed: 4,
+    });
+    fireEvent.click(screen.getByRole("button", { name: "Step +5s" }));
+    expect(mock.step).toHaveBeenCalledOnce();
+    const simulation = new ActivitySimulation(fixtureHosts, "incident");
+    simulation.advance(24);
+    act(() => mock.hooks!.activity(simulation.snapshot()));
+    fireEvent.click(screen.getByRole("button", { name: "Inspect Titan" }));
+    expect(screen.getByText("Simulated health: unhealthy")).toBeTruthy();
+    fireEvent.click(screen.getAllByRole("button", { name: /^Trace / })[0]!);
+    expect(mock.update.mock.lastCall?.[1].simulation.trace).toMatch(/^trace-/);
+    fireEvent.click(screen.getByRole("button", { name: "Restart" }));
+    expect(mock.reset).toHaveBeenCalledOnce();
+    expect(mock.update.mock.lastCall?.[1].simulation.trace).toBeNull();
+  });
   it("keeps label elements mounted through visibility changes and synchronizes the lens frame", () => {
     render(<GravityObservatory />);
     const anchor: Anchor = {
@@ -149,15 +197,18 @@ describe("gravity study controls", () => {
         }) as HTMLButtonElement
       ).disabled,
     ).toBe(true);
-    fireEvent.click(screen.getByRole("button", { name: "Send event" }));
+    fireEvent.click(screen.getByRole("button", { name: "Dispatch job" }));
     expect(mock.emit).toHaveBeenCalledWith("electra/Worker");
     expect(
-      screen.getByText("Simulated job delivered to Electra."),
+      screen.getByText("Simulated job dispatched to Electra."),
     ).toBeTruthy();
     fireEvent.click(screen.getByRole("button", { name: "Pause motion" }));
     expect(
-      (screen.getByRole("button", { name: "Send event" }) as HTMLButtonElement)
-        .disabled,
+      (
+        screen.getByRole("button", {
+          name: "Dispatch job",
+        }) as HTMLButtonElement
+      ).disabled,
     ).toBe(true);
   });
   it("changes projection, persists custom placement, and cleans up the renderer", () => {
@@ -206,6 +257,9 @@ describe("gravity study controls", () => {
     fireEvent.click(screen.getByRole("button", { name: "Inspect Titan" }));
     expect(screen.getByRole("heading", { name: "Titan" })).toBeTruthy();
     expect(screen.getAllByText("Unknown")).toHaveLength(3);
+    expect(
+      screen.getByLabelText("Simulated activity overview").textContent,
+    ).toContain("UNAVAILABLE");
     expect(
       (
         screen.getByRole("button", {
@@ -369,6 +423,19 @@ describe("stable terrain labels", () => {
     y,
     visible,
     opacity: 0,
+  });
+  it("reserves measured toolbar space instead of letting labels overlap wrapped controls", () => {
+    const layout = new LabelLayout();
+    layout.measure("a", 100, 42);
+    const result = layout.layout(
+      [label("a", 200, 90)],
+      393,
+      640,
+      1 / 60,
+      false,
+      130,
+    );
+    expect(result[0]!.y - 42).toBeGreaterThanOrEqual(130);
   });
 
   it("anchors above each structural crest independently of ambient waves and neighbouring wells", () => {

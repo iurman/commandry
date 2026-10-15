@@ -16,6 +16,13 @@ import type {
 } from "./model";
 import { ObservatoryRenderer } from "./renderer";
 import type { Anchor, RenderStats } from "./renderer";
+import { ActivitySimulation, resourceHealth, scenarios } from "./activity";
+import {
+  ActivityPanel,
+  clockLabel,
+  initialActivityControls,
+} from "./ActivityPanel";
+import type { ActivityControls } from "./ActivityPanel";
 import "./observatory.css";
 
 function Icon({
@@ -123,6 +130,7 @@ export function GravityObservatory() {
   const [sizeBasis, setSizeBasis] = useState<SizeBasis>("services");
   const [ambient, setAmbient] = useState(true);
   const [portrait, setPortrait] = useState(false);
+  const [sceneVisible, setSceneVisible] = useState(true);
   const [motion, setMotion] = useState(
     () => !window.matchMedia("(prefers-reduced-motion: reduce)").matches,
   );
@@ -130,6 +138,12 @@ export function GravityObservatory() {
   const [error, setError] = useState("");
   const [anchors, setAnchors] = useState<Anchor[]>([]);
   const [stats, setStats] = useState(emptyStats);
+  const [activity, setActivity] = useState(() =>
+    new ActivitySimulation(fixtureHosts).snapshot(),
+  );
+  const [activityControls, setActivityControls] = useState(
+    initialActivityControls,
+  );
   const [events, setEvents] = useState([
     "Study ready. Select a well to explore.",
   ]);
@@ -139,8 +153,27 @@ export function GravityObservatory() {
     [hosts, mode, assignments, sizeBasis, portrait],
   );
   const settings = useMemo(
-    () => ({ theme, palette, motion, cameraMode, ambient, selected, focus }),
-    [theme, palette, motion, cameraMode, ambient, selected, focus],
+    () => ({
+      theme,
+      palette,
+      motion,
+      cameraMode,
+      ambient,
+      selected,
+      focus,
+      simulation: { ...activityControls, hosts },
+    }),
+    [
+      theme,
+      palette,
+      motion,
+      cameraMode,
+      ambient,
+      selected,
+      focus,
+      activityControls,
+      hosts,
+    ],
   );
   const callbacks = useRef({
     select: (id: string) => setSelected(id),
@@ -176,10 +209,12 @@ export function GravityObservatory() {
           }
         },
         stats: setStats,
+        activity: setActivity,
         select: (id) => callbacks.current.select(id),
         interrupted: () => callbacks.current.interrupted(),
         unavailable: setError,
         viewport: setPortrait,
+        visibility: setSceneVisible,
         lens: (amount) => {
           lensProgress.current = amount;
           anchorLayer.current?.style.setProperty(
@@ -227,6 +262,14 @@ export function GravityObservatory() {
   const selectedWell = wells.find((w) => w.id === selected);
   const selectedSector = sectors.find((s) => s.id === selectedWell?.sector);
   const serviceCount = hosts.reduce((sum, h) => sum + h.services.length, 0);
+  const healthSummary = Object.values(activity.health).reduce(
+    (counts, sample) => ({
+      ...counts,
+      [sample.state]: counts[sample.state] + 1,
+    }),
+    { healthy: 0, unknown: 0, degraded: 0, unhealthy: 0 },
+  );
+  const selectedHealth = resourceHealth(activity, selected ?? "");
   const addEvent = (message: string) =>
     setEvents((previous) => [message, ...previous].slice(0, 5));
 
@@ -245,7 +288,7 @@ export function GravityObservatory() {
     renderer.current?.emit(
       `${destination.id}/${destination.services[1] ?? destination.services[0]}`,
     );
-    addEvent(`Simulated job delivered to ${destination.name}.`);
+    addEvent(`Simulated job dispatched to ${destination.name}.`);
   }
   function saveView() {
     try {
@@ -259,6 +302,7 @@ export function GravityObservatory() {
           sizeBasis,
           ambient,
           cameraMode,
+          activity: activityControls,
         }),
       );
       setSaved(true);
@@ -284,12 +328,14 @@ export function GravityObservatory() {
         sizeBasis?: SizeBasis;
         ambient?: boolean;
         cameraMode?: CameraMode;
+        activity?: ActivityControls;
       };
       if (
         !["hosts", "projects", "custom"].includes(data.mode) ||
         !["porcelain", "midnight"].includes(data.theme)
       )
         throw new Error("Invalid view");
+      data.palette.unhealthy ??= initialPalette.unhealthy;
       if (
         !Object.keys(initialPalette).every((key) =>
           /^#[0-9a-f]{6}$/i.test(data.palette[key as keyof Palette]),
@@ -303,6 +349,18 @@ export function GravityObservatory() {
       setTheme(data.theme);
       setPalette(data.palette);
       setAssignments(data.assignments);
+      if (data.activity)
+        setActivityControls({
+          ...initialActivityControls,
+          scenario:
+            data.activity.scenario in scenarios
+              ? data.activity.scenario
+              : "steady",
+          speed: [0.5, 1, 2, 4].includes(data.activity.speed)
+            ? data.activity.speed
+            : 1,
+          follow: data.activity.follow === true,
+        });
       setSizeBasis(
         data.sizeBasis &&
           ["services", "capacity", "uniform"].includes(data.sizeBasis)
@@ -340,6 +398,7 @@ export function GravityObservatory() {
           "--gravity-home": palette.home,
           "--gravity-warning": palette.attention,
           "--gravity-reporting": palette.reporting,
+          "--gravity-unhealthy": palette.unhealthy,
         } as React.CSSProperties
       }
     >
@@ -358,7 +417,8 @@ export function GravityObservatory() {
             <b>{serviceCount}</b> services
           </span>
           <span className="gravity-warning">
-            <b>01</b> needs attention
+            <b>{healthSummary.degraded + healthSummary.unhealthy}</b> need
+            attention
           </span>
         </div>
         <button
@@ -435,6 +495,73 @@ export function GravityObservatory() {
           </div>
           <div ref={container} className="gravity-canvas" />
           <div
+            className="gravity-activity-bar"
+            aria-label="Simulated activity overview"
+          >
+            <select
+              aria-label="Scene scenario"
+              disabled={!!error}
+              value={activityControls.scenario}
+              onChange={(event) =>
+                setActivityControls((previous) => ({
+                  ...previous,
+                  scenario: event.target.value as ActivityControls["scenario"],
+                  trace: null,
+                }))
+              }
+            >
+              {Object.entries(scenarios).map(([value, label]) => (
+                <option key={value} value={value}>
+                  {label}
+                </option>
+              ))}
+            </select>
+            <button
+              aria-label={
+                activityControls.running ? "Pause activity" : "Resume activity"
+              }
+              disabled={!!error}
+              onClick={() =>
+                setActivityControls((previous) => ({
+                  ...previous,
+                  running: !previous.running,
+                }))
+              }
+            >
+              {activityControls.running ? "Pause" : "Run"}
+            </button>
+            <span>
+              <i
+                data-running={
+                  activityControls.running && motion && sceneVisible && !error
+                }
+              />{" "}
+              SIMULATION / {clockLabel(activity.time)} /{" "}
+              {error
+                ? "UNAVAILABLE"
+                : activityControls.running && motion && sceneVisible
+                  ? "RUNNING"
+                  : "PAUSED"}
+            </span>
+            <span>
+              {activity.transfers.length} transfers <b>/</b>{" "}
+              {healthSummary.healthy} healthy <b>/</b> {healthSummary.unknown}{" "}
+              unknown
+            </span>
+            {activityControls.trace && (
+              <button
+                onClick={() =>
+                  setActivityControls((previous) => ({
+                    ...previous,
+                    trace: null,
+                  }))
+                }
+              >
+                Clear {activityControls.trace}
+              </button>
+            )}
+          </div>
+          <div
             ref={anchorLayer}
             className="gravity-anchors"
             aria-hidden={!!error}
@@ -451,7 +578,8 @@ export function GravityObservatory() {
               ) : (
                 <button
                   key={anchor.id}
-                  className={`gravity-anchor gravity-anchor-${anchor.kind} ${anchor.attention ? "is-attention" : ""} ${selected === anchor.id ? "is-selected" : ""} ${!anchor.id.startsWith("lens-") ? "is-background" : ""}`}
+                  className={`gravity-anchor gravity-anchor-${anchor.kind} ${["degraded", "unhealthy"].includes(resourceHealth(activity, anchor.id).state) ? "is-attention" : ""} ${selected === anchor.id ? "is-selected" : ""} ${!anchor.id.startsWith("lens-") ? "is-background" : ""}`}
+                  data-health={resourceHealth(activity, anchor.id).state}
                   ref={(element) => {
                     if (!element) {
                       anchorElements.current.delete(anchor.id);
@@ -474,10 +602,10 @@ export function GravityObservatory() {
                   <span>{anchor.label}</span>
                   {anchor.kind === "host" && (
                     <small>
-                      {anchor.attention
-                        ? "! Needs attention"
-                        : sectors.find((sector) => sector.id === anchor.sector)
-                            ?.label}
+                      {resourceHealth(activity, anchor.id).state === "unknown"
+                        ? sectors.find((sector) => sector.id === anchor.sector)
+                            ?.label
+                        : resourceHealth(activity, anchor.id).state}
                     </small>
                   )}
                 </button>
@@ -700,32 +828,36 @@ export function GravityObservatory() {
               </fieldset>
               <fieldset className="gravity-setting">
                 <legend>Signal colors</legend>
-                {(["reporting", "attention"] as const).map((state) => (
-                  <label className="gravity-color-row" key={state}>
-                    <span>
-                      {state === "reporting"
-                        ? "Source reporting"
-                        : "Needs attention"}
-                    </span>
-                    <input
-                      type="color"
-                      aria-label={`${state} color`}
-                      value={palette[state]}
-                      onInput={(e) =>
-                        setPalette({
-                          ...palette,
-                          [state]: e.currentTarget.value,
-                        })
-                      }
-                      onChange={(e) =>
-                        setPalette({ ...palette, [state]: e.target.value })
-                      }
-                    />
-                  </label>
-                ))}
+                {(["reporting", "attention", "unhealthy"] as const).map(
+                  (state) => (
+                    <label className="gravity-color-row" key={state}>
+                      <span>
+                        {state === "reporting"
+                          ? "Healthy check"
+                          : state === "unhealthy"
+                            ? "Unavailable"
+                            : "Degraded"}
+                      </span>
+                      <input
+                        type="color"
+                        aria-label={`${state} color`}
+                        value={palette[state]}
+                        onInput={(e) =>
+                          setPalette({
+                            ...palette,
+                            [state]: e.currentTarget.value,
+                          })
+                        }
+                        onChange={(e) =>
+                          setPalette({ ...palette, [state]: e.target.value })
+                        }
+                      />
+                    </label>
+                  ),
+                )}
                 <p className="gravity-help">
                   Rim patterns and labels preserve meaning alongside color.
-                  Service health is unknown.
+                  Health changes only after a simulated check completes.
                 </p>
               </fieldset>
               {mode === "custom" && (
@@ -794,19 +926,25 @@ export function GravityObservatory() {
               {host && (
                 <>
                   <div
-                    className={`gravity-health ${host.attention ? "is-attention" : ""}`}
+                    className="gravity-health"
+                    data-health={selectedHealth.state}
                   >
-                    <span>{host.attention ? "!" : "+"}</span>
+                    <span>
+                      {selectedHealth.state === "unhealthy"
+                        ? "!"
+                        : selectedHealth.state === "degraded"
+                          ? "~"
+                          : selectedHealth.state === "unknown"
+                            ? "?"
+                            : "+"}
+                    </span>
                     <div>
-                      <strong>
-                        {host.attention
-                          ? "Memory needs attention"
-                          : "Source is reporting"}
-                      </strong>
+                      <strong>Simulated health: {selectedHealth.state}</strong>
                       <small>
-                        {host.attention
-                          ? "Synthetic threshold: above 80%"
-                          : "Availability remains unknown"}
+                        {selectedHealth.reason}
+                        {selectedHealth.state !== "unknown"
+                          ? ` / ${selectedHealth.latencyMs === null ? "timeout" : `${selectedHealth.latencyMs} ms`} / checked ${Math.floor(activity.time - selectedHealth.checkedAt)}s ago`
+                          : ""}
                       </small>
                     </div>
                   </div>
@@ -865,7 +1003,18 @@ export function GravityObservatory() {
                         0{index + 1}
                       </span>
                       <span>{service}</span>
-                      <span className="gravity-service-state">Unknown</span>
+                      <span
+                        className="gravity-service-state"
+                        data-health={
+                          resourceHealth(activity, `${host.id}/${service}`)
+                            .state
+                        }
+                      >
+                        {resourceHealth(
+                          activity,
+                          `${host.id}/${service}`,
+                        ).state.replace(/^./, (letter) => letter.toUpperCase())}
+                      </span>
                       <Icon name="arrow" />
                     </button>
                   ))}
@@ -900,24 +1049,50 @@ export function GravityObservatory() {
                     >
                       <span
                         className={
-                          resource.attention
+                          ["degraded", "unhealthy"].includes(
+                            resourceHealth(activity, resource.id).state,
+                          )
                             ? "gravity-warning"
                             : "gravity-reporting"
                         }
                       >
-                        {resource.attention ? "!" : "+"}
+                        {["degraded", "unhealthy"].includes(
+                          resourceHealth(activity, resource.id).state,
+                        )
+                          ? "!"
+                          : resourceHealth(activity, resource.id).state ===
+                              "unknown"
+                            ? "?"
+                            : "+"}
                       </span>
                       {resource.name}
                     </button>
                   ))}
                 </div>
               </section>
+              <ActivityPanel
+                snapshot={activity}
+                controls={activityControls}
+                visible={sceneVisible}
+                motion={motion}
+                disabled={!!error}
+                change={(patch) =>
+                  setActivityControls((previous) => ({ ...previous, ...patch }))
+                }
+                step={() => renderer.current?.stepActivity()}
+                reset={() => renderer.current?.resetActivity()}
+                dispatch={sendEvent}
+                trace={(id, destination) => {
+                  setActivityControls((previous) => ({
+                    ...previous,
+                    trace: id,
+                  }));
+                  selectResource(destination);
+                }}
+              />
               <section className="gravity-events">
                 <div className="gravity-section-heading">
                   <h3>Study events</h3>
-                  <button onClick={sendEvent} disabled={!motion || !!error}>
-                    Send event <Icon name="arrow" />
-                  </button>
                 </div>
                 <ol aria-live="polite">
                   {events.map((event, index) => (
@@ -939,7 +1114,7 @@ export function GravityObservatory() {
         </span>
         <span
           className="gravity-performance"
-          title="Sampled animation cadence, not GPU timing. Switch off Ambient field for on-demand rendering in a composed view."
+          title="Sampled animation cadence, not GPU timing. Pause the simulation and disable Ambient field for on-demand rendering in a composed view."
         >
           {stats.fps
             ? `${stats.frameMs} ms frame interval`

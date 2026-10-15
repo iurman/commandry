@@ -7,6 +7,7 @@ export type Point = { x: number; z: number };
 export type Palette = Record<SectorId, string> & {
   attention: string;
   reporting: string;
+  unhealthy: string;
 };
 export type Host = {
   id: string;
@@ -45,6 +46,7 @@ export const initialPalette: Palette = {
   work: "#a08ac5",
   home: "#55aaa7",
   reporting: "#68c5b6",
+  unhealthy: "#e16f76",
   attention: "#e9a04b",
 };
 export const fixtureHosts: Host[] = [
