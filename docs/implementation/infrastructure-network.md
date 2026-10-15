@@ -1,6 +1,6 @@
 # Infrastructure network and wallboard
 
-**Status: Operational, locally verified PR candidate**
+**Status: Operational; original local verification with production follow-up**
 
 ## Request and scope
 
@@ -128,7 +128,7 @@ checks passed again, now including a measured full-line-height assertion on node
 names in every configured viewport and theme. The owner requested merging and
 an interactive local preview; the preview is intentionally retained for review.
 
-### Limits
+### Original local verification limits
 
 No production deployment, infrastructure change, source reconfiguration, or
 import of InfraAgent account data occurred. Physical-TV readability and remote
@@ -137,3 +137,12 @@ viewports verify layout, not a specific television's overscan or viewing distanc
 The current adapters measure host capacity and repository activity; external
 service availability, production alert suppression, agents, prompt inspection,
 and build-machine scheduling remain outside this infrastructure-first slice.
+
+### Production follow-up, 2026-10-15
+
+The overview, list, topology and TV wallboard are now deployed with Gravity as
+the default presentation. The [Gravity activation record](gravity-infrastructure.md#production-activation-2026-10-15)
+contains the exact production revision, image, release gates, preserved inventory
+and signed-in browser evidence. The earlier screenshots and test counts above
+remain historical local evidence. Obsolete task-owned local previews were
+retired after the live result was verified.

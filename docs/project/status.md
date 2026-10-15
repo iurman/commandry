@@ -61,23 +61,32 @@ as source-linked knowledge in the existing Commandry project. Subscription
 agent dispatch and the wider [orchestration direction](../research/agent-orchestration-and-shared-context.md)
 remain proposed; no coding runtime or new inference billing path was selected.
 
-## Infrastructure overview candidate (2026-10-15)
+## Infrastructure overview and Gravity live (2026-10-15)
 
-The local candidate adds a resource-centered infrastructure map, synchronized
-searchable list, source/measurement inspector, recent real events, and a dedicated
-TV wallboard. It preserves the inventory editor, uses explicit pagination and
-project scope, and keeps source freshness separate from unknown service health.
-Polling, pause/resume, delayed snapshots, optional page rotation and event-backed
-arrival cues are implemented. Agent/build-machine flows and new availability
-providers remain future work. See the [implementation record](../implementation/infrastructure-network.md)
-for local verification. This candidate has not been deployed to production.
+The resource-centered infrastructure overview and Gravity presentation are live
+at `https://commandry.site/infrastructure`, with a dedicated TV wallboard,
+searchable list, topology alternative, source/measurement inspector and recent
+real events. Project scope, complete pagination and the existing inventory
+editor remain available. Source freshness stays separate from unknown service
+availability. Agent/build-machine traffic and new availability providers remain
+future work.
 
-The follow-up Gravity integration promotes the approved renderer into shared
-production UI while retaining all simulation in the lab. The production
-candidate uses the same authorized paginated inventory and recorded-event
-evidence, with source freshness distinct from unknown service availability.
-[Integration evidence](../implementation/gravity-infrastructure.md) records
-verification and deployment status.
+The owner-authorized constrained deployment completed at
+2026-10-15T23:31:40Z from revision
+`3d0ff56d8335df0262e8c7286b8dbec24322ecb5`. The
+[Gravity activation record](../implementation/gravity-infrastructure.md#production-activation-2026-10-15)
+records the exact image, release workflow, backup/restore and live evidence.
+All 91 canonical resource records were preserved, including 18 registered hosts.
+Electra, Pleiades, Maia and Titan continued reporting fresh capacity observations;
+registration and source freshness do not establish service availability.
+
+Gravity shares the reviewed renderer with the lab while keeping all simulation
+outside production. The signed-in production browser verified real host metrics,
+nested services, focus, cameras, appearance, list/topology and the wallboard.
+The owner requirement for discoverable MCP coverage alongside future features is
+recorded in the agent guide and source-linked project knowledge. Broader MCP
+inventory/source/presentation access remains explicitly deferred to the separate
+comprehensive MCP planning work; the live MCP still has four knowledge read tools.
 
 ## Established direction
 
