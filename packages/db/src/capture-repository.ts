@@ -91,7 +91,7 @@ function workRecord(
   };
 }
 
-function knowledgeRecord(
+export function knowledgeRecord(
   row: typeof knowledgeItem.$inferSelect,
   context?: typeof knowledgeProjectLink.$inferSelect | null,
 ) {

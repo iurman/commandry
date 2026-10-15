@@ -302,10 +302,12 @@ configuration readback, isolated role application and configuration
 extraction, repository check, exact-digest clean restore, and unexposed web
 read smoke all pass. A local `pnpm backup:restic:test` rehearsal uses a
 synthetic local repository and never writes a production receipt. The hook
-exists on the VPS but is closed by missing configuration. An empty private R2 bucket is reserved, but
-backup credentials and a working offsite restore are not configured.
+was configured and activated on electra on October 14, 2026. Encrypted R2
+readback and isolated restore passed before the initial application release;
+the later MCP deployment passed those gates again, as recorded in the
+[activation evidence](../docs/architecture/knowledge-mcp.md#activation-evidence-2026-10-15).
 
-The uninstalled [nightly host service and timer](systemd/commandry-backup.timer)
+The installed [nightly host service and timer](systemd/commandry-backup.timer)
 use the same controlled runtime to create encrypted R2 database, PostgreSQL
 globals, and private host configuration snapshots without a release image.
 The configuration archive excludes the restic password file if it is inside
@@ -313,15 +315,16 @@ The configuration archive excludes the restic password file if it is inside
 applies explicit recent, daily, weekly, and monthly retention values; its
 committed example deliberately sets invalid zeroes. It keeps private
 last-attempt and last-success JSON records and exits nonzero on
-failure. A separate uninstalled hourly health unit fails on a failed attempt
+failure. A separate installed hourly health unit fails on a failed attempt
 or a snapshot older than the configured maximum age. Local synthetic rehearsals
-exercise retention and those status states. The uninstalled
-[webhook alert adapter](backup-and-restore.md#provisional-backup-alert-transport-not-installed)
-can deliver and deduplicate failure and resolution events, but its local test
-uses only a synthetic loopback receiver. Choosing retention and freshness
-targets, an approved owner alert receiver, R2 access, and installation remain
-gates.
-An uninstalled monthly timer can apply retained PostgreSQL globals to a
+exercise retention and those status states. The installed
+[backup alert adapter](backup-and-restore.md#backup-alert-transport) supports
+webhook or Telegram delivery. Telegram firing/recovery delivery and duplicate
+suppression passed before its fifteen-minute timer was enabled. The owner
+selected 7 recent, 7 daily, 5 weekly and 12 monthly snapshots, a 36-hour
+freshness threshold, and private Telegram delivery. These host checks cannot
+notify after complete VPS loss without an independent monitor.
+The installed monthly timer can apply retained PostgreSQL globals to a
 disposable cluster, extract the private configuration into a disposable
 directory, and restore a fresh database snapshot into isolated PostgreSQL and
 web containers using the current approved image. The local test runs that

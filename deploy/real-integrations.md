@@ -2,12 +2,15 @@
 
 **Status: Operational**
 
-**Updated:** 2026-10-14
+**Updated:** 2026-10-15
 
 Production now uses public GitHub repository activity and an unprivileged
-Linux host receiver at `https://commandry.site`. The application runs reviewed
+Linux host receiver at `https://commandry.site`. Initial activation used reviewed
 revision `e62401b03a52398644658749c39605fda4ade41e` and immutable image
 `ghcr.io/iurman/commandry@sha256:d5f84d9558206044739d7c96aab1a0531f314806e4b89086ef728da8f16eda5a`.
+The subsequent October 15 release added read-only project knowledge MCP;
+its current release digest and activation evidence are recorded in the
+[knowledge MCP runbook](../docs/architecture/knowledge-mcp.md#activation-evidence-2026-10-15).
 
 Earlier candidate verification established the contracts before activation. Live read-only verification imported 43
 actual `iurman/commandry` events and four metrics from an actual `electra`

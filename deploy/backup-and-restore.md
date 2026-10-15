@@ -260,12 +260,13 @@ offsite storage or installing configuration on a clean host. Record an actual
 offsite recovery time and point only after the owner approves the bucket and
 the VPS run passes.
 
-## Nightly host backup path, not installed
+## Nightly host backup path
 
 The [systemd service](systemd/commandry-backup.service) calls the same
 root-owned host wrapper with `nightly`; its [timer](systemd/commandry-backup.timer)
 requests a daily UTC run with a bounded random delay and catches a missed run
-after reboot. Neither unit is installed or enabled on the VPS. The wrapper
+after reboot. Both units were installed and enabled on electra on October 14,
+2026. The wrapper
 requires the controlled Node.js 24 and restic binaries described above. The
 nightly wrapper shares the deployment and owner-recovery lock, waiting up to
 15 minutes rather than pruning during a release or password reset. The
@@ -302,7 +303,7 @@ The `rehearse` mode uses a disposable local encrypted repository under
 rehearsal, rejected policy and database failures, and a failed attempt that
 leaves the prior success intact.
 
-The uninstalled [health service](systemd/commandry-backup-health.service) and
+The installed [health service](systemd/commandry-backup-health.service) and
 [hourly timer](systemd/commandry-backup-health.timer) read these private
 records. The probe fails if the latest attempt failed, the saved success and
 attempt do not match, or the successful snapshot is older than the configured
@@ -372,9 +373,9 @@ loopback receivers and make no external requests. Live activation evidence is
 recorded separately; transport tests do not prove lost-VPS monitoring or full
 recovery.
 
-## Monthly isolated restore path, not installed
+## Monthly isolated restore path
 
-The uninstalled [monthly service](systemd/commandry-restore-monthly.service)
+The installed [monthly service](systemd/commandry-restore-monthly.service)
 and [timer](systemd/commandry-restore-monthly.timer) select the latest retained
 nightly snapshot only if its private success record is fresh under the chosen
 maximum-age policy. The root-owned wrapper shares the deployment lock. On a
@@ -391,12 +392,15 @@ latest monthly attempt and preserves the last successful monthly record.
 
 The local `monthly-rehearse` mode completes that same isolated restore with a
 labeled synthetic snapshot. It marks `offsiteVerified` and
-`vpsRecoveryVerified` false. Even a passing future production run will not
+`vpsRecoveryVerified` false. A passing production run does not
 prove installation of host configuration, application of global roles on a
 replacement VPS, or an authenticated human session; its record keeps
 `vpsRecoveryVerified` and
 `authenticatedReadVerified` false. A separate clean VPS recovery exercise and
-the production login smoke gate remain required before activation.
+the production login smoke gate remain separate requirements. The first
+production monthly restore passed on October 14, 2026, including isolated
+application reads and cleanup. Production owner sign-in passed separately;
+the monthly restore itself did not verify an authenticated restored session.
 
 Cloudflare documents the [R2 S3 endpoint and bucket-scoped credentials](https://developers.cloudflare.com/r2/get-started/s3/)
 and [jurisdiction-specific endpoints](https://developers.cloudflare.com/r2/reference/data-location/).
