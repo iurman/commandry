@@ -170,3 +170,44 @@ showed stars and terrain silhouettes. Temporary viewport overrides were reset,
 and the review tab remains open with service-count sizing. `pnpm check`, scoped
 lint/types, and all twelve lab tests passed; the two unrelated lint warnings
 described above remain. The final shader/runtime error capture was empty.
+
+## Label and motion polish
+
+The owner reported label names jumping vertically during camera motion. The
+old screen-space collision pass moved a label in discrete 22-pixel steps,
+recomputed the choice without memory, and published positions at a slower rate
+than the terrain. CSS then interpolated those delayed positions. The anchor
+height also sampled the animated surface away from the labelled well's center.
+
+Labels now use a structural crest height independent of ambient displacement
+and neighbouring depressions. A persistent layout measures the actual DOM
+bounds, remembers each collision's separation side, and eases spacing changes.
+React retains label content and controls while the renderer places the same
+elements in sync with WebGL. Edge visibility fades without unmounting labels;
+hidden labels leave the interaction and accessibility paths. The equivalent
+resource inventory remains available throughout.
+
+Autoplay now enters at the current camera bearing with an eased takeover.
+Presets have eased acceleration and deceleration, and manual orbit has damped
+release. The focus frame shares the rendered lens's progress on entry, exit,
+and reversal. The focus camera eases between selected subjects and continues
+settling when decorative animation is disabled. A dark-mode primary-button
+hover contrast defect found during that check was also corrected.
+
+Regression coverage exercises structural anchors, repeated crossing at a
+collision threshold, measured label clearance, settled positions, edge fades,
+reduced motion, retained DOM identity, focus-frame synchronization, and autoplay
+bearing. The complete lab suite now contains eighteen tests. This remains a
+finite synthetic experiment; the spacing solver does not establish acceptable
+label density or motion comfort for a large production inventory.
+
+The browser follow-up exercised host and grouped layouts, a five-host arrival,
+orbit/tour entry, manual interruption, rapid lens reversals, resource changes
+inside the lens, and pause/resume. In the settled five-host Composed view, two
+DOM observations recorded identical label transforms while ambient waves kept
+running. Paused label transforms also stayed identical between observations.
+Porcelain and Midnight were inspected at normal and narrow sizes; the narrow
+document's observed client/scroll widths were 468/468. This evidence is a local
+browser check, not a frame-by-frame hardware benchmark. Temporary viewport
+overrides were reset. Workspace checks and all eighteen lab tests passed;
+the two pre-existing warnings in GitHub activity tests remain unrelated.

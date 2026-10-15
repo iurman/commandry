@@ -77,9 +77,10 @@ export function presentationPose(
   aspect: number,
   time: number,
   tour: boolean,
+  startAzimuth = 0.18,
 ): CameraPose {
   const bounds = landscapeBounds(wells);
-  const azimuth = 0.18 + time * (tour ? 0.045 : 0.025);
+  const azimuth = startAzimuth + time * (tour ? 0.045 : 0.025);
   const wide = fittedPose(
     bounds,
     aspect,

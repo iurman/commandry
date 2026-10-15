@@ -33,6 +33,12 @@ Ambient field controls decorative floor waves, light sweeps and star shimmer;
 it is independent of event activity. Disable it for a still composed field, or
 Pause motion to freeze the atmosphere, events and automatic camera together.
 
+Labels follow structural crests independently of the ambient waves. Their
+measured bounds ease apart with persistent collision sides instead of jumping
+between vertical slots. Label placement and the focus frame share the render
+clock. Camera autoplay begins at the current bearing, manual orbit has damped
+release, and selecting another resource eases the lens to its new subject.
+
 The [renderer investigation](../../docs/research/gravity-observatory.md) records
 the implementation choice, verification, and limits. This is a finite material
 and interaction study, not production-scale monitoring or a public lab build.

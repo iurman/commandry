@@ -8,6 +8,7 @@ import {
 } from "@testing-library/react";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { PerspectiveCamera, Vector3 } from "three";
+import type { Anchor } from "./gravity/renderer";
 import {
   arrivalHost,
   fixtureHosts,
@@ -26,23 +27,35 @@ const mock = vi.hoisted(() => ({
   emit: vi.fn(),
   preset: vi.fn(),
   fail: false,
+  hooks: null as null | {
+    anchors: (anchors: Anchor[]) => void;
+    lens: (amount: number) => void;
+  },
 }));
 vi.mock("./gravity/renderer", () => ({
   ObservatoryRenderer: class {
-    constructor() {
+    constructor(
+      _container: HTMLElement,
+      _settings: unknown,
+      hooks: NonNullable<typeof mock.hooks>,
+    ) {
       if (mock.fail) throw new Error("No WebGL");
+      mock.hooks = hooks;
     }
     update = mock.update;
     dispose = mock.dispose;
     emit = mock.emit;
     preset = mock.preset;
+    measureAnchor = vi.fn();
   },
 }));
 import { GravityObservatory } from "./gravity/GravityObservatory";
+import { LabelLayout, labelHeight } from "./gravity/labels";
 
 beforeEach(() => {
   vi.clearAllMocks();
   mock.fail = false;
+  mock.hooks = null;
   window.localStorage.clear();
   Object.defineProperty(window, "matchMedia", {
     configurable: true,
@@ -92,6 +105,38 @@ describe("gravity projection semantics", () => {
 });
 
 describe("gravity study controls", () => {
+  it("keeps label elements mounted through visibility changes and synchronizes the lens frame", () => {
+    render(<GravityObservatory />);
+    const anchor: Anchor = {
+      id: "electra",
+      label: "Electra",
+      kind: "host",
+      x: 300,
+      y: 250,
+      visible: true,
+      opacity: 1,
+      attention: false,
+      sector: "commandry",
+    };
+    act(() => mock.hooks!.anchors([anchor]));
+    const button = screen.getByRole("button", { name: "Select Electra" });
+    act(() => {
+      mock.hooks!.anchors([
+        { ...anchor, x: 310, y: 255, opacity: 0.5, visible: false },
+      ]);
+      mock.hooks!.lens(0.5);
+    });
+    expect(button.isConnected).toBe(true);
+    expect(button.getAttribute("aria-hidden")).toBe("true");
+    expect(button.style.transform).toContain("310px, 255px");
+    expect(
+      document
+        .querySelector<HTMLElement>(".gravity-lens-frame")!
+        .style.getPropertyValue("--lens-amount"),
+    ).toBe("0.5");
+    act(() => mock.hooks!.anchors([anchor]));
+    expect(screen.getByRole("button", { name: "Select Electra" })).toBe(button);
+  });
   it("spawns once, exposes all inventory, and emits only a deliberately simulated event", () => {
     render(<GravityObservatory />);
     expect(mock.emit).not.toHaveBeenCalled();
@@ -187,6 +232,18 @@ describe("gravity study controls", () => {
 });
 
 describe("observatory presentation", () => {
+  it("starts autoplay at the current camera bearing instead of returning to its original angle", () => {
+    const wells = projectWells(fixtureHosts, "hosts", {});
+    for (const bearing of [-2.8, -1, 1.7, 3.1]) {
+      const pose = presentationPose(wells, 1.5, 0, false, bearing);
+      expect(
+        Math.atan2(
+          pose.position.x - pose.target.x,
+          pose.position.z - pose.target.z,
+        ),
+      ).toBeCloseTo(bearing);
+    }
+  });
   it("uses service count by default and supports capacity sizing without changing identity", () => {
     const services = projectWells(fixtureHosts, "hosts", {});
     const ram = projectWells(
@@ -302,5 +359,95 @@ describe("observatory presentation", () => {
     fireEvent.click(screen.getByRole("checkbox", { name: "Ambient field" }));
     expect(mock.update.mock.lastCall?.[1].ambient).toBe(false);
     expect(screen.getByRole("main").getAttribute("data-size")).toBe("capacity");
+  });
+});
+
+describe("stable terrain labels", () => {
+  const label = (id: string, x: number, y: number, visible = true) => ({
+    id,
+    x,
+    y,
+    visible,
+    opacity: 0,
+  });
+
+  it("anchors above each structural crest independently of ambient waves and neighbouring wells", () => {
+    const wells = projectWells(fixtureHosts, "hosts", {});
+    for (const well of wells) {
+      const height = labelHeight(well);
+      for (const time of [0, 20, 200])
+        expect(height).toBeGreaterThan(
+          surfaceHeight(well.x, well.z, wells, time, 1),
+        );
+      expect(labelHeight({ ...well, depth: well.depth * 2 })).toBe(height);
+    }
+  });
+
+  it("separates colliding labels without flipping lanes when their anchors cross", () => {
+    const layout = new LabelLayout();
+    layout.measure("a", 110, 42);
+    layout.measure("b", 110, 42);
+    let previous = layout.layout(
+      [label("a", 300, 250), label("b", 300, 252)],
+      800,
+      600,
+      1 / 120,
+      true,
+    );
+    for (let frame = 1; frame <= 600; frame++) {
+      const next = layout.layout(
+        [
+          label("a", 300, 250 + Math.sin(frame * 0.06)),
+          label("b", 300, 250 - Math.sin(frame * 0.06)),
+        ],
+        800,
+        600,
+        1 / 120,
+        true,
+      );
+      for (let i = 0; i < next.length; i++)
+        expect(Math.abs(next[i]!.y - previous[i]!.y)).toBeLessThan(2.2);
+      expect(next[0]!.y).toBeLessThan(next[1]!.y);
+      previous = next;
+    }
+    expect(previous[1]!.y - previous[0]!.y).toBeGreaterThan(50);
+  });
+
+  it("uses measured label bounds and keeps settled labels still", () => {
+    const layout = new LabelLayout();
+    layout.measure("long", 180, 50);
+    layout.measure("short", 70, 28);
+    const input = [label("long", 370, 240), label("short", 400, 260)];
+    let settled = input;
+    for (let frame = 0; frame < 1000; frame++)
+      settled = layout.layout(input, 800, 600, 1 / 60, true);
+    const next = layout.layout(input, 800, 600, 1 / 60, true);
+    expect(Math.abs(next[0]!.y - settled[0]!.y)).toBeLessThan(0.01);
+    expect(next[1]!.y - 28 - next[0]!.y).toBeGreaterThanOrEqual(9.9);
+    expect(layout.changing).toBe(false);
+  });
+
+  it("fades edge visibility smoothly and settles immediately with reduced motion", () => {
+    const layout = new LabelLayout();
+    const input = [label("a", 300, 250)];
+    const first = layout.layout(input, 800, 600, 1 / 60, true)[0]!;
+    const disappearing = layout.layout(
+      [label("a", 300, 250, false)],
+      800,
+      600,
+      1 / 60,
+      true,
+    )[0]!;
+    expect(disappearing.opacity).toBeGreaterThan(0);
+    expect(disappearing.opacity).toBeLessThan(first.opacity);
+    const paused = layout.layout(
+      [label("a", 300, 250, false)],
+      800,
+      600,
+      1 / 60,
+      false,
+    )[0]!;
+    expect(paused.opacity).toBe(0);
+    expect(layout.changing).toBe(false);
   });
 });

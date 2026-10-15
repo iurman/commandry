@@ -10,6 +10,7 @@ import {
   skyFragment,
 } from "./materials";
 import { fittedPose, landscapeBounds, presentationPose } from "./presentation";
+import { LabelLayout, labelHeight } from "./labels";
 
 export type RenderStats = {
   fps: number;
@@ -24,6 +25,7 @@ export type Anchor = {
   x: number;
   y: number;
   visible: boolean;
+  opacity: number;
   attention: boolean;
   sector: string;
 };
@@ -43,6 +45,7 @@ type Hooks = {
   interrupted: () => void;
   unavailable: (message: string) => void;
   viewport: (portrait: boolean) => void;
+  lens: (amount: number) => void;
 };
 
 export class ObservatoryRenderer {
@@ -108,11 +111,17 @@ export class ObservatoryRenderer {
   private previous = 0;
   private elapsed = 0;
   private presentationElapsed = 0;
+  private presentationAzimuth = 0.18;
+  private presentationEntry: {
+    position: THREE.Vector3;
+    target: THREE.Vector3;
+    time: number;
+  } | null = null;
   private presentationInterrupted = false;
   private featuredId: string | null = null;
   private nextStats = 0;
   private frames: number[] = [];
-  private lastAnchors = 0;
+  private labelLayout = new LabelLayout();
   private lensAmount = 0;
   private needsDraw = true;
   private lost = false;
@@ -120,6 +129,10 @@ export class ObservatoryRenderer {
   private intersection: IntersectionObserver;
   private visible = true;
   private focusCamera = new THREE.PerspectiveCamera(42, 1, 0.1, 100);
+  private focusCenter = new THREE.Vector3();
+  private focusDistance = 0;
+  private focusReady = false;
+  private focusChanging = false;
   private target = new THREE.WebGLRenderTarget(640, 640, { depthBuffer: true });
   private overlayScene = new THREE.Scene();
   private overlayCamera = new THREE.OrthographicCamera(-1, 1, 1, -1, 0, 5);
@@ -181,6 +194,7 @@ export class ObservatoryRenderer {
     this.controls = new OrbitControls(this.camera, this.renderer.domElement);
     this.controls.target.set(0, -0.6, 0);
     this.controls.enableDamping = false;
+    this.controls.dampingFactor = 0.12;
     this.controls.minDistance = 9;
     this.controls.maxDistance = 220;
     this.controls.minPolarAngle = 0.05;
@@ -278,6 +292,15 @@ export class ObservatoryRenderer {
     if (cameraChanged) {
       this.presentationInterrupted = false;
       this.presentationElapsed = 0;
+      this.presentationAzimuth = Math.atan2(
+        this.camera.position.x - this.controls.target.x,
+        this.camera.position.z - this.controls.target.z,
+      );
+      this.presentationEntry = {
+        position: this.camera.position.clone(),
+        target: this.controls.target.clone(),
+        time: 0,
+      };
       this.featuredId = null;
     }
     if (settings.cameraMode === "composed" && (layoutChanged || cameraChanged))
@@ -309,6 +332,10 @@ export class ObservatoryRenderer {
   emit(wellId: string) {
     this.event = { wellId, start: this.elapsed };
     this.needsDraw = true;
+  }
+
+  measureAnchor(id: string, width: number, height: number) {
+    if (this.labelLayout.measure(id, width, height)) this.needsDraw = true;
   }
 
   private resize() {
@@ -457,13 +484,15 @@ export class ObservatoryRenderer {
     }
     const targetLens = this.settings.focus && selected ? 1 : 0;
     this.lensAmount = THREE.MathUtils.lerp(this.lensAmount, targetLens, factor);
+    if (Math.abs(this.lensAmount - targetLens) < 0.002)
+      this.lensAmount = targetLens;
     changing ||= Math.abs(this.lensAmount - targetLens) > 0.002;
     if (this.cameraTween) {
       this.cameraTween.time = moving
         ? Math.min(1, this.cameraTween.time + dt / 1.1)
         : 1;
       const t = this.cameraTween.time;
-      const ease = t * t * (3 - 2 * t);
+      const ease = t * t * t * (t * (t * 6 - 15) + 10);
       this.camera.position.lerpVectors(
         this.cameraTween.from,
         this.cameraTween.to,
@@ -488,7 +517,27 @@ export class ObservatoryRenderer {
         this.camera.aspect,
         this.presentationElapsed,
         this.settings.cameraMode === "tour",
+        this.presentationAzimuth,
       );
+      if (this.presentationEntry) {
+        const entry = this.presentationEntry;
+        entry.time = Math.min(1, entry.time + dt / 2.2);
+        const t = entry.time;
+        const ease = t * t * t * (t * (t * 6 - 15) + 10);
+        for (const axis of ["x", "y", "z"] as const) {
+          pose.position[axis] = THREE.MathUtils.lerp(
+            entry.position[axis],
+            pose.position[axis],
+            ease,
+          );
+          pose.target[axis] = THREE.MathUtils.lerp(
+            entry.target[axis],
+            pose.target[axis],
+            ease,
+          );
+        }
+        if (t === 1) this.presentationEntry = null;
+      }
       const smoothing = 1 - Math.exp(-dt * 2.5);
       this.camera.position.lerp(
         new THREE.Vector3(pose.position.x, pose.position.y, pose.position.z),
@@ -504,7 +553,9 @@ export class ObservatoryRenderer {
       }
       changing = true;
     }
-    this.controls.update(dt);
+    this.controls.enableDamping =
+      moving && this.settings.cameraMode === "manual";
+    changing = this.controls.update(dt) || changing;
     this.uniforms.uFogStart.value =
       this.camera.position.distanceTo(this.controls.target) + 18;
     this.updateParticles();
@@ -521,12 +572,15 @@ export class ObservatoryRenderer {
       );
       this.sky.position.copy(this.camera.position);
       this.renderer.render(this.scene, this.camera);
-      if (this.lensAmount > 0.005 && selected) this.renderLens(selected);
-      this.needsDraw = false;
-      if (now > this.lastAnchors + 45) {
-        this.publishAnchors();
-        this.lastAnchors = now;
+      if (this.lensAmount > 0.005 && selected) this.renderLens(selected, dt);
+      else {
+        this.focusReady = false;
+        this.focusChanging = false;
       }
+      this.needsDraw = false;
+      this.publishAnchors(dt);
+      this.needsDraw = this.labelLayout.changing || this.focusChanging;
+      this.hooks.lens(this.lensAmount);
       this.frames.push(interval);
     }
     if (now > this.nextStats) {
@@ -545,7 +599,7 @@ export class ObservatoryRenderer {
     this.frame = requestAnimationFrame(this.animate);
   };
 
-  private publishAnchors() {
+  private publishAnchors(dt: number) {
     const anchors: Anchor[] = this.wells
       .filter(
         (w) =>
@@ -558,97 +612,86 @@ export class ObservatoryRenderer {
         kind: well.kind,
         attention: well.attention,
         sector: well.sector,
-        ...this.project(
-          well.x,
-          this.heightAt(well.x + well.radius * well.aspect * 0.85, well.z) +
-            (well.kind === "service" ? 0.5 : 1.1),
-          well.kind === "project" ? well.z - 4.2 : well.z,
-        ),
+        opacity: 0,
+        ...this.project(well.x, labelHeight(well), well.z),
       }));
-    if (this.settings.focus) {
+    for (const anchor of anchors)
+      if (anchor.kind === "project" && this.settings.focus)
+        anchor.visible = false;
+    if (this.lensAmount > 0.4) {
       for (const anchor of anchors) {
         if (
           Math.hypot(
             anchor.x - this.width * 0.43,
             anchor.y - this.height * 0.48,
           ) <
-          this.lensRadius() + 35
+          this.lensRadius() * this.lensAmount + 35
         )
           anchor.visible = false;
       }
     }
-    if (this.settings.focus && this.settings.selected) {
-      const radius = this.lensRadius();
+    if (this.settings.selected) {
+      const radius = this.lensRadius() * this.lensAmount;
       for (const well of this.wells.filter(
         (w) => w.kind === "service" && w.hostId === this.settings.selected,
       )) {
-        const p = new THREE.Vector3(
-          well.x,
-          this.heightAt(well.x, well.z) + 0.5,
-          well.z,
-        ).project(this.focusCamera);
+        const p = new THREE.Vector3(well.x, labelHeight(well), well.z).project(
+          this.focusCamera,
+        );
         anchors.push({
           id: `lens-${well.id}`,
           label: well.label,
           kind: "service",
           attention: false,
           sector: well.sector,
+          opacity: 0,
           x: this.width * 0.43 + p.x * radius,
           y: this.height * 0.48 - p.y * radius,
-          visible: p.x * p.x + p.y * p.y < 0.79,
+          visible: this.lensAmount > 0.95 && p.x * p.x + p.y * p.y < 0.79,
         });
       }
     }
-    const occupied: { x: number; y: number; width: number; height: number }[] =
-      [];
-    for (const anchor of anchors
-      .filter((item) => item.visible)
-      .sort(
-        (a, b) => (a.kind === "host" ? 0 : 1) - (b.kind === "host" ? 0 : 1),
-      )) {
-      const width =
-        anchor.kind === "host" ? 108 : anchor.kind === "service" ? 72 : 100;
-      const height = anchor.kind === "host" ? 42 : 26;
-      anchor.x = Math.max(
-        width / 2 + 8,
-        Math.min(this.width - width / 2 - 8, anchor.x),
-      );
-      anchor.y = Math.max(70, Math.min(this.height - 110, anchor.y));
-      for (
-        let attempt = 0;
-        attempt < 6 &&
-        occupied.some(
-          (box) =>
-            Math.abs(anchor.x - box.x) < (width + box.width) / 2 + 4 &&
-            Math.abs(anchor.y - box.y) < (height + box.height) / 2 + 4,
-        );
-        attempt++
-      )
-        anchor.y = Math.max(65, anchor.y - 22);
-      occupied.push({ x: anchor.x, y: anchor.y, width, height });
-    }
-    this.hooks.anchors(anchors);
+    this.hooks.anchors(
+      this.labelLayout.layout(
+        anchors,
+        this.width,
+        this.height,
+        dt,
+        this.settings.motion,
+      ),
+    );
   }
 
   private lensRadius() {
     return Math.min(this.height * 0.36, this.width * 0.31);
   }
 
-  private renderLens(selected: Well) {
+  private renderLens(selected: Well, dt: number) {
     const center = new THREE.Vector3(selected.x, 0.4, selected.z);
+    const distance =
+      selected.kind === "project"
+        ? 22
+        : Math.max(10, selected.radius * Math.max(1, selected.aspect) * 5);
+    const smoothing =
+      this.settings.motion && this.focusReady ? 1 - Math.exp(-dt * 5) : 1;
+    this.focusCenter.lerp(center, smoothing);
+    this.focusDistance = THREE.MathUtils.lerp(
+      this.focusDistance,
+      distance,
+      smoothing,
+    );
+    this.focusChanging =
+      this.focusCenter.distanceTo(center) > 0.002 ||
+      Math.abs(this.focusDistance - distance) > 0.002;
+    this.focusReady = true;
     const direction = this.camera.position
       .clone()
       .sub(this.controls.target)
       .normalize();
     this.focusCamera.position
-      .copy(center)
-      .addScaledVector(
-        direction,
-        selected.kind === "project"
-          ? 22
-          : Math.max(10, selected.radius * Math.max(1, selected.aspect) * 5),
-      );
-    this.focusCamera.lookAt(center);
+      .copy(this.focusCenter)
+      .addScaledVector(direction, this.focusDistance);
+    this.focusCamera.lookAt(this.focusCenter);
     this.focusCamera.updateMatrixWorld();
     this.renderer.setRenderTarget(this.target);
     this.sky.position.copy(this.focusCamera.position);

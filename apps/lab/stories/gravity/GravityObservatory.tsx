@@ -91,9 +91,27 @@ const defaults: Record<string, SectorId> = {
   atlas: "commandry",
 };
 
+function positionAnchor(element: HTMLButtonElement, anchor: Anchor) {
+  element.style.transform = `translate3d(${anchor.x}px, ${anchor.y}px, 0) translate(-50%, -100%)`;
+  element.style.setProperty("--anchor-opacity", String(anchor.opacity));
+  const visibility = anchor.opacity < 0.002 ? "hidden" : "visible";
+  if (element.style.visibility !== visibility)
+    element.style.visibility = visibility;
+  if (element.inert !== !anchor.visible) element.inert = !anchor.visible;
+  const hidden = String(!anchor.visible);
+  if (element.getAttribute("aria-hidden") !== hidden)
+    element.setAttribute("aria-hidden", hidden);
+}
+
 export function GravityObservatory() {
   const container = useRef<HTMLDivElement>(null);
   const renderer = useRef<ObservatoryRenderer | null>(null);
+  const anchorLayer = useRef<HTMLDivElement>(null);
+  const anchorElements = useRef(new Map<string, HTMLButtonElement>());
+  const latestAnchors = useRef(new Map<string, Anchor>());
+  const anchorSignature = useRef("");
+  const lensFrame = useRef<HTMLDivElement>(null);
+  const lensProgress = useRef(0);
   const [mode, setMode] = useState<ViewMode>("hosts");
   const [theme, setTheme] = useState<SurfaceTheme>("porcelain");
   const [palette, setPalette] = useState<Palette>(initialPalette);
@@ -134,12 +152,42 @@ export function GravityObservatory() {
     let instance: ObservatoryRenderer;
     try {
       instance = new ObservatoryRenderer(container.current, settings, {
-        anchors: setAnchors,
+        anchors: (next) => {
+          latestAnchors.current = new Map(
+            next.map((anchor) => [anchor.id, anchor]),
+          );
+          for (const anchor of next) {
+            const element = anchorElements.current.get(anchor.id);
+            if (element) positionAnchor(element, anchor);
+          }
+          // React owns content; the renderer places it in the same frame as WebGL.
+          const signature = JSON.stringify(
+            next.map(({ id, label, kind, attention, sector }) => ({
+              id,
+              label,
+              kind,
+              attention,
+              sector,
+            })),
+          );
+          if (signature !== anchorSignature.current) {
+            anchorSignature.current = signature;
+            setAnchors(next);
+          }
+        },
         stats: setStats,
         select: (id) => callbacks.current.select(id),
         interrupted: () => callbacks.current.interrupted(),
         unavailable: setError,
         viewport: setPortrait,
+        lens: (amount) => {
+          lensProgress.current = amount;
+          anchorLayer.current?.style.setProperty(
+            "--lens-amount",
+            String(amount),
+          );
+          lensFrame.current?.style.setProperty("--lens-amount", String(amount));
+        },
       });
       renderer.current = instance;
     } catch {
@@ -386,47 +434,68 @@ export function GravityObservatory() {
             </span>
           </div>
           <div ref={container} className="gravity-canvas" />
-          <div className="gravity-anchors" aria-hidden={!!error}>
-            {anchors
-              .filter(
-                (anchor) =>
-                  anchor.visible && (anchor.kind !== "project" || !focus),
-              )
-              .map((anchor) =>
-                anchor.id.startsWith("label-") ? (
-                  <span
-                    key={anchor.id}
-                    className={`gravity-sector-label gravity-sector-${anchor.sector}`}
-                    style={{ left: anchor.x, top: anchor.y }}
-                  >
-                    {anchor.label}
-                  </span>
-                ) : (
-                  <button
-                    key={anchor.id}
-                    className={`gravity-anchor gravity-anchor-${anchor.kind} ${anchor.attention ? "is-attention" : ""} ${selected === anchor.id ? "is-selected" : ""} ${focus && !anchor.id.startsWith("lens-") ? "is-background" : ""}`}
-                    style={{ left: anchor.x, top: anchor.y }}
-                    onClick={() =>
-                      selectResource(anchor.id.replace("lens-", ""))
+          <div
+            ref={anchorLayer}
+            className="gravity-anchors"
+            aria-hidden={!!error}
+          >
+            {anchors.map((anchor) =>
+              anchor.id.startsWith("label-") ? (
+                <span
+                  key={anchor.id}
+                  className={`gravity-sector-label gravity-sector-${anchor.sector}`}
+                  style={{ left: anchor.x, top: anchor.y }}
+                >
+                  {anchor.label}
+                </span>
+              ) : (
+                <button
+                  key={anchor.id}
+                  className={`gravity-anchor gravity-anchor-${anchor.kind} ${anchor.attention ? "is-attention" : ""} ${selected === anchor.id ? "is-selected" : ""} ${!anchor.id.startsWith("lens-") ? "is-background" : ""}`}
+                  ref={(element) => {
+                    if (!element) {
+                      anchorElements.current.delete(anchor.id);
+                      return;
                     }
-                    aria-label={`Select ${anchor.label}`}
-                  >
-                    <span>{anchor.label}</span>
-                    {anchor.kind === "host" && (
-                      <small>
-                        {anchor.attention
-                          ? "! Needs attention"
-                          : sectors.find(
-                              (sector) => sector.id === anchor.sector,
-                            )?.label}
-                      </small>
-                    )}
-                  </button>
-                ),
-              )}
+                    anchorElements.current.set(anchor.id, element);
+                    positionAnchor(
+                      element,
+                      latestAnchors.current.get(anchor.id) ?? anchor,
+                    );
+                    renderer.current?.measureAnchor(
+                      anchor.id,
+                      element.offsetWidth,
+                      element.offsetHeight,
+                    );
+                  }}
+                  onClick={() => selectResource(anchor.id.replace("lens-", ""))}
+                  aria-label={`Select ${anchor.label}`}
+                >
+                  <span>{anchor.label}</span>
+                  {anchor.kind === "host" && (
+                    <small>
+                      {anchor.attention
+                        ? "! Needs attention"
+                        : sectors.find((sector) => sector.id === anchor.sector)
+                            ?.label}
+                    </small>
+                  )}
+                </button>
+              ),
+            )}
           </div>
-          {focus && selectedWell && !error && (
-            <div className="gravity-lens-frame">
+          {selectedWell && !error && (
+            <div
+              className="gravity-lens-frame"
+              aria-hidden={!focus}
+              ref={(element) => {
+                lensFrame.current = element;
+                element?.style.setProperty(
+                  "--lens-amount",
+                  String(lensProgress.current),
+                );
+              }}
+            >
               <div className="gravity-lens-caption">
                 <span>FOCUS LENS / {selectedWell.kind.toUpperCase()}</span>
                 <strong>{selectedWell.label}</strong>
