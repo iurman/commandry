@@ -67,3 +67,22 @@ context reset, a physical television and fleet-scale level of detail were not
 verified. Production telemetry, provisioning and deployment were not changed.
 Real cross-server traffic and RAM-capacity sizing require observed data that
 this overview contract does not currently provide.
+
+## Release verification and MCP coverage
+
+The first production release workflow stopped before publication on two focus
+lens geometry assertions. Those checks measured the animated bounding box before
+it settled on the CI runner. The geometry check now opts into reduced motion;
+normal motion is restored explicitly before verifying that slow orbit can be
+selected and scene motion can be paused. The completed geometry assertion and
+release gates remain required.
+
+The owner requires MCP access and agent-facing workflow documentation alongside
+new or materially changed features. This requirement is recorded in the
+repository agent guide and as a source-linked requirement in the live Commandry
+project. The current production MCP still supplies four project knowledge read
+tools. Complete inventory reads, source management, presentation preferences
+and inventory writes are explicitly deferred to the comprehensive MCP planning
+chat `01a141c1-739c-7cc0-8aa3-aa3b817f7bd5`; this release does not add an agent
+mutation capability. That plan must define the exact scopes, risks, approvals,
+audit and shared-service contracts before implementing those operations.

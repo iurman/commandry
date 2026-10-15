@@ -110,6 +110,14 @@ planned behavior as though it already exists.
 
 ## Implementation guardrails
 
+- MUST include discoverable MCP access and agent-facing workflow documentation
+  alongside every new or materially changed product feature. Reuse the same
+  application services, validation and canonical records as the UI/API. Record
+  intentional owner-only operations or deferred MCP coverage explicitly, with
+  the reason and follow-up. Every action still declares scope, risk, approval
+  behavior and audit evidence; feature coverage does not grant clients broader
+  authority automatically.
+
 Before renaming Tailscale devices or their corresponding Commandry, operating
 system, hypervisor or provider identities, agree the exact old-to-new naming
 map with the owner. Discovery and naming proposals do not authorize renames.
