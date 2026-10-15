@@ -3276,3 +3276,686 @@ textarea {
     grid-template-columns: minmax(0, 1fr);
   }
 }
+
+/* Infrastructure console. Source freshness and health are independent states. */
+.cmd-network-console {
+  --cmd-network-good: var(--cmd-positive-text);
+  --cmd-network-warn: var(--cmd-caution-text);
+  width: 100%;
+  min-width: 0;
+  color: var(--cmd-text);
+  background: var(--cmd-canvas);
+}
+.cmd-network-header,
+.cmd-network-toolbar,
+.cmd-network-footer,
+.cmd-network-section-heading,
+.cmd-network-snapshot {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  flex-wrap: wrap;
+  gap: 1rem;
+}
+.cmd-network-header {
+  padding: 0.5rem 0 1.5rem;
+}
+.cmd-network-header h1 {
+  margin: 0.35rem 0;
+  font-size: clamp(1.75rem, 2.5vw, 2.75rem);
+  letter-spacing: -0.04em;
+  line-height: 1.1;
+}
+.cmd-network-subtitle {
+  margin: 0.65rem 0 0;
+  color: var(--cmd-text-muted);
+}
+.cmd-network-controls {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.5rem;
+}
+.cmd-network-controls .cmd-button {
+  min-height: 2.75rem;
+}
+.cmd-network-controls [aria-pressed="true"] {
+  background: var(--cmd-accent);
+  color: var(--cmd-accent-text);
+  border-color: var(--cmd-accent);
+}
+.cmd-network-refresh {
+  display: inline-flex;
+  gap: 0.5rem;
+  align-items: center;
+  font-size: 0.8rem;
+  color: var(--cmd-network-good);
+}
+.cmd-network-refresh::before {
+  content: "";
+  width: 0.45rem;
+  height: 0.45rem;
+  border-radius: 50%;
+  background: currentColor;
+}
+.cmd-network-refresh[data-delayed="true"] {
+  color: var(--cmd-network-warn);
+}
+.cmd-network-vitals {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  border: 1px solid var(--cmd-border);
+  background: var(--cmd-surface);
+}
+.cmd-network-vitals > div {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+  padding: 1.1rem 1.25rem;
+  border-right: 1px solid var(--cmd-border);
+}
+.cmd-network-vitals > div:last-child {
+  border-right: 0;
+}
+.cmd-network-vitals span {
+  color: var(--cmd-text-muted);
+  font-size: 0.75rem;
+}
+.cmd-network-vitals strong {
+  font-size: 2rem;
+  line-height: 1.1;
+  font-variant-numeric: tabular-nums;
+  font-weight: 500;
+  letter-spacing: -0.04em;
+}
+.cmd-network-toolbar {
+  padding: 1rem 0;
+  align-items: end;
+}
+.cmd-network-search {
+  flex: 1 1 16rem;
+}
+.cmd-network-search > div {
+  display: flex;
+  gap: 0.5rem;
+}
+.cmd-network-search label,
+.cmd-network-project-filter {
+  display: flex;
+  flex-direction: column;
+  gap: 0.35rem;
+  font-size: 0.8rem;
+}
+.cmd-network-project-filter {
+  flex: 1 1 16rem;
+  max-width: 24rem;
+}
+.cmd-network-toolbar input,
+.cmd-network-toolbar select {
+  min-height: 2.75rem;
+  min-width: 0;
+  width: 100%;
+  padding: 0.55rem 0.7rem;
+  border: 1px solid var(--cmd-border);
+  border-radius: 0.35rem;
+  background: var(--cmd-surface);
+  color: var(--cmd-text);
+  font: inherit;
+}
+.cmd-network-snapshot {
+  padding: 0 0 0.75rem;
+  font-size: 0.75rem;
+  color: var(--cmd-text-muted);
+}
+.cmd-network-workspace {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(16rem, 20rem);
+  border: 1px solid var(--cmd-border);
+  background: var(--cmd-surface);
+}
+.cmd-network-main {
+  min-width: 0;
+}
+.cmd-network-section-heading {
+  padding: 0.8rem 1rem;
+  border-bottom: 1px solid var(--cmd-border);
+}
+.cmd-network-section-heading h2 {
+  margin: 0;
+  font-size: 0.9rem;
+  font-weight: 600;
+}
+.cmd-network-section-heading > span {
+  font-size: 0.7rem;
+  color: var(--cmd-text-muted);
+}
+.cmd-network-map-scroll {
+  width: 100%;
+  overflow: auto;
+  background-image: radial-gradient(var(--cmd-border) 0.6px, transparent 0.6px);
+  background-size: 20px 20px;
+}
+.cmd-network-map {
+  position: relative;
+  width: 100%;
+  min-width: 740px;
+}
+.cmd-network-lanes {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  position: absolute;
+  width: 100%;
+  top: 0;
+  padding: 1.15rem 3.2%;
+  text-transform: uppercase;
+  font-size: 0.65rem;
+  letter-spacing: 0.1em;
+  color: var(--cmd-text-muted);
+}
+.cmd-network-edges {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  pointer-events: none;
+  color: var(--cmd-text-muted);
+}
+.cmd-network-edge {
+  fill: none;
+  stroke: var(--cmd-border);
+  stroke-width: 1.5;
+}
+.cmd-network-edge-depends_on {
+  stroke-dasharray: 6 4;
+  stroke: var(--cmd-text-muted);
+}
+.cmd-network-edge-project {
+  stroke-dasharray: 2 5;
+}
+.cmd-network-edge[data-selected="true"] {
+  stroke: var(--cmd-accent);
+  stroke-width: 2.5;
+}
+.cmd-network-node {
+  position: absolute;
+  width: 27.96%;
+  height: 86px;
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  align-items: start;
+  gap: 0.25rem;
+  padding: 0.65rem 0.8rem;
+  background: var(--cmd-surface);
+  border: 1px solid var(--cmd-border);
+  border-left: 3px solid var(--cmd-text-muted);
+  border-radius: 0.4rem;
+  color: var(--cmd-text);
+  text-align: left;
+  cursor: pointer;
+  box-shadow: 0 3px 12px rgb(0 0 0 / 3%);
+}
+.cmd-network-node strong {
+  display: block;
+  max-width: 100%;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  font-size: 0.9rem;
+}
+.cmd-network-node-top {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+}
+.cmd-network-node-kind,
+.cmd-network-node > span:last-child {
+  font-size: 0.68rem;
+  color: var(--cmd-text-muted);
+}
+.cmd-network-node[aria-pressed="true"] {
+  outline: 2px solid var(--cmd-focus);
+  outline-offset: 3px;
+}
+.cmd-network-node:hover {
+  background: var(--cmd-surface-muted);
+}
+.cmd-network-node[data-telemetry="reporting"] {
+  border-left-color: var(--cmd-network-good);
+}
+.cmd-network-node[data-telemetry="stale"],
+.cmd-network-node[data-telemetry="future"],
+.cmd-network-node[data-telemetry="error"] {
+  border-left-color: var(--cmd-network-warn);
+}
+.cmd-network-project {
+  border-left-color: var(--cmd-accent);
+  background: var(--cmd-surface-muted);
+}
+.cmd-network-unlinked {
+  position: absolute;
+  left: 3.2%;
+  top: 75px;
+  max-width: 25%;
+  color: var(--cmd-text-muted);
+  font-size: 0.8rem;
+}
+.cmd-network-legend {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem 1.5rem;
+  padding: 0.75rem 1rem;
+  margin: 0;
+  border-top: 1px solid var(--cmd-border);
+  font-size: 0.7rem;
+  color: var(--cmd-text-muted);
+}
+.cmd-network-truth {
+  color: var(--cmd-text-muted);
+  font-size: 0.75rem;
+  margin: 0;
+  padding: 0.85rem 1rem;
+  border-top: 1px solid var(--cmd-border);
+}
+.cmd-network-inspector {
+  min-width: 0;
+  border-left: 1px solid var(--cmd-border);
+  background: var(--cmd-surface-muted);
+  overflow-wrap: anywhere;
+}
+.cmd-network-inspector > section {
+  padding: 1rem;
+}
+.cmd-network-inspector h2 {
+  margin: 0.35rem 0 0.65rem;
+  font-size: 1.1rem;
+}
+.cmd-network-inspector p {
+  font-size: 0.8rem;
+  margin: 0.6rem 0;
+}
+.cmd-network-source-state {
+  display: inline-block;
+  border: 1px solid var(--cmd-border);
+  border-radius: 2rem;
+  padding: 0.25rem 0.6rem;
+}
+.cmd-network-source-state[data-telemetry="reporting"] {
+  color: var(--cmd-network-good);
+  background: var(--cmd-positive-bg);
+}
+.cmd-network-source-state[data-telemetry="stale"],
+.cmd-network-source-state[data-telemetry="future"],
+.cmd-network-source-state[data-telemetry="error"] {
+  color: var(--cmd-network-warn);
+  background: var(--cmd-caution-bg);
+}
+.cmd-network-capacity {
+  display: grid;
+  gap: 0.7rem;
+  margin: 1.2rem 0;
+}
+.cmd-network-capacity > div {
+  display: grid;
+  grid-template-columns: 1fr auto;
+  gap: 0.3rem;
+  font-size: 0.8rem;
+}
+.cmd-network-capacity meter {
+  grid-column: 1/-1;
+  width: 100%;
+  height: 0.6rem;
+  accent-color: var(--cmd-accent);
+}
+.cmd-network-source {
+  display: flex;
+  flex-direction: column;
+  gap: 0.3rem;
+  padding: 0.7rem 0;
+  font-size: 0.75rem;
+  border-top: 1px solid var(--cmd-border);
+}
+.cmd-network-inspector-links {
+  display: flex;
+  flex-direction: column;
+  gap: 0.6rem;
+  font-size: 0.8rem;
+  margin: 1rem 0;
+}
+.cmd-network-inspector details {
+  font-size: 0.8rem;
+  margin-top: 0.8rem;
+}
+.cmd-network-inspector summary {
+  cursor: pointer;
+  min-height: 2rem;
+}
+.cmd-network-inspector a {
+  color: var(--cmd-accent);
+  text-underline-offset: 3px;
+}
+.cmd-network-activity {
+  border-top: 1px solid var(--cmd-border);
+}
+.cmd-network-activity .cmd-network-section-heading {
+  padding: 0 0 0.8rem;
+}
+.cmd-network-activity ol {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+}
+.cmd-network-activity li {
+  padding: 0.85rem 0;
+  border-bottom: 1px solid var(--cmd-border);
+  display: flex;
+  flex-direction: column;
+  gap: 0.35rem;
+  font-size: 0.8rem;
+}
+.cmd-network-activity li span,
+.cmd-network-activity time {
+  font-size: 0.7rem;
+  color: var(--cmd-text-muted);
+}
+.cmd-network-activity > a {
+  display: inline-block;
+  padding-top: 0.8rem;
+  font-size: 0.8rem;
+}
+.cmd-network-list {
+  list-style: none;
+  padding: 0;
+  margin: 0;
+}
+.cmd-network-list button {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 1rem;
+  width: 100%;
+  padding: 1rem;
+  background: var(--cmd-surface);
+  color: var(--cmd-text);
+  border: 0;
+  border-bottom: 1px solid var(--cmd-border);
+  text-align: left;
+  cursor: pointer;
+}
+.cmd-network-list button[aria-pressed="true"] {
+  background: var(--cmd-surface-muted);
+  box-shadow: inset 3px 0 var(--cmd-focus);
+}
+.cmd-network-list button > span:first-child {
+  flex: 1 1 14rem;
+}
+.cmd-network-list button > span:not(:first-child) {
+  font-size: 0.75rem;
+}
+.cmd-network-list small {
+  display: block;
+  color: var(--cmd-text-muted);
+  margin-top: 0.4rem;
+  overflow-wrap: anywhere;
+}
+.cmd-network-warning {
+  padding: 0.8rem 1rem;
+  margin: 0.6rem 0;
+  background: var(--cmd-caution-bg);
+  color: var(--cmd-caution-text);
+  font-size: 0.85rem;
+}
+.cmd-network-warning button:not(.cmd-button) {
+  border: 0;
+  background: transparent;
+  color: inherit;
+  text-decoration: underline;
+  padding: 0.5rem;
+  cursor: pointer;
+}
+.cmd-network-empty {
+  padding: 4rem 1.5rem;
+  text-align: center;
+  border: 1px solid var(--cmd-border);
+}
+.cmd-network-footer {
+  padding: 1rem 0;
+}
+.cmd-network-footer nav {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 1rem;
+  font-size: 0.8rem;
+}
+.cmd-network-wallboard {
+  padding: clamp(0.8rem, 1.5vw, 1.8rem);
+  min-height: 100svh;
+}
+.cmd-network-wallboard:fullscreen {
+  overflow: auto;
+}
+.cmd-network-wallboard .cmd-network-workspace {
+  grid-template-columns: minmax(0, 1fr) minmax(19rem, 24%);
+}
+.cmd-network-wallboard .cmd-network-map-scroll {
+  max-height: calc(100svh - 24rem);
+  min-height: 25rem;
+}
+.cmd-network-wallboard .cmd-network-inspector {
+  max-height: calc(100svh - 18rem);
+  overflow: auto;
+}
+.cmd-network-tv {
+  --cmd-canvas: #0c121b;
+  --cmd-surface: #111d2a;
+  --cmd-surface-muted: #162536;
+  --cmd-text: #f2f6fa;
+  --cmd-text-muted: #b2c2d1;
+  --cmd-border: #405267;
+  --cmd-focus: #9ac2ff;
+  --cmd-accent: #9ac2ff;
+  --cmd-accent-text: #0c1726;
+  --cmd-network-good: #90e2b6;
+  --cmd-network-warn: #ffda93;
+  --cmd-positive-bg: #173c2b;
+  --cmd-caution-bg: #47351b;
+  --cmd-caution-text: #ffda93;
+  color-scheme: dark;
+}
+.cmd-network-tv .cmd-network-node strong {
+  font-size: 1.05rem;
+}
+.cmd-network-tv .cmd-network-node-kind,
+.cmd-network-tv .cmd-network-node > span:last-child {
+  font-size: 0.8rem;
+}
+.cmd-network-tv .cmd-network-map {
+  min-width: 840px;
+}
+.cmd-network-tv .cmd-network-vitals strong {
+  font-size: 2.5rem;
+}
+.cmd-network-tv .cmd-network-inspector p,
+.cmd-network-tv .cmd-network-source,
+.cmd-network-tv .cmd-network-activity li {
+  font-size: 0.9rem;
+}
+.cmd-network-tv .cmd-network-lanes {
+  font-size: 0.8rem;
+}
+.cmd-network-console button:focus-visible,
+.cmd-network-console a:focus-visible,
+.cmd-network-console input:focus-visible,
+.cmd-network-console select:focus-visible,
+.cmd-network-map-scroll:focus-visible {
+  outline: 3px solid var(--cmd-focus);
+  outline-offset: 3px;
+}
+@media (min-width: 1700px) {
+  .cmd-network-wallboard .cmd-network-map {
+    min-height: 0;
+  }
+
+  .cmd-network-tv .cmd-network-node strong {
+    font-size: 1.25rem;
+  }
+}
+@media (max-width: 1100px) {
+  .cmd-network-workspace,
+  .cmd-network-wallboard .cmd-network-workspace {
+    grid-template-columns: minmax(0, 1fr);
+  }
+  .cmd-network-inspector {
+    border-left: 0;
+    border-top: 1px solid var(--cmd-border);
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+  .cmd-network-activity {
+    border-top: 0;
+    border-left: 1px solid var(--cmd-border);
+  }
+  .cmd-network-wallboard .cmd-network-inspector {
+    max-height: none;
+  }
+}
+@media (max-width: 600px) {
+  .cmd-network-vitals {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+  .cmd-network-vitals > div {
+    padding: 0.8rem;
+    border-bottom: 1px solid var(--cmd-border);
+  }
+  .cmd-network-vitals > div:nth-child(2) {
+    border-right: 0;
+  }
+  .cmd-network-toolbar {
+    align-items: stretch;
+    flex-direction: column;
+  }
+  .cmd-network-search,
+  .cmd-network-project-filter {
+    flex-basis: auto;
+    max-width: none;
+  }
+  .cmd-network-inspector {
+    grid-template-columns: minmax(0, 1fr);
+  }
+  .cmd-network-activity {
+    border-left: 0;
+    border-top: 1px solid var(--cmd-border);
+  }
+  .cmd-network-wallboard .cmd-network-map-scroll {
+    min-height: 20rem;
+    max-height: 32rem;
+  }
+  .cmd-network-header .cmd-network-controls {
+    width: 100%;
+  }
+}
+
+@media (min-width: 1101px) and (max-width: 1360px) {
+  .cmd-network-console:not(.cmd-network-wallboard) .cmd-network-workspace {
+    grid-template-columns: minmax(0, 1fr);
+  }
+  .cmd-network-console:not(.cmd-network-wallboard) .cmd-network-inspector {
+    border-left: 0;
+    border-top: 1px solid var(--cmd-border);
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+  .cmd-network-console:not(.cmd-network-wallboard) .cmd-network-activity {
+    border-top: 0;
+    border-left: 1px solid var(--cmd-border);
+  }
+}
+
+/* One short arrival cue for a newly observed persisted event. Never idle traffic. */
+.cmd-network-node[data-arriving="true"] {
+  animation: cmd-network-arrival 1400ms ease-out 1;
+}
+@keyframes cmd-network-arrival {
+  from {
+    box-shadow: 0 0 0 5px var(--cmd-focus);
+  }
+  to {
+    box-shadow: 0 0 0 0 transparent;
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  .cmd-network-node[data-arriving="true"] {
+    animation: none;
+  }
+}
+
+@media (min-width: 1101px) {
+  .cmd-network-wallboard {
+    padding: 1rem;
+  }
+  .cmd-network-wallboard .cmd-network-header {
+    padding: 0 0 0.75rem;
+  }
+  .cmd-network-wallboard .cmd-network-header h1 {
+    font-size: 2rem;
+  }
+  .cmd-network-wallboard .cmd-network-subtitle {
+    display: none;
+  }
+  .cmd-network-wallboard .cmd-network-vitals > div {
+    padding: 0.65rem 1rem;
+    gap: 0.25rem;
+  }
+  .cmd-network-wallboard .cmd-network-vitals strong {
+    font-size: 1.8rem;
+  }
+  .cmd-network-wallboard .cmd-network-toolbar {
+    padding: 0.65rem 0;
+  }
+  .cmd-network-wallboard .cmd-network-inspector {
+    max-height: calc(100svh - 23rem);
+  }
+  .cmd-network-wallboard .cmd-network-node {
+    height: 74px;
+    padding: 0.35rem 0.7rem;
+    gap: 0.15rem;
+  }
+  .cmd-network-wallboard .cmd-network-node svg {
+    width: 16px;
+    height: 16px;
+  }
+  .cmd-network-wallboard .cmd-network-node strong {
+    font-size: 1.1rem;
+  }
+  .cmd-network-wallboard .cmd-network-node-kind {
+    font-size: 0.68rem;
+  }
+  .cmd-network-wallboard .cmd-network-footer {
+    padding: 0.6rem 0 0;
+  }
+  .cmd-network-wallboard .cmd-network-footer nav {
+    font-size: 0.7rem;
+  }
+}
+
+/* Keep labels at their full line height in narrow wallboard panels. */
+.cmd-network-node > * {
+  flex-shrink: 0;
+  line-height: 1.1;
+}
+.cmd-network-wallboard .cmd-network-node {
+  height: 74px;
+  padding: 0.35rem 0.7rem;
+  gap: 0.15rem;
+}
+.cmd-network-wallboard .cmd-network-node svg {
+  width: 16px;
+  height: 16px;
+}
+.cmd-network-wallboard .cmd-network-node strong {
+  font-size: 1.1rem;
+}
+.cmd-network-wallboard .cmd-network-node-kind {
+  font-size: 0.68rem;
+}

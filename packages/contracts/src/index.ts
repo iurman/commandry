@@ -3528,3 +3528,5 @@ export type SyntheticRunResponse = z.infer<typeof syntheticRunSchema>;
 export * from "./real-integrations";
 
 export * from "./knowledge-access";
+
+export * from "./infrastructure-overview";

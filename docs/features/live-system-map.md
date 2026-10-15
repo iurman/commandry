@@ -152,3 +152,12 @@ Users should be able to:
 - a list/timeline alternative preserves the same inspectable information;
 - all actions pass through the same capability, approval, and audit controls as
   the rest of Commandry.
+
+## Infrastructure-first implementation candidate
+
+The [infrastructure overview](infrastructure.md#implemented-read-only-overview-candidate-2026-10-15)
+now provides the first read-only operational relationship map and TV wallboard.
+It reuses canonical resources and project links, real source observations, and
+normalized events. It does not implement agent messages, prompt inspection,
+agent dispatch, build-machine scheduling, or a streaming collaboration protocol.
+Those remain future lenses over trustworthy canonical evidence.

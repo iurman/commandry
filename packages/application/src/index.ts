@@ -50,3 +50,5 @@ export * from "./owner-password-recovery";
 export * from "./real-integrations";
 
 export * from "./knowledge-access";
+
+export * from "./infrastructure-overview";

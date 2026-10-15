@@ -61,6 +61,17 @@ as source-linked knowledge in the existing Commandry project. Subscription
 agent dispatch and the wider [orchestration direction](../research/agent-orchestration-and-shared-context.md)
 remain proposed; no coding runtime or new inference billing path was selected.
 
+## Infrastructure overview candidate (2026-10-15)
+
+The local candidate adds a resource-centered infrastructure map, synchronized
+searchable list, source/measurement inspector, recent real events, and a dedicated
+TV wallboard. It preserves the inventory editor, uses explicit pagination and
+project scope, and keeps source freshness separate from unknown service health.
+Polling, pause/resume, delayed snapshots, optional page rotation and event-backed
+arrival cues are implemented. Agent/build-machine flows and new availability
+providers remain future work. See the [implementation record](../implementation/infrastructure-network.md)
+for local verification. This candidate has not been deployed to production.
+
 ## Established direction
 
 - Commandry is a personal control plane spanning projects, knowledge,

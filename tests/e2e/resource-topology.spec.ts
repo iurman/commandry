@@ -55,7 +55,7 @@ test("resource tree, dependency inverse, and labeled synthetic context stay dist
   expect(projectResponse.status()).toBe(201);
   const project = await projectResponse.json();
 
-  await page.goto("/infrastructure");
+  await page.goto("/infrastructure/inventory");
   await page.getByLabel("Name *").fill(`${token} provider`);
   await page.getByLabel("Kind *").fill("provider");
   const providerResponsePromise = page.waitForResponse(
@@ -121,7 +121,7 @@ test("resource tree, dependency inverse, and labeled synthetic context stay dist
     ),
   ).toBe(true);
 
-  await page.goto("/infrastructure");
+  await page.goto("/infrastructure/inventory");
   const tree = page.getByRole("list", { name: "Resource hierarchy" });
   const providerLink = tree.getByRole("link", { name: provider.name });
   const moreRoots = page.getByRole("button", {
