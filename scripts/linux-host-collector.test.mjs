@@ -1,6 +1,13 @@
 import assert from "node:assert/strict";
 import { test } from "node:test";
+import { execFileSync } from "node:child_process";
 import { collectLinuxHost, sendLinuxHost } from "./linux-host-collector.mjs";
+test("Python host collector validates counters, receipts and redirect behavior", () => {
+  execFileSync("python3", ["-B", "scripts/linux-host-collector_test.py"], {
+    timeout: 15_000,
+    stdio: "pipe",
+  });
+});
 test("collector reads host counters without a privileged service", async () => {
   const sample = await collectLinuxHost({
     hostname: () => "electra",

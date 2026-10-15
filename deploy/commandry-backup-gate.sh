@@ -31,7 +31,7 @@ elif [[ $# -eq 1 && "$1" == nightly ]]; then
   entry=commandry-scheduled-backup.mjs
 elif [[ $# -eq 1 && "$1" == health ]]; then
   entry=commandry-backup-health.mjs
-elif [[ $# -eq 1 && "$1" == alert ]]; then
+elif [[ $# -eq 1 && ( "$1" == alert || "$1" == alert-test-firing || "$1" == alert-test-resolved ) ]]; then
   entry=commandry-backup-alert.mjs
 elif [[ $# -eq 1 && "$1" == monthly ]]; then
   entry=commandry-monthly-restore.mjs

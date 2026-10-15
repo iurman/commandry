@@ -33,6 +33,9 @@ if [[ -f "$COMMANDRY_TEST_ROOT/fail-command" ]]; then
   pattern=$(cat "$COMMANDRY_TEST_ROOT/fail-command")
   [[ "$*" != *"$pattern"* ]] || exit 29
 fi
+if [[ -f "$COMMANDRY_TEST_ROOT/drain-docker-input" ]]; then
+  cat >/dev/null
+fi
 if [[ "$1" == volume ]]; then
   case "$2" in
     ls)
@@ -112,6 +115,9 @@ const fakeSmoke = String.raw`#!/usr/bin/env bash
 set -euo pipefail
 printf 'smoke %s %s\n' "$2" "$3" >> "$COMMANDRY_TEST_ROOT/hook.calls"
 [[ ! -f "$COMMANDRY_TEST_ROOT/fail-smoke" ]] || exit 22
+if [[ -f "$COMMANDRY_TEST_ROOT/expected-owner.input" ]]; then
+  cmp -s "$COMMANDRY_TEST_ROOT/expected-owner.input" - || exit 23
+fi
 smoke_image=$2
 [[ ! -f "$COMMANDRY_TEST_ROOT/bad-smoke-receipt" ]] || smoke_image=ghcr.io/example/commandry@sha256:bad
 printf '{"kind":"commandry_deployment_smoke","outcome":"passed","environment":"production","imageDigest":"%s","releaseSha":"%s","completedAt":"%s","bootstrapCreated":false,"authenticatedRead":true,"probeSessionRevoked":true,"workerJobId":"11111111-1111-4111-8111-111111111111","workerId":"22222222-2222-4222-8222-222222222222"}\n' \
@@ -212,10 +218,11 @@ function harness(t) {
   return root;
 }
 
-function run(root) {
+function run(root, input) {
   return spawnSync("bash", [deployScript, "--test-root", root], {
     encoding: "utf8",
     timeout: 15_000,
+    input,
   });
 }
 
@@ -965,3 +972,20 @@ test("a mismatched smoke receipt prevents ingress and rolls back", (t) => {
     /up --no-deps -d --wait --wait-timeout 120 caddy cloudflared/,
   );
 });
+
+for (const upgrade of [false, true]) {
+  test(`Docker clients preserve owner credentials for ${upgrade ? "an upgrade" : "a first release"}`, (t) => {
+    const root = harness(t);
+    if (upgrade) activatePriorRelease(root);
+    const input = "owner@example.test\nSYNTHETIC_OWNER_PASSWORD\n";
+    write(join(root, "drain-docker-input"), "1");
+    write(join(root, "expected-owner.input"), input);
+    const result = run(root, input);
+    assert.equal(result.status, 0, result.stderr);
+    assert.equal(event(root).smokeVerified, true);
+    assert.doesNotMatch(
+      result.stdout + result.stderr,
+      /SYNTHETIC_OWNER_PASSWORD/,
+    );
+  });
+}

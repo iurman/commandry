@@ -2,15 +2,36 @@
 
 **Status: Operational**
 
-**Updated:** 2026-10-04
+**Updated:** 2026-10-15
 
-The current candidate implements public GitHub repository activity and an
-unprivileged Linux host receiver. Live read-only verification imported 43
+Production now uses public GitHub repository activity and an unprivileged
+Linux host receiver at `https://commandry.site`. Initial activation used reviewed
+revision `e62401b03a52398644658749c39605fda4ade41e` and immutable image
+`ghcr.io/iurman/commandry@sha256:d5f84d9558206044739d7c96aab1a0531f314806e4b89086ef728da8f16eda5a`.
+The subsequent October 15 release added read-only project knowledge MCP;
+its current release digest and activation evidence are recorded in the
+[knowledge MCP runbook](../docs/architecture/knowledge-mcp.md#activation-evidence-2026-10-15).
+
+Earlier candidate verification established the contracts before activation. Live read-only verification imported 43
 actual `iurman/commandry` events and four metrics from an actual `electra`
 sample into disposable local PostgreSQL. The built worker also polled the
 actual repository, and the collector sender submitted that host sample through
 the built HTTP receiver with its scoped token. This does not establish an active
-VPS deployment. Ephemera remains the existing VPS workload.
+VPS deployment. On October 14, the constrained deployment completed after
+actual R2 backup/readback and isolated restore, production owner sign-in and
+sign-out revocation, exact version checks, and a worker job. Authenticated API
+verification then read fresh real GitHub and systemd-delivered electra evidence.
+The collector runs every minute. Ephemera remains healthy. Telegram backup alert delivery is active through the separate root-controlled
+host timer; its labeled firing/recovery test and quiet healthy check passed.
+A full lost-VPS recovery and independent outage monitoring remain unproven.
+
+Pleiades, iu-amp and iu-ionos now also submit host samples every minute from
+their existing Python installations. Each source has a five-minute freshness
+window and its own scoped receiver token. Authenticated production reads
+verified actual source envelopes and four metrics per sample, with root
+capacity matching the host. Existing VM, AMP and Velocity process identities
+were preserved. These are host capacity sources; continuous Proxmox guest,
+AMP instance and service-availability adapters remain unimplemented.
 
 ## Source and security contract
 
@@ -63,13 +84,13 @@ Before activation, confirm private R2 credential intake and separate recovery
 key custody; choose retention, recovery targets and an alert destination;
 prove offsite upload/readback and an isolated restore; settle owner sign-in
 and recovery; and verify the approved immutable image, constrained deployment,
-application rollback and Tunnel ingress. Root-owned configuration cannot be
-verified through the current password-gated operator session.
+application rollback and Tunnel ingress. Root-owned configuration and the initial offsite/restore gates were verified
+during activation. Retain the same requirements for future changes.
 
 Do not bypass these gates with a personal user service or rerun the one-shot
-commissioner on the already commissioned host. Keep Ephemera running. The
-collector templates are uninstalled and inactive, and need a separate scoped
-operator installation after the application is ready.
+commissioner on the already commissioned host. Keep Ephemera running. The collector templates were installed after the application passed its
+deployment checks. Its one-shot service delivered actual evidence before the
+minute timer was enabled.
 
 ## Collector configuration and rollback
 
@@ -99,6 +120,50 @@ Rollback of collector activation means stopping and disabling only its timer,
 disabling that source in Commandry, and removing only the new collector unit
 files if needed. Preserve source evidence and audit records. Do not stop,
 restart or reconfigure Ephemera.
+
+### Hosts without Node
+
+`scripts/linux-host-collector.py` implements the same `linux-host/v1` sample
+and receiver contract using Python 3.10 or later and its standard library.
+It reads the host's exact hostname, `/proc` counters and root filesystem
+capacity without privileged commands. This avoids installing an application
+runtime on a hypervisor or game host. It does not query Proxmox guests, AMP
+instances, additional storage pools or service availability.
+
+For these hosts, install the script at
+`/opt/commandry/scripts/linux-host-collector.py` and install
+`deploy/systemd/commandry-host-collector-python.service` as
+`/etc/systemd/system/commandry-host-collector.service`. Use the existing timer
+template and a separate source and root-owned mode 0600 environment file for
+each host. The service runs under a dynamic unprivileged identity with no
+capabilities. Its token submits only that host's observations. HTTPS certificate
+verification stays enabled, redirects are refused, and receipt parsing is
+bounded to 16 KiB. Errors do not print the receiver configuration.
+The collector identifies itself as `Commandry-Linux-Host-Collector/1.0`;
+Cloudflare rejected the default Python client signature with error 1010 during
+the first Pleiades attempt. The named client delivered successfully without
+changing ingress protection.
+
+Disk use is derived from total blocks minus blocks available to an unprivileged
+process. Filesystem reservations therefore count as unavailable and can make
+this percentage higher than the allocated-block percentage shown by `df`.
+
+Before installation, inventory the target, confirm recovery SSH access and
+record running workloads. Refuse to overwrite an existing collector. Stage
+credentials privately, verify installed source hashes and systemd unit syntax,
+then start only the new one-shot service. Read its persisted source envelope
+and compare root capacity against host counters before enabling the minute
+timer. Verify a second timer-delivered observation and unchanged existing
+workload process start times. Rollback stops/disables only this new timer and
+service, disables its Commandry source and removes the newly installed files;
+retain the evidence and installation audit.
+The activated hosts retain their audit at
+`/var/lib/commandry-collector/installation.json` and `activation.json`.
+
+Tests are included in `scripts/linux-host-collector.test.mjs` and require
+`python3`. They cover counter interpretation, invalid capacities, configuration
+validation, bounded truthful receipts, actual loopback delivery, redirect
+refusal and redacted CLI failures.
 
 Migration 0056 extends provenance and allows several named metrics per event.
 It preserves fixture records. Once real records exist, a fixture-only old image

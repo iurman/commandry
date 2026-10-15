@@ -22,6 +22,9 @@ const installer = resolve(
 const revision = "a".repeat(40);
 const requiredFiles = [
   "compose.production.yaml",
+  "docker/postgres/initdb/10-roles.sh",
+  "docker/postgres/initdb/20-backup-role.sql",
+  "scripts/commandry-backup-gate.mjs",
   "deploy/commandry-deploy.sh",
   "deploy/commandry-backup-gate.sh",
   "deploy/commandry-app-smoke.sh",
@@ -303,6 +306,16 @@ test("commission installs inert controls and a restricted deploy identity", (t) 
   assert.equal(existsSync(join(host, "account.created")), true);
   assert.equal(existsSync(join(host, "opt/commandry/runtime/node")), true);
   assert.equal(existsSync(join(host, "opt/commandry/runtime/restic")), true);
+  const initDirectory = join(host, "opt/commandry/docker/postgres/initdb");
+  assert.equal(statSync(initDirectory).mode & 0o777, 0o755);
+  assert.equal(
+    statSync(join(host, "opt/commandry/scripts")).mode & 0o777,
+    0o755,
+  );
+  assert.equal(
+    statSync(join(host, "opt/commandry/.agent")).mode & 0o777,
+    0o700,
+  );
   assert.equal(existsSync(join(host, "etc/commandry/commandry.env")), false);
   assert.equal(existsSync(join(host, "etc/commandry/approved-release")), false);
   assert.equal(

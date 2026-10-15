@@ -135,3 +135,22 @@ export function localBackupConfig(root) {
     RESTIC_PASSWORD_FILE: passwordFile,
   };
 }
+
+export function parseCurrentRelease(content, environment) {
+  const match =
+    /^IMAGE=(ghcr\.io\/[^\s@]+@sha256:[0-9a-f]{64})\nREVISION=([0-9a-f]{40})\nVOLUME=(commandry[-_][a-z0-9_.-]{1,100})\nDB_NAME=([a-z_][a-z0-9_]{0,62})\nBOOTSTRAP_ID=([0-9a-f]{32})\nCLUSTER_ID=([1-9][0-9]{14,19})\n$/.exec(
+      content,
+    );
+  if (!match) fail("CURRENT_RELEASE");
+  for (const [key, expected] of [
+    ["COMMANDRY_IMAGE", match[1]],
+    ["RELEASE_SHA", match[2]],
+    ["PRODUCTION_DB_VOLUME_NAME", match[3]],
+    ["DB_NAME", match[4]],
+  ]) {
+    const values = [...environment.matchAll(new RegExp(`^${key}=(.+)$`, "gm"))];
+    if (values.length !== 1 || values[0][1] !== expected)
+      fail("CURRENT_RELEASE");
+  }
+  return { image: match[1], revision: match[2] };
+}

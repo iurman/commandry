@@ -121,6 +121,10 @@ services:
 
   cloudflared:
     image: ${CLOUDFLARED_IMAGE:?Set an approved immutable cloudflared image digest}
+    user: "0:0"
+    cap_drop: [ALL]
+    security_opt: [no-new-privileges:true]
+    read_only: true
     restart: unless-stopped
     command: ["tunnel", "--config", "/etc/cloudflared/config.yml", "run"]
     volumes:

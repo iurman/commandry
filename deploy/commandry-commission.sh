@@ -345,6 +345,9 @@ done
 # Arm cleanup before mv; a caught signal may run between mv and the next line.
 created_base=1
 mv -T -- "$stage/payload" "$base"
+# PostgreSQL drops privileges before reading its mounted initialization directory.
+chmod 0755 "$base/docker/postgres/initdb" "$base/scripts"
+install -d -m 0700 "$base/.agent"
 install -d -m 0755 "$base/runtime"
 install -m 0755 "$stage/node" "$base/runtime/node"
 install -m 0755 "$stage/restic" "$base/runtime/restic"

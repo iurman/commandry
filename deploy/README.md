@@ -5,9 +5,9 @@
 For the initial operator connection and a safe inventory of the existing VPS,
 use the [VPS access and onboarding runbook](../docs/operations/vps-access-and-onboarding.md).
 
-`compose.production.yaml` describes the accepted VPS topology but is
-unactivated. It has no published web or database port. Cloudflare Tunnel would
-reach Caddy through the private Compose network. The web application, worker,
+`compose.production.yaml` describes the VPS topology activated on October 14, 2026. It has no published web or database port. Cloudflare Tunnel reaches Caddy
+through the private Compose network. Current evidence and remaining limitations
+are recorded in [project status](../docs/project/status.md). The web application, worker,
 and one-shot migrator use the same approved image digest. The local Storybook
 lab is absent.
 
@@ -42,6 +42,16 @@ deployment will read the real root-owned
 configuration and credentials belong under the root-owned
 `/etc/commandry/cloudflared/` directory. A deployment identity must not be
 able to read either secret location.
+
+The cloudflared image runs as container UID 0 to read these root-owned files.
+Its container drops every Linux capability, prevents privilege escalation, and
+uses a read-only filesystem. PostgreSQL initialization files contain no secrets;
+their mounted directory must be mode `0755` because PostgreSQL reads it after
+dropping root privileges. The non-secret `scripts` directory must also be mode
+`0755` so the unprivileged host collector can read its reviewed entry point. Keep
+private configuration restricted. The commissioner also creates root-private `/opt/commandry/.agent`
+scratch space for isolated restore commands; each command removes its temporary
+resources after the drill.
 
 `pnpm production:config:check` validates the example's service shape without
 printing its values. Passing a real root-owned env path as the command argument
@@ -292,10 +302,12 @@ configuration readback, isolated role application and configuration
 extraction, repository check, exact-digest clean restore, and unexposed web
 read smoke all pass. A local `pnpm backup:restic:test` rehearsal uses a
 synthetic local repository and never writes a production receipt. The hook
-exists on the VPS but is closed by missing configuration. An empty private R2 bucket is reserved, but
-backup credentials and a working offsite restore are not configured.
+was configured and activated on electra on October 14, 2026. Encrypted R2
+readback and isolated restore passed before the initial application release;
+the later MCP deployment passed those gates again, as recorded in the
+[activation evidence](../docs/architecture/knowledge-mcp.md#activation-evidence-2026-10-15).
 
-The uninstalled [nightly host service and timer](systemd/commandry-backup.timer)
+The installed [nightly host service and timer](systemd/commandry-backup.timer)
 use the same controlled runtime to create encrypted R2 database, PostgreSQL
 globals, and private host configuration snapshots without a release image.
 The configuration archive excludes the restic password file if it is inside
@@ -303,15 +315,16 @@ The configuration archive excludes the restic password file if it is inside
 applies explicit recent, daily, weekly, and monthly retention values; its
 committed example deliberately sets invalid zeroes. It keeps private
 last-attempt and last-success JSON records and exits nonzero on
-failure. A separate uninstalled hourly health unit fails on a failed attempt
+failure. A separate installed hourly health unit fails on a failed attempt
 or a snapshot older than the configured maximum age. Local synthetic rehearsals
-exercise retention and those status states. The uninstalled
-[webhook alert adapter](backup-and-restore.md#provisional-backup-alert-transport-not-installed)
-can deliver and deduplicate failure and resolution events, but its local test
-uses only a synthetic loopback receiver. Choosing retention and freshness
-targets, an approved owner alert receiver, R2 access, and installation remain
-gates.
-An uninstalled monthly timer can apply retained PostgreSQL globals to a
+exercise retention and those status states. The installed
+[backup alert adapter](backup-and-restore.md#backup-alert-transport) supports
+webhook or Telegram delivery. Telegram firing/recovery delivery and duplicate
+suppression passed before its fifteen-minute timer was enabled. The owner
+selected 7 recent, 7 daily, 5 weekly and 12 monthly snapshots, a 36-hour
+freshness threshold, and private Telegram delivery. These host checks cannot
+notify after complete VPS loss without an independent monitor.
+The installed monthly timer can apply retained PostgreSQL globals to a
 disposable cluster, extract the private configuration into a disposable
 directory, and restore a fresh database snapshot into isolated PostgreSQL and
 web containers using the current approved image. The local test runs that
@@ -329,7 +342,8 @@ After migration and container health, the script checks `/health/live`,
 It then requires root-owned `/usr/local/sbin/commandry-app-smoke` to verify a
 real login, an authenticated read, and one enqueue-to-worker result. The smoke
 hook receives the environment-file path, image digest, and revision and reads
-the owner email and password from standard input. The installed
+the owner email and password from standard input. Earlier Docker commands
+receive `/dev/null` so they cannot consume the smoke credentials. The installed
 [`host wrapper`](commandry-app-smoke.sh) runs the one-shot worker command in
 the private Compose network. It writes a fresh mode `0600` receipt under
 `/var/lib/commandry` only after the exact release, login, read, sign-out,

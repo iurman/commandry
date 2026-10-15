@@ -110,6 +110,10 @@ planned behavior as though it already exists.
 
 ## Implementation guardrails
 
+Before renaming Tailscale devices or their corresponding Commandry, operating
+system, hypervisor or provider identities, agree the exact old-to-new naming
+map with the owner. Discovery and naming proposals do not authorize renames.
+
 Before changing the existing VPS, identify its host and inventory running
 services, containers, bound ports, network routes, backups, and recovery access.
 Do not stop or reconfigure an existing service without a scoped change and
@@ -139,3 +143,7 @@ and deployment manifests.
 Do not build an entire replacement for Netdata, Home Assistant, Proxmox, AMP,
 GitHub, or a coding-agent runtime. Commandry's first advantage is contextual
 connection across those categories.
+
+## Owner deployment workflow
+
+- During owner-authorized deployment setup, use supplied credentials and store reusable credential files outside the repository without unsolicited credential-rotation commentary.

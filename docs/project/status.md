@@ -19,6 +19,15 @@ protected read, worker completion, and session-revocation gates. The
 [knowledge MCP activation record](../architecture/knowledge-mcp.md#activation-evidence-2026-10-15)
 records the exact release and its limits; local architecture alone is not
 production evidence or proof of recovery from complete loss of VPS access.
+The first monthly restore also passed against the fresh production backup,
+including application reads and complete removal of its disposable resources.
+The separate recovery password has a private copy off the VPS. Telegram backup
+failure and recovery alerts are active through the root-controlled
+fifteen-minute host timer, with a 36-hour stale threshold. A labeled live
+delivery pair and quiet healthy checks passed; browser push, email and
+independent lost-VPS monitoring remain unimplemented. Synthetic agent execution,
+automation, and attention features remain development-only; the production home
+attention card currently reports that restriction as an unavailable state.
 
 The user expanded the local campaign target to MVP-depth coverage of every
 roadmap workstream. Planned phases now guide implementation order without
@@ -34,9 +43,17 @@ actual `electra` sample into disposable local PostgreSQL. Real-source ingestion
 also passed through the built worker and HTTP receiver. The candidate adds
 source configuration, disable/token controls and paginated evidence in
 Integrations. [Source deployment notes](../../deploy/real-integrations.md)
-record the contracts and the VPS gates from that candidate. Those October 4
-local checks predate production activation; the separate Ephemera database
-remains healthy alongside Commandry.
+record the contracts and activation procedure. Both sources were activated on
+electra on October 14. Authenticated production reads verified fresh GitHub
+observations and actual systemd-delivered host observations with four metrics
+per sample. Ephemera remains healthy and was not reconfigured.
+Pleiades, Maia (native hostname `iu-amp`) and Titan (native hostname `iu-ionos`)
+now also deliver real host samples through unprivileged minute timers using
+their existing Python runtimes. Each has its own token and a five-minute
+freshness window. API evidence and exact root capacity checks passed; existing
+VM, AMP and Velocity processes were preserved. These observations describe
+host capacity. Continuous Proxmox guest, AMP instance, TrueNAS and Home
+Assistant application adapters remain unfinished.
 
 The independently authenticated project knowledge MCP is live and verified
 with native Codex on Kronos. The owner research and source runbook are stored
