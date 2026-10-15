@@ -94,7 +94,7 @@ a service. Every external action follows capability and approval policy.
 - Detailed telemetry can remain in an external system while Commandry preserves
   summary, context, alerts, and history.
 
-## Implemented read-only overview candidate (2026-10-15)
+## Implemented read-only overview (2026-10-15)
 
 The infrastructure overview at `/infrastructure` projects canonical resources,
 active project links, containment, dependencies, real source freshness, latest
@@ -118,21 +118,22 @@ Capacity measurements keep their exact source evidence and timestamps. Source
 errors, future timestamps, stale observations, missing observations, and disabled
 sources remain distinct. Refresh failure retains a clearly delayed snapshot.
 
-The candidate uses 15-second polling, not streaming transport. A short visual
+The overview uses 15-second polling, not streaming transport. A short visual
 cue may mark a newly seen persisted event less than a minute old; initial loads,
 page changes, and reduced-motion mode do not produce animated traffic. Background
 sound is silent. New provider monitoring and alert suppression are outside this
 read-only slice. Existing signal review keeps its existing development-only
-policy. Local evidence and remaining limits are recorded in the
+policy. Implementation evidence and remaining limits are recorded in the
 [implementation and verification record](../implementation/infrastructure-network.md).
 
 ## Gravity presentation (2026-10-15)
 
-The approved Gravity renderer now has a production integration candidate using
+The approved Gravity renderer is deployed in production using
 the same canonical overview API. It adds host/project/custom layouts, nested
 resource wells, focus and automatic cameras, source-backed event pulses,
 complete direct-child counts and device-local appearance. It preserves source
 freshness versus unknown service availability and the paginated topology/list
 alternatives. See the [implementation record](../implementation/gravity-infrastructure.md)
 and [ADR 0013](../decisions/0013-share-the-gravity-renderer-with-production.md).
-Production deployment requires the ordinary validated release workflow.
+The [production activation record](../implementation/gravity-infrastructure.md#production-activation-2026-10-15)
+records the validated release and live inventory checks.

@@ -1,6 +1,6 @@
 # Gravity infrastructure integration
 
-**Status: Operational implementation; verified locally, not deployed**
+**Status: Operational; deployed and verified in production**
 
 The owner requested the accepted Gravity study in the actual infrastructure
 overview and TV wallboard. The implementation uses the existing authenticated
@@ -64,7 +64,7 @@ Verified on 2026-10-15 using Node.js 24:
 
 The WebGL failure test mocks renderer initialization failure. A physical GPU
 context reset, a physical television and fleet-scale level of detail were not
-verified. Production telemetry, provisioning and deployment were not changed.
+verified by the local checks. Production activation is recorded below.
 Real cross-server traffic and RAM-capacity sizing require observed data that
 this overview contract does not currently provide.
 
@@ -86,3 +86,65 @@ and inventory writes are explicitly deferred to the comprehensive MCP planning
 chat `01a141c1-739c-7cc0-8aa3-aa3b817f7bd5`; this release does not add an agent
 mutation capability. That plan must define the exact scopes, risks, approvals,
 audit and shared-service contracts before implementing those operations.
+
+## Production activation, 2026-10-15
+
+The owner-authorized production deployment completed at 2026-10-15T23:31:40Z
+(16:31:40 America/Los_Angeles). Gravity is active at
+[the infrastructure overview](https://commandry.site/infrastructure) and
+[the wallboard](https://commandry.site/infrastructure/wallboard).
+
+- Source revision: `3d0ff56d8335df0262e8c7286b8dbec24322ecb5`, the normal merge
+  of [PR 9](https://github.com/iurman/commandry/pull/9) after
+  [PR 8](https://github.com/iurman/commandry/pull/8). Both tested PR heads and
+  their preceding main heads remain ancestors.
+- Verified image:
+  `ghcr.io/iurman/commandry@sha256:2695200f5cf3e5e9faeb54e82a5883e8a749a58e3a457a9cff79dce6a3309b57`.
+  Its build timestamp is 2026-10-15T23:14:40Z.
+- [Release workflow 38821718426](https://github.com/iurman/commandry/actions/runs/38821718426)
+  passed source, dependency, test, build, authentication, production topology,
+  image, provenance and registry gates. The complete browser run passed 195 cases
+  with three explicitly skipped cases. Root and lab suites passed 225 and 33
+  tests respectively.
+- The existing constrained deployment identity and root-owned controls performed
+  backup, isolated restore, migration, owner sign-in, protected read, worker
+  completion and probe-session revocation. The final deployment receipt records
+  `succeeded`, `smokeVerified: true` and `rollback: not_needed`.
+- Backup snapshot
+  `84d378442f0e5a26e116d196b563590963342cab820dae0b0904afea7c81f651`
+  completed at 2026-10-15T23:31:24Z. Offsite, verification, isolated restore and
+  isolated host-recovery-drill checks all passed. These checks do not prove
+  recovery after complete loss of the VPS.
+
+An earlier host attempt stopped at the backup gate and restored the preceding
+application release. Its isolated database restore passed, but the failed host
+recovery child reason was not exposed by that attempt's receipt. A separate
+unmodified host-bundle/recovery verification passed before the complete
+constrained deployment was retried successfully. No gate or installed deployment
+control was weakened or changed.
+
+Post-deployment `/version`, liveness and readiness matched the exact release.
+The web and worker were healthy. Commandry's PostgreSQL container and the
+unrelated Ephemera PostgreSQL container retained their identities. Existing
+Caddy and Tunnel container identities were retained.
+
+A complete authenticated inventory comparison preserved all 91 canonical
+resources: 18 registered hosts, 13 services and 60 repositories across 15
+projects. IDs, names, kinds, parents and project-resource links were unchanged;
+no duplicate or demonstration inventory was imported. Complete pagination,
+host search, project scopes, direct-child counts and absence of dangling parents
+were verified. Registration does not establish that a machine is running.
+
+The existing five sources were preserved. Electra, Pleiades, Maia and Titan each
+had fresh host observations and four source-backed metrics. Availability remains
+unknown for every resource. The signed-in live browser verified Electra's
+measurements and nested services, focus lens, composed/orbit cameras,
+System/Porcelain surfaces, topology/list alternatives, the TV wallboard and new
+source-event updates. No warning or error was captured after the release reload.
+No synthetic request traffic or lab fixtures were used in that browser check.
+
+The owner direction is stored as source-linked requirement
+`741dcce3-45b1-4e66-8fe1-b8a56d49e8b5` in the live Commandry project. A
+post-deployment MCP project brief successfully read it. This preserves the
+existing read-only MCP credential scope; broader access remains the separate
+planning work described above.
