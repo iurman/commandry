@@ -102,5 +102,6 @@ permanent process.
 
 The [read-only project knowledge MCP](knowledge-mcp.md) documents the bounded
 first implementation, owner-issued credentials, retrieval population, audit,
-and verification. Production activation and actual native client compatibility
-remain pending; the local packet preview remains separate.
+and verification. Production activation and all four tools have been verified
+with native Codex on Kronos; Claude compatibility and real coding-task usability
+remain unverified. The local packet preview remains separate.

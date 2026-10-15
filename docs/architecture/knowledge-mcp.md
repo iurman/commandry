@@ -1,6 +1,6 @@
 # Read-only project knowledge MCP
 
-**Status: Proposed implementation; production activation pending**
+**Status: Operational implementation; activated 2026-10-15**
 
 This first slice lets an independently opened MCP client retrieve one project's
 stored Commandry context without creating a fake agent run or execution packet.
@@ -86,14 +86,20 @@ Use the independently issued project token with an MCP client supporting
 Streamable HTTP and protected custom authorization headers. Connection setup
 must identify the exact server origin and project. This slice does not provide
 OAuth authorization/discovery, browser login for external MCP clients, a
-provider plugin package, or a stdio bridge. Claude app custom-connector support
-and installed Codex/Claude client compatibility must be verified separately;
-the SDK protocol check does not prove those clients work.
+provider plugin package, or a stdio bridge. Native Codex on Kronos has been
+verified through its installed app-server,
+including all four tools, project identity, source capture identity, and content
+continuation. Claude app custom connectors and Claude Code remain unverified;
+Codex evidence does not establish their compatibility.
 
-The client endpoint after an approved deployment would be the configured
-application origin plus `/mcp/knowledge`. Do not configure clients against the
-live site before the release, migration, and owner issuance are verified. Do not
-switch production to local mode or forward the old loopback preview to bypass
+The active endpoint is `https://commandry.site/mcp/knowledge`. Kronos has a
+`commandry` entry in its private Codex configuration, using the documented
+[HTTP header helper](https://learn.chatgpt.com/docs/extend/mcp?surface=cli)
+to read the credential from a private file outside this repository. New client
+sessions can load that entry. The initial credential expires on
+2026-10-22 at 02:17:44 UTC; replacement requires owner issuance through the
+management API. The helper refuses an expired local credential. Do not switch
+production to local mode or forward the old loopback preview to bypass
 authorization.
 
 ## Verification and deployment boundary
@@ -108,9 +114,43 @@ loopback; it does not connect to the live database or providers. The isolated
 database may be deleted; no existing Commandry or Ephemera database is a target.
 
 The new migration adds `knowledge_client` and `knowledge_client_audit` without
-changing the old packet tables. Production migration and runtime-role access,
-HTTPS/proxy behavior, real client connection, useful retrieval during a real
-Kronos task, and owner usability remain deployment acceptance checks. Existing
+changing the old packet tables. Production migration, runtime-role access,
+HTTPS/proxy behavior, and native
+Codex retrieval passed the activation checks below. Retrieval during an actual
+implementation task and owner usability still need normal use. Existing
 production services and credentials must remain intact. No coding runtime,
 provider login, autonomous action, or billing decision is selected by this MCP
 implementation.
+
+## Activation evidence, 2026-10-15
+
+- [Implementation PR #4](https://github.com/iurman/commandry/pull/4) merged as
+  `8b0ac946329cb0f2b76275a42d2f1a4cd7639e0b`. Pending VPS PR #3 was excluded.
+- [Release workflow](https://github.com/iurman/commandry/actions/runs/38668772007)
+  passed repository checks, dependency audit, unit tests, built-app smoke tests,
+  183 desktop/phone checks, production topology rehearsal, image gates, and
+  registry readback. Passing image gates do not mean no unfixed vulnerabilities.
+- Deployed image digest:
+  `sha256:751943841e781b76d2d138e3c31955b0d21e4b358735f1f70a7b2c287fd27b10`.
+- The constrained deployment completed at 02:17:35 UTC, including a fresh
+  encrypted offsite backup, isolated restore and host-recovery rehearsal,
+  migration, owner sign-in, protected read, worker completion, and probe-session
+  revocation. An earlier attempt omitted required owner credentials on stdin;
+  it failed the application smoke gate and automatically restored the prior
+  application. The corrected invocation passed without changing the image.
+- Native Codex called all four tools against the live endpoint without starting
+  an inference turn. It retrieved the existing Commandry project, its brief,
+  research search results, and a source-linked content chunk with continuation.
+- Live boundaries returned 401 for anonymous MCP, ordinary API and owner
+  management requests using a project token, and a revoked token. A valid
+  token returned 200. The disposable revocation-test credential was revoked.
+- Original research and runbook captures were filed into the existing Commandry
+  project with source paths, whole-source hashes, capture IDs, and part numbers.
+  Research was split into two complete ordered captures to fit the existing
+  20,000-character capture contract; no source text was dropped.
+- Commandry services and the separate Ephemera database were healthy after
+  release. Existing host controls, credentials, and the original dirty checkout
+  were preserved. Private operator evidence and credentials stay outside Git.
+
+The wider owner requirements, alternatives, and unresolved runtime direction
+are retained in [orchestration and shared-context research](../research/agent-orchestration-and-shared-context.md).

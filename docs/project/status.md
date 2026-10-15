@@ -2,7 +2,7 @@
 
 **Status: Operational**
 
-**Last updated:** 2026-10-04
+**Last updated:** 2026-10-15
 
 ## Current phase
 
@@ -13,9 +13,12 @@ schema and migrations, a separate pg-boss worker, shared contracts, and the
 local experience lab. The autonomous local MVP campaign now exercises the
 interconnected project, capture, Work, Knowledge, infrastructure, activity,
 agent, approval, automation, integration fixture, and morning review paths.
-The accepted architecture and local code do not establish that the VPS is
-ready, that offsite backups and VPS restores work, or that human
-authentication is complete. There is no production deployment.
+Production is active at `https://commandry.site`. The 2026-10-15 MCP release
+passed the constrained deployment backup/restore, migration, owner sign-in,
+protected read, worker completion, and session-revocation gates. The
+[knowledge MCP activation record](../architecture/knowledge-mcp.md#activation-evidence-2026-10-15)
+records the exact release and its limits; local architecture alone is not
+production evidence or proof of recovery from complete loss of VPS access.
 
 The user expanded the local campaign target to MVP-depth coverage of every
 roadmap workstream. Planned phases now guide implementation order without
@@ -31,8 +34,15 @@ actual `electra` sample into disposable local PostgreSQL. Real-source ingestion
 also passed through the built worker and HTTP receiver. The candidate adds
 source configuration, disable/token controls and paginated evidence in
 Integrations. [Source deployment notes](../../deploy/real-integrations.md)
-record the contracts and outstanding VPS gates. The VPS still runs Ephemera;
-these integrations are not activated there.
+record the contracts and the VPS gates from that candidate. Those October 4
+local checks predate production activation; the separate Ephemera database
+remains healthy alongside Commandry.
+
+The independently authenticated project knowledge MCP is live and verified
+with native Codex on Kronos. The owner research and source runbook are stored
+as source-linked knowledge in the existing Commandry project. Subscription
+agent dispatch and the wider [orchestration direction](../research/agent-orchestration-and-shared-context.md)
+remain proposed; no coding runtime or new inference billing path was selected.
 
 ## Established direction
 
