@@ -6,6 +6,10 @@ the task, then follow links only when needed.
 
 ## Planning and dispatch
 
+- MUST keep reusable plans and implementation handoffs in tracked repository
+  documentation and commit them when handing off; do not leave the only copy
+  in an uncommitted worktree or ignored agent folder. Keep credentials, private
+  inventory, runtime data and session state outside committed documentation.
 - MUST honor an owner's planning-only hold: save the requested Markdown plan
   before launching implementation chats, workers or scheduled follow-ups, and
   resume implementation only after the owner releases the hold.
