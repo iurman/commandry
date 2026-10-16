@@ -3,6 +3,16 @@ import { dirname } from "node:path";
 import { fileURLToPath } from "node:url";
 import { z } from "zod";
 import {
+  foundationCreateClientSchema,
+  foundationClientSchema,
+  foundationIssuedClientSchema,
+  foundationClientListSchema,
+  foundationFailureSchema,
+  foundationReviewMemorySchema,
+  foundationVerifyMemorySchema,
+  foundationApproveInstructionSchema,
+  foundationMemorySchema,
+  foundationInstructionApprovalSchema,
   createKnowledgeClientSchema,
   knowledgeClientSchema,
   createdKnowledgeClientSchema,
@@ -302,8 +312,11 @@ import {
   workItemSchema,
 } from "./index";
 
-function component(schema: z.ZodType): Record<string, unknown> {
-  const definition: Record<string, unknown> = z.toJSONSchema(schema);
+function component(
+  schema: z.ZodType,
+  io: "input" | "output" = "output",
+): Record<string, unknown> {
+  const definition: Record<string, unknown> = z.toJSONSchema(schema, { io });
   delete definition.$schema;
   return definition;
 }
@@ -3913,6 +3926,306 @@ export function generateOpenApi(): string {
           },
         },
       },
+      "/api/v1/foundation/clients": {
+        get: {
+          operationId: "listFoundationClients",
+          summary:
+            "Owner-only project and environment credential metadata; no secrets",
+          parameters: [
+            {
+              in: "query",
+              name: "projectId",
+              required: true,
+              schema: { type: "string", format: "uuid" },
+            },
+            {
+              in: "query",
+              name: "limit",
+              schema: {
+                type: "integer",
+                minimum: 1,
+                maximum: 100,
+                default: 25,
+              },
+            },
+            {
+              in: "query",
+              name: "after",
+              schema: { type: "string", format: "uuid" },
+            },
+            {
+              in: "query",
+              name: "asOf",
+              schema: { type: "string", format: "date-time" },
+            },
+          ],
+          responses: {
+            "200": {
+              description: "Complete reachable page with creation cutoff",
+              content: jsonContent("FoundationClientList"),
+            },
+            "400": {
+              description: "Strict input or reference denied",
+              content: jsonContent("FoundationFailure"),
+            },
+            "401": {
+              description: "Live owner sign-in required",
+              content: jsonContent("FoundationFailure"),
+            },
+            "403": {
+              description: "Origin or operation denied",
+              content: jsonContent("FoundationFailure"),
+            },
+            "409": {
+              description: "Version or idempotency conflict",
+              content: jsonContent("FoundationFailure"),
+            },
+            "503": {
+              description: "Unavailable; do not infer success",
+              content: jsonContent("FoundationFailure"),
+            },
+          },
+        },
+        post: {
+          operationId: "createFoundationClient",
+          summary:
+            "Owner-only opt-in capability credential shown once; no inferred grants",
+          parameters: [
+            {
+              in: "header",
+              name: "Idempotency-Key",
+              required: true,
+              schema: {
+                type: "string",
+                minLength: 1,
+                maxLength: 200,
+                pattern: "^[A-Za-z0-9][A-Za-z0-9._:-]{0,199}$",
+              },
+            },
+          ],
+          requestBody: {
+            required: true,
+            content: jsonContent("FoundationCreateClient"),
+          },
+          responses: {
+            "201": {
+              description:
+                "Credential shown once. Retry cannot reveal it again; list/revoke and issue with a new key if response lost.",
+              content: jsonContent("FoundationIssuedClient"),
+            },
+            "400": {
+              description: "Strict input or reference denied",
+              content: jsonContent("FoundationFailure"),
+            },
+            "401": {
+              description: "Live owner sign-in required",
+              content: jsonContent("FoundationFailure"),
+            },
+            "403": {
+              description: "Origin or operation denied",
+              content: jsonContent("FoundationFailure"),
+            },
+            "409": {
+              description: "Version or idempotency conflict",
+              content: jsonContent("FoundationFailure"),
+            },
+            "503": {
+              description: "Unavailable; do not infer success",
+              content: jsonContent("FoundationFailure"),
+            },
+          },
+        },
+      },
+      "/api/v1/foundation/clients/{id}/revoke": {
+        post: {
+          operationId: "revokeFoundationClient",
+          summary:
+            "Live owner session revokes exact credential; cannot widen grants",
+          parameters: [idParameter],
+          responses: {
+            "200": {
+              description: "Revoked public metadata",
+              content: jsonContent("FoundationClient"),
+            },
+            "400": {
+              description: "Strict input or reference denied",
+              content: jsonContent("FoundationFailure"),
+            },
+            "401": {
+              description: "Live owner sign-in required",
+              content: jsonContent("FoundationFailure"),
+            },
+            "403": {
+              description: "Origin or operation denied",
+              content: jsonContent("FoundationFailure"),
+            },
+            "409": {
+              description: "Version or idempotency conflict",
+              content: jsonContent("FoundationFailure"),
+            },
+            "503": {
+              description: "Unavailable; do not infer success",
+              content: jsonContent("FoundationFailure"),
+            },
+          },
+        },
+      },
+      "/api/v1/foundation/memory/{id}/review": {
+        post: {
+          operationId: "reviewFoundationMemory",
+          summary:
+            "Sensitive owner-only exact-version action; separate review, verification and instruction approval",
+          parameters: [
+            idParameter,
+            {
+              in: "header",
+              name: "Idempotency-Key",
+              required: true,
+              schema: {
+                type: "string",
+                minLength: 1,
+                maxLength: 200,
+                pattern: "^[A-Za-z0-9][A-Za-z0-9._:-]{0,199}$",
+              },
+            },
+          ],
+          requestBody: {
+            required: true,
+            content: jsonContent("FoundationReviewMemoryBody"),
+          },
+          responses: {
+            "200": {
+              description:
+                "Atomic original-result receipt; no instruction execution",
+              content: jsonContent("FoundationMemoryMutation"),
+            },
+            "400": {
+              description: "Strict input or reference denied",
+              content: jsonContent("FoundationFailure"),
+            },
+            "401": {
+              description: "Live owner sign-in required",
+              content: jsonContent("FoundationFailure"),
+            },
+            "403": {
+              description: "Origin or operation denied",
+              content: jsonContent("FoundationFailure"),
+            },
+            "409": {
+              description: "Version or idempotency conflict",
+              content: jsonContent("FoundationFailure"),
+            },
+            "503": {
+              description: "Unavailable; do not infer success",
+              content: jsonContent("FoundationFailure"),
+            },
+          },
+        },
+      },
+      "/api/v1/foundation/memory/{id}/verify": {
+        post: {
+          operationId: "verifyFoundationMemory",
+          summary:
+            "Sensitive owner-only exact-version action; separate review, verification and instruction approval",
+          parameters: [
+            idParameter,
+            {
+              in: "header",
+              name: "Idempotency-Key",
+              required: true,
+              schema: {
+                type: "string",
+                minLength: 1,
+                maxLength: 200,
+                pattern: "^[A-Za-z0-9][A-Za-z0-9._:-]{0,199}$",
+              },
+            },
+          ],
+          requestBody: {
+            required: true,
+            content: jsonContent("FoundationVerifyMemoryBody"),
+          },
+          responses: {
+            "200": {
+              description:
+                "Atomic original-result receipt; no instruction execution",
+              content: jsonContent("FoundationMemoryMutation"),
+            },
+            "400": {
+              description: "Strict input or reference denied",
+              content: jsonContent("FoundationFailure"),
+            },
+            "401": {
+              description: "Live owner sign-in required",
+              content: jsonContent("FoundationFailure"),
+            },
+            "403": {
+              description: "Origin or operation denied",
+              content: jsonContent("FoundationFailure"),
+            },
+            "409": {
+              description: "Version or idempotency conflict",
+              content: jsonContent("FoundationFailure"),
+            },
+            "503": {
+              description: "Unavailable; do not infer success",
+              content: jsonContent("FoundationFailure"),
+            },
+          },
+        },
+      },
+      "/api/v1/foundation/memory/{id}/approve-instruction": {
+        post: {
+          operationId: "approveFoundationInstruction",
+          summary:
+            "Sensitive owner-only exact-version action; separate review, verification and instruction approval",
+          parameters: [
+            idParameter,
+            {
+              in: "header",
+              name: "Idempotency-Key",
+              required: true,
+              schema: {
+                type: "string",
+                minLength: 1,
+                maxLength: 200,
+                pattern: "^[A-Za-z0-9][A-Za-z0-9._:-]{0,199}$",
+              },
+            },
+          ],
+          requestBody: {
+            required: true,
+            content: jsonContent("FoundationApproveInstructionBody"),
+          },
+          responses: {
+            "200": {
+              description:
+                "Atomic original-result receipt; no instruction execution",
+              content: jsonContent("FoundationInstructionMutation"),
+            },
+            "400": {
+              description: "Strict input or reference denied",
+              content: jsonContent("FoundationFailure"),
+            },
+            "401": {
+              description: "Live owner sign-in required",
+              content: jsonContent("FoundationFailure"),
+            },
+            "403": {
+              description: "Origin or operation denied",
+              content: jsonContent("FoundationFailure"),
+            },
+            "409": {
+              description: "Version or idempotency conflict",
+              content: jsonContent("FoundationFailure"),
+            },
+            "503": {
+              description: "Unavailable; do not infer success",
+              content: jsonContent("FoundationFailure"),
+            },
+          },
+        },
+      },
       "/api/v1/knowledge-clients": {
         get: {
           operationId: "listKnowledgeClients",
@@ -4682,6 +4995,45 @@ export function generateOpenApi(): string {
         },
       },
       schemas: {
+        FoundationCreateClient: component(
+          foundationCreateClientSchema,
+          "input",
+        ),
+        FoundationClient: component(foundationClientSchema, "input"),
+        FoundationIssuedClient: component(
+          foundationIssuedClientSchema,
+          "input",
+        ),
+        FoundationClientList: component(foundationClientListSchema, "input"),
+        FoundationFailure: component(foundationFailureSchema, "input"),
+        FoundationReviewMemoryBody: component(
+          foundationReviewMemorySchema.omit({ memoryId: true }),
+          "input",
+        ),
+        FoundationVerifyMemoryBody: component(
+          foundationVerifyMemorySchema.omit({ memoryId: true }),
+          "input",
+        ),
+        FoundationApproveInstructionBody: component(
+          foundationApproveInstructionSchema.omit({ memoryId: true }),
+          "input",
+        ),
+        FoundationMemoryMutation: component(
+          z.strictObject({
+            record: foundationMemorySchema,
+            replayed: z.boolean(),
+            correlationId: z.uuid(),
+          }),
+          "input",
+        ),
+        FoundationInstructionMutation: component(
+          z.strictObject({
+            record: foundationInstructionApprovalSchema,
+            replayed: z.boolean(),
+            correlationId: z.uuid(),
+          }),
+          "input",
+        ),
         CreateKnowledgeClient: component(createKnowledgeClientSchema),
         KnowledgeClient: component(knowledgeClientSchema),
         CreatedKnowledgeClient: component(createdKnowledgeClientSchema),

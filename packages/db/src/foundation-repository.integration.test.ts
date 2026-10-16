@@ -3,6 +3,7 @@ import { test } from "node:test";
 import { setTimeout as delay } from "node:timers/promises";
 import { and, eq, sql } from "drizzle-orm";
 import {
+  createFoundationAuthenticationService,
   createFoundationMachineService,
   createFoundationOwnerService,
 } from "@commandry/application";
@@ -13,6 +14,7 @@ import {
 } from "@commandry/domain";
 import { createDatabase } from "./client";
 import { createFoundationAccessRepository } from "./foundation-access-repository";
+import { createFoundationAuthenticationRepository } from "./foundation-authentication-repository";
 import { foundationByteDigest } from "./foundation-record-repository";
 import { createKnowledgeRevisionRepository } from "./knowledge-revision-repository";
 import { capture, knowledgeItem, project } from "./schema";
@@ -1019,6 +1021,76 @@ test(
       assert.equal(audit!.code, "EXPIRED");
     } finally {
       release?.();
+      await f.close();
+    }
+  },
+);
+
+test(
+  "intrinsic credential authentication supports write-only clients without product read access and commits safe audits",
+  { timeout: 30000 },
+  async () => {
+    const f = await fixture();
+    try {
+      const issued = await f.owner.createClient(
+        {
+          name: "Write-only identity",
+          projectId: f.projectId,
+          environment: "test",
+          ttlSeconds: 3600,
+          operations: ["evidence.record"],
+        },
+        "write-only-auth",
+      );
+      const auth = createFoundationAuthenticationService(
+        createFoundationAuthenticationRepository(f.runtime.db),
+        { environment: "test" },
+      );
+      const actor = await auth.authenticate(
+        issued.token,
+        f.projectId.toUpperCase(),
+      );
+      assert.equal(actor.clientId, issued.client.id);
+      assert.deepEqual(actor.capabilities, ["evidence.record"]);
+      await assert.rejects(
+        f.machine.describe(issued.token, f.projectId),
+        denied("FORBIDDEN"),
+      );
+      const evidence = await f.machine.recordEvidence(
+        issued.token,
+        f.evidenceInput,
+        "write-after-intrinsic-auth",
+      );
+      assert.equal(evidence.record.projectId, f.projectId);
+      await assert.rejects(
+        auth.authenticate(issued.token, f.otherId),
+        denied("FORBIDDEN"),
+      );
+      await f.owner.revokeClient({ clientId: issued.client.id });
+      await assert.rejects(
+        auth.authenticate(issued.token, f.projectId),
+        denied("REVOKED"),
+      );
+      const audits = await f.runtime.db
+        .select()
+        .from(foundationAudit)
+        .where(
+          and(
+            eq(foundationAudit.clientId, issued.client.id),
+            eq(foundationAudit.operation, "foundation.client.authenticated"),
+          ),
+        );
+      assert.deepEqual(audits.map((row) => row.decision).sort(), [
+        "allowed",
+        "denied",
+        "denied",
+      ]);
+      assert.equal(JSON.stringify(audits).includes(issued.token), false);
+      assert.equal(
+        JSON.stringify(audits).includes(foundationTokenDigest(issued.token)),
+        false,
+      );
+    } finally {
       await f.close();
     }
   },

@@ -32,7 +32,7 @@ import type {
 import {
   buildFoundationEvaluationReport,
   type FoundationConditionConfigurations,
-} from "./foundation-evaluation-report.js";
+} from "./foundation-evaluation-report";
 
 export type FoundationEvaluationPopulation = {
   trials: FoundationEvaluationTrial[];

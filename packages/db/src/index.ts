@@ -59,3 +59,4 @@ export * from "./infrastructure-overview-repository";
 
 export { createFoundationAccessRepository } from "./foundation-access-repository";
 export * as foundationSchema from "./foundation-schema";
+export { createFoundationAuthenticationRepository } from "./foundation-authentication-repository";

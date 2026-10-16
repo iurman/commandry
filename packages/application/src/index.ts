@@ -54,3 +54,7 @@ export * from "./knowledge-access";
 export * from "./infrastructure-overview";
 
 export * from "./agent-foundation";
+export * from "./foundation-authentication";
+export * from "./mnemosyne-import-preview";
+export * from "./foundation-evaluation-report";
+export * from "./foundation-evaluation";

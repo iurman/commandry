@@ -133,8 +133,8 @@ the total historical provenance population.
 
 ## Agent workflow and current coverage
 
-The current services are internal application APIs. A future MCP or UI adapter
-must follow this sequence using the same records:
+The application services and separate opt-in MCP transport use the same records.
+An agent workflow follows this sequence:
 
 1. Authenticate, identify exact project/environment and discover actual granted
    and supported operations. Follow all content and metadata continuations.
@@ -150,14 +150,32 @@ must follow this sequence using the same records:
    freshness, disclosure scope and contradictions at selection time. An exact
    historical read is not proof that a statement is an eligible instruction.
 
-Public foundation MCP transport, owner credential/review controls and working
-context selection are intentionally deferred to campaign workstream 2. The
-reason is to integrate actual authenticated transport/session validation and
-complete discovery with the tested services, rather than activate an internal
-trusted identity as a public request parameter. Follow-up must add the versioned
-HTTP/OpenAPI contract, discoverable MCP tools and workflows, UI controls and a
-real built-server client rehearsal before claiming feature access is complete.
-No new owner-only operation may be exposed through a machine tool dispatcher.
+The foundation endpoint is `POST /mcp/foundation/{projectId}`, with an explicitly
+issued `af_` bearer credential. Existing `ck_` knowledge clients keep their four
+read tools and do not inherit foundation authority. Intrinsic credential
+self-identification exposes only the credential's validated metadata, supplies
+no product-record port and adds no capability. It is read-only, requires a live
+credential in the exact project/environment, and audits
+`foundation.client.authenticated`. Every tool still rechecks its current grant
+inside the database transaction.
+
+Discovery filters the eight implemented tools by the credential's capabilities.
+Write-only clients can authenticate without receiving `foundation.read`.
+Evaluation recording remains reserved until its service and persistence are
+connected; a grant name is not an implemented tool. Exact record reads are not a
+complete inventory. Complete scoped inventory and working-context selection,
+import application, configuration adoption and evaluation consumption remain
+campaign follow-ups. Do not treat a historical accepted assertion as a current
+instruction without exact live approval and source checks.
+
+Owner client issuance/list/revocation and separate assertion review,
+verification and instruction approval have versioned HTTP/OpenAPI endpoints.
+These require a live password-authenticated allowlisted owner session, trusted
+origin and strict bounded inputs. Bearer credentials and unauthenticated local
+identities cannot perform owner actions. No new owner-only operation is exposed
+through MCP. The [agent workflow](../workflows/agent-foundation.md) describes
+actual methods, scope, risk, idempotency and continuation behavior. Deployment
+still requires the constrained release and production verification gates.
 
 ## Database and verification
 

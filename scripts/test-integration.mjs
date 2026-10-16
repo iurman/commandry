@@ -9,6 +9,7 @@ import { join, resolve } from "node:path";
 import { setTimeout as delay } from "node:timers/promises";
 import { fileURLToPath } from "node:url";
 import EmbeddedPostgres from "embedded-postgres";
+import { foundationAccessSmoke } from "./foundation-access-smoke.mjs";
 import { knowledgeAccessSmoke } from "./knowledge-access-smoke.mjs";
 import { sendLinuxHost } from "./linux-host-collector.mjs";
 
@@ -1210,6 +1211,12 @@ async function runAuthSmoke(
     assert.equal(allowedOverview.status, 200);
     await realSourceApiSmoke(origin, cookie, appOrigin);
     await knowledgeAccessSmoke(origin, cookie, appOrigin);
+    await foundationAccessSmoke(
+      origin,
+      cookie,
+      appOrigin,
+      production ? "production" : "test",
+    );
     const signOut = await postAuth("sign-out", {}, cookie);
     assert.equal(signOut.status, 200);
     const signedOutRead = await fetch(`${origin}/api/v1/projects`, {

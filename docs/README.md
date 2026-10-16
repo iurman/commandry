@@ -57,7 +57,9 @@ feature has been implemented.
 - [Read-only project knowledge MCP](architecture/knowledge-mcp.md) - independent
   client scope, owner-issued credentials, tools, and verified activation evidence
 - [Agent foundation](architecture/agent-foundation.md) - local governed memory,
-  evidence, configuration, transactions and pending transport coverage
+  evidence, configuration, transactions and opt-in authenticated MCP
+- [Agent foundation workflow](workflows/agent-foundation.md) - capabilities,
+  exact-source writes, separate owner decisions, retries and remaining coverage
 - [Security and permissions](architecture/security-and-permissions.md) —
   capabilities, secrets, risk, approval, and audit
 - [Information architecture](ux/information-architecture.md) — navigation and

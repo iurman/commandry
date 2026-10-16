@@ -4,7 +4,7 @@ import {
   foundationConfigurationSchema,
   foundationOperationSchema,
   foundationPageSchema,
-} from "./agent-foundation.js";
+} from "./agent-foundation";
 
 const identity = foundationActorSchema.shape.projectId;
 const environment = foundationActorSchema.shape.environment;
@@ -196,3 +196,24 @@ export const foundationInstructionApprovalSchema = z
 export type FoundationInstructionApproval = z.infer<
   typeof foundationInstructionApprovalSchema
 >;
+
+export const foundationClientListSchema = z.strictObject({
+  items: z.array(foundationClientSchema),
+  nextCursor: identity.nullable(),
+  asOf: datetime,
+});
+export const foundationFailureSchema = z.strictObject({
+  code: z.enum([
+    "INVALID_INPUT",
+    "INVALID_CREDENTIAL",
+    "EXPIRED",
+    "REVOKED",
+    "FORBIDDEN",
+    "NOT_FOUND",
+    "VERSION_CONFLICT",
+    "IDEMPOTENCY_CONFLICT",
+    "INVALID_REFERENCE",
+    "APPROVAL_REQUIRED",
+    "FOUNDATION_UNAVAILABLE",
+  ]),
+});
