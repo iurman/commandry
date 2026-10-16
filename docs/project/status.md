@@ -2,7 +2,7 @@
 
 **Status: Operational**
 
-**Last updated:** 2026-10-15
+**Last updated:** 2026-10-16
 
 ## Current phase
 
@@ -89,6 +89,19 @@ inventory/source/presentation access remains explicitly deferred to the separate
 comprehensive MCP planning work; the live MCP still has four knowledge read tools.
 
 ## Established direction
+
+The owner-authorized agent-memory campaign now has a local shared application
+and PostgreSQL foundation on its campaign branch. It includes opt-in scoped
+clients, immutable evidence and configuration, source-anchored assertion
+revisions, separate owner review/verification/instruction approval, idempotent
+responses and atomic audits. Independent review corrections and real disposable
+PostgreSQL tests cover authorization, retries, concurrent edits, revocation,
+rollback and a populated prior-schema upgrade. The
+[implementation boundary](../architecture/agent-foundation.md) records actual
+services, constraints and verification limits. New public MCP tools, owner
+controls, selected Mnemosyne import, evaluation workflows and production
+activation remain pending campaign work. The live site and its existing
+four-tool knowledge MCP have not been changed by this local checkpoint.
 
 - Commandry is a personal control plane spanning projects, knowledge,
   infrastructure, automations, monitoring, and agents.

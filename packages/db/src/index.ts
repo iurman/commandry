@@ -56,3 +56,6 @@ export * from "./real-integration-repository";
 export * from "./knowledge-access-repository";
 
 export * from "./infrastructure-overview-repository";
+
+export { createFoundationAccessRepository } from "./foundation-access-repository";
+export * as foundationSchema from "./foundation-schema";

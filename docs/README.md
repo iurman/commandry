@@ -56,6 +56,8 @@ feature has been implemented.
   execution packets
 - [Read-only project knowledge MCP](architecture/knowledge-mcp.md) - independent
   client scope, owner-issued credentials, tools, and verified activation evidence
+- [Agent foundation](architecture/agent-foundation.md) - local governed memory,
+  evidence, configuration, transactions and pending transport coverage
 - [Security and permissions](architecture/security-and-permissions.md) —
   capabilities, secrets, risk, approval, and audit
 - [Information architecture](ux/information-architecture.md) — navigation and

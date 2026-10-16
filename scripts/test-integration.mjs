@@ -1302,77 +1302,95 @@ try {
     runtimePassword,
     "packages/platform/src/foundation.integration.test.ts",
   );
-  const knowledgeOnly = process.argv.includes("--knowledge-only");
-  const authOnly = process.argv.includes("--auth-only");
-  const realLiveOnly = process.argv.includes("--real-live");
-  const realBrowserOnly =
-    process.argv.includes("--real-browser") ||
-    process.argv.includes("--real-browser-all");
-  if (realLiveOnly) {
-    if (!process.env.COMMANDRY_LIVE_HOST_SAMPLE_PATH)
-      throw new Error("A real electra sample file is required");
+  if (process.argv.includes("--foundation-only")) {
     await runTests(
       connectionString,
       runtimePassword,
-      "packages/platform/src/real-source-live.integration.test.ts",
+      "packages/db/src/foundation-repository.integration.test.ts",
     );
-    await runRealSourceBrowser(connectionString, runtimePassword, false, true);
-  }
-  if (realBrowserOnly)
-    await runRealSourceBrowser(
-      connectionString,
-      runtimePassword,
-      process.argv.includes("--real-browser-all"),
-    );
-  if (!authOnly && !knowledgeOnly && !realLiveOnly && !realBrowserOnly) {
-    const platformTests = (
-      await readdir(resolve(root, "packages/platform/src"))
-    )
-      .filter(
-        (file) =>
-          file.endsWith(".integration.test.ts") &&
-          file !== "foundation.integration.test.ts",
-      )
-      .sort();
-    for (const file of platformTests)
-      await runTests(
-        connectionString,
-        runtimePassword,
-        `packages/platform/src/${file}`,
-      );
-  }
-  if (process.argv.includes("--smoke")) {
-    await runSmoke(postgres, connectionString, runtimePassword);
-  }
-  if (process.argv.includes("--smoke") || authOnly || knowledgeOnly) {
-    await runAuthSmoke(postgres, connectionString, runtimePassword);
-    await runAuthSmoke(postgres, connectionString, runtimePassword, true);
-  }
-  if (authOnly) {
     await runTests(
       connectionString,
       runtimePassword,
-      "packages/db/src/auth.integration.test.ts",
+      "packages/db/src/foundation-upgrade.integration.test.ts",
     );
-  } else if (!realLiveOnly && !realBrowserOnly) {
-    const repositoryTests = (await readdir(resolve(root, "packages/db/src")))
-      .filter(
-        (file) =>
-          file.endsWith(".integration.test.ts") &&
-          (!knowledgeOnly ||
-            [
-              "knowledge-access.integration.test.ts",
-              "brief-repository.integration.test.ts",
-              "local-mcp-repository.integration.test.ts",
-            ].includes(file)),
-      )
-      .sort();
-    for (const file of repositoryTests)
+  } else {
+    const knowledgeOnly = process.argv.includes("--knowledge-only");
+    const authOnly = process.argv.includes("--auth-only");
+    const realLiveOnly = process.argv.includes("--real-live");
+    const realBrowserOnly =
+      process.argv.includes("--real-browser") ||
+      process.argv.includes("--real-browser-all");
+    if (realLiveOnly) {
+      if (!process.env.COMMANDRY_LIVE_HOST_SAMPLE_PATH)
+        throw new Error("A real electra sample file is required");
       await runTests(
         connectionString,
         runtimePassword,
-        `packages/db/src/${file}`,
+        "packages/platform/src/real-source-live.integration.test.ts",
       );
+      await runRealSourceBrowser(
+        connectionString,
+        runtimePassword,
+        false,
+        true,
+      );
+    }
+    if (realBrowserOnly)
+      await runRealSourceBrowser(
+        connectionString,
+        runtimePassword,
+        process.argv.includes("--real-browser-all"),
+      );
+    if (!authOnly && !knowledgeOnly && !realLiveOnly && !realBrowserOnly) {
+      const platformTests = (
+        await readdir(resolve(root, "packages/platform/src"))
+      )
+        .filter(
+          (file) =>
+            file.endsWith(".integration.test.ts") &&
+            file !== "foundation.integration.test.ts",
+        )
+        .sort();
+      for (const file of platformTests)
+        await runTests(
+          connectionString,
+          runtimePassword,
+          `packages/platform/src/${file}`,
+        );
+    }
+    if (process.argv.includes("--smoke")) {
+      await runSmoke(postgres, connectionString, runtimePassword);
+    }
+    if (process.argv.includes("--smoke") || authOnly || knowledgeOnly) {
+      await runAuthSmoke(postgres, connectionString, runtimePassword);
+      await runAuthSmoke(postgres, connectionString, runtimePassword, true);
+    }
+    if (authOnly) {
+      await runTests(
+        connectionString,
+        runtimePassword,
+        "packages/db/src/auth.integration.test.ts",
+      );
+    } else if (!realLiveOnly && !realBrowserOnly) {
+      const repositoryTests = (await readdir(resolve(root, "packages/db/src")))
+        .filter(
+          (file) =>
+            file.endsWith(".integration.test.ts") &&
+            (!knowledgeOnly ||
+              [
+                "knowledge-access.integration.test.ts",
+                "brief-repository.integration.test.ts",
+                "local-mcp-repository.integration.test.ts",
+              ].includes(file)),
+        )
+        .sort();
+      for (const file of repositoryTests)
+        await runTests(
+          connectionString,
+          runtimePassword,
+          `packages/db/src/${file}`,
+        );
+    }
   }
 } catch (error) {
   failed = true;

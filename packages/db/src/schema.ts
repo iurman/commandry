@@ -740,6 +740,7 @@ export const capture = pgTable(
   (table) => [
     index("capture_created_id_idx").on(table.createdAt, table.id),
     index("capture_project_idx").on(table.projectId),
+    uniqueIndex("capture_id_project_unique_idx").on(table.id, table.projectId),
     index("capture_original_search_idx").using(
       "gin",
       sql`to_tsvector('simple', ${table.originalContent})`,
@@ -1354,6 +1355,10 @@ export const knowledgeItem = pgTable(
       table.sourceCaptureId,
     ),
     index("knowledge_item_project_id_idx").on(table.projectId, table.id),
+    uniqueIndex("knowledge_item_id_project_unique_idx").on(
+      table.id,
+      table.projectId,
+    ),
     index("knowledge_item_search_idx").using(
       "gin",
       sql`to_tsvector('simple', ${table.title} || ' ' || ${table.content} || ' ' || coalesce(${table.url}, ''))`,
