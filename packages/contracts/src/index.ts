@@ -3534,3 +3534,4 @@ export * from "./infrastructure-overview";
 export * from "./agent-foundation";
 
 export * from "./foundation-access";
+export * from "./foundation-import";

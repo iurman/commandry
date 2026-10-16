@@ -19,6 +19,7 @@ import {
 } from "./mnemosyne-import-preview.js";
 import {
   createMnemosyneSelectedImportService,
+  FoundationImportUnavailableError,
   type FoundationImportExisting,
   type FoundationImportRevision,
   type FoundationImportOriginalSource,
@@ -315,6 +316,74 @@ function fixture() {
 }
 const rejected = (promise: Promise<unknown>) =>
   expect(promise).rejects.toBeInstanceOf(FoundationError);
+
+it("marks corrupted post-transaction delivery unavailable while retaining the exact historical receipt", async () => {
+  const f = fixture();
+  const input = await f.reviewed();
+  f.state.substitute = (value) => ({ ...(value as object), replayed: true });
+  await expect(f.service.apply(input, "delivery-fault")).rejects.toBeInstanceOf(
+    FoundationImportUnavailableError,
+  );
+  expect(f.state.events).toContain("owner.return");
+  expect(f.state.memories.size).toBe(1);
+  expect(f.state.receipts.size).toBe(1);
+  f.state.substitute = undefined;
+  const replay = await f.service.apply(input, "delivery-fault");
+  expect(replay.replayed).toBe(true);
+  expect(f.state.memories.size).toBe(1);
+  expect(f.state.receipts.size).toBe(1);
+});
+
+it("distinguishes malformed persisted import data from caller rejection", async () => {
+  const f = fixture();
+  const result = await f.service.apply(await f.reviewed(), "baseline");
+  f.state.corruptExisting = (value) => ({
+    ...value!,
+    memory: { ...value!.memory, version: 0 },
+  });
+  await expect(f.service.preview(envelope())).rejects.toBeInstanceOf(
+    FoundationImportUnavailableError,
+  );
+  f.state.corruptExisting = undefined;
+  const read = f.records.getImportRevision;
+  f.records.getImportRevision = async (input) => ({
+    ...(await read(input))!,
+    memoryVersion: 0,
+  });
+  await expect(
+    f.service.getRevision({
+      projectId,
+      id: result.record.records[0]!.importRevisionId,
+    }),
+  ).rejects.toBeInstanceOf(FoundationImportUnavailableError);
+  f.records.getImportRevision = read;
+  f.state.corruptPage = (page) => ({ ...page, nextOrdinal: 1 });
+  await expect(
+    f.service.listOriginalSources({
+      projectId,
+      revisionId: result.record.records[0]!.importRevisionId,
+    }),
+  ).rejects.toBeInstanceOf(FoundationImportUnavailableError);
+  f.state.corruptPage = undefined;
+  f.records.listImportOriginalSources = async () => {
+    throw new FoundationError("INVALID_REFERENCE");
+  };
+  await expect(
+    f.service.listOriginalSources({
+      projectId,
+      revisionId: result.record.records[0]!.importRevisionId,
+    }),
+  ).rejects.toBeInstanceOf(FoundationImportUnavailableError);
+  f.records.listImportOriginalSources = async () => {
+    throw new FoundationError("FORBIDDEN");
+  };
+  await expect(
+    f.service.listOriginalSources({
+      projectId,
+      revisionId: result.record.records[0]!.importRevisionId,
+    }),
+  ).rejects.toMatchObject({ name: "FoundationError", code: "FORBIDDEN" });
+});
 
 it("previews selected aliases without writes or manufactured review and retains tier redaction", async () => {
   const f = fixture();
@@ -803,7 +872,7 @@ it("rechecks expiry at entry, all async source/write/receipt boundaries and afte
     const request = await f.reviewed();
     f.state.at = boundary;
     await expect(f.service.apply(request, "key")).rejects.toMatchObject({
-      code: "FORBIDDEN",
+      code: "EXPIRED",
     });
     expect(f.state.events).toContain("fake.rollback");
     expect(
@@ -819,7 +888,7 @@ it("rechecks expiry at entry, all async source/write/receipt boundaries and afte
     f.state.time = Date.parse(expiry);
   };
   await expect(f.service.apply(request, "key")).rejects.toMatchObject({
-    code: "FORBIDDEN",
+    code: "EXPIRED",
   });
   // An adapter that commits before its final expiry check cannot be rolled back
   // by the application's post-return delivery guard. Real DB proof belongs upstream.
@@ -897,17 +966,17 @@ it("rejects expired owner sessions on previews, writes and reads without reposit
   f.state.events.length = 0;
   f.state.time = Date.parse(expiry);
   await expect(f.service.preview(envelope())).rejects.toMatchObject({
-    code: "FORBIDDEN",
+    code: "EXPIRED",
   });
   await expect(f.service.apply(request, "key")).rejects.toMatchObject({
-    code: "FORBIDDEN",
+    code: "EXPIRED",
   });
   await expect(
     f.service.getRevision({ projectId, id: id(99) }),
-  ).rejects.toMatchObject({ code: "FORBIDDEN" });
+  ).rejects.toMatchObject({ code: "EXPIRED" });
   await expect(
     f.service.listOriginalSources({ projectId, revisionId: id(99) }),
-  ).rejects.toMatchObject({ code: "FORBIDDEN" });
+  ).rejects.toMatchObject({ code: "EXPIRED" });
   expect(f.state.events).toEqual([]);
 });
 

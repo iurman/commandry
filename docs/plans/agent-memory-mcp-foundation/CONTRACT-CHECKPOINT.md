@@ -10,6 +10,40 @@ test logs in its private campaign ledger. A broad workstream brief is still not
 a worker manifest. Generate small exact manifests from the source at each
 dispatch and verify each worker's actual Full Access / never runtime.
 
+## Selected-import integration checkpoint
+
+The initial contract-only checkpoint below is historical. The current branch now
+includes 19 real opt-in MCP tools, immutable evaluations, registry source/drift
+records, owner client controls and reviewed selected memory import. The current
+[architecture](../../architecture/agent-foundation.md) and
+[workflow](../../workflows/agent-foundation.md) define the executable surfaces.
+
+Migration 0060 adds immutable selected-import revisions and exact UTF8 originals,
+with canonical evidence membership guards. Owner preview/apply, revision metadata
+and complete original-source pagination share the application service. Account
+requires per-record disclosure review in every tier and a separate named
+destination confirmation; assertions remain proposed and unverified. Machine
+credentials do not acquire import or original-text access.
+
+Latest local evidence on October 16: 1073 workspace Vitest tests, 33 lab tests,
+130 Node checks, full check/build, and 132 PostgreSQL tests with 131 passes and
+one explicit missing-live-input skip. After final delivery-error corrections,
+49 focused PostgreSQL checks passed again. Independent review passed 50 real
+route/service composition probes, 23 body/DTO tests, 45 UI tests and 24 extra UI
+boundary probes. Exact source pins, failures and corrections remain in the
+private ledger; these counts describe different suites and must not be added
+into a fabricated unique-case total.
+
+The actual built browser rehearsal passed in disposable local and provisional
+production authentication modes. It used 21 selected records, all four tiers,
+31 originals with full paging, cancellation, real apply and canonical MCP reads.
+It also verified raw-file clearing and light/dark at 1440, 390 and 320 pixels.
+A separate HTTP rehearsal recovered all 68 ordered originals and tested exact
+retry, source revision, owner correction and request-size rejection. The 320px
+file-input overflow was corrected; invalid test anchors, fixture population
+assumptions and an MCP argument typo were fixed without weakening product guards.
+No private corpus, model inference or production change is part of this proof.
+
 ## Actual interfaces
 
 The public `@commandry/contracts` barrel exports the strict schemas and types

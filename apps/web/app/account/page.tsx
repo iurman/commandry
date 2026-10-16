@@ -5,6 +5,7 @@ import { getAuth } from "../../lib/auth";
 import SignOutButton from "./SignOutButton";
 import FeedbackSettings from "./FeedbackSettings";
 import FoundationClientsPanel from "./FoundationClientsPanel";
+import FoundationImportPanel from "./FoundationImportPanel";
 
 export const dynamic = "force-dynamic";
 
@@ -50,6 +51,10 @@ export default async function AccountPage() {
         )}
       </section>
       <FoundationClientsPanel
+        enabled={ownerSignedIn}
+        environment={config.appEnv}
+      />
+      <FoundationImportPanel
         enabled={ownerSignedIn}
         environment={config.appEnv}
       />

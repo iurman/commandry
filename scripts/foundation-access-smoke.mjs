@@ -1,6 +1,7 @@
 import assert from "node:assert/strict";
 import { createHash, randomUUID } from "node:crypto";
 import { foundationSkillRegistrySmoke } from "./foundation-skill-registry-smoke.mjs";
+import { foundationImportSmoke } from "./foundation-import-smoke.mjs";
 import {
   Client,
   StreamableHTTPClientTransport,
@@ -579,6 +580,18 @@ export async function foundationAccessSmoke(
       origin,
       projectId: project.id,
       token: issued.token,
+      client,
+      call,
+    });
+    await foundationImportSmoke({
+      origin,
+      cookie,
+      trustedOrigin,
+      projectId: project.id,
+      otherProjectId: other.id,
+      knowledgeId: knowledge.id,
+      source,
+      machineToken: issued.token,
       client,
       call,
     });

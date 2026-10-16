@@ -56,12 +56,22 @@ Mnemosyne skills and 20 components as 22 immutable configurations, with no dupli
 writes on exact retry. Actual owner browser flows passed light/dark at 1440, 390
 and 320 pixels in both disposable authentication modes; production is unchanged.
 
-Transactional selected Mnemosyne memory import, canonical finding/task proposals,
-broader product MCP coverage, actual installation/adoption evidence, candidate
-promotion and reviewed host onboarding remain campaign work. The local preflight/report
-calculators are not evidence those remaining workflows shipped. The command
-center retains exact commits, review reports and executed checks in its private
-campaign ledger.
+Selected memory import now has a real owner Account review flow, strict HTTP
+contracts and transactional PostgreSQL persistence through migration 0060. A
+built disposable rehearsal imported 21 explicitly reviewed synthetic records
+across all four source tiers and confirmed the same proposed/unverified IDs
+through MCP. Record/source pagination, cancellation, raw-input clearing and
+light/dark at 1440, 390 and 320 pixels passed in both authentication modes.
+Separate HTTP tests recovered all 68 ordered originals and exercised exact
+historical retry, source revision and owner correction protection. No private
+corpus was selected or production import performed.
+
+Canonical finding/task proposals, broader product MCP coverage, actual
+installation/adoption evidence, candidate promotion and reviewed host onboarding
+remain campaign work. Work access is the next separately granted slice, reusing
+the canonical project population. Local preflight/report calculators are not
+evidence those remaining workflows shipped. The command center retains exact
+commits, review reports and executed checks in its private campaign ledger.
 
 ### Campaign objective
 

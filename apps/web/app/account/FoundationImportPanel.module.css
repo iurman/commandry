@@ -42,6 +42,11 @@
   cursor: pointer;
 }
 
+.panel input[type="file"] {
+  width: 100%;
+  min-width: 0;
+}
+
 .panel :disabled {
   opacity: 0.65;
   cursor: default;

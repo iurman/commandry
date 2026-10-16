@@ -3,6 +3,7 @@ import { randomUUID } from "node:crypto";
 import { mkdir } from "node:fs/promises";
 import { join } from "node:path";
 import { chromium, expect } from "@playwright/test";
+import { foundationImportBrowserSmoke } from "./foundation-import-browser-smoke.mjs";
 import {
   Client,
   StreamableHTTPClientTransport,
@@ -34,23 +35,35 @@ export async function foundationClientsBrowserSmoke(
     );
     return response.json();
   }
+  const fixtureProjects = new Set();
   for (let index = 0; index < 26; index++) {
-    await create("/api/v1/projects", {
+    const fixture = await create("/api/v1/projects", {
       name: `Browser pagination project ${index}`,
       type: "software",
     });
+    fixtureProjects.add(fixture.id);
   }
   const first = await fetch(origin + "/api/v1/projects?limit=25", {
     headers,
   }).then((response) => response.json());
   assert.ok(first.nextCursor);
-  const second = await fetch(
-    origin +
-      "/api/v1/projects?limit=25&cursor=" +
-      encodeURIComponent(first.nextCursor),
-    { headers },
-  ).then((response) => response.json());
-  const project = second.items[0];
+  let nextCursor = first.nextCursor;
+  let project;
+  let projectPagesToLoad = 0;
+  const cursors = new Set();
+  while (nextCursor && !project) {
+    assert.ok(!cursors.has(nextCursor), "Project continuation must advance");
+    cursors.add(nextCursor);
+    const next = await fetch(
+      origin +
+        "/api/v1/projects?limit=25&cursor=" +
+        encodeURIComponent(nextCursor),
+      { headers },
+    ).then((response) => response.json());
+    projectPagesToLoad++;
+    project = next.items.find((item) => fixtureProjects.has(item.id));
+    nextCursor = next.nextCursor;
+  }
   assert.ok(project);
   const fixtureIds = [];
   for (let index = 0; index < 26; index++) {
@@ -103,6 +116,7 @@ export async function foundationClientsBrowserSmoke(
       await route.fulfill({ response });
     });
     const page = await context.newPage();
+    page.setDefaultTimeout(10_000);
     page.on("pageerror", () => errors.push("uncaught browser error"));
     page.on("console", (message) => {
       if (message.type() === "error") errors.push("browser console error");
@@ -117,6 +131,7 @@ export async function foundationClientsBrowserSmoke(
         clientQueries.push(url.searchParams);
     });
     await page.goto(trustedOrigin + "/account");
+    console.log(`Foundation Account browser loaded (${environment}).`);
     const panel = page
       .locator("section")
       .filter({
@@ -132,9 +147,17 @@ export async function foundationClientsBrowserSmoke(
         .getByLabel("Project", { exact: true })
         .locator(`option[value="${project.id}"]`),
     ).toHaveCount(0);
-    await panel
-      .getByRole("button", { name: "Load more projects", exact: true })
-      .click();
+    for (let index = 0; index < projectPagesToLoad; index++) {
+      const more = panel.getByRole("button", {
+        name: "Load more projects",
+        exact: true,
+      });
+      await expect(more).toBeEnabled();
+      await more.click();
+      await expect(
+        panel.getByText("Loading projects...", { exact: true }),
+      ).toHaveCount(0);
+    }
     await expect(
       panel
         .getByLabel("Project", { exact: true })
@@ -201,6 +224,9 @@ export async function foundationClientsBrowserSmoke(
         ),
       );
       const tools = (await mcp.listTools()).tools;
+      console.log(
+        `Foundation Account scoped client connected (${environment}).`,
+      );
       assert.ok(tools.length > 0);
       assert.equal(
         tools.some((tool) => /^(record_|propose_|revise_)/.test(tool.name)),
@@ -222,6 +248,15 @@ export async function foundationClientsBrowserSmoke(
         .click();
       await expect(credential).toHaveCount(0);
       assert.equal((await page.content()).includes(token), false);
+      console.log(`Foundation Account credential dismissed (${environment}).`);
+      await foundationImportBrowserSmoke({
+        page,
+        create,
+        project,
+        environment,
+        screenshots,
+        client: mcp,
+      });
       await panel
         .getByRole("button", { name: "Refresh clients", exact: true })
         .click();

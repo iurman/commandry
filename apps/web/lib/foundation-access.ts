@@ -7,15 +7,18 @@ import {
   createFoundationEvaluationOwnerService,
   createFoundationInventoryService,
   createFoundationGeneralContextService,
+  createMnemosyneSelectedImportService,
+  FoundationImportUnavailableError,
 } from "@commandry/application";
 import {
   createFoundationAccessRepository,
   createFoundationAuthenticationRepository,
   createFoundationEvaluationAccessRepository,
   createFoundationReadAccessRepository,
+  createFoundationSelectedImportRepository,
 } from "@commandry/db";
 import { FoundationError } from "@commandry/domain";
-import { ZodError } from "zod";
+import { ZodError, type ZodType } from "zod";
 import { getDatabase } from "./database";
 import { getAuth } from "./auth";
 import { jsonResponse } from "./http";
@@ -111,7 +114,33 @@ export async function foundationEvaluationOwner(request: Request) {
   );
 }
 
+export async function foundationImportOwner(request: Request) {
+  const { identity, options } = await foundationOwnerIdentity(request);
+  return createMnemosyneSelectedImportService(
+    createFoundationSelectedImportRepository(getDatabase().db),
+    identity,
+    options,
+  );
+}
+
+/** Invalid persisted output is a server failure, never a caller-input error. */
+export function foundationImportOutput<T>(
+  schema: ZodType<T>,
+  value: unknown,
+): T {
+  const result = schema.safeParse(value);
+  if (!result.success) throw new Error("Selected import output unavailable");
+  return result.data;
+}
+
 export function foundationFailure(request: Request, error: unknown) {
+  if (error instanceof FoundationImportUnavailableError)
+    return jsonResponse(
+      request,
+      { code: "FOUNDATION_UNAVAILABLE" },
+      503,
+      "foundation.request.unavailable",
+    );
   if (error instanceof ZodError)
     return jsonResponse(
       request,

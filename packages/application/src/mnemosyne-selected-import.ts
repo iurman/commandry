@@ -20,13 +20,13 @@ import type {
   FoundationOwnerRequest,
   FoundationRecordPort,
   FoundationServiceOptions,
-} from "./agent-foundation.js";
+} from "./agent-foundation";
 import {
   exact,
   proposeFoundationMemory,
   reviseFoundationMemory,
   runtime,
-} from "./foundation-memory-writes.js";
+} from "./foundation-memory-writes";
 import {
   parseMnemosyneImportEnvelope,
   planMnemosyneImport,
@@ -34,7 +34,7 @@ import {
   type MnemosyneImportExisting,
   type MnemosyneImportPlan,
   type MnemosyneImportRecordPlan,
-} from "./mnemosyne-import-preview.js";
+} from "./mnemosyne-import-preview";
 
 export type FoundationImportSourceTier =
   "public" | "private" | "client" | "unknown";
@@ -240,6 +240,22 @@ function safe<T>(action: () => T): T {
   } catch (error) {
     if (error instanceof FoundationError) throw error;
     invalid();
+  }
+}
+
+/** A storage or delivery fault must never look like a rejected owner decision. */
+export class FoundationImportUnavailableError extends FoundationError {
+  constructor() {
+    super("INVALID_REFERENCE", "Selected import output unavailable");
+    this.name = "FoundationImportUnavailableError";
+  }
+}
+
+function storedOutput<T>(action: () => T): T {
+  try {
+    return action();
+  } catch {
+    throw new FoundationImportUnavailableError();
   }
 }
 function exactParsed<T>(raw: unknown, parsed: T): T {
@@ -545,15 +561,24 @@ export function createMnemosyneSelectedImportService(
       foundationInstantMilliseconds(identity.expiresAt) <=
       server.now().getTime()
     )
-      throw new FoundationError(
-        "FORBIDDEN",
-        "A live owner session is required",
-      );
+      throw new FoundationError("EXPIRED", "A live owner session is required");
   }
   async function checked<T>(action: Promise<T>): Promise<T> {
     const result = await action;
     session();
     return result;
+  }
+  async function storedRead<T>(action: Promise<T>): Promise<T> {
+    try {
+      return await checked(action);
+    } catch (error) {
+      if (
+        error instanceof FoundationError &&
+        error.code === "INVALID_REFERENCE"
+      )
+        throw new FoundationImportUnavailableError();
+      throw error;
+    }
   }
   async function run<T>(
     projectId: string,
@@ -585,10 +610,12 @@ export function createMnemosyneSelectedImportService(
       return value;
     });
     session();
-    if (callbacks !== 1 || expectedDigest === undefined) invalid();
-    const value = canonical(result);
-    if (foundationDigest(value) !== expectedDigest) invalid();
-    return value;
+    return storedOutput(() => {
+      if (callbacks !== 1 || expectedDigest === undefined) invalid();
+      const value = canonical(result);
+      if (foundationDigest(value) !== expectedDigest) invalid();
+      return value;
+    });
   }
   async function load(
     r: FoundationImportRecordPort,
@@ -600,44 +627,45 @@ export function createMnemosyneSelectedImportService(
     for (const row of e.records) {
       if (!row.selected) continue;
       const alias = { namespace: e.namespace, externalId: row.externalId };
-      const raw = canonical(
-        await checked(
-          r.getImportExisting({ projectId: e.projectId, alias: { ...alias } }),
-        ),
+      const received = await storedRead(
+        r.getImportExisting({ projectId: e.projectId, alias: { ...alias } }),
       );
+      const raw = storedOutput(() => canonical(received));
       if (raw === null) continue;
-      const item = object(raw, ["alias", "memory", "baseline"]);
-      const memory = safe(() =>
-        exactParsed(item.memory, foundationMemorySchema.parse(item.memory)),
-      );
-      equal(item.alias, alias);
-      if (
-        memory.projectId !== e.projectId ||
-        memoryIds.has(memory.id) ||
-        foundationDigest(memory.content) !== memory.contentDigest
-      )
-        invalid();
-      memoryIds.add(memory.id);
-      const baseline =
-        item.baseline === null
-          ? null
-          : parseFoundationImportRevision(item.baseline);
-      if (baseline !== null) {
+      storedOutput(() => {
+        const item = object(raw, ["alias", "memory", "baseline"]);
+        const memory = safe(() =>
+          exactParsed(item.memory, foundationMemorySchema.parse(item.memory)),
+        );
+        equal(item.alias, alias);
         if (
-          baseline.projectId !== e.projectId ||
-          baseline.environment !== server.environment ||
-          baseline.memoryId !== memory.id ||
-          baseline.memoryVersion > memory.version
+          memory.projectId !== e.projectId ||
+          memoryIds.has(memory.id) ||
+          foundationDigest(memory.content) !== memory.contentDigest
         )
           invalid();
-        equal(baseline.alias, alias);
-      }
-      stored.set(row.externalId, { alias, memory, baseline });
-      existing.push({
-        alias,
-        memory,
-        importedSourceFingerprint: baseline?.sourceFingerprint ?? null,
-        lastImportedMemoryDigest: baseline?.memoryContentDigest ?? null,
+        memoryIds.add(memory.id);
+        const baseline =
+          item.baseline === null
+            ? null
+            : parseFoundationImportRevision(item.baseline);
+        if (baseline !== null) {
+          if (
+            baseline.projectId !== e.projectId ||
+            baseline.environment !== server.environment ||
+            baseline.memoryId !== memory.id ||
+            baseline.memoryVersion > memory.version
+          )
+            invalid();
+          equal(baseline.alias, alias);
+        }
+        stored.set(row.externalId, { alias, memory, baseline });
+        existing.push({
+          alias,
+          memory,
+          importedSourceFingerprint: baseline?.sourceFingerprint ?? null,
+          lastImportedMemoryDigest: baseline?.memoryContentDigest ?? null,
+        });
       });
     }
     return { existing, stored };
@@ -645,14 +673,16 @@ export function createMnemosyneSelectedImportService(
   function scopedRevision(raw: unknown, projectId: string, id: string) {
     if (raw === null)
       throw new FoundationError("NOT_FOUND", "Import revision is unavailable");
-    const revision = parseFoundationImportRevision(raw);
-    if (
-      revision.projectId !== projectId ||
-      revision.id !== id ||
-      revision.environment !== server.environment
-    )
-      invalid();
-    return revision;
+    return storedOutput(() => {
+      const revision = parseFoundationImportRevision(raw);
+      if (
+        revision.projectId !== projectId ||
+        revision.id !== id ||
+        revision.environment !== server.environment
+      )
+        invalid();
+      return revision;
+    });
   }
   return {
     async preview(rawEnvelope: unknown): Promise<MnemosyneImportPlan> {
@@ -890,14 +920,16 @@ export function createMnemosyneSelectedImportService(
             );
           }),
         );
-        const value = object(canonical(cached), ["value", "replayed"]);
-        if (typeof value.replayed !== "boolean") invalid();
-        const bound = bindReceipt(
-          value.value,
-          requestInput,
-          identity.principalId,
-        );
-        return { ...bound, replayed: value.replayed };
+        return storedOutput(() => {
+          const value = object(canonical(cached), ["value", "replayed"]);
+          if (typeof value.replayed !== "boolean") invalid();
+          const bound = bindReceipt(
+            value.value,
+            requestInput,
+            identity.principalId,
+          );
+          return { ...bound, replayed: value.replayed };
+        });
       });
     },
     async getRevision(rawInput: unknown): Promise<FoundationImportRevision> {
@@ -908,7 +940,7 @@ export function createMnemosyneSelectedImportService(
       const id = safe(() => ids.parse(value.id));
       return run(projectId, "foundation.read", id, async (r) =>
         scopedRevision(
-          await checked(r.getImportRevision({ projectId, id })),
+          await storedRead(r.getImportRevision({ projectId, id })),
           projectId,
           id,
         ),
@@ -946,7 +978,7 @@ export function createMnemosyneSelectedImportService(
         query.revisionId,
         async (r) => {
           const revision = scopedRevision(
-            await checked(
+            await storedRead(
               r.getImportRevision({
                 projectId: query.projectId,
                 id: query.revisionId,
@@ -956,32 +988,34 @@ export function createMnemosyneSelectedImportService(
             query.revisionId,
           );
           if (query.fromOrdinal > revision.sourceCount) invalid();
-          const page = object(
-            canonical(await checked(r.listImportOriginalSources({ ...query }))),
-            ["items", "nextOrdinal"],
+          const rawPage = await storedRead(
+            r.listImportOriginalSources({ ...query }),
           );
-          if (!Array.isArray(page.items)) invalid();
-          const items = page.items.map(parseFoundationImportOriginalSource);
-          const count = Math.min(
-            query.limit,
-            revision.sourceCount - query.fromOrdinal,
-          );
-          if (items.length !== count) invalid();
-          for (let offset = 0; offset < items.length; offset += 1) {
-            const source = items[offset]!;
-            if (
-              source.projectId !== query.projectId ||
-              source.revisionId !== query.revisionId ||
-              source.ordinal !== query.fromOrdinal + offset
-            )
-              invalid();
-          }
-          const nextOrdinal =
-            query.fromOrdinal + count < revision.sourceCount
-              ? query.fromOrdinal + count
-              : null;
-          if (page.nextOrdinal !== nextOrdinal) invalid();
-          return { items, nextOrdinal };
+          return storedOutput(() => {
+            const page = object(canonical(rawPage), ["items", "nextOrdinal"]);
+            if (!Array.isArray(page.items)) invalid();
+            const items = page.items.map(parseFoundationImportOriginalSource);
+            const count = Math.min(
+              query.limit,
+              revision.sourceCount - query.fromOrdinal,
+            );
+            if (items.length !== count) invalid();
+            for (let offset = 0; offset < items.length; offset += 1) {
+              const source = items[offset]!;
+              if (
+                source.projectId !== query.projectId ||
+                source.revisionId !== query.revisionId ||
+                source.ordinal !== query.fromOrdinal + offset
+              )
+                invalid();
+            }
+            const nextOrdinal =
+              query.fromOrdinal + count < revision.sourceCount
+                ? query.fromOrdinal + count
+                : null;
+            if (page.nextOrdinal !== nextOrdinal) invalid();
+            return { items, nextOrdinal };
+          });
         },
       );
     },

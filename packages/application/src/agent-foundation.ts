@@ -7,7 +7,7 @@ import {
   anchorFor,
   proposeFoundationMemory,
   reviseFoundationMemory,
-} from "./foundation-memory-writes.js";
+} from "./foundation-memory-writes";
 import {
   foundationActorSchema,
   foundationApproveInstructionSchema,

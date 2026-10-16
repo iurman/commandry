@@ -18,7 +18,7 @@ import type {
   FoundationAnchor,
   FoundationRecordPort,
   FoundationServiceOptions,
-} from "./agent-foundation.js";
+} from "./agent-foundation";
 
 type Parser<T> = { parse(value: unknown): T };
 type ScopedRecord = { id: string; projectId: string };

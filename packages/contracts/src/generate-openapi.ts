@@ -3,6 +3,14 @@ import { dirname } from "node:path";
 import { fileURLToPath } from "node:url";
 import { z } from "zod";
 import {
+  mnemosyneImportEnvelopeSchema,
+  mnemosyneImportPlanSchema,
+  foundationSelectedImportInputSchema,
+  foundationSelectedImportResultSchema,
+  foundationImportRevisionSchema,
+  foundationImportOriginalSourceSchema,
+  foundationImportOriginalPageSchema,
+  foundationImportOriginalQuerySchema,
   foundationCreateClientSchema,
   foundationClientSchema,
   foundationIssuedClientSchema,
@@ -3936,6 +3944,496 @@ export function generateOpenApi(): string {
           },
         },
       },
+      "/api/v1/foundation/imports/preview": {
+        post: {
+          operationId: "previewSelectedMemoryImport",
+          summary:
+            "Live owner previews an explicitly supplied closed memory export without writes",
+          description:
+            "Requires an owner password session and trusted Origin. Physical JSON and canonical application input each have an 8 MiB bound, with at most 1000 records and 1000 aggregate sources. Original text is not fetched from supplied paths. No machine access or instruction approval.",
+          parameters: [
+            {
+              in: "header",
+              name: "Origin",
+              required: true,
+              description:
+                "Configured trusted application Origin for owner mutations",
+              schema: {
+                type: "string",
+                format: "uri",
+                minLength: 1,
+              },
+            },
+          ],
+          requestBody: {
+            required: true,
+            content: {
+              "application/json": {
+                schema: {
+                  $ref: "#/components/schemas/MnemosyneImportEnvelope",
+                },
+              },
+            },
+          },
+          responses: {
+            "200": {
+              description: "Complete scoped result; no inferred approval",
+              content: {
+                "application/json": {
+                  schema: {
+                    $ref: "#/components/schemas/MnemosyneImportPlan",
+                  },
+                },
+              },
+            },
+            "400": {
+              description: "Strict input or reference denied",
+              content: {
+                "application/json": {
+                  schema: {
+                    $ref: "#/components/schemas/FoundationFailure",
+                  },
+                },
+              },
+            },
+            "401": {
+              description:
+                "Live owner sign-in required. Apply may have committed before expiry; preserve the exact input and key for manual retry.",
+              content: {
+                "application/json": {
+                  schema: {
+                    $ref: "#/components/schemas/FoundationFailure",
+                  },
+                },
+              },
+            },
+            "403": {
+              description: "Owner scope or trusted Origin denied",
+              content: {
+                "application/json": {
+                  schema: {
+                    $ref: "#/components/schemas/FoundationFailure",
+                  },
+                },
+              },
+            },
+            "404": {
+              description: "Scoped import revision not found",
+              content: {
+                "application/json": {
+                  schema: {
+                    $ref: "#/components/schemas/FoundationFailure",
+                  },
+                },
+              },
+            },
+            "409": {
+              description:
+                "Changed head, destination, version or idempotency input; review a fresh preview",
+              content: {
+                "application/json": {
+                  schema: {
+                    $ref: "#/components/schemas/FoundationFailure",
+                  },
+                },
+              },
+            },
+            "503": {
+              description:
+                "Unavailable or invalid output. Apply outcome may be unknown; preserve exact input and key.",
+              content: {
+                "application/json": {
+                  schema: {
+                    $ref: "#/components/schemas/FoundationFailure",
+                  },
+                },
+              },
+            },
+            "413": {
+              description:
+                "Physical JSON request exceeds 8 MiB, rejected before mutation. Split whole records and preview a smaller export.",
+              content: {
+                "application/json": {
+                  schema: {
+                    type: "object",
+                    additionalProperties: false,
+                    required: ["code"],
+                    properties: {
+                      code: {
+                        type: "string",
+                        const: "PAYLOAD_TOO_LARGE",
+                      },
+                    },
+                  },
+                },
+              },
+            },
+          },
+        },
+      },
+      "/api/v1/foundation/imports/apply": {
+        post: {
+          operationId: "applySelectedMemoryImport",
+          summary:
+            "Owner reviews all selected records and imports proposed, unverified memory",
+          description:
+            "Sensitive owner-only memory.import. Requires exact individual review in every tier, current expected heads, destination binding and a live session. Atomically preserves immutable UTF8 originals, evidence, versions, receipt and audit. No instruction approval or overwrite of owner edits. Exact input/key replays the historical receipt. The complete reviewed wrapper must fit 8 MiB, not merely its preview envelope.",
+          parameters: [
+            {
+              in: "header",
+              name: "Origin",
+              required: true,
+              description:
+                "Configured trusted application Origin for owner mutations",
+              schema: {
+                type: "string",
+                format: "uri",
+                minLength: 1,
+              },
+            },
+            {
+              in: "header",
+              name: "Idempotency-Key",
+              required: true,
+              schema: {
+                type: "string",
+                minLength: 1,
+                maxLength: 200,
+                pattern: "^[A-Za-z0-9][A-Za-z0-9._:-]{0,199}$",
+              },
+            },
+          ],
+          requestBody: {
+            required: true,
+            content: {
+              "application/json": {
+                schema: {
+                  $ref: "#/components/schemas/FoundationSelectedImportInput",
+                },
+              },
+            },
+          },
+          responses: {
+            "200": {
+              description: "Complete scoped result; no inferred approval",
+              content: {
+                "application/json": {
+                  schema: {
+                    $ref: "#/components/schemas/FoundationSelectedImportResult",
+                  },
+                },
+              },
+            },
+            "400": {
+              description: "Strict input or reference denied",
+              content: {
+                "application/json": {
+                  schema: {
+                    $ref: "#/components/schemas/FoundationFailure",
+                  },
+                },
+              },
+            },
+            "401": {
+              description:
+                "Live owner sign-in required. Apply may have committed before expiry; preserve the exact input and key for manual retry.",
+              content: {
+                "application/json": {
+                  schema: {
+                    $ref: "#/components/schemas/FoundationFailure",
+                  },
+                },
+              },
+            },
+            "403": {
+              description: "Owner scope or trusted Origin denied",
+              content: {
+                "application/json": {
+                  schema: {
+                    $ref: "#/components/schemas/FoundationFailure",
+                  },
+                },
+              },
+            },
+            "404": {
+              description: "Scoped import revision not found",
+              content: {
+                "application/json": {
+                  schema: {
+                    $ref: "#/components/schemas/FoundationFailure",
+                  },
+                },
+              },
+            },
+            "409": {
+              description:
+                "Changed head, destination, version or idempotency input; review a fresh preview",
+              content: {
+                "application/json": {
+                  schema: {
+                    $ref: "#/components/schemas/FoundationFailure",
+                  },
+                },
+              },
+            },
+            "503": {
+              description:
+                "Unavailable or invalid output. Apply outcome may be unknown; preserve exact input and key.",
+              content: {
+                "application/json": {
+                  schema: {
+                    $ref: "#/components/schemas/FoundationFailure",
+                  },
+                },
+              },
+            },
+            "413": {
+              description:
+                "Physical JSON request exceeds 8 MiB, rejected before mutation. Split whole records and preview a smaller export.",
+              content: {
+                "application/json": {
+                  schema: {
+                    type: "object",
+                    additionalProperties: false,
+                    required: ["code"],
+                    properties: {
+                      code: {
+                        type: "string",
+                        const: "PAYLOAD_TOO_LARGE",
+                      },
+                    },
+                  },
+                },
+              },
+            },
+          },
+        },
+      },
+      "/api/v1/foundation/imports/{id}": {
+        get: {
+          operationId: "getSelectedMemoryImportRevision",
+          summary: "Owner-only immutable revision metadata, without originals",
+          parameters: [
+            {
+              in: "path",
+              name: "id",
+              required: true,
+              schema: {
+                type: "string",
+                format: "uuid",
+              },
+            },
+            {
+              in: "query",
+              name: "projectId",
+              required: true,
+              schema: {
+                type: "string",
+                format: "uuid",
+              },
+            },
+          ],
+          responses: {
+            "200": {
+              description: "Complete scoped result; no inferred approval",
+              content: {
+                "application/json": {
+                  schema: {
+                    $ref: "#/components/schemas/FoundationImportRevision",
+                  },
+                },
+              },
+            },
+            "400": {
+              description: "Strict input or reference denied",
+              content: {
+                "application/json": {
+                  schema: {
+                    $ref: "#/components/schemas/FoundationFailure",
+                  },
+                },
+              },
+            },
+            "401": {
+              description:
+                "Live owner sign-in required. Apply may have committed before expiry; preserve the exact input and key for manual retry.",
+              content: {
+                "application/json": {
+                  schema: {
+                    $ref: "#/components/schemas/FoundationFailure",
+                  },
+                },
+              },
+            },
+            "403": {
+              description: "Owner scope or trusted Origin denied",
+              content: {
+                "application/json": {
+                  schema: {
+                    $ref: "#/components/schemas/FoundationFailure",
+                  },
+                },
+              },
+            },
+            "404": {
+              description: "Scoped import revision not found",
+              content: {
+                "application/json": {
+                  schema: {
+                    $ref: "#/components/schemas/FoundationFailure",
+                  },
+                },
+              },
+            },
+            "409": {
+              description:
+                "Changed head, destination, version or idempotency input; review a fresh preview",
+              content: {
+                "application/json": {
+                  schema: {
+                    $ref: "#/components/schemas/FoundationFailure",
+                  },
+                },
+              },
+            },
+            "503": {
+              description:
+                "Unavailable or invalid output. Apply outcome may be unknown; preserve exact input and key.",
+              content: {
+                "application/json": {
+                  schema: {
+                    $ref: "#/components/schemas/FoundationFailure",
+                  },
+                },
+              },
+            },
+          },
+        },
+      },
+      "/api/v1/foundation/imports/{id}/sources": {
+        get: {
+          operationId: "listSelectedMemoryImportOriginals",
+          summary:
+            "Owner-only complete ordinal pagination of preserved originals",
+          description:
+            "Revision and project checked on every page. fromOrdinal is inclusive; nextOrdinal is the next request boundary, null only at exhaustion. Derived response size may exceed the request budget. Content is preserved, never executed. Machine grants do not disclose these originals.",
+          parameters: [
+            {
+              in: "path",
+              name: "id",
+              required: true,
+              schema: {
+                type: "string",
+                format: "uuid",
+              },
+            },
+            {
+              in: "query",
+              name: "projectId",
+              required: true,
+              schema: {
+                type: "string",
+                format: "uuid",
+              },
+            },
+            {
+              in: "query",
+              name: "fromOrdinal",
+              schema: {
+                type: "integer",
+                minimum: 0,
+                maximum: 1000,
+                default: 0,
+              },
+            },
+            {
+              in: "query",
+              name: "limit",
+              schema: {
+                type: "integer",
+                minimum: 1,
+                maximum: 1000,
+                default: 100,
+              },
+            },
+          ],
+          responses: {
+            "200": {
+              description: "Complete scoped result; no inferred approval",
+              content: {
+                "application/json": {
+                  schema: {
+                    $ref: "#/components/schemas/FoundationImportOriginalPage",
+                  },
+                },
+              },
+            },
+            "400": {
+              description: "Strict input or reference denied",
+              content: {
+                "application/json": {
+                  schema: {
+                    $ref: "#/components/schemas/FoundationFailure",
+                  },
+                },
+              },
+            },
+            "401": {
+              description:
+                "Live owner sign-in required. Apply may have committed before expiry; preserve the exact input and key for manual retry.",
+              content: {
+                "application/json": {
+                  schema: {
+                    $ref: "#/components/schemas/FoundationFailure",
+                  },
+                },
+              },
+            },
+            "403": {
+              description: "Owner scope or trusted Origin denied",
+              content: {
+                "application/json": {
+                  schema: {
+                    $ref: "#/components/schemas/FoundationFailure",
+                  },
+                },
+              },
+            },
+            "404": {
+              description: "Scoped import revision not found",
+              content: {
+                "application/json": {
+                  schema: {
+                    $ref: "#/components/schemas/FoundationFailure",
+                  },
+                },
+              },
+            },
+            "409": {
+              description:
+                "Changed head, destination, version or idempotency input; review a fresh preview",
+              content: {
+                "application/json": {
+                  schema: {
+                    $ref: "#/components/schemas/FoundationFailure",
+                  },
+                },
+              },
+            },
+            "503": {
+              description:
+                "Unavailable or invalid output. Apply outcome may be unknown; preserve exact input and key.",
+              content: {
+                "application/json": {
+                  schema: {
+                    $ref: "#/components/schemas/FoundationFailure",
+                  },
+                },
+              },
+            },
+          },
+        },
+      },
       "/api/v1/foundation/clients": {
         get: {
           operationId: "listFoundationClients",
@@ -5064,6 +5562,35 @@ export function generateOpenApi(): string {
         },
       },
       schemas: {
+        MnemosyneImportEnvelope: component(
+          mnemosyneImportEnvelopeSchema,
+          "input",
+        ),
+        MnemosyneImportPlan: component(mnemosyneImportPlanSchema, "input"),
+        FoundationSelectedImportInput: component(
+          foundationSelectedImportInputSchema,
+          "input",
+        ),
+        FoundationSelectedImportResult: component(
+          foundationSelectedImportResultSchema,
+          "input",
+        ),
+        FoundationImportRevision: component(
+          foundationImportRevisionSchema,
+          "input",
+        ),
+        FoundationImportOriginalSource: component(
+          foundationImportOriginalSourceSchema,
+          "input",
+        ),
+        FoundationImportOriginalPage: component(
+          foundationImportOriginalPageSchema,
+          "input",
+        ),
+        FoundationImportOriginalQuery: component(
+          foundationImportOriginalQuerySchema,
+          "input",
+        ),
         FoundationCreateClient: component(
           foundationCreateClientSchema,
           "input",

@@ -194,6 +194,41 @@ and retains expired/revoked clients. Its one-time secret has explicit copy and
 dismissal, stays out of browser storage, and is cleared on a project change.
 Revocation requires named confirmation and can be canceled.
 
-Import preview remains a local preflight API; it does not claim a private corpus
-was imported. Transactional selected memory import, installation/adoption evidence,
-candidate promotion and task execution packet integration remain follow-ups.
+## Review a selected memory export
+
+In Account > Selected memory import, choose one explicit UTF8 JSON export matching
+`MnemosyneImportEnvelope` in the versioned OpenAPI contract. The export supplies
+projectId, namespace and complete records with canonical Knowledge destinations,
+statements, categories, source tiers, selected flags and ordered evidence/original
+pairs. Paths and locators identify supplied content; they are never opened. Do not
+include an entire private corpus merely because a tool can read it.
+
+Preview the file, inspect the exact project name/ID, environment, namespace and each
+selected alias, destination, statement and original. Records and originals have
+separate paging controls. Inspect the JSON-string view when CRLF, NUL or BOM
+matters. Check each selected record individually, including public sources, then
+confirm the named destination and import as proposals. Cancel performs no write.
+The preview is read-only; this confirmation is disclosure review, not factual
+verification or instruction approval. Unknown or unavailable originals, changed
+Knowledge destinations, missing baselines and owner corrections require resolution
+and a fresh preview.
+
+The physical file, preview request and complete reviewed apply request must each
+fit 8 MiB, with at most 1000 records and 1000 aggregate sources. Review metadata
+adds bytes to the apply wrapper. If it exceeds the budget, prepare smaller exports
+by whole records and preview again; never truncate originals. A known
+`413 PAYLOAD_TOO_LARGE` means that request was rejected before mutation. Other
+uncertain outcomes retain the exact reviewed input and key for explicit same-key
+retry. A 401 can occur after commit: sign in as the same owner in another tab,
+keep the review page open and retry the frozen decision. Never mint a new key to
+resolve an unknown outcome.
+
+Success shows safe receipt and revision references and clears the raw file and
+originals from the component. The four owner-only HTTP endpoints and their audit,
+retry and byte-preservation rules are defined in
+[the foundation architecture](../architecture/agent-foundation.md). Follow
+`nextOrdinal` until null when retrieving originals. Existing MCP memory reads use
+the same canonical assertion IDs; imports do not expand a credential's grants.
+No selected private corpus or production database has been imported by the local
+rehearsals. Installation/adoption evidence, candidate promotion and task execution
+packet integration remain follow-ups.

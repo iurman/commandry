@@ -9,7 +9,7 @@ implementation evidence, not production activation, private memory import or
 evaluation execution. The existing [knowledge MCP](knowledge-mcp.md) retains its
 four read tools and existing scope. The approved
 [campaign plan](../plans/agent-memory-mcp-foundation/PLAN.md) tracks the remaining
-import, registry, evaluation and release work.
+canonical Work/finding coverage, adoption, candidate and release work.
 
 ## Records and source ownership
 
@@ -95,11 +95,54 @@ Evaluation reads require `foundation.read` and audit `foundation.read`.
 Neither recording nor review invokes inference or promotes a configuration.
 Discovery distinguishes granted capabilities from actual supplied services.
 
-The reserved `memory.import` operation is sensitive, owner-only, project-scoped,
-expected-version concurrent and audited as `memory.import`. Its declaration is
-preparation for the reviewed selected-import service; it exposes no callable
-import route or MCP write tool yet. All six machine operations remain unchanged.
-Actual source selection/disclosure review is required for every source tier.
+The selected-memory import service is a sensitive, owner-only, project-scoped
+`memory.import` action with expected-version concurrency and a `memory.import`
+audit. Account > Selected memory import accepts an explicitly supplied closed
+JSON export. It never discovers a corpus, opens referenced paths or runs content.
+Every selected record in every source tier requires exact individual disclosure
+review and a separate destination confirmation. The destination includes the
+project name and ID, environment, namespace, alias and canonical Knowledge item.
+Changed Knowledge targets or owner corrections block import rather than retarget
+an existing alias. New and revised assertions remain proposed and unverified.
+
+Four versioned owner endpoints share that application service:
+
+- `POST /api/v1/foundation/imports/preview` binds a side-effect-free plan to the
+  supplied envelope and current canonical heads.
+- `POST /api/v1/foundation/imports/apply` requires an exact reviewed selection
+  set and `Idempotency-Key`, then writes canonical evidence, assertion versions,
+  immutable source baselines, receipt and audit in one transaction.
+- `GET /api/v1/foundation/imports/{id}?projectId=...` returns scoped revision
+  metadata without originals.
+- `GET /api/v1/foundation/imports/{id}/sources?projectId=...` returns complete
+  ordered original text with inclusive `fromOrdinal` and `nextOrdinal` continuation.
+
+The live owner password session is checked before reading input. Mutation Origin
+must be present and trusted. Streamed physical JSON and canonical application
+requests each have an 8 MiB limit; the full reviewed apply wrapper must fit that
+budget. An export has at most 1000 records and 1000 aggregate sources. These are
+admission bounds, not silent truncation. Derived plans and original-source pages
+have no request-byte ceiling. Strict shared DTOs describe the transport; the
+application retains digest, anchor, head, review and retry validation.
+
+Originals are stored as exact UTF8 bytes, preserving empty strings, CRLF, NUL and
+BOM. Database constraints close both import-side and canonical evidence membership,
+including when deferred constraints are made immediate early. Reads validate
+ordered membership and byte digests. A changed source creates another immutable
+revision; unchanged replay preserves the existing memory and its authority state.
+Exact input/key retry returns the historical receipt even after later owner edits.
+A response can be withheld after commit on session expiry, so the UI preserves the
+same frozen input/key after 401 or an uncertain failure and offers manual retry.
+Only the known pre-mutation `413 PAYLOAD_TOO_LARGE` releases that frozen decision
+for replacement. Success clears the component's raw file and originals.
+
+Import and original-text disclosure intentionally remain owner-only, absent from
+machine tool discovery and all six machine grants. This prevents a general read
+credential from disclosing a selected private export. Agents can discover the
+workflow and versioned contract, prepare a closed export under separate source
+selection authority, and use the existing scoped memory reads after owner import.
+Machine import would require a separately reviewed disclosure and approval design;
+feature coverage never infers that authority.
 
 Client issuance stores only a token digest. The random credential appears in its
 first successful response. An issuance retry with the same key cannot re-expose
