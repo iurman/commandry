@@ -4,7 +4,11 @@ import type {
   FoundationEvidence,
   FoundationMemory,
 } from "@commandry/contracts";
-import { FoundationError, foundationDigest } from "@commandry/domain";
+import {
+  canonicalFoundationJson,
+  FoundationError,
+  foundationDigest,
+} from "@commandry/domain";
 import type {
   FoundationOwnerRequest,
   FoundationIdentity,
@@ -921,3 +925,89 @@ it("rejects nullable ordinal defaults and inconsistent immutable no-op review bi
   await rejected(f.service.apply(request, "bad-baseline"));
   expect(f.state.revisions.size).toBe(1);
 });
+
+const requestByteLimit = 8 * 1024 * 1024;
+const canonicalBytes = (value: unknown) =>
+  Buffer.byteLength(canonicalFoundationJson(value), "utf8");
+
+it("accepts an exact-limit reviewed request when honest persisted output is larger, and rejects the next request byte before writes", async () => {
+  const f = fixture();
+  const request = await f.reviewed();
+  const source = request.envelope.records[0]!.sources[0]!;
+  source.originalContent = "";
+  source.evidence.contentDigest = digest(source.originalContent);
+  request.reviewedSelections[0]!.selectionFingerprint =
+    fingerprintMnemosyneSelection(request.envelope, "synthetic-0");
+  source.originalContent = "x".repeat(
+    requestByteLimit - canonicalBytes(request),
+  );
+  source.evidence.contentDigest = digest(source.originalContent);
+  request.reviewedSelections[0]!.selectionFingerprint =
+    fingerprintMnemosyneSelection(request.envelope, "synthetic-0");
+  expect(canonicalBytes(request)).toBe(requestByteLimit);
+
+  const insert = f.records.insertImportRevision;
+  let persistedBytes = 0;
+  f.records.insertImportRevision = async (value) => {
+    const result = await insert(value);
+    persistedBytes = canonicalBytes(result);
+    return result;
+  };
+  const result = await f.service.apply(request, "exact-budget");
+  expect(persistedBytes).toBeGreaterThan(requestByteLimit);
+  expect(result.record.records[0]).toMatchObject({
+    action: "created",
+    sourceCount: 1,
+  });
+  expect([...f.state.originals.values()][0]![0]!.originalContent).toBe(
+    source.originalContent,
+  );
+  expect((await f.service.apply(request, "exact-budget")).replayed).toBe(true);
+
+  source.originalContent += "x";
+  source.evidence.contentDigest = digest(source.originalContent);
+  request.reviewedSelections[0]!.selectionFingerprint =
+    fingerprintMnemosyneSelection(request.envelope, "synthetic-0");
+  expect(canonicalBytes(request)).toBe(requestByteLimit + 1);
+  const entries = f.state.requests.length;
+  const writes = f.state.evidences.size;
+  await rejected(f.service.apply(request, "over-budget"));
+  expect(f.state.requests).toHaveLength(entries);
+  expect(f.state.evidences.size).toBe(writes);
+}, 20000);
+
+it("returns complete public previews larger than the valid near-limit envelope while rejecting a real over-limit envelope before access", async () => {
+  const f = fixture();
+  const raw = envelope(1000);
+  raw.records.forEach((row) => {
+    row.sourceTier = "public";
+  });
+  const targetBytes = requestByteLimit - 200000;
+  const padding = targetBytes - canonicalBytes(raw);
+  const each = Math.floor(padding / raw.records.length);
+  const remainder = padding % raw.records.length;
+  raw.records.forEach((row, index) => {
+    row.statement += "x".repeat(each + (index < remainder ? 1 : 0));
+  });
+  expect(canonicalBytes(raw)).toBe(targetBytes);
+  const preview = await f.service.preview(raw);
+  expect(canonicalBytes(preview)).toBeGreaterThan(requestByteLimit);
+  expect(preview.records).toHaveLength(1000);
+  expect(preview.records[999]).toMatchObject({
+    statement: raw.records[999]!.statement,
+    reviewedSelection: false,
+  });
+  expect(f.state.evidences.size).toBe(0);
+
+  const excess = requestByteLimit + 1 - targetBytes;
+  const extraEach = Math.floor(excess / raw.records.length);
+  const extraRemainder = excess % raw.records.length;
+  raw.records.forEach((row, index) => {
+    row.statement += "x".repeat(extraEach + (index < extraRemainder ? 1 : 0));
+  });
+  expect(canonicalBytes(raw)).toBe(requestByteLimit + 1);
+  const entries = f.state.requests.length;
+  await rejected(f.service.preview(raw));
+  expect(f.state.requests).toHaveLength(entries);
+  expect(f.state.evidences.size).toBe(0);
+}, 20000);
