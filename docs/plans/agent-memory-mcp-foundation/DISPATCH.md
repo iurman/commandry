@@ -60,6 +60,15 @@ substitute a paid API path or claim an untested model configuration ran.
    two worktrees.
 5. Give the chat its selected workstream brief, plan commit, assigned branch and
    scope. Save returned thread/worktree IDs in the private dispatch ledger.
+   Before releasing command work, verify its actual runtime uses Full Access
+   and approval policy `never`. The first native launch demonstrated that the
+   app can select workspace access with approvals on request even when the
+   command center and global configuration use Full Access. An opening prompt
+   cannot change host permissions. Do not release an unattended chat that will
+   wait for routine command approvals. Use the app's supported permissions
+   control to correct a mismatch; do not edit app-owned cache files, bypass
+   hooks or forge a permission grant in the prompt. Record a precise runtime
+   setup dependency if the available controls cannot correct it automatically.
 6. Start workstream 1 first. Independently verify its contract checkpoint before
    generating dependent task manifests. Update the shared checkpoint centrally.
 7. Start 2, 3 and 4 at their dependency-ready checkpoint. Prepare 5 where safe,

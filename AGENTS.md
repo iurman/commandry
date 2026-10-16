@@ -9,6 +9,11 @@ the task, then follow links only when needed.
 - MUST honor an owner's planning-only hold: save the requested Markdown plan
   before launching implementation chats, workers or scheduled follow-ups, and
   resume implementation only after the owner releases the hold.
+- MUST verify that owner-authorized unattended campaign chats actually run with
+  approval policy `never` and Full Access before releasing command work. Do not
+  infer runtime permissions from global configuration, an opening prompt or the
+  command center's permissions. Keep real approval gates and hooks intact, queue
+  blocked work for the command center, and continue permitted independent work.
 
 ## Mandatory orientation
 
