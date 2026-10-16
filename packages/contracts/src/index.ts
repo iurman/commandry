@@ -1,5 +1,15 @@
 import { z } from "zod";
 import {
+  resourceSummarySchema,
+  projectResourceRelationshipTypeSchema,
+  projectResourceLinkSchema,
+} from "./resources";
+export {
+  resourceSummarySchema,
+  projectResourceRelationshipTypeSchema,
+  projectResourceLinkSchema,
+} from "./resources";
+import {
   captureTriageSuggestionSchema as localCaptureTriageSuggestionSchema,
   captureTriageDecisionSchema as localCaptureTriageDecisionSchema,
 } from "./capture-triage";
@@ -76,17 +86,6 @@ export const correlationMetadataSchema = z.object({
 });
 
 export const entityIdSchema = z.uuid();
-
-export const resourceSummarySchema = z.object({
-  id: z.uuid(),
-  kind: z.string().min(1),
-  name: z.string().min(1),
-  subtype: z.string().nullable(),
-  parentResourceId: z.uuid().nullable(),
-  state: z.string().nullable(),
-  externalUrl: z.url().nullable(),
-  lastObservedAt: z.iso.datetime({ offset: true }).nullable(),
-});
 
 export const domainSummarySchema = z.object({
   id: z.uuid(),
@@ -563,21 +562,9 @@ export const listSystemAuditResponseSchema = z.object({
   nextCursor: z.uuid().nullable(),
 });
 
-export const projectResourceRelationshipTypeSchema = z.enum([
-  "supports",
-  "relates_to",
-]);
-
 export const createProjectResourceLinkRequestSchema = z.object({
   resourceId: z.uuid(),
   type: projectResourceRelationshipTypeSchema,
-});
-
-export const projectResourceLinkSchema = z.object({
-  id: z.uuid(),
-  type: projectResourceRelationshipTypeSchema,
-  inverseType: z.enum(["supported_by", "relates_to"]),
-  resource: resourceSummarySchema,
 });
 
 export const projectResourceLinkDetailSchema = z.object({
