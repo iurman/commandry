@@ -410,6 +410,7 @@ test("Work read is explicit in actor capabilities without expanding existing cli
   assert.deepEqual(foundationMachineOperationSchema.options, [
     operations[0],
     "work.read",
+    "work.propose",
     ...operations.slice(1),
   ]);
   assert.deepEqual(
@@ -488,10 +489,11 @@ test("task proposal declarations preserve explicit capabilities and machine issu
     environment: "test",
     ttlSeconds: 3600,
   };
-  assert.deepEqual(
-    foundationMachineOperationSchema.options,
-    existingOperations,
-  );
+  assert.deepEqual(foundationMachineOperationSchema.options, [
+    ...existingOperations.slice(0, 2),
+    "work.propose",
+    ...existingOperations.slice(2),
+  ]);
   assert.deepEqual(
     foundationCreateClientSchema.parse(clientInput).operations,
     existingOperations,
@@ -531,22 +533,22 @@ test("task proposal declarations preserve explicit capabilities and machine issu
       }).success,
       false,
     );
-    // Issuance changes are separate from these canonical policy declarations.
+    // Proposals require explicit opt-in. Owner decisions are never machine grants.
     assert.equal(
       foundationMachineOperationSchema.safeParse(operation).success,
-      false,
+      operation === "work.propose",
     );
     assert.equal(
       foundationCreateClientSchema.safeParse({
         ...clientInput,
         operations: [operation],
       }).success,
-      false,
+      operation === "work.propose",
     );
     assert.equal(
       foundationClientSchema.safeParse({ ...client, operations: [operation] })
         .success,
-      false,
+      operation === "work.propose",
     );
   }
   for (const capabilities of [

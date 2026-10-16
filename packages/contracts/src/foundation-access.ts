@@ -42,6 +42,7 @@ export const foundationMachineOperationSchema =
   foundationOperationSchema.extract([
     "foundation.read",
     "work.read",
+    "work.propose",
     "evidence.record",
     "memory.propose",
     "memory.revise",
