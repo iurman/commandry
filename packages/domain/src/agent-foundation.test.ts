@@ -91,6 +91,7 @@ const ownerOnly: readonly FoundationOperation[] = [
 test("operation policies enumerate every operation without expanding owner authority", () => {
   assert.deepEqual(FOUNDATION_OPERATIONS, [
     "foundation.read",
+    "work.read",
     "evidence.record",
     "memory.propose",
     "memory.revise",
@@ -119,13 +120,13 @@ test("operation policies enumerate every operation without expanding owner autho
       policy.risk,
       ownerOnly.includes(operation)
         ? "sensitive"
-        : operation === "foundation.read"
+        : operation === "foundation.read" || operation === "work.read"
           ? "read_only"
           : "reversible",
     );
     assert.equal(
       policy.concurrency,
-      operation === "foundation.read"
+      operation === "foundation.read" || operation === "work.read"
         ? "read_snapshot"
         : operation === "memory.revise" || ownerOnly.includes(operation)
           ? "expected_version"
@@ -291,6 +292,128 @@ for (const operation of ownerOnly) {
     );
   });
 }
+
+test("Work reads require their own exact capability and grant no other operation", () => {
+  const workRequest = request({ operation: "work.read" });
+  denies(
+    () =>
+      requireFoundationGrant(
+        grant({ operations: ["foundation.read"] }),
+        workRequest,
+      ),
+    "FORBIDDEN",
+  );
+  const workGrant = Object.freeze(
+    grant({ operations: Object.freeze(["work.read"] as const) }),
+  );
+  assert.equal(requireFoundationGrant(workGrant, workRequest), undefined);
+  for (const operation of FOUNDATION_OPERATIONS.filter(
+    (value) => value !== "work.read",
+  )) {
+    denies(
+      () => requireFoundationGrant(workGrant, request({ operation })),
+      "FORBIDDEN",
+    );
+  }
+  for (const operation of ownerOnly) {
+    denies(
+      () =>
+        requireFoundationGrant(
+          grant({ operations: ["work.read", operation] }),
+          request({ operation }),
+        ),
+      "FORBIDDEN",
+    );
+  }
+});
+
+test("Work read grants match exactly one project and environment", () => {
+  const environments = ["local", "test", "preview", "production"] as const;
+  for (const environment of environments) {
+    const workGrant = grant({ operations: ["work.read"], environment });
+    const workRequest = request({ operation: "work.read", environment });
+    assert.equal(requireFoundationGrant(workGrant, workRequest), undefined);
+    denies(
+      () =>
+        requireFoundationGrant(workGrant, {
+          ...workRequest,
+          projectId: otherProjectId,
+        }),
+      "FORBIDDEN",
+    );
+    for (const mismatch of environments.filter(
+      (value) => value !== environment,
+    )) {
+      denies(
+        () =>
+          requireFoundationGrant(workGrant, {
+            ...workRequest,
+            environment: mismatch,
+          }),
+        "FORBIDDEN",
+      );
+    }
+  }
+});
+
+test("Work read grants require live expiry and no revocation", () => {
+  const workRequest = request({ operation: "work.read" });
+  for (const expiresAt of [
+    new Date(now.getTime() + 1),
+    "2026-10-15T14:00:00.001+02:00",
+  ]) {
+    assert.equal(
+      requireFoundationGrant(
+        grant({ operations: ["work.read"], expiresAt }),
+        workRequest,
+      ),
+      undefined,
+    );
+  }
+  for (const expiresAt of [
+    new Date(now.getTime() - 1),
+    now,
+    "2026-10-15T14:00:00+02:00",
+    "2026-10-15T11:59:59.999999999999999999Z",
+  ]) {
+    denies(
+      () =>
+        requireFoundationGrant(
+          grant({ operations: ["work.read"], expiresAt }),
+          workRequest,
+        ),
+      "EXPIRED",
+    );
+  }
+  for (const expiresAt of ["invalid", "2026-02-30T12:00:00Z"]) {
+    denies(
+      () =>
+        requireFoundationGrant(
+          grant({ operations: ["work.read"], expiresAt }),
+          workRequest,
+        ),
+      "FORBIDDEN",
+    );
+  }
+  for (const revokedAt of ["2026-10-15T11:00:00Z", "2026-10-15T13:00:00Z"]) {
+    denies(
+      () =>
+        requireFoundationGrant(
+          grant({ operations: ["work.read"], revokedAt }),
+          workRequest,
+        ),
+      "REVOKED",
+    );
+  }
+  denies(
+    () =>
+      requireFoundationGrant(
+        grant({ operations: ["work.read"], revokedAt: "invalid" }),
+        workRequest,
+      ),
+    "FORBIDDEN",
+  );
+});
 
 test("authority denies absent operations and exact project/environment mismatches", () => {
   denies(

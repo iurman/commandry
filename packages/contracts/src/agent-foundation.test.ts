@@ -1,6 +1,11 @@
 import assert from "node:assert/strict";
 import { test } from "vitest";
 import * as foundation from "./agent-foundation.js";
+import {
+  foundationClientSchema,
+  foundationCreateClientSchema,
+  foundationMachineOperationSchema,
+} from "./foundation-access.js";
 
 const uuid = (index: number) =>
   `00000000-0000-4000-8000-${index.toString(16).padStart(12, "0")}`;
@@ -371,6 +376,7 @@ test("working-context instruction versions reject conflicting mixed-case memory 
 test("operations are the exact foundation family", () => {
   assert.deepEqual(foundation.foundationOperationSchema.options, [
     "foundation.read",
+    "work.read",
     "evidence.record",
     "memory.propose",
     "memory.revise",
@@ -387,6 +393,75 @@ test("operations are the exact foundation family", () => {
       false,
     );
   }
+});
+
+test("Work read is explicit in actor capabilities without expanding existing client arrays", () => {
+  const operations = [
+    "foundation.read",
+    "evidence.record",
+    "memory.propose",
+    "memory.revise",
+    "configuration.record",
+    "evaluation.record",
+  ];
+  assert.deepEqual(foundationMachineOperationSchema.options, operations);
+  assert.deepEqual(
+    foundation.foundationActorSchema.parse({
+      ...actor,
+      capabilities: operations,
+    }).capabilities,
+    operations,
+  );
+  for (const capabilities of [
+    [],
+    ["work.read"],
+    ["foundation.read", "work.read"],
+  ]) {
+    assert.deepEqual(
+      foundation.foundationActorSchema.parse({ ...actor, capabilities })
+        .capabilities,
+      capabilities,
+    );
+  }
+  const withoutCapabilities: Record<string, unknown> = { ...actor };
+  delete withoutCapabilities.capabilities;
+  assert.equal(
+    foundation.foundationActorSchema.safeParse(withoutCapabilities).success,
+    false,
+  );
+  assert.equal(
+    foundation.foundationActorSchema.safeParse({
+      ...actor,
+      capabilities: ["work.read", "work.read"],
+    }).success,
+    false,
+  );
+  const clientInput = {
+    name: "Existing six-operation client",
+    projectId,
+    operations,
+    environment: "test",
+    ttlSeconds: 3600,
+  };
+  assert.deepEqual(
+    foundationCreateClientSchema.parse(clientInput).operations,
+    operations,
+  );
+  assert.deepEqual(
+    foundationClientSchema.parse({
+      schemaVersion: 1,
+      id: uuid(20),
+      projectId,
+      name: clientInput.name,
+      operations,
+      environment: "test",
+      createdAt: timestamp,
+      expiresAt: "2026-10-15T13:30:00+02:00",
+      revokedAt: null,
+      createdBy: actor.principalId,
+    }).operations,
+    operations,
+  );
 });
 
 test("persisted and snapshot records require schemaVersion exactly 1", () => {
