@@ -70,3 +70,6 @@ export * from "./foundation-task-proposal";
 
 export * from "./foundation-resources";
 export * from "./foundation-workflow-access";
+
+export * from "./foundation-improvement";
+export * from "./foundation-workflow-pagination";
