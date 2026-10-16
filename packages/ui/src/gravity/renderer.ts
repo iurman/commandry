@@ -5,7 +5,6 @@ import type { CameraMode, Palette, SurfaceTheme, Well } from "./model";
 import type { ActivitySnapshot, ActivitySource } from "./activity-types";
 import { ActivityRenderer } from "./activity-renderer";
 import {
-  capacity,
   terrainVertex,
   terrainFragment,
   skyVertex,
@@ -13,12 +12,16 @@ import {
 } from "./materials";
 import { fittedLandscapePose, presentationPose } from "./presentation";
 import { LabelLayout, labelHeight } from "./labels";
+import { fieldBounds, fieldGeometry, packField } from "./field";
+import type { FieldColor, PackedField } from "./field";
 
 export type RenderStats = {
   fps: number;
   calls: number;
   triangles: number;
   frameMs: number;
+  contributions?: number;
+  terrainVertices?: number;
 };
 export type Anchor = {
   id: string;
@@ -63,26 +66,26 @@ export class ObservatoryRenderer {
   private scene = new THREE.Scene();
   private camera = new THREE.PerspectiveCamera(40, 1, 0.1, 500);
   private controls: OrbitControls;
-  private geometry = new THREE.PlaneGeometry(68, 58, 400, 340).rotateX(
+  private geometry = new THREE.PlaneGeometry(1, 1, 1, 1).rotateX(-Math.PI / 2);
+  private field: PackedField | undefined;
+  private fieldTexture = new THREE.DataTexture(
+    new Float32Array(12),
+    3,
+    1,
+    THREE.RGBAFormat,
+    THREE.FloatType,
+  );
+  private fieldColors = new Map<string, FieldColor>();
+  private extent = fieldBounds([]);
+  private terrainPlan = "";
+  private focusPlan = "";
+  private focusGeometry = new THREE.PlaneGeometry(1, 1, 1, 1).rotateX(
     -Math.PI / 2,
   );
   private uniforms = {
-    uWells: {
-      value: Array.from(
-        { length: capacity },
-        () => new THREE.Vector4(0, 0, 1, 0),
-      ),
-    },
-    uColors: {
-      value: Array.from({ length: capacity }, () => new THREE.Color()),
-    },
-    uShapes: {
-      value: Array.from(
-        { length: capacity },
-        () => new THREE.Vector4(1, 0, 0, 1),
-      ),
-    },
-    uAttention: { value: new Float32Array(capacity) },
+    uField: { value: this.fieldTexture },
+    uFieldSize: { value: new THREE.Vector2(3, 1) },
+    uFieldColumns: { value: 1 },
     uCount: { value: 0 },
     uNight: { value: 0 },
     uWarning: { value: new THREE.Color() },
@@ -100,7 +103,9 @@ export class ObservatoryRenderer {
     fragmentShader: terrainFragment,
     uniforms: this.uniforms,
   });
-  private skyGeometry = new THREE.SphereGeometry(180, 32, 16);
+  private terrain = new THREE.Mesh(this.geometry, this.material);
+  private focusTerrain = new THREE.Mesh(this.focusGeometry, this.material);
+  private skyGeometry = new THREE.SphereGeometry(1, 32, 16);
   private skyMaterial = new THREE.ShaderMaterial({
     vertexShader: skyVertex,
     fragmentShader: skyFragment,
@@ -111,6 +116,7 @@ export class ObservatoryRenderer {
     },
     side: THREE.BackSide,
     depthWrite: false,
+    depthTest: false,
   });
   private sky = new THREE.Mesh(this.skyGeometry, this.skyMaterial);
   private wells: Well[] = [];
@@ -188,13 +194,7 @@ export class ObservatoryRenderer {
     );
     this.renderer.domElement.setAttribute("role", "img");
     container.append(this.renderer.domElement);
-    const vertices = this.geometry.attributes.position!;
-    for (let i = 0; i < vertices.count; i++) {
-      const x = vertices.getX(i);
-      const z = vertices.getZ(i);
-      vertices.setX(i, x + Math.sign(x) * (Math.abs(x) / 34) ** 8 * 90);
-      vertices.setZ(i, z + Math.sign(z) * (Math.abs(z) / 29) ** 8 * 90);
-    }
+    this.configureFieldTexture();
     this.camera.position.set(9, 20, 26);
     this.controls = new OrbitControls(this.camera, this.renderer.domElement);
     this.controls.target.set(0, -0.6, 0);
@@ -205,7 +205,10 @@ export class ObservatoryRenderer {
     this.controls.minPolarAngle = 0.05;
     this.controls.maxPolarAngle = Math.PI * 0.44;
     this.controls.update();
-    this.scene.add(new THREE.Mesh(this.geometry, this.material));
+    this.terrain.frustumCulled = false;
+    this.focusTerrain.frustumCulled = false;
+    this.focusTerrain.visible = false;
+    this.scene.add(this.terrain, this.focusTerrain);
     this.sky.renderOrder = -10;
     this.sky.frustumCulled = false;
     this.scene.add(this.sky);
@@ -284,16 +287,133 @@ export class ObservatoryRenderer {
     this.frame = requestAnimationFrame(this.animate);
   }
 
+  private configureFieldTexture() {
+    this.fieldTexture.minFilter = THREE.NearestFilter;
+    this.fieldTexture.magFilter = THREE.NearestFilter;
+    this.fieldTexture.generateMipmaps = false;
+    this.fieldTexture.flipY = false;
+    this.fieldTexture.colorSpace = THREE.NoColorSpace;
+    this.fieldTexture.unpackAlignment = 1;
+    this.fieldTexture.needsUpdate = true;
+  }
+
+  private submitField(wells: Well[], settings: RendererSettings) {
+    const next = packField(
+      wells,
+      this.renderer.capabilities.maxTextureSize,
+      (well) => {
+        const hex = settings.palette[well.sector] ?? settings.palette.reporting;
+        let rgb = this.fieldColors.get(hex);
+        if (!rgb) {
+          const color = new THREE.Color(hex);
+          rgb = [color.r, color.g, color.b];
+          this.fieldColors.set(hex, rgb);
+        }
+        return rgb;
+      },
+      (well) =>
+        settings.activity.source.attention?.(well.id) ??
+        (well.attention ? 0.5 : 0),
+      this.field,
+    );
+    if (next.data !== this.field?.data) {
+      this.fieldTexture.dispose();
+      this.fieldTexture = new THREE.DataTexture(
+        next.data,
+        next.width,
+        next.height,
+        THREE.RGBAFormat,
+        THREE.FloatType,
+      );
+      this.configureFieldTexture();
+      this.uniforms.uField.value = this.fieldTexture;
+      this.uniforms.uFieldSize.value.set(next.width, next.height);
+      this.uniforms.uFieldColumns.value = next.columns;
+    } else if (next.changed) this.fieldTexture.needsUpdate = true;
+    this.field = next;
+    this.uniforms.uCount.value = next.count;
+  }
+
+  private coverLandscape(wells: Well[]) {
+    const extent = fieldBounds(wells);
+    const plan = fieldGeometry(
+      Math.max(this.targets.length, wells.length),
+      extent.width,
+      extent.depth,
+    );
+    const key = `${plan.x}:${plan.z}:${extent.width}:${extent.depth}:${extent.apron}`;
+    if (key !== this.terrainPlan) {
+      this.geometry.dispose();
+      this.geometry = new THREE.PlaneGeometry(
+        extent.width,
+        extent.depth,
+        plan.x,
+        plan.z,
+      ).rotateX(-Math.PI / 2);
+      const vertices = this.geometry.attributes.position!;
+      for (let i = 0; i < vertices.count; i++) {
+        const x = vertices.getX(i),
+          z = vertices.getZ(i);
+        vertices.setX(
+          i,
+          x +
+            Math.sign(x) *
+              (Math.abs(x) / (extent.width / 2)) ** 8 *
+              extent.apron,
+        );
+        vertices.setZ(
+          i,
+          z +
+            Math.sign(z) *
+              (Math.abs(z) / (extent.depth / 2)) ** 8 *
+              extent.apron,
+        );
+      }
+      this.terrain.geometry = this.geometry;
+      this.terrainPlan = key;
+    }
+    this.terrain.position.set(extent.x, 0, extent.z);
+    this.extent = extent;
+    const span = Math.hypot(extent.width, extent.depth, extent.vertical);
+    const pose = fittedLandscapePose(wells, this.camera.aspect, 0.18, 0.23);
+    const fittedDistance = Math.hypot(
+      pose.position.x - pose.target.x,
+      pose.position.y - pose.target.y,
+      pose.position.z - pose.target.z,
+    );
+    this.controls.maxDistance = Math.max(220, fittedDistance * 1.5, span * 4);
+    this.camera.far = Math.max(
+      500,
+      this.controls.maxDistance + span * 3 + extent.apron * 2,
+    );
+    this.camera.updateProjectionMatrix();
+  }
+
+  private publishFieldDiagnostics() {
+    const canvas = this.renderer.domElement;
+    canvas.dataset.gravityContributions = String(this.uniforms.uCount.value);
+    canvas.dataset.gravityLastContribution =
+      this.wells[this.uniforms.uCount.value - 1]?.id ?? "";
+    canvas.dataset.gravityFieldTexture = `${this.field?.width ?? 0}x${this.field?.height ?? 0}`;
+    canvas.dataset.gravityTerrainVertices = String(
+      this.geometry.attributes.position!.count,
+    );
+    canvas.dataset.gravityTerrainBounds = JSON.stringify({
+      minX: this.extent.x - this.extent.width / 2 - this.extent.apron,
+      maxX: this.extent.x + this.extent.width / 2 + this.extent.apron,
+      minZ: this.extent.z - this.extent.depth / 2 - this.extent.apron,
+      maxZ: this.extent.z + this.extent.depth / 2 + this.extent.apron,
+    });
+    canvas.dataset.gravityCameraFar = String(this.camera.far);
+    canvas.dataset.gravityMaxDistance = String(this.controls.maxDistance);
+  }
+
   private listen(target: EventTarget, event: string, handler: EventListener) {
     target.addEventListener(event, handler);
     this.listeners.push(() => target.removeEventListener(event, handler));
   }
 
   update(wells: Well[], settings: RendererSettings) {
-    if (wells.length > capacity)
-      throw new Error(
-        `This viewport supports ${capacity} surface contributions; it does not truncate resources.`,
-      );
     const layoutChanged =
       wells.length !== this.targets.length ||
       wells.some((well, index) => {
@@ -315,6 +435,14 @@ export class ObservatoryRenderer {
           ).some((key) => well[key] !== previous[key])
         );
       });
+    const active = new Set(wells.map((well) => well.id));
+    const complete = [
+      ...wells,
+      ...this.wells.filter((well) => !active.has(well.id)),
+    ];
+    this.fieldColors.clear();
+    this.submitField(complete, settings);
+    this.coverLandscape([...this.wells, ...wells]);
     const cameraChanged = settings.cameraMode !== this.settings.cameraMode;
     const activityChanged =
       settings.activity.source !== this.settings.activity.source ||
@@ -381,6 +509,7 @@ export class ObservatoryRenderer {
     this.renderer.setSize(this.width, this.height);
     this.camera.aspect = this.width / this.height;
     this.camera.updateProjectionMatrix();
+    this.coverLandscape([...this.wells, ...this.targets]);
     this.overlayCamera.left = -this.width / 2;
     this.overlayCamera.right = this.width / 2;
     this.overlayCamera.top = this.height / 2;
@@ -492,27 +621,7 @@ export class ObservatoryRenderer {
         return value;
       })
       .filter((well) => activeIds.has(well.id) || well.depth > 0.002);
-    this.uniforms.uCount.value = this.wells.length;
-    this.wells.forEach((well, i) => {
-      this.uniforms.uWells.value[i]!.set(
-        well.x,
-        well.z,
-        well.radius,
-        well.depth,
-      );
-      this.uniforms.uColors.value[i]!.set(
-        this.settings.palette[well.sector] ?? this.settings.palette.reporting,
-      );
-      this.uniforms.uShapes.value[i]!.set(
-        well.aspect,
-        well.angle,
-        well.elevation,
-        well.profile,
-      );
-      this.uniforms.uAttention.value[i] =
-        this.settings.activity.source.attention?.(well.id) ??
-        (well.attention ? 0.5 : 0);
-    });
+    this.submitField(this.wells, this.settings);
     const targetNight = this.settings.theme === "midnight" ? 1 : 0;
     const oldNight = this.uniforms.uNight.value;
     this.uniforms.uNight.value = THREE.MathUtils.lerp(
@@ -607,7 +716,8 @@ export class ObservatoryRenderer {
       moving && this.settings.cameraMode === "manual";
     changing = this.controls.update(dt) || changing;
     this.uniforms.uFogStart.value =
-      this.camera.position.distanceTo(this.controls.target) + 18;
+      this.camera.position.distanceTo(this.controls.target) +
+      Math.max(18, Math.hypot(this.extent.width, this.extent.depth));
     if (
       this.needsDraw ||
       changing ||
@@ -634,6 +744,7 @@ export class ObservatoryRenderer {
       );
       this.sky.position.copy(this.camera.position);
       this.renderer.render(this.scene, this.camera);
+      this.publishFieldDiagnostics();
       if (this.lensAmount > 0.005 && selected) this.renderLens(selected, dt);
       else {
         this.focusReady = false;
@@ -654,6 +765,8 @@ export class ObservatoryRenderer {
         frameMs: Math.round(mean * 10) / 10,
         calls: this.renderer.info.render.calls,
         triangles: this.renderer.info.render.triangles,
+        contributions: this.uniforms.uCount.value,
+        terrainVertices: this.geometry.attributes.position!.count,
       });
       this.frames = [];
       this.nextStats = now + 1200;
@@ -742,10 +855,10 @@ export class ObservatoryRenderer {
 
   private renderLens(selected: Well, dt: number) {
     const center = new THREE.Vector3(selected.x, 0.4, selected.z);
-    const distance =
-      selected.kind === "project"
-        ? 22
-        : Math.max(10, selected.radius * Math.max(1, selected.aspect) * 5);
+    const distance = Math.max(
+      10,
+      selected.radius * Math.max(1, selected.aspect) * 5,
+    );
     const smoothing =
       this.settings.motion && this.focusReady ? 1 - Math.exp(-dt * 5) : 1;
     this.focusCenter.lerp(center, smoothing);
@@ -767,9 +880,39 @@ export class ObservatoryRenderer {
       .addScaledVector(direction, this.focusDistance);
     this.focusCamera.lookAt(this.focusCenter);
     this.focusCamera.updateMatrixWorld();
+    this.focusCamera.far = Math.max(
+      100,
+      this.focusDistance +
+        this.extent.vertical * 2 +
+        selected.radius * Math.max(1, selected.aspect) * 12,
+    );
+    this.focusCamera.updateProjectionMatrix();
+    const size = Math.max(12, this.focusDistance * 2);
+    const plan = fieldGeometry(this.wells.length, size, size, true);
+    const key = `${plan.x}:${plan.z}`;
+    if (key !== this.focusPlan) {
+      this.focusGeometry.dispose();
+      this.focusGeometry = new THREE.PlaneGeometry(
+        1,
+        1,
+        plan.x,
+        plan.z,
+      ).rotateX(-Math.PI / 2);
+      this.focusTerrain.geometry = this.focusGeometry;
+      this.focusPlan = key;
+    }
+    this.focusTerrain.position.set(this.focusCenter.x, 0, this.focusCenter.z);
+    this.focusTerrain.scale.set(size, 1, size);
+    this.renderer.domElement.dataset.gravityFocusVertices = String(
+      plan.vertices,
+    );
     this.renderer.setRenderTarget(this.target);
     this.sky.position.copy(this.focusCamera.position);
+    this.terrain.visible = false;
+    this.focusTerrain.visible = true;
     this.renderer.render(this.scene, this.focusCamera);
+    this.terrain.visible = true;
+    this.focusTerrain.visible = false;
     this.renderer.setRenderTarget(null);
     const radius = this.lensRadius() * this.lensAmount;
     this.lens.scale.set(radius, radius, 1);
@@ -789,6 +932,8 @@ export class ObservatoryRenderer {
     this.listeners.forEach((remove) => remove());
     this.controls.dispose();
     this.geometry.dispose();
+    this.focusGeometry.dispose();
+    this.fieldTexture.dispose();
     this.material.dispose();
     this.skyGeometry.dispose();
     this.skyMaterial.dispose();
