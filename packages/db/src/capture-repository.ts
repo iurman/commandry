@@ -1,6 +1,9 @@
+import { captureSchema } from "@commandry/contracts";
+import { fileCaptureTaskInTransaction } from "./capture-task-filing";
 import { and, desc, eq, gt, isNotNull, isNull, lt, or, sql } from "drizzle-orm";
 import {
   CaptureError,
+  requireGenericCaptureFiling,
   MANUAL_CAPTURE_AUTHOR,
   MANUAL_CAPTURE_SOURCE,
   localImagePreviewMediaType,
@@ -32,7 +35,7 @@ export function captureRecord(
         Buffer.from(file.contentBase64.slice(0, 32), "base64"),
       )
     : null;
-  return {
+  return captureSchema.parse({
     id: row.id,
     inputType: row.inputType,
     originalContent: row.originalContent,
@@ -58,7 +61,7 @@ export function captureRecord(
         : null,
     createdAt: row.createdAt.toISOString(),
     filedAt: row.filedAt?.toISOString() ?? null,
-  };
+  });
 }
 
 export function knowledgeRecord(
@@ -232,38 +235,23 @@ export function createCaptureRepository(db: CommandryDatabase) {
       workType?: "task" | "initiative" | undefined;
     }) {
       return db.transaction(async (tx) => {
-        const [updated] = await tx
-          .update(capture)
-          .set({
-            state: "filed",
-            projectId: input.projectId,
-            filedRecordKind: "task",
-            filedRecordId: input.recordId,
-            filedAt: new Date(),
-          })
-          .where(
-            and(eq(capture.id, input.captureId), eq(capture.state, "unfiled")),
-          )
-          .returning();
-        if (!updated) {
-          throw new CaptureError(
-            "CAPTURE_ALREADY_FILED",
-            "Capture is already filed",
-          );
-        }
-        const [record] = await tx
-          .insert(workItem)
-          .values({
-            id: input.recordId,
-            projectId: input.projectId,
-            sourceCaptureId: input.captureId,
-            title: input.title,
-            description: input.description,
-            workType: input.workType ?? "task",
-          })
-          .returning();
-        if (!record) throw new Error("Work item insert returned no row");
-        return { capture: captureRecord(updated), record: workRecord(record) };
+        const [source] = await tx
+          .select()
+          .from(capture)
+          .where(eq(capture.id, input.captureId))
+          .for("update")
+          .limit(1);
+        if (!source)
+          throw new CaptureError("CAPTURE_NOT_FOUND", "Capture not found");
+        requireGenericCaptureFiling(source);
+        const result = await fileCaptureTaskInTransaction(tx, {
+          ...input,
+          at: new Date(),
+        });
+        return {
+          capture: captureRecord(result.capture),
+          record: workRecord(result.record),
+        };
       });
     },
     async fileAsNote(input: {
@@ -275,6 +263,15 @@ export function createCaptureRepository(db: CommandryDatabase) {
       knowledgeType?: KnowledgeTextType | undefined;
     }) {
       return db.transaction(async (tx) => {
+        const [original] = await tx
+          .select()
+          .from(capture)
+          .where(eq(capture.id, input.captureId))
+          .for("update")
+          .limit(1);
+        if (!original)
+          throw new CaptureError("CAPTURE_NOT_FOUND", "Capture not found");
+        requireGenericCaptureFiling(original);
         const [updated] = await tx
           .update(capture)
           .set({
@@ -321,6 +318,15 @@ export function createCaptureRepository(db: CommandryDatabase) {
       url: string;
     }) {
       return db.transaction(async (tx) => {
+        const [original] = await tx
+          .select()
+          .from(capture)
+          .where(eq(capture.id, input.captureId))
+          .for("update")
+          .limit(1);
+        if (!original)
+          throw new CaptureError("CAPTURE_NOT_FOUND", "Capture not found");
+        requireGenericCaptureFiling(original);
         const [updated] = await tx
           .update(capture)
           .set({
@@ -366,6 +372,15 @@ export function createCaptureRepository(db: CommandryDatabase) {
       content: string;
     }) {
       return db.transaction(async (tx) => {
+        const [original] = await tx
+          .select()
+          .from(capture)
+          .where(eq(capture.id, input.captureId))
+          .for("update")
+          .limit(1);
+        if (!original)
+          throw new CaptureError("CAPTURE_NOT_FOUND", "Capture not found");
+        requireGenericCaptureFiling(original);
         const [file] = await tx
           .select()
           .from(captureFile)

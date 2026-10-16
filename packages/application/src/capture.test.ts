@@ -156,3 +156,38 @@ describe("manual capture application", () => {
     expect(filed.record).toMatchObject({ kind: "link", url: savedUrl });
   });
 });
+
+it("blocks every generic conversion of an actual-client proposal before any side effect", async () => {
+  let calls = 0;
+  const service = createCaptureService(
+    port({
+      getCapture: async () => ({
+        ...capture,
+        inputType: "text",
+        file: null,
+        filedRecord: null,
+        source: "foundation-client",
+        author: "foundation-client:48401dbc-26ee-4c68-b7f5-e5360b504dc0",
+        projectId: work.projectId,
+      }),
+      projectExists: async () => {
+        calls++;
+        return true;
+      },
+      fileAsTask: async () => {
+        calls++;
+        throw new Error("unexpected filing");
+      },
+    }),
+  );
+  for (const kind of ["task", "note", "link", "document"] as const) {
+    await expect(
+      service.fileCapture(capture.id, {
+        kind,
+        projectId: work.projectId,
+        title: "Owner decision required",
+      }),
+    ).rejects.toMatchObject({ code: "CAPTURE_REVIEW_REQUIRED" });
+  }
+  expect(calls).toBe(0);
+});

@@ -47,6 +47,7 @@ const token = "af_" + "A".repeat(43);
 const machineOperations = [
   "foundation.read",
   "work.read",
+  "work.propose",
   "evidence.record",
   "memory.propose",
   "memory.revise",
@@ -54,6 +55,8 @@ const machineOperations = [
   "evaluation.record",
 ];
 const ownerOperations = [
+  "work.proposal.read",
+  "work.proposal.review",
   "memory.review",
   "memory.import",
   "memory.verify",
@@ -120,7 +123,7 @@ const invalidDatetimes = [
   new Date(createdAt),
 ];
 
-test("machine operations include exactly seven opt-in capabilities", () => {
+test("machine operations include exactly eight opt-in capabilities", () => {
   assert.deepEqual(foundationMachineOperationSchema.options, machineOperations);
   for (const operation of machineOperations) {
     assert.equal(foundationMachineOperationSchema.parse(operation), operation);

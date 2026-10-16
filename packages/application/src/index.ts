@@ -65,3 +65,5 @@ export * from "./foundation-skill-registry";
 export * from "./mnemosyne-selected-import";
 
 export * from "./foundation-work";
+
+export * from "./foundation-task-proposal";

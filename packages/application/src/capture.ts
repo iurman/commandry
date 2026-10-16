@@ -12,6 +12,7 @@ import {
   CaptureError,
   KnowledgeLinkError,
   manualFilingContent,
+  requireGenericCaptureFiling,
   safeKnowledgeLinkUrl,
   validateKnowledgeFilingType,
   validateOriginalCaptureContent,
@@ -124,6 +125,7 @@ export function createCaptureService(repository: CaptureRepository) {
       if (!capture) {
         throw new CaptureError("CAPTURE_NOT_FOUND", "Capture not found");
       }
+      requireGenericCaptureFiling(capture);
       if (capture.state === "filed") {
         throw new CaptureError(
           "CAPTURE_ALREADY_FILED",

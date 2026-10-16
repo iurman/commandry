@@ -104,9 +104,20 @@ export class CaptureError extends Error {
       | "CAPTURE_NOT_FOUND"
       | "PROJECT_NOT_FOUND"
       | "CAPTURE_ALREADY_FILED"
-      | "CAPTURE_KIND_INVALID",
+      | "CAPTURE_KIND_INVALID"
+      | "CAPTURE_REVIEW_REQUIRED",
     message: string,
   ) {
     super(message);
+  }
+}
+
+/** Actual-client captures always require the separate owner proposal decision. */
+export function requireGenericCaptureFiling(capture: { source: string }): void {
+  if (capture.source === "foundation-client") {
+    throw new CaptureError(
+      "CAPTURE_REVIEW_REQUIRED",
+      "Review this agent task proposal before filing",
+    );
   }
 }

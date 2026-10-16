@@ -1,5 +1,9 @@
 import { relations, sql } from "drizzle-orm";
-import type { SavedViewDefinition } from "@commandry/contracts";
+import type {
+  SavedViewDefinition,
+  FoundationTaskProposalSuggestion,
+  FoundationTaskProposalDecision,
+} from "@commandry/contracts";
 import type {
   LocalReleasePreflightChecks,
   ProjectMetadata,
@@ -715,15 +719,11 @@ export const capture = pgTable(
     }).notNull(),
     originalContent: text("original_content").notNull(),
     source: text("source", {
-      enum: ["manual-local", "automation-local-synthetic"],
+      enum: ["manual-local", "automation-local-synthetic", "foundation-client"],
     })
       .notNull()
       .default("manual-local"),
-    author: text("author", {
-      enum: ["local-user", "system:local-automation-worker"],
-    })
-      .notNull()
-      .default("local-user"),
+    author: text("author").notNull().default("local-user"),
     state: text("state", { enum: ["unfiled", "filed"] })
       .notNull()
       .default("unfiled"),
@@ -755,11 +755,11 @@ export const capture = pgTable(
     ),
     check(
       "capture_source_valid",
-      sql`${table.source} in ('manual-local', 'automation-local-synthetic')`,
+      sql`${table.source} in ('manual-local', 'automation-local-synthetic', 'foundation-client')`,
     ),
     check(
       "capture_author_valid",
-      sql`(${table.source} = 'manual-local' and ${table.author} = 'local-user') or (${table.source} = 'automation-local-synthetic' and ${table.author} = 'system:local-automation-worker')`,
+      sql`(${table.source} = 'manual-local' and ${table.author} = 'local-user') or (${table.source} = 'automation-local-synthetic' and ${table.author} = 'system:local-automation-worker') or (${table.source} = 'foundation-client' and ${table.author} ~ '^foundation-client:[a-f0-9]{8}-[a-f0-9]{4}-[a-f0-9]{4}-[a-f0-9]{4}-[a-f0-9]{12}$' and length(${table.author}) = 54 and ${table.inputType} = 'text' and ${table.projectId} is not null)`,
     ),
     check(
       "capture_filing_state_valid",
@@ -846,7 +846,10 @@ export const captureTriageSuggestion = pgTable(
       },
     ),
     title: text("title").notNull(),
-    confidence: integer("confidence").notNull(),
+    confidence: integer("confidence"),
+    body: text("body"),
+    proposal:
+      jsonb("proposal").$type<FoundationTaskProposalSuggestion["proposal"]>(),
     rationale: text("rationale").notNull(),
     ruleVersion: text("rule_version").notNull(),
     sourceLabel: text("source_label").notNull(),
@@ -864,15 +867,15 @@ export const captureTriageSuggestion = pgTable(
     ),
     check(
       "capture_triage_suggestion_confidence_valid",
-      sql`${table.confidence} between 0 and 100`,
+      sql`((${table.ruleVersion} = 'capture-triage/v1' and ${table.confidence} between 0 and 100 and ${table.body} is null and ${table.proposal} is null) or (${table.ruleVersion} = 'agent-task-proposal/v1' and ${table.confidence} is null and ${table.body} is not null and ${table.proposal} is not null)) is true`,
     ),
     check(
       "capture_triage_suggestion_rule_v1",
-      sql`${table.ruleVersion} = 'capture-triage/v1'`,
+      sql`${table.ruleVersion} in ('capture-triage/v1', 'agent-task-proposal/v1')`,
     ),
     check(
       "capture_triage_suggestion_source_local",
-      sql`${table.sourceLabel} = 'Local deterministic rule'`,
+      sql`((${table.ruleVersion} = 'capture-triage/v1' and ${table.sourceLabel} = 'Local deterministic rule') or (${table.ruleVersion} = 'agent-task-proposal/v1' and ${table.sourceLabel} = 'Agent task proposal')) is true`,
     ),
   ],
 );
@@ -899,6 +902,11 @@ export const captureTriageDecision = pgTable(
     selectedBody: text("selected_body"),
     filedRecordId: uuid("filed_record_id"),
     actor: text("actor").notNull(),
+    creationTransaction: text("creation_transaction")
+      .notNull()
+      .default(sql`pg_current_xact_id()::text`),
+    provenance:
+      jsonb("provenance").$type<FoundationTaskProposalDecision["provenance"]>(),
     createdAt: createdAt(),
   },
   (table) => [
@@ -908,7 +916,7 @@ export const captureTriageDecision = pgTable(
     ),
     check(
       "capture_triage_decision_actor_local",
-      sql`${table.actor} = 'local-user:unattributed'`,
+      sql`((${table.actor} = 'local-user:unattributed' and ${table.provenance} is null) or (${table.actor} like 'user:%' and length(trim(substring(${table.actor} from 6))) > 0 and length(${table.actor}) <= 500 and ${table.provenance} is not null)) is true`,
     ),
     check(
       "capture_triage_decision_kind_valid",

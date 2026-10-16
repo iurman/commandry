@@ -58,7 +58,7 @@ export const foundationClient = pgTable(
     ),
     check(
       "foundation_client_operations_valid",
-      sql`jsonb_typeof(${t.operations}) = 'array' and jsonb_array_length(${t.operations}) between 1 and 7 and ${t.operations} <@ '["foundation.read","work.read","evidence.record","memory.propose","memory.revise","configuration.record","evaluation.record"]'::jsonb`,
+      sql`jsonb_typeof(${t.operations}) = 'array' and jsonb_array_length(${t.operations}) between 1 and 8 and ${t.operations} <@ '["foundation.read","work.read","work.propose","evidence.record","memory.propose","memory.revise","configuration.record","evaluation.record"]'::jsonb`,
     ),
   ],
 );

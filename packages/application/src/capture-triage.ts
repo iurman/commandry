@@ -6,12 +6,18 @@ import type {
   ReviewCaptureTriageRequest,
   ReviewCaptureTriageResponse,
 } from "@commandry/contracts";
-import { CaptureTriageError, suggestCaptureTriage } from "@commandry/domain";
+import {
+  CaptureTriageError,
+  suggestCaptureTriage,
+  requireLocalCaptureTriage,
+  isLocalDeterministicTriageEligible,
+} from "@commandry/domain";
 
 export interface CaptureTriagePort {
   getCapture(id: string): Promise<{
     id: string;
     inputType: Capture["inputType"];
+    source: Capture["source"];
     originalContent: string;
     state: "unfiled" | "filed";
     projectId: string | null;
@@ -46,6 +52,7 @@ export function createCaptureTriageService(port: CaptureTriagePort) {
       if (!capture) {
         throw new CaptureTriageError("CAPTURE_NOT_FOUND", "Capture not found");
       }
+      requireLocalCaptureTriage(capture);
       if (capture.state === "filed") {
         throw new CaptureTriageError(
           "CAPTURE_ALREADY_FILED",
@@ -59,7 +66,13 @@ export function createCaptureTriageService(port: CaptureTriagePort) {
         );
       await port.enqueueSuggestion(captureId);
     },
-    review: port.review,
+    async review(captureId: string, input: ReviewCaptureTriageRequest) {
+      const capture = await port.getCapture(captureId);
+      if (!capture)
+        throw new CaptureTriageError("CAPTURE_NOT_FOUND", "Capture not found");
+      requireLocalCaptureTriage(capture);
+      return port.review(captureId, input);
+    },
   };
 }
 
@@ -86,7 +99,7 @@ export function createCaptureTriageProcessor(
     if (!capture) {
       throw new CaptureTriageError("CAPTURE_NOT_FOUND", "Capture not found");
     }
-    if (capture.state === "filed") return null;
+    if (!isLocalDeterministicTriageEligible(capture)) return null;
     if (capture.inputType === "file") return null;
     const proposal = suggestCaptureTriage({
       inputType: capture.inputType,

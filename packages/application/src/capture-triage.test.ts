@@ -1,6 +1,11 @@
 import { expect, test } from "vitest";
 import type { Capture } from "@commandry/contracts";
-import { createCaptureAndRequestTriage } from "./capture-triage";
+import {
+  createCaptureAndRequestTriage,
+  createCaptureTriageService,
+  createCaptureTriageProcessor,
+  type CaptureTriagePort,
+} from "./capture-triage";
 
 test("queue failure does not erase or fail a saved original capture", async () => {
   const capture: Capture = {
@@ -26,4 +31,42 @@ test("queue failure does not erase or fail a saved original capture", async () =
     { inputType: "text", originalContent: capture.originalContent },
   );
   expect(result).toEqual({ capture, triageQueued: false });
+});
+
+test("actual-client originals cannot enter deterministic jobs or legacy decisions", async () => {
+  const id = "e84746b2-a159-4bba-8c0d-00ca907e436a";
+  let effects = 0;
+  const port: CaptureTriagePort = {
+    getCapture: async () => ({
+      id,
+      inputType: "text",
+      source: "foundation-client",
+      originalContent: "fix this",
+      state: "unfiled",
+      projectId: id,
+    }),
+    getReview: async () => {
+      throw new Error("unused");
+    },
+    createSuggestionOnce: async () => {
+      effects++;
+      return null;
+    },
+    review: async () => {
+      effects++;
+      throw new Error("unexpected review");
+    },
+    enqueueSuggestion: async () => {
+      effects++;
+    },
+  };
+  const service = createCaptureTriageService(port);
+  await expect(service.requestSuggestion(id)).rejects.toMatchObject({
+    code: "CAPTURE_REVIEW_REQUIRED",
+  });
+  await expect(
+    service.review(id, { decision: "reject" }),
+  ).rejects.toMatchObject({ code: "CAPTURE_REVIEW_REQUIRED" });
+  expect(await createCaptureTriageProcessor(port)(id)).toBeNull();
+  expect(effects).toBe(0);
 });

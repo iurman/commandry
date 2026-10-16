@@ -13,16 +13,38 @@ import { workItemSchema } from "./work";
 
 export { captureFileMetadataSchema } from "./capture";
 export * from "./foundation-task-proposal";
+// Check actual-client markers before a legacy object can strip unknown keys.
+// Legacy additive-field parsing otherwise retains its existing behavior.
+function localVariant<Schema extends z.ZodType>(
+  schema: Schema,
+  markers: string[],
+) {
+  return z
+    .unknown()
+    .superRefine((value, context) => {
+      if (
+        typeof value === "object" &&
+        value !== null &&
+        markers.some((key) => Object.hasOwn(value, key))
+      ) {
+        context.addIssue({
+          code: "custom",
+          message: "Actual-client provenance requires the proposal variant",
+        });
+      }
+    })
+    .pipe(schema);
+}
 export const captureSchema = z.union([
   localCaptureSchema,
   foundationTaskProposalCaptureSchema,
 ]);
 export const captureTriageSuggestionSchema = z.union([
-  localCaptureTriageSuggestionSchema,
+  localVariant(localCaptureTriageSuggestionSchema, ["proposal", "body"]),
   foundationTaskProposalSuggestionSchema,
 ]);
 export const captureTriageDecisionSchema = z.union([
-  localCaptureTriageDecisionSchema,
+  localVariant(localCaptureTriageDecisionSchema, ["provenance"]),
   foundationTaskProposalDecisionSchema,
 ]);
 

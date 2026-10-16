@@ -17,7 +17,8 @@ export function captureFailure(
     return jsonResponse(
       request,
       { code: error.code, message: error.message },
-      error.code === "CAPTURE_ALREADY_FILED"
+      error.code === "CAPTURE_ALREADY_FILED" ||
+        error.code === "CAPTURE_REVIEW_REQUIRED"
         ? 409
         : error.code === "CAPTURE_KIND_INVALID"
           ? 400
