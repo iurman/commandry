@@ -192,5 +192,46 @@ test("one master scene renders and inspects the complete multi-page inventory", 
       }),
     ).toBeVisible();
   }
+  await page.getByLabel("Find a resource").fill("");
+  await page.getByRole("button", { name: "Search", exact: true }).click();
+  await expect(
+    page.getByText("103 of 103 matching resources / one complete scene", {
+      exact: true,
+    }),
+  ).toBeVisible();
+  const fallback = page.getByRole("region", {
+    name: "Gravity Observatory",
+    exact: true,
+  });
+  const lost = await fallback.locator("canvas").evaluate((canvas) => {
+    const extension = (canvas as HTMLCanvasElement)
+      .getContext("webgl2")
+      ?.getExtension("WEBGL_lose_context");
+    if (!extension) return false;
+    extension.loseContext();
+    return true;
+  });
+  expect(lost).toBe(true);
+  await expect(fallback.getByRole("status")).toContainText(
+    "Resource controls remain available",
+  );
+  await fallback
+    .getByText("Resources in this scene (103)", { exact: true })
+    .click();
+  await expect(
+    fallback
+      .getByRole("group", { name: "Select a Gravity resource" })
+      .getByRole("button"),
+  ).toHaveCount(103);
+  await fallback
+    .getByRole("group", { name: "Select a Gravity resource" })
+    .getByRole("button")
+    .last()
+    .click();
+  await expect(
+    page.getByRole("complementary", {
+      name: "Resource inspector and recent events",
+    }),
+  ).toContainText("Service health: unknown");
   expect(errors).toEqual([]);
 });
