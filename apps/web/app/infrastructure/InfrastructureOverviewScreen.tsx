@@ -24,6 +24,7 @@ import {
   type PageResponse,
   type ProjectRecord,
 } from "../projects/api";
+import { loadInfrastructureScene } from "../../lib/load-infrastructure-scene";
 
 const needsAttention = (item: InfrastructureResource) =>
   ["error", "stale", "future"].includes(item.telemetry);
@@ -80,6 +81,10 @@ export default function InfrastructureOverviewScreen({
   const [data, setData] = useState<InfrastructureOverview | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
+  const [progress, setProgress] = useState<{
+    loaded: number;
+    total: number;
+  } | null>(null);
   const [epoch, setEpoch] = useState(0);
   const [paused, setPaused] = useState(false);
   const [view, setView] = useState<"gravity" | "map" | "list">("gravity");
@@ -143,14 +148,26 @@ export default function InfrastructureOverviewScreen({
       if (inFlight || document.hidden) return;
       inFlight = true;
       try {
-        const params = new URLSearchParams({ limit: wallboard ? "6" : "12" });
-        if (scope.projectId) params.set("projectId", scope.projectId);
-        if (scope.q) params.set("q", scope.q);
-        if (scope.cursor) params.set("cursor", scope.cursor);
-        const snapshot = await apiJson<InfrastructureOverview>(
-          `/api/v1/infrastructure/overview?${params}`,
-          { signal: controller.signal },
-        );
+        const fetchPage = (cursor: string | null, signal: AbortSignal) => {
+          const params = new URLSearchParams({
+            limit: view === "gravity" ? "50" : wallboard ? "6" : "12",
+          });
+          if (scope.projectId) params.set("projectId", scope.projectId);
+          if (scope.q) params.set("q", scope.q);
+          if (cursor) params.set("cursor", cursor);
+          return apiJson<InfrastructureOverview>(
+            `/api/v1/infrastructure/overview?${params}`,
+            { signal },
+          );
+        };
+        const snapshot =
+          view === "gravity"
+            ? await loadInfrastructureScene(
+                fetchPage,
+                controller.signal,
+                setProgress,
+              )
+            : await fetchPage(scope.cursor || null, controller.signal);
         if (controller.signal.aborted) return;
         const seen = previousEvents.current;
         setArrivals(
@@ -202,7 +219,7 @@ export default function InfrastructureOverviewScreen({
       clearInterval(timer);
       document.removeEventListener("visibilitychange", onVisible);
     };
-  }, [scope, epoch, paused, follow, wallboard]);
+  }, [scope, epoch, paused, follow, wallboard, view]);
 
   useEffect(() => {
     if (!wallboard) return;
@@ -221,7 +238,15 @@ export default function InfrastructureOverviewScreen({
   const nextCursor = data?.nextCursor;
   const hasSnapshot = data !== null;
   useEffect(() => {
-    if (!wallboard || !rotatePages || paused || error || !hasSnapshot) return;
+    if (
+      view === "gravity" ||
+      !wallboard ||
+      !rotatePages ||
+      paused ||
+      error ||
+      !hasSnapshot
+    )
+      return;
     const timer = window.setInterval(() => {
       if (document.hidden) return;
       previousEvents.current = null;
@@ -240,18 +265,25 @@ export default function InfrastructureOverviewScreen({
     nextCursor,
     scope.cursor,
     hasSnapshot,
+    view,
   ]);
 
   function changeScope(projectId: string, q = scope.q) {
     previousEvents.current = null;
     setRotatePages(false);
     setData(null);
+    setProgress(null);
     setError(null);
     setLoading(true);
     setPaused(false);
     setSelectedId(null);
     setHistory([]);
     setScope({ projectId, q, cursor: "" });
+  }
+  function changeView(next: typeof view) {
+    if (next === view) return;
+    changeScope(scope.projectId);
+    setView(next);
   }
   function searchResources(event: FormEvent) {
     event.preventDefault();
@@ -358,15 +390,17 @@ export default function InfrastructureOverviewScreen({
               <Button aria-pressed={tv} onClick={toggleTv}>
                 TV style
               </Button>
-              <Button
-                aria-pressed={rotatePages}
-                onClick={() => {
-                  setRotatePages((current) => !current);
-                  setFollow(false);
-                }}
-              >
-                Rotate pages (30s)
-              </Button>
+              {view !== "gravity" && (
+                <Button
+                  aria-pressed={rotatePages}
+                  onClick={() => {
+                    setRotatePages((current) => !current);
+                    setFollow(false);
+                  }}
+                >
+                  Rotate pages (30s)
+                </Button>
+              )}
               <Button onClick={() => void fullscreen()}>Fullscreen</Button>
               <a
                 className="cmd-button cmd-button-secondary"
@@ -452,16 +486,19 @@ export default function InfrastructureOverviewScreen({
         >
           <Button
             aria-pressed={view === "gravity"}
-            onClick={() => setView("gravity")}
+            onClick={() => changeView("gravity")}
           >
             Gravity
           </Button>
-          <Button aria-pressed={view === "map"} onClick={() => setView("map")}>
+          <Button
+            aria-pressed={view === "map"}
+            onClick={() => changeView("map")}
+          >
             Topology
           </Button>
           <Button
             aria-pressed={view === "list"}
-            onClick={() => setView("list")}
+            onClick={() => changeView("list")}
           >
             List
           </Button>
@@ -494,11 +531,13 @@ export default function InfrastructureOverviewScreen({
       {data && (
         <div className="cmd-network-snapshot">
           <span>
-            {data.items.length} of {data.total} matching resources / page{" "}
-            {history.length + 1}
+            {view === "gravity"
+              ? `${data.items.length} of ${data.total} matching resources / one complete scene`
+              : `${data.items.length} of ${data.total} matching resources / page ${history.length + 1}`}
           </span>
           <span>
-            Snapshot <time dateTime={data.readAt}>{time(data.readAt)}</time>
+            {view === "gravity" ? "Read beginning " : "Snapshot "}
+            <time dateTime={data.readAt}>{time(data.readAt)}</time>
             {paused || error ? " / Not updating" : ""}
           </span>
         </div>
@@ -515,7 +554,13 @@ export default function InfrastructureOverviewScreen({
           ))}
         </div>
       )}
-      {loading && <p role="status">Loading infrastructure...</p>}
+      {loading && (
+        <p role="status">
+          {view === "gravity" && progress
+            ? `Loading complete scene: ${progress.loaded} of ${progress.total} resources...`
+            : "Loading infrastructure..."}
+        </p>
+      )}
       {data?.total === 0 && (
         <div className="cmd-network-empty">
           <h2>
@@ -741,7 +786,10 @@ export default function InfrastructureOverviewScreen({
                               : "required by"}
                           :{" "}
                           <a href={`/resources/${otherId}`}>
-                            {other?.name ?? "Resource outside this page"}
+                            {other?.name ??
+                              (view === "gravity"
+                                ? "Resource outside this scope"
+                                : "Resource outside this page")}
                           </a>
                         </p>
                       );
@@ -755,7 +803,9 @@ export default function InfrastructureOverviewScreen({
             >
               <div className="cmd-network-section-heading">
                 <h2>Recent events</h2>
-                <span>Latest 8 / this page</span>
+                <span>
+                  Latest 8 / {view === "gravity" ? "this scope" : "this page"}
+                </span>
               </div>
               {data.events.length === 0 ? (
                 <p>No real events recorded for resources in this view.</p>
@@ -786,20 +836,22 @@ export default function InfrastructureOverviewScreen({
         </div>
       )}
       <footer className="cmd-network-footer">
-        <div className="cmd-network-controls">
-          <Button
-            disabled={history.length === 0 || loading}
-            onClick={() => nextPage(history.at(-1) ?? "", true)}
-          >
-            Previous page
-          </Button>
-          <Button
-            disabled={!data?.nextCursor || loading}
-            onClick={() => data?.nextCursor && nextPage(data.nextCursor)}
-          >
-            Next page
-          </Button>
-        </div>
+        {view !== "gravity" && (
+          <div className="cmd-network-controls">
+            <Button
+              disabled={history.length === 0 || loading}
+              onClick={() => nextPage(history.at(-1) ?? "", true)}
+            >
+              Previous page
+            </Button>
+            <Button
+              disabled={!data?.nextCursor || loading}
+              onClick={() => data?.nextCursor && nextPage(data.nextCursor)}
+            >
+              Next page
+            </Button>
+          </div>
+        )}
         <nav aria-label="Infrastructure tools">
           <a href="/infrastructure/inventory">Manage inventory</a>
           <a href="/integrations">Manage sources</a>

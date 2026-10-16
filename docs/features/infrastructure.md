@@ -101,14 +101,17 @@ active project links, containment, dependencies, real source freshness, latest
 host capacity, and recent normalized events. The same records appear in its map
 and list. `/infrastructure/inventory` retains the manual hierarchy editor;
 `/infrastructure/wallboard` provides a separate TV presentation with optional
-fullscreen, pause/resume, attention focus, and page rotation.
+fullscreen, pause/resume and attention focus. Topology and list also support
+page rotation in the wallboard.
 
 The population is all recorded resources, including unlinked resources. A
 project scope selects explicit active project-resource links, without inferring
 membership or permissions from containment. Search operates across that complete
-population. Pages show 12 resources normally and six in the wallboard, with
-matching totals and previous/next controls. Project choices follow all API pages.
-The event rail is the latest eight real events for the visible resource page,
+population. Gravity collects every overview API continuation into one complete
+scene with no visible pages. Topology and list show 12 resources normally and
+six in the wallboard, with matching totals and previous/next controls. Project
+choices follow all API pages. The event rail is the latest eight real events
+across Gravity's complete scope, or the visible resource page in topology/list,
 with an ordinary event-history link. Synthetic events do not enter this rail.
 
 Reporting means the connected sources are current within their configured
@@ -137,3 +140,23 @@ alternatives. See the [implementation record](../implementation/gravity-infrastr
 and [ADR 0013](../decisions/0013-share-the-gravity-renderer-with-production.md).
 The [production activation record](../implementation/gravity-infrastructure.md#production-activation-2026-10-15)
 records the validated release and live inventory checks.
+
+[ADR 0015](../decisions/0015-show-the-complete-gravity-landscape.md) replaces
+Gravity's visible pages with a master landscape. All continuations must complete
+before a new scene replaces the previous complete scene. A later-page failure
+retains delayed prior evidence; changing project, search or presentation clears
+the previous scope and cancels its collection. The displayed read beginning is
+the earliest page read time. Pages are live reads, not an atomic database snapshot.
+
+Texture-backed field records replace the old 64-contribution uniform array.
+Terrain, camera and sky coverage scale with the landscape; geometric detail may
+adapt while every resource remains represented and selectable. Actual device
+graphics limits can still prevent rendering. Complete resource selection and
+the list alternative remain available in that case. Grouping, colors, camera
+and sector assignments remain device-local presentation preferences.
+
+Canonical inventory is already available through project-scoped MCP resource
+continuation. The UI and agents read the same canonical identities; a scene does
+not widen membership or client capabilities. See the
+[real coding-agent pilot workflow](../workflows/gravity-master-scene-agent-pilot.md)
+for task discovery, evidence and the remaining runtime boundaries.

@@ -9,14 +9,13 @@ export type CameraPose = {
 };
 
 export function landscapeBounds(wells: Well[]): Bounds {
-  const hosts = wells.filter((well) => well.kind === "host");
-  if (!hosts.length)
+  if (!wells.length)
     return { center: { x: 0, y: 0, z: 0 }, half: { x: 10, y: 4, z: 10 } };
   let minX = Infinity,
     maxX = -Infinity,
     minZ = Infinity,
     maxZ = -Infinity;
-  for (const well of hosts) {
+  for (const well of wells) {
     const footprint = well.radius * Math.max(1, well.aspect) * 1.7;
     minX = Math.min(minX, well.x - footprint);
     maxX = Math.max(maxX, well.x + footprint);
@@ -84,17 +83,15 @@ export function fittedLandscapePose(
   elevation = 0.95,
 ): CameraPose {
   const bounds = landscapeBounds(wells);
-  const subjects = wells
-    .filter((well) => well.kind === "host")
-    .map((well) => ({
-      center: { x: well.x, y: 0, z: well.z },
-      half: {
-        x: well.radius * Math.max(1, well.aspect) * 1.7,
-        y: 5,
-        z: well.radius * Math.max(1, well.aspect) * 1.7,
-      },
-    }));
-  // Fit occupied host footprints, rather than empty corners of the aggregate box.
+  const subjects = wells.map((well) => ({
+    center: { x: well.x, y: 0, z: well.z },
+    half: {
+      x: well.radius * Math.max(1, well.aspect) * 1.7,
+      y: 5,
+      z: well.radius * Math.max(1, well.aspect) * 1.7,
+    },
+  }));
+  // Fit every occupied footprint, including nested resources and sector fields.
   return fittedPose(
     bounds,
     aspect,

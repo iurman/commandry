@@ -86,7 +86,9 @@ test("map, list, evidence, project focus and wallboard work across themes and vi
       }),
     ).toBeVisible();
     await expect(
-      page.getByText("2 of 2 matching resources / page 1", { exact: true }),
+      page.getByText("2 of 2 matching resources / one complete scene", {
+        exact: true,
+      }),
     ).toBeVisible();
     await page.getByRole("button", { name: "Topology", exact: true }).click();
     await page
@@ -208,6 +210,15 @@ test("scope is complete beyond the first page and delayed refresh retains labele
     ).toBe(201);
   }
   await page.goto(`/infrastructure?projectId=${f.project.id}`);
+  await expect(
+    page.getByText("15 of 15 matching resources / one complete scene", {
+      exact: true,
+    }),
+  ).toBeVisible();
+  await expect(
+    page.getByRole("button", { name: "Next page", exact: true }),
+  ).toHaveCount(0);
+  await page.getByRole("button", { name: "List", exact: true }).click();
   await expect(
     page.getByText("12 of 15 matching resources / page 1", { exact: true }),
   ).toBeVisible();
@@ -490,7 +501,7 @@ test("Gravity uses canonical resources, persisted appearance, focus and truthful
         .evaluate((element) => element.getBoundingClientRect().height >= 160),
     ).toBe(true);
   }
-  await page.getByText("Resources on this page (2)", { exact: true }).click();
+  await page.getByText("Resources in this scene (2)", { exact: true }).click();
   await expect(
     page.getByRole("button", {
       name: `Select ${f.web.name}, service, No observation`,
