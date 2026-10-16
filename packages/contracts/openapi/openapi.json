@@ -9845,6 +9845,17 @@
         "parameters": [
           {
             "in": "header",
+            "name": "Origin",
+            "required": true,
+            "description": "Configured trusted application origin required for owner mutations",
+            "schema": {
+              "type": "string",
+              "format": "uri",
+              "minLength": 1
+            }
+          },
+          {
+            "in": "header",
             "name": "Idempotency-Key",
             "required": true,
             "schema": {
@@ -9935,6 +9946,17 @@
         "summary": "Live owner session revokes exact credential; cannot widen grants",
         "parameters": [
           {
+            "in": "header",
+            "name": "Origin",
+            "required": true,
+            "description": "Configured trusted application origin required for owner mutations",
+            "schema": {
+              "type": "string",
+              "format": "uri",
+              "minLength": 1
+            }
+          },
+          {
             "in": "path",
             "name": "id",
             "required": true,
@@ -10008,11 +10030,134 @@
         }
       }
     },
+    "/api/v1/foundation/evaluations/assessments/review": {
+      "post": {
+        "operationId": "reviewFoundationAssessment",
+        "summary": "Owner-only append of an exact assessment review; no score changes or promotion",
+        "parameters": [
+          {
+            "in": "header",
+            "name": "Origin",
+            "required": true,
+            "description": "Configured trusted application origin required for owner mutations",
+            "schema": {
+              "type": "string",
+              "format": "uri",
+              "minLength": 1
+            }
+          },
+          {
+            "in": "header",
+            "name": "Idempotency-Key",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 200,
+              "pattern": "^[A-Za-z0-9][A-Za-z0-9._:-]{0,199}$"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/FoundationAssessment"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Immutable next-version reviewed assessment receipt",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/FoundationAssessmentMutation"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Strict input or reference denied",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/FoundationFailure"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Live owner sign-in required",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/FoundationFailure"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Origin or operation denied",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/FoundationFailure"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Scoped assessment reference unavailable",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/FoundationFailure"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "Version or idempotency conflict",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/FoundationFailure"
+                }
+              }
+            }
+          },
+          "503": {
+            "description": "Unavailable; do not infer success",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/FoundationFailure"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/api/v1/foundation/memory/{id}/review": {
       "post": {
         "operationId": "reviewFoundationMemory",
         "summary": "Sensitive owner-only exact-version action; separate review, verification and instruction approval",
         "parameters": [
+          {
+            "in": "header",
+            "name": "Origin",
+            "required": true,
+            "description": "Configured trusted application origin required for owner mutations",
+            "schema": {
+              "type": "string",
+              "format": "uri",
+              "minLength": 1
+            }
+          },
           {
             "in": "path",
             "name": "id",
@@ -10114,6 +10259,17 @@
         "summary": "Sensitive owner-only exact-version action; separate review, verification and instruction approval",
         "parameters": [
           {
+            "in": "header",
+            "name": "Origin",
+            "required": true,
+            "description": "Configured trusted application origin required for owner mutations",
+            "schema": {
+              "type": "string",
+              "format": "uri",
+              "minLength": 1
+            }
+          },
+          {
             "in": "path",
             "name": "id",
             "required": true,
@@ -10213,6 +10369,17 @@
         "operationId": "approveFoundationInstruction",
         "summary": "Sensitive owner-only exact-version action; separate review, verification and instruction approval",
         "parameters": [
+          {
+            "in": "header",
+            "name": "Origin",
+            "required": true,
+            "description": "Configured trusted application origin required for owner mutations",
+            "schema": {
+              "type": "string",
+              "format": "uri",
+              "minLength": 1
+            }
+          },
           {
             "in": "path",
             "name": "id",
@@ -12567,6 +12734,247 @@
         },
         "required": [
           "code"
+        ],
+        "additionalProperties": false
+      },
+      "FoundationAssessment": {
+        "type": "object",
+        "properties": {
+          "schemaVersion": {
+            "type": "number",
+            "const": 1
+          },
+          "id": {
+            "type": "string",
+            "format": "uuid",
+            "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$"
+          },
+          "trialId": {
+            "type": "string",
+            "format": "uuid",
+            "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$"
+          },
+          "projectId": {
+            "type": "string",
+            "format": "uuid",
+            "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$"
+          },
+          "version": {
+            "type": "integer",
+            "exclusiveMinimum": 0,
+            "maximum": 9007199254740991
+          },
+          "trialArtifactDigest": {
+            "type": "string",
+            "pattern": "^[a-f0-9]{64}$"
+          },
+          "rubricDigest": {
+            "type": "string",
+            "pattern": "^[a-f0-9]{64}$"
+          },
+          "judgeConfigurationId": {
+            "type": "string",
+            "format": "uuid",
+            "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$"
+          },
+          "checks": {
+            "type": "array",
+            "items": {
+              "type": "object",
+              "properties": {
+                "id": {
+                  "type": "string",
+                  "minLength": 1,
+                  "maxLength": 4000
+                },
+                "result": {
+                  "type": "string",
+                  "enum": [
+                    "pass",
+                    "fail",
+                    "unknown"
+                  ]
+                },
+                "hardGate": {
+                  "type": "boolean"
+                }
+              },
+              "required": [
+                "id",
+                "result",
+                "hardGate"
+              ],
+              "additionalProperties": false
+            }
+          },
+          "uncertainty": {
+            "anyOf": [
+              {
+                "type": "string",
+                "minLength": 1,
+                "maxLength": 4000
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "reviewStatus": {
+            "type": "string",
+            "enum": [
+              "unreviewed",
+              "reviewed"
+            ]
+          },
+          "recordedAt": {
+            "type": "string",
+            "format": "date-time",
+            "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))T(?:(?:[01]\\d|2[0-3]):[0-5]\\d:[0-5]\\d(?:\\.\\d+)?(?:Z|([+-](?:[01]\\d|2[0-3]):[0-5]\\d)))$"
+          }
+        },
+        "required": [
+          "schemaVersion",
+          "id",
+          "trialId",
+          "projectId",
+          "version",
+          "trialArtifactDigest",
+          "rubricDigest",
+          "judgeConfigurationId",
+          "checks",
+          "uncertainty",
+          "reviewStatus",
+          "recordedAt"
+        ],
+        "additionalProperties": false
+      },
+      "FoundationAssessmentMutation": {
+        "type": "object",
+        "properties": {
+          "record": {
+            "type": "object",
+            "properties": {
+              "schemaVersion": {
+                "type": "number",
+                "const": 1
+              },
+              "id": {
+                "type": "string",
+                "format": "uuid",
+                "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$"
+              },
+              "trialId": {
+                "type": "string",
+                "format": "uuid",
+                "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$"
+              },
+              "projectId": {
+                "type": "string",
+                "format": "uuid",
+                "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$"
+              },
+              "version": {
+                "type": "integer",
+                "exclusiveMinimum": 0,
+                "maximum": 9007199254740991
+              },
+              "trialArtifactDigest": {
+                "type": "string",
+                "pattern": "^[a-f0-9]{64}$"
+              },
+              "rubricDigest": {
+                "type": "string",
+                "pattern": "^[a-f0-9]{64}$"
+              },
+              "judgeConfigurationId": {
+                "type": "string",
+                "format": "uuid",
+                "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$"
+              },
+              "checks": {
+                "type": "array",
+                "items": {
+                  "type": "object",
+                  "properties": {
+                    "id": {
+                      "type": "string",
+                      "minLength": 1,
+                      "maxLength": 4000
+                    },
+                    "result": {
+                      "type": "string",
+                      "enum": [
+                        "pass",
+                        "fail",
+                        "unknown"
+                      ]
+                    },
+                    "hardGate": {
+                      "type": "boolean"
+                    }
+                  },
+                  "required": [
+                    "id",
+                    "result",
+                    "hardGate"
+                  ],
+                  "additionalProperties": false
+                }
+              },
+              "uncertainty": {
+                "anyOf": [
+                  {
+                    "type": "string",
+                    "minLength": 1,
+                    "maxLength": 4000
+                  },
+                  {
+                    "type": "null"
+                  }
+                ]
+              },
+              "reviewStatus": {
+                "type": "string",
+                "enum": [
+                  "unreviewed",
+                  "reviewed"
+                ]
+              },
+              "recordedAt": {
+                "type": "string",
+                "format": "date-time",
+                "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))T(?:(?:[01]\\d|2[0-3]):[0-5]\\d:[0-5]\\d(?:\\.\\d+)?(?:Z|([+-](?:[01]\\d|2[0-3]):[0-5]\\d)))$"
+              }
+            },
+            "required": [
+              "schemaVersion",
+              "id",
+              "trialId",
+              "projectId",
+              "version",
+              "trialArtifactDigest",
+              "rubricDigest",
+              "judgeConfigurationId",
+              "checks",
+              "uncertainty",
+              "reviewStatus",
+              "recordedAt"
+            ],
+            "additionalProperties": false
+          },
+          "replayed": {
+            "type": "boolean"
+          },
+          "correlationId": {
+            "type": "string",
+            "format": "uuid",
+            "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$"
+          }
+        },
+        "required": [
+          "record",
+          "replayed",
+          "correlationId"
         ],
         "additionalProperties": false
       },

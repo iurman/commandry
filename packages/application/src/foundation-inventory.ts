@@ -2,9 +2,10 @@ import { randomUUID } from "node:crypto";
 import {
   foundationActorSchema,
   foundationClientSchema,
-  foundationConfigurationSchema,
+  foundationConfigurationSummarySchema,
+  foundationEvidenceSummarySchema,
+  foundationMemorySummarySchema,
   foundationEvidenceSchema,
-  foundationMemorySchema,
   foundationScopedPageSchema,
   type FoundationActor,
   type FoundationClient,
@@ -22,27 +23,11 @@ import type {
   FoundationServiceOptions,
 } from "./agent-foundation";
 
-export const foundationEvidenceSummarySchema = foundationEvidenceSchema;
-export const foundationMemorySummarySchema = foundationMemorySchema
-  .pick({
-    id: true,
-    projectId: true,
-    knowledgeItemId: true,
-    version: true,
-    contentDigest: true,
-    lifecycle: true,
-    verification: true,
-    recordedAt: true,
-  })
-  .extend({ category: foundationMemorySchema.shape.content.shape.category });
-export const foundationConfigurationSummarySchema =
-  foundationConfigurationSchema.pick({
-    id: true,
-    projectId: true,
-    kind: true,
-    contentDigest: true,
-    recordedAt: true,
-  });
+export {
+  foundationConfigurationSummarySchema,
+  foundationEvidenceSummarySchema,
+  foundationMemorySummarySchema,
+} from "@commandry/contracts";
 
 export type FoundationEvidenceSummary = ReturnType<
   typeof foundationEvidenceSummarySchema.parse

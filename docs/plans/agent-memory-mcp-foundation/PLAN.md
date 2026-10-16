@@ -37,6 +37,27 @@ the command center's private campaign ledger.
 
 ## Goal
 
+### Integrated local checkpoint, October 16
+
+The campaign now has real PostgreSQL evidence, versioned memory and immutable
+configuration/evaluation persistence, separate owner decisions, paginated
+foundation inventory and approved general working context. Nineteen opt-in MCP
+tools use these same application services. Independent review corrected
+timestamp, source-membership, pagination-cutoff and approval-expiry defects.
+Built-server SDK rehearsals use disposable databases; they do not establish a
+production release or a private-memory import. Current behavior and boundaries
+are documented in [the architecture](../../architecture/agent-foundation.md)
+and [the agent workflow](../../workflows/agent-foundation.md).
+
+Transactional selected Mnemosyne import, skill registry/adoption/drift,
+canonical finding/task-proposal completion, owner UI, candidate promotion and
+reviewed host onboarding remain campaign work. The local preflight/report
+calculators are not evidence those remaining workflows shipped. The command
+center retains exact commits, review reports and executed checks in its private
+campaign ledger.
+
+### Campaign objective
+
 Make Commandry a useful, source-backed second brain that separately authorized
 agents can understand and update through MCP. Reuse Mnemosyne's evidence,
 memory, skills and evaluation lessons. Deliver the following five workstreams

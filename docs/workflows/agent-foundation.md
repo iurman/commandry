@@ -6,7 +6,9 @@ Status: Operational local implementation. Production activation is a separate re
 
 Ask the owner to issue a named, expiring credential for one project and one
 runtime environment through `POST /api/v1/foundation/clients`. The owner API
-requires a live password session and `Idempotency-Key`. Choose only the needed
+requires a live password session and `Idempotency-Key`. Owner mutations also
+require the configured trusted `Origin`;
+owner GET requests and bearer MCP requests may omit it. Choose only the needed
 capabilities. The `af_` secret appears once; store it outside knowledge, source
 files, screenshots and logs. A lost issuance response requires list/revoke and
 a new issuance key; retry never reveals the old secret.
@@ -41,11 +43,11 @@ corrections. Never infer approval from repetition, model confidence or a score.
 
 The sensitive owner-only HTTP operations are:
 
-| Path suffix under `/api/v1/foundation/memory/{id}` | Capability and audit | Effect |
-| --- | --- | --- |
-| `/review` | `memory.review` | Accept, reject or supersede the expected version with a reason. |
-| `/verify` | `memory.verify` | Record explicit source match or independent verification with evidence and reason. |
-| `/approve-instruction` | `instruction.approve` | Approve an exact version/digest for this disclosure project until expiry. |
+| Path suffix under `/api/v1/foundation/memory/{id}` | Capability and audit  | Effect                                                                             |
+| -------------------------------------------------- | --------------------- | ---------------------------------------------------------------------------------- |
+| `/review`                                          | `memory.review`       | Accept, reject or supersede the expected version with a reason.                    |
+| `/verify`                                          | `memory.verify`       | Record explicit source match or independent verification with evidence and reason. |
+| `/approve-instruction`                             | `instruction.approve` | Approve an exact version/digest for this disclosure project until expiry.          |
 
 Each requires a live owner session and exact `Idempotency-Key`, not an MCP bearer
 or an owner flag. They share application validation, canonical records and
@@ -60,6 +62,61 @@ runtime, model or settings bytes, their SHA-256 digest, ordered parent IDs and
 source commit. `get_configuration_version` reads one exact snapshot. Recording
 is a reversible, granted and audited `configuration.record` action; it does not
 install a skill, select a runtime or enable metered inference.
+
+## Inventory and working context
+
+`list_foundation_evidence`, `list_memory_assertions` and
+`list_configuration_versions` require `foundation.read`. Their population is all
+project evidence, every current assertion head regardless of review state, and
+every immutable configuration version. Memory and configuration lists contain
+metadata; use exact reads for content. Continue with `after=nextCursor` and the
+same returned `asOf` until null. A page limit bounds one response, not the total.
+The cutoff uses first assertion creation, so later revisions remain discoverable.
+It is a creation cutoff, not a frozen historical snapshot.
+
+`get_general_working_context` uses the same read capability and audit. Supply
+current `taskDirection`, `maxCharacters` and optional page selectors. It returns
+quoted, source-cited instructions only when the exact assertion version is
+accepted, verified, freshly anchored, free of unresolved contradictions and
+covered by a live owner approval for this project. Current task direction comes
+first. The budget covers all rendered framing and citations; omissions and
+unknown freshness remain explicit. Token estimates remain null without a real
+tokenizer. Reuse returned `asOf` and `snapshot.continuation` to request the next
+candidate page. Each page has its own whole-output character budget.
+
+The response distinguishes creation cutoff `asOf` from eligibility time
+`snapshot.generatedAt`. Source and approval state are current at retrieval,
+not frozen by the cutoff. The database holds the grant, project memory and
+canonical source locks through selection and audit, and checks retained approval
+deadlines through commit and delivery. A crossed deadline requires a fresh
+request. Do not retain a snapshot as permanent instruction authority. This is
+general project context; it does not manufacture a task execution packet.
+
+## Record and compare evaluation observations
+
+With `evaluation.record`, use `record_evaluation_definition`,
+`record_evaluation_trial` and `record_evaluation_assessment`. Every write requires
+an idempotency key and immutable identities. Definitions name fixtures, rubric
+digests, hard gates, conditions, repeats and configuration versions. Trials bind
+those exact inputs and preserve model/runtime, artifacts, usage and all outcomes,
+including failed and unsupported. These are recorded observations; the tools do
+not invoke a model, fetch artifacts or establish that claimed bytes were verified.
+
+Assessments submitted by machines stay unreviewed. The owner separately posts a
+complete next-version assessment to
+`/api/v1/foundation/evaluations/assessments/review`, with a new immutable ID,
+`reviewStatus: reviewed`, unchanged semantic checks/evidence and an
+`Idempotency-Key`. The live owner session is required. This sensitive action uses
+the `evaluation.record` audit with a human principal; it never promotes a skill
+or grants execution authority. Changing a score while calling it review rejects.
+
+With `foundation.read`, use `get_evaluation_definition`, `get_evaluation_trial`,
+`get_evaluation_assessment` and `get_evaluation_report`. A report requires explicit
+condition/configuration and judge bindings. It retains every expected cell,
+missing/ambiguous attempts and failed/unsupported outcomes in the denominators.
+Only exact rubric/artifact-bound, reviewed assessments can satisfy hard gates.
+Model/runtime partitions stay separate. `eligibleForReview` is not promotion,
+and a historical composite score is not a measured success rate.
 
 ## Retry, errors and continuation
 
@@ -76,7 +133,7 @@ explicit owner decision. Unknown database details are not returned to clients.
 
 Owner client listing requires projectId and returns `nextCursor` and `asOf`.
 Continue using `after=nextCursor` and the same `asOf` until null. The creation
-cutoff is not a retained database snapshot. Exact foundation reads are not list
-operations; complete memory/configuration inventory and working-context selection
-remain explicit follow-ups. Import preview and the evaluation report calculator
-are local APIs; they do not claim an imported private corpus or completed trials.
+cutoff is not a retained database snapshot. Follow every applicable metadata and
+context continuation. Import preview remains a local preflight API; it does not
+claim a private corpus was imported. Owner UI controls, transactional selected
+import, skill adoption/drift and execution packet integration remain follow-ups.

@@ -60,3 +60,4 @@ export * from "./foundation-evaluation-report";
 export * from "./foundation-evaluation";
 export * from "./foundation-working-context";
 export * from "./foundation-inventory";
+export * from "./foundation-general-context";

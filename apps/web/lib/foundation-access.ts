@@ -3,10 +3,16 @@ import {
   createFoundationAuthenticationService,
   createFoundationMachineService,
   createFoundationOwnerService,
+  createFoundationEvaluationService,
+  createFoundationEvaluationOwnerService,
+  createFoundationInventoryService,
+  createFoundationGeneralContextService,
 } from "@commandry/application";
 import {
   createFoundationAccessRepository,
   createFoundationAuthenticationRepository,
+  createFoundationEvaluationAccessRepository,
+  createFoundationReadAccessRepository,
 } from "@commandry/db";
 import { FoundationError } from "@commandry/domain";
 import { ZodError } from "zod";
@@ -37,11 +43,29 @@ export function getFoundationServices() {
       createFoundationAuthenticationRepository(db),
       options,
     ),
+    evaluation: createFoundationEvaluationService(
+      createFoundationEvaluationAccessRepository(db),
+      options,
+    ),
+    inventory: createFoundationInventoryService(
+      createFoundationReadAccessRepository(db),
+      options,
+    ),
+    context: createFoundationGeneralContextService(
+      createFoundationReadAccessRepository(db),
+      options,
+    ),
   };
 }
 
-export async function foundationOwner(request: Request) {
+async function foundationOwnerIdentity(request: Request) {
   requireFoundationOrigin(request);
+  if (
+    request.method !== "GET" &&
+    request.method !== "HEAD" &&
+    !request.headers.get("origin")
+  )
+    throw new FoundationError("FORBIDDEN", "Owner mutation origin required");
   const config = loadRuntimeConfig();
   if (config.humanAuthMode !== "password")
     throw new FoundationError(
@@ -60,13 +84,30 @@ export async function foundationOwner(request: Request) {
     expiresAt.getTime() <= Date.now()
   )
     throw new FoundationError("EXPIRED", "Owner session expired");
-  return createFoundationOwnerService(
-    createFoundationAccessRepository(getDatabase().db),
-    {
+  return {
+    identity: {
       principalId: `user:${session.user.id}`,
       expiresAt: expiresAt.toISOString(),
     },
-    { environment: config.appEnv },
+    options: { environment: config.appEnv },
+  };
+}
+
+export async function foundationOwner(request: Request) {
+  const { identity, options } = await foundationOwnerIdentity(request);
+  return createFoundationOwnerService(
+    createFoundationAccessRepository(getDatabase().db),
+    identity,
+    options,
+  );
+}
+
+export async function foundationEvaluationOwner(request: Request) {
+  const { identity, options } = await foundationOwnerIdentity(request);
+  return createFoundationEvaluationOwnerService(
+    createFoundationEvaluationAccessRepository(getDatabase().db),
+    identity,
+    options,
   );
 }
 

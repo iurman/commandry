@@ -111,6 +111,7 @@ export async function foundationAccessSmoke(
         "memory.propose",
         "memory.revise",
         "configuration.record",
+        "evaluation.record",
       ],
       "Full scoped rehearsal",
     );
@@ -126,10 +127,25 @@ export async function foundationAccessSmoke(
         "propose_memory",
         "revise_memory",
         "record_configuration",
+        "list_foundation_evidence",
+        "list_memory_assertions",
+        "list_configuration_versions",
+        "get_general_working_context",
+        "get_evaluation_definition",
+        "get_evaluation_trial",
+        "get_evaluation_assessment",
+        "get_evaluation_report",
+        "record_evaluation_definition",
+        "record_evaluation_trial",
+        "record_evaluation_assessment",
       ].sort(),
     );
     const identity = await call(client, "get_foundation_identity");
     assert.equal(identity.actor.projectId, project.id);
+    assert.equal(
+      identity.supportedOperations.includes("evaluation.record"),
+      true,
+    );
     const evidenceArgs = {
       sourceKind: "knowledge_revision",
       sourceId: knowledge.id,
@@ -173,6 +189,24 @@ export async function foundationAccessSmoke(
       id: proposed.record.id,
     });
     assert.equal(read.anchor.freshness, "fresh");
+    const evidencePage = await call(client, "list_foundation_evidence", {
+      limit: 1,
+    });
+    assert.equal(evidencePage.items[0].id, evidence.record.id);
+    const memoryPage = await call(client, "list_memory_assertions", {
+      limit: 1,
+    });
+    assert.equal(memoryPage.items[0].id, proposed.record.id);
+    assert.equal(JSON.stringify(memoryPage).includes(content.statement), false);
+    assert.equal(
+      (await call(client, "get_general_working_context")).instructions.length,
+      0,
+    );
+    const forgedPage = await client.callTool({
+      name: "list_memory_assertions",
+      arguments: { projectId: other.id },
+    });
+    assert.deepEqual(forgedPage.structuredContent, { code: "INVALID_INPUT" });
     const forged = await client.callTool({
       name: "record_evidence",
       arguments: { ...evidenceArgs, owner: true, idempotencyKey: "forged" },
@@ -198,6 +232,7 @@ export async function foundationAccessSmoke(
       method: "POST",
       headers: {
         authorization: `Bearer ${issued.token}`,
+        origin: trustedOrigin,
         "content-type": "application/json",
       },
       body: JSON.stringify({
@@ -241,6 +276,20 @@ export async function foundationAccessSmoke(
       200,
     );
     assert.equal(approval.record.version, 1);
+    const approvedContext = await call(client, "get_general_working_context", {
+      taskDirection: "Current task direction wins.",
+      maxCharacters: 8000,
+    });
+    assert.equal(approvedContext.instructions[0].memoryId, proposed.record.id);
+    assert.equal(
+      approvedContext.snapshot.sourceVersions[0].evidenceId,
+      evidence.record.id,
+    );
+    assert.ok(approvedContext.asOf);
+    assert.ok(
+      approvedContext.content.startsWith("Current task direction") ||
+        approvedContext.content.includes("Current task direction wins."),
+    );
     const revised = await call(client, "revise_memory", {
       memoryId: proposed.record.id,
       expectedVersion: 1,
@@ -253,6 +302,233 @@ export async function foundationAccessSmoke(
     assert.equal(revised.record.version, 2);
     assert.equal(revised.record.lifecycle, "proposed");
     assert.equal(revised.record.verification, "unverified");
+    assert.equal(
+      (await call(client, "get_general_working_context")).instructions.length,
+      0,
+    );
+    const configPage = await call(client, "list_configuration_versions", {
+      limit: 1,
+    });
+    assert.equal(configPage.items[0].id, config.record.id);
+    assert.equal(Object.hasOwn(configPage.items[0], "content"), false);
+    const judge = await call(client, "record_configuration", {
+      kind: "model",
+      content: "Synthetic deterministic checks; no inference invoked.",
+      parentIds: [],
+      sourceCommit: null,
+      idempotencyKey: "judge-config",
+    });
+    const firstConfig = await call(client, "list_configuration_versions", {
+      limit: 1,
+    });
+    assert.ok(firstConfig.nextCursor);
+    const secondConfig = await call(client, "list_configuration_versions", {
+      limit: 1,
+      after: firstConfig.nextCursor,
+      asOf: firstConfig.asOf,
+    });
+    assert.equal(secondConfig.nextCursor, null);
+    assert.equal(secondConfig.asOf, firstConfig.asOf);
+    assert.deepEqual(
+      new Set(
+        [...firstConfig.items, ...secondConfig.items].map((row) => row.id),
+      ),
+      new Set([config.record.id, judge.record.id]),
+    );
+    assert.equal(
+      [...firstConfig.items, ...secondConfig.items].every(
+        (row) => !Object.hasOwn(row, "content"),
+      ),
+      true,
+    );
+    const digest = (value) =>
+      createHash("sha256").update(value, "utf8").digest("hex");
+    const definition = {
+      schemaVersion: 1,
+      id: randomUUID(),
+      version: 1,
+      name: "Built rehearsal comparison",
+      configurationIds: [config.record.id],
+      cases: [
+        {
+          id: "fixture",
+          fixtureDigest: digest("fixture input"),
+          rubricDigest: digest("fixture rubric"),
+          hardGates: ["scope"],
+        },
+      ],
+      conditions: ["baseline", "candidate"],
+      repetitions: 2,
+      disclosure: "local_only",
+    };
+    const definitionWrite = await call(client, "record_evaluation_definition", {
+      ...definition,
+      idempotencyKey: "evaluation-definition",
+    });
+    assert.equal(
+      (await call(client, "get_evaluation_definition", { id: definition.id }))
+        .id,
+      definition.id,
+    );
+    const reportArgs = {
+      definitionId: definition.id,
+      conditionConfigurations: definition.conditions.map((condition) => ({
+        condition,
+        configurationIds: [config.record.id],
+      })),
+      judgeConfigurationIds: [judge.record.id],
+    };
+    const emptyReport = await call(client, "get_evaluation_report", reportArgs);
+    assert.equal(emptyReport.expectedCellsPerComparison, 4);
+    assert.equal(emptyReport.eligibleForReview, false);
+    const trial = {
+      schemaVersion: 1,
+      id: randomUUID(),
+      attemptId: randomUUID(),
+      definitionId: definition.id,
+      caseId: "fixture",
+      condition: "baseline",
+      repetition: 1,
+      configurationIds: [config.record.id],
+      model: "synthetic-fixture",
+      runtime: "built-rehearsal-no-inference",
+      inputDigest: definition.cases[0].fixtureDigest,
+      artifactDigests: [digest("fixture artifact")],
+      outcome: "completed",
+      usage: { inputTokens: null, outputTokens: null },
+      recordedAt: new Date().toISOString(),
+    };
+    const trialWrite = await call(client, "record_evaluation_trial", {
+      ...trial,
+      idempotencyKey: "evaluation-trial",
+    });
+    assert.equal(
+      (await call(client, "get_evaluation_trial", { id: trial.id })).id,
+      trial.id,
+    );
+    const trialReplay = await call(client, "record_evaluation_trial", {
+      ...trial,
+      idempotencyKey: "evaluation-trial",
+    });
+    assert.equal(trialReplay.replayed, true);
+    assert.equal(trialReplay.correlationId, trialWrite.correlationId);
+    assert.equal(definitionWrite.record.projectId, project.id);
+    await call(client, "record_evaluation_trial", {
+      ...trial,
+      id: randomUUID(),
+      attemptId: randomUUID(),
+      condition: "candidate",
+      outcome: "unsupported",
+      artifactDigests: [],
+      idempotencyKey: "evaluation-unsupported",
+    });
+    const assessment = {
+      schemaVersion: 1,
+      id: randomUUID(),
+      trialId: trial.id,
+      version: 1,
+      trialArtifactDigest: trial.artifactDigests[0],
+      rubricDigest: definition.cases[0].rubricDigest,
+      judgeConfigurationId: judge.record.id,
+      checks: [{ id: "scope", result: "pass", hardGate: true }],
+      uncertainty: "Synthetic rehearsal, not model performance",
+      reviewStatus: "unreviewed",
+      recordedAt: new Date().toISOString(),
+    };
+    await call(client, "record_evaluation_assessment", {
+      ...assessment,
+      idempotencyKey: "evaluation-assessment",
+    });
+    assert.equal(
+      (await call(client, "get_evaluation_assessment", { id: assessment.id }))
+        .reviewStatus,
+      "unreviewed",
+    );
+    const machineReview = await client.callTool({
+      name: "record_evaluation_assessment",
+      arguments: {
+        ...assessment,
+        id: randomUUID(),
+        version: 2,
+        reviewStatus: "reviewed",
+        idempotencyKey: "forged-evaluation-review",
+      },
+    });
+    assert.deepEqual(machineReview.structuredContent, { code: "FORBIDDEN" });
+    const reviewPath = "/api/v1/foundation/evaluations/assessments/review";
+    const ownerReview = {
+      ...assessment,
+      projectId: project.id,
+      id: randomUUID(),
+      version: 2,
+      reviewStatus: "reviewed",
+      recordedAt: new Date().toISOString(),
+    };
+    const forgedOwnerReview = await fetch(`${origin}${reviewPath}`, {
+      method: "POST",
+      headers: {
+        authorization: `Bearer ${issued.token}`,
+        origin: trustedOrigin,
+        "content-type": "application/json",
+      },
+      body: JSON.stringify(ownerReview),
+    });
+    assert.equal(forgedOwnerReview.status, 401);
+    await write(
+      reviewPath,
+      {
+        ...ownerReview,
+        checks: [{ id: "scope", result: "fail", hardGate: true }],
+      },
+      400,
+      "changed-evaluation-review",
+    );
+    const absentOrigin = await fetch(`${origin}${reviewPath}`, {
+      method: "POST",
+      headers: {
+        cookie,
+        "content-type": "application/json",
+        "idempotency-key": "absent-owner-origin",
+      },
+      body: JSON.stringify(ownerReview),
+    });
+    assert.equal(absentOrigin.status, 403);
+    const emptyOrigin = await fetch(`${origin}${reviewPath}`, {
+      method: "POST",
+      headers: {
+        cookie,
+        origin: "",
+        "content-type": "application/json",
+        "idempotency-key": "empty-owner-origin",
+      },
+      body: JSON.stringify(ownerReview),
+    });
+    assert.equal(emptyOrigin.status, 403);
+    const reviewedAssessment = await write(
+      reviewPath,
+      ownerReview,
+      200,
+      "evaluation-owner-review",
+    );
+    const reviewReplay = await write(
+      reviewPath,
+      ownerReview,
+      200,
+      "evaluation-owner-review",
+    );
+    assert.equal(reviewReplay.replayed, true);
+    assert.equal(reviewReplay.correlationId, reviewedAssessment.correlationId);
+    const report = await call(client, "get_evaluation_report", reportArgs);
+    assert.equal(report.comparisons[0].counts.expectedCells, 4);
+    assert.equal(report.comparisons[0].counts.passedCells, 1);
+    assert.equal(report.comparisons[0].counts.missingCells, 2);
+    assert.equal(
+      report.comparisons[0].conditions.find(
+        (row) => row.condition === "candidate",
+      ).outcomes.unsupported,
+      1,
+    );
+    assert.equal(report.eligibleForReview, false);
     const writeOnly = await issue(
       ["configuration.record"],
       "Write-only rehearsal",
@@ -307,7 +583,7 @@ export async function foundationAccessSmoke(
       client.callTool({ name: "get_foundation_identity", arguments: {} }),
     );
     console.log(
-      "Foundation built-app MCP rehearsal passed: live owner issuance, strict SDK discovery, scoped reads and writes, exact replay, write-only authentication, separate review/verification/approval, revision reset, pagination and revocation.",
+      "Foundation built-app MCP rehearsal passed: live owner issuance, 19-tool strict SDK discovery, scoped inventories and approved context, immutable evaluations and separate owner assessment review, complete denominators, exact replay, write-only authentication, revision reset and revocation.",
     );
   } finally {
     await Promise.allSettled(transports.map((client) => client.close()));

@@ -2,6 +2,8 @@ import { z } from "zod";
 import {
   foundationActorSchema,
   foundationConfigurationSchema,
+  foundationEvidenceSchema,
+  foundationMemorySchema,
   foundationOperationSchema,
   foundationPageSchema,
 } from "./agent-foundation";
@@ -148,6 +150,28 @@ export const foundationGeneralContextRequestSchema =
 export type FoundationGeneralContextRequest = z.infer<
   typeof foundationGeneralContextRequestSchema
 >;
+
+export const foundationEvidenceSummarySchema = foundationEvidenceSchema;
+export const foundationMemorySummarySchema = foundationMemorySchema
+  .pick({
+    id: true,
+    projectId: true,
+    knowledgeItemId: true,
+    version: true,
+    contentDigest: true,
+    lifecycle: true,
+    verification: true,
+    recordedAt: true,
+  })
+  .extend({ category: foundationMemorySchema.shape.content.shape.category });
+export const foundationConfigurationSummarySchema =
+  foundationConfigurationSchema.pick({
+    id: true,
+    projectId: true,
+    kind: true,
+    contentDigest: true,
+    recordedAt: true,
+  });
 
 export const foundationReadRecordSchema = z.strictObject({
   projectId: identity,

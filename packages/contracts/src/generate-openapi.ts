@@ -13,6 +13,7 @@ import {
   foundationApproveInstructionSchema,
   foundationMemorySchema,
   foundationInstructionApprovalSchema,
+  foundationAssessmentSchema,
   createKnowledgeClientSchema,
   knowledgeClientSchema,
   createdKnowledgeClientSchema,
@@ -326,6 +327,15 @@ function jsonContent(schema: string) {
     "application/json": { schema: { $ref: `#/components/schemas/${schema}` } },
   };
 }
+
+const ownerOriginParameter = {
+  in: "header",
+  name: "Origin",
+  required: true,
+  description:
+    "Configured trusted application origin required for owner mutations",
+  schema: { type: "string", format: "uri", minLength: 1 },
+};
 
 const idParameter = {
   in: "path",
@@ -3991,6 +4001,7 @@ export function generateOpenApi(): string {
           summary:
             "Owner-only opt-in capability credential shown once; no inferred grants",
           parameters: [
+            ownerOriginParameter,
             {
               in: "header",
               name: "Idempotency-Key",
@@ -4041,7 +4052,7 @@ export function generateOpenApi(): string {
           operationId: "revokeFoundationClient",
           summary:
             "Live owner session revokes exact credential; cannot widen grants",
-          parameters: [idParameter],
+          parameters: [ownerOriginParameter, idParameter],
           responses: {
             "200": {
               description: "Revoked public metadata",
@@ -4070,12 +4081,68 @@ export function generateOpenApi(): string {
           },
         },
       },
+      "/api/v1/foundation/evaluations/assessments/review": {
+        post: {
+          operationId: "reviewFoundationAssessment",
+          summary:
+            "Owner-only append of an exact assessment review; no score changes or promotion",
+          parameters: [
+            ownerOriginParameter,
+            {
+              in: "header",
+              name: "Idempotency-Key",
+              required: true,
+              schema: {
+                type: "string",
+                minLength: 1,
+                maxLength: 200,
+                pattern: "^[A-Za-z0-9][A-Za-z0-9._:-]{0,199}$",
+              },
+            },
+          ],
+          requestBody: {
+            required: true,
+            content: jsonContent("FoundationAssessment"),
+          },
+          responses: {
+            "200": {
+              description: "Immutable next-version reviewed assessment receipt",
+              content: jsonContent("FoundationAssessmentMutation"),
+            },
+            "400": {
+              description: "Strict input or reference denied",
+              content: jsonContent("FoundationFailure"),
+            },
+            "401": {
+              description: "Live owner sign-in required",
+              content: jsonContent("FoundationFailure"),
+            },
+            "403": {
+              description: "Origin or operation denied",
+              content: jsonContent("FoundationFailure"),
+            },
+            "404": {
+              description: "Scoped assessment reference unavailable",
+              content: jsonContent("FoundationFailure"),
+            },
+            "409": {
+              description: "Version or idempotency conflict",
+              content: jsonContent("FoundationFailure"),
+            },
+            "503": {
+              description: "Unavailable; do not infer success",
+              content: jsonContent("FoundationFailure"),
+            },
+          },
+        },
+      },
       "/api/v1/foundation/memory/{id}/review": {
         post: {
           operationId: "reviewFoundationMemory",
           summary:
             "Sensitive owner-only exact-version action; separate review, verification and instruction approval",
           parameters: [
+            ownerOriginParameter,
             idParameter,
             {
               in: "header",
@@ -4128,6 +4195,7 @@ export function generateOpenApi(): string {
           summary:
             "Sensitive owner-only exact-version action; separate review, verification and instruction approval",
           parameters: [
+            ownerOriginParameter,
             idParameter,
             {
               in: "header",
@@ -4180,6 +4248,7 @@ export function generateOpenApi(): string {
           summary:
             "Sensitive owner-only exact-version action; separate review, verification and instruction approval",
           parameters: [
+            ownerOriginParameter,
             idParameter,
             {
               in: "header",
@@ -5006,6 +5075,15 @@ export function generateOpenApi(): string {
         ),
         FoundationClientList: component(foundationClientListSchema, "input"),
         FoundationFailure: component(foundationFailureSchema, "input"),
+        FoundationAssessment: component(foundationAssessmentSchema, "input"),
+        FoundationAssessmentMutation: component(
+          z.strictObject({
+            record: foundationAssessmentSchema,
+            replayed: z.boolean(),
+            correlationId: z.uuid(),
+          }),
+          "input",
+        ),
         FoundationReviewMemoryBody: component(
           foundationReviewMemorySchema.omit({ memoryId: true }),
           "input",

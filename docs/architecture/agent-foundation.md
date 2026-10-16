@@ -68,8 +68,9 @@ foundation access and gain no new authority.
 `createFoundationOwnerService` receives a trusted human identity and session
 expiry from an authenticated adapter outside request data. This internal shape
 does not authenticate a human or prove current cookie/session revocation. A
-future public owner adapter must validate the actual owner session and use the
-same application services. A machine cannot supply an owner flag to reach them.
+public owner adapter validates the actual password-authenticated owner session
+and uses the same application services. A machine cannot supply an owner flag
+to reach them.
 
 | Operation                                                    | Risk       | Capability and approval                                          | Audit event                                              |
 | ------------------------------------------------------------ | ---------- | ---------------------------------------------------------------- | -------------------------------------------------------- |
@@ -84,9 +85,13 @@ same application services. A machine cannot supply an owner flag to reach them.
 | Create or revoke client                                      | Sensitive  | Authenticated owner only                                         | `foundation.client.created`, `foundation.client.revoked` |
 | Page client metadata                                         | Read-only  | Authenticated owner only                                         | `foundation.client.listed`                               |
 
-`evaluation.record` is a reserved contract capability. This slice does not
-implement an evaluation writer or advertise it as an implemented operation.
-Discovery must distinguish granted capabilities from actual supported services.
+`evaluation.record` now records immutable evaluation definitions, observations
+and unreviewed assessments. It is reversible with an exact machine grant and
+audits `evaluation.record`. Separate owner assessment review is sensitive and
+uses the same audit operation with a human principal and no machine client.
+Evaluation reads require `foundation.read` and audit `foundation.read`.
+Neither recording nor review invokes inference or promotes a configuration.
+Discovery distinguishes granted capabilities from actual supplied services.
 
 Client issuance stores only a token digest. The random credential appears in its
 first successful response. An issuance retry with the same key cannot re-expose
@@ -159,14 +164,20 @@ credential in the exact project/environment, and audits
 `foundation.client.authenticated`. Every tool still rechecks its current grant
 inside the database transaction.
 
-Discovery filters the eight implemented tools by the credential's capabilities.
+Discovery filters nineteen implemented tools by the credential's capabilities.
 Write-only clients can authenticate without receiving `foundation.read`.
-Evaluation recording remains reserved until its service and persistence are
-connected; a grant name is not an implemented tool. Exact record reads are not a
-complete inventory. Complete scoped inventory and working-context selection,
-import application, configuration adoption and evaluation consumption remain
-campaign follow-ups. Do not treat a historical accepted assertion as a current
-instruction without exact live approval and source checks.
+Three paginated metadata inventories and a distinct general-context request now
+use the real read adapter. Scope filtering precedes UUID pagination and the
+first-creation cutoff; all current assertion heads remain reachable regardless
+of review state. Context returns its original `asOf`, current eligibility time,
+complete provenance for selected instructions, whole-output character budget,
+omissions and a candidate continuation. It holds the same project memory lock
+as writers and canonical Knowledge row locks through audit. Candidate approval
+deadlines are retained conservatively through commit and delivery. A deadline
+crossing rejects delivery; an audit already committed before a delivery-time
+deadline remains historical read evidence. No snapshot grants lasting authority.
+Transactional selected import, skill adoption/drift, owner UI and task execution
+packet integration remain campaign follow-ups.
 
 Owner client issuance/list/revocation and separate assertion review,
 verification and instruction approval have versioned HTTP/OpenAPI endpoints.
@@ -191,7 +202,7 @@ pnpm test:integration -- --foundation-only
 ```
 
 It provisions disposable PostgreSQL 18, runs the existing platform foundation
-setup/tests, then the foundation repository and populated-upgrade tests. Tests
+setup/tests, then the foundation, evaluation, read and populated-upgrade tests. Tests
 use a restricted runtime role for product operations, a separate owner connection
 for fixture setup and failure injection, and remove the disposable cluster.
 The populated upgrade applies the committed chain through 0057 to another empty
@@ -205,7 +216,6 @@ sequence and function grants for tables created by `commandry_migrate` to
 those production defaults or a live deployment have been verified. The
 constrained release, backup/restore, actual role privileges, owner authentication
 and real MCP client checks remain separate release gates.
-
 
 ## Evaluation persistence checkpoint
 
@@ -246,5 +256,6 @@ complete report denominators, separate owner review, concurrent retries and
 assessment versions, audit rollback, revocation, immutable membership across
 savepoints, and temporary-table shadowing negatives. These local executions and
 independent source reviews do not prove deployment privileges or a production
-release. Evaluation transport, owner controls and a real client rehearsal for
-these additional tools remain follow-ups before claiming agent access.
+release. Evaluation MCP tools and the owner-only assessment review API now use
+these same services. Owner UI, transactional import and registry/adoption remain
+follow-ups; production activation is a separate constrained release.

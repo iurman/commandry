@@ -28,10 +28,21 @@ export async function POST(
         "Foundation credential required",
       );
     const token = match[1]!;
-    const { machine, authentication } = getFoundationServices();
+    const {
+      machine,
+      authentication,
+      evaluation,
+      inventory,
+      context: workingContext,
+    } = getFoundationServices();
     const actor = await authentication.authenticate(token, projectId);
     const handler = createMcpHandler(
-      () => createFoundationMcpServer(machine, token, actor),
+      () =>
+        createFoundationMcpServer(machine, token, actor, {
+          evaluation,
+          inventory,
+          context: workingContext,
+        }),
       { responseMode: "json" },
     );
     const response = await handler.fetch(request);
