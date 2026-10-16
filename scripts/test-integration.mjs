@@ -10,6 +10,7 @@ import { setTimeout as delay } from "node:timers/promises";
 import { fileURLToPath } from "node:url";
 import EmbeddedPostgres from "embedded-postgres";
 import { foundationAccessSmoke } from "./foundation-access-smoke.mjs";
+import { foundationClientsBrowserSmoke } from "./foundation-clients-browser-smoke.mjs";
 import { knowledgeAccessSmoke } from "./knowledge-access-smoke.mjs";
 import { sendLinuxHost } from "./linux-host-collector.mjs";
 
@@ -26,6 +27,22 @@ async function freeLoopbackPort() {
     throw new Error("Could not allocate a loopback port");
   await new Promise((resolveClose) => server.close(resolveClose));
   return address.port;
+}
+
+async function prepareStandaloneWebAssets() {
+  await mkdir(join(root, "apps/web/.next/standalone/apps/web/.next"), {
+    recursive: true,
+  });
+  await cp(
+    join(root, "apps/web/.next/static"),
+    join(root, "apps/web/.next/standalone/apps/web/.next/static"),
+    { recursive: true },
+  );
+  await cp(
+    join(root, "apps/web/public"),
+    join(root, "apps/web/.next/standalone/apps/web/public"),
+    { recursive: true },
+  );
 }
 
 async function runTests(connectionString, runtimePassword, testPath) {
@@ -146,19 +163,7 @@ async function runRealSourceBrowser(
   runtimeUrl.username = "commandry_app_integration";
   runtimeUrl.password = runtimePassword;
   const origin = `http://127.0.0.1:${webPort}`;
-  await mkdir(join(root, "apps/web/.next/standalone/apps/web/.next"), {
-    recursive: true,
-  });
-  await cp(
-    join(root, "apps/web/.next/static"),
-    join(root, "apps/web/.next/standalone/apps/web/.next/static"),
-    { recursive: true },
-  );
-  await cp(
-    join(root, "apps/web/public"),
-    join(root, "apps/web/.next/standalone/apps/web/public"),
-    { recursive: true },
-  );
+  await prepareStandaloneWebAssets();
   const web = startService("real source browser web", webEntry, {
     NODE_ENV: "production",
     APP_ENV: "local",
@@ -1053,6 +1058,7 @@ async function runAuthSmoke(
         `Build artifact is missing: ${entry}. Run pnpm build first.`,
       );
   }
+  await prepareStandaloneWebAssets();
   const port = await freeLoopbackPort();
   const origin = `http://127.0.0.1:${port}`;
   const appOrigin = production ? "https://commandry.site" : origin;
@@ -1217,6 +1223,13 @@ async function runAuthSmoke(
       appOrigin,
       production ? "production" : "test",
     );
+    if (process.env.COMMANDRY_FOUNDATION_BROWSER === "1")
+      await foundationClientsBrowserSmoke(
+        origin,
+        cookie,
+        appOrigin,
+        production ? "production" : "test",
+      );
     const signOut = await postAuth("sign-out", {}, cookie);
     assert.equal(signOut.status, 200);
     const signedOutRead = await fetch(`${origin}/api/v1/projects`, {

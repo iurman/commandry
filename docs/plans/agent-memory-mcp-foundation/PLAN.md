@@ -49,9 +49,16 @@ production release or a private-memory import. Current behavior and boundaries
 are documented in [the architecture](../../architecture/agent-foundation.md)
 and [the agent workflow](../../workflows/agent-foundation.md).
 
-Transactional selected Mnemosyne import, skill registry/adoption/drift,
-canonical finding/task-proposal completion, owner UI, candidate promotion and
-reviewed host onboarding remain campaign work. The local preflight/report
+Account now has explicit scoped client controls. A closed-bundle skill registry
+and three-way digest drift comparison preserve exact source bytes and installation
+uncertainty. A disposable real-source SDK pilot recorded the five shipped
+Mnemosyne skills and 20 components as 22 immutable configurations, with no duplicate
+writes on exact retry. Actual owner browser flows passed light/dark at 1440, 390
+and 320 pixels in both disposable authentication modes; production is unchanged.
+
+Transactional selected Mnemosyne memory import, canonical finding/task proposals,
+broader product MCP coverage, actual installation/adoption evidence, candidate
+promotion and reviewed host onboarding remain campaign work. The local preflight/report
 calculators are not evidence those remaining workflows shipped. The command
 center retains exact commits, review reports and executed checks in its private
 campaign ledger.

@@ -91,17 +91,23 @@ comprehensive MCP planning work; the live MCP still has four knowledge read tool
 ## Established direction
 
 The owner-authorized agent-memory campaign now has a local shared application
-and PostgreSQL foundation on its campaign branch. It includes opt-in scoped
-clients, immutable evidence and configuration, source-anchored assertion
-revisions, separate owner review/verification/instruction approval, idempotent
-responses and atomic audits. Independent review corrections and real disposable
-PostgreSQL tests cover authorization, retries, concurrent edits, revocation,
-rollback and a populated prior-schema upgrade. The
-[implementation boundary](../architecture/agent-foundation.md) records actual
-services, constraints and verification limits. New public MCP tools, owner
-controls, selected Mnemosyne import, evaluation workflows and production
-activation remain pending campaign work. The live site and its existing
-four-tool knowledge MCP have not been changed by this local checkpoint.
+and PostgreSQL foundation on its campaign branch. Nineteen opt-in MCP tools cover
+source-anchored evidence/memory/configurations, complete paginated inventories,
+approved working context and immutable evaluation observations with separate
+owner assessment review. Account includes explicit scoped credential creation,
+one-time copy/dismiss and revocation. A closed-bundle skill registry preserves
+exact library components and reports three-way digest drift without installation.
+Independent review and real disposable PostgreSQL tests cover authorization,
+retries, concurrent edits, revocation, audit-wait expiry rollback and populated
+prior-schema upgrades. Built-app SDK/browser rehearsals passed both authentication
+modes, including five selected shipped Mnemosyne skills with 20 exact components,
+22 configurations and unchanged retries. These were disposable records.
+The [implementation boundary](../architecture/agent-foundation.md) and
+[agent workflow](../workflows/agent-foundation.md) separate this local evidence from
+production. Transactional selected memory import, canonical finding/task proposals,
+broader product MCP coverage, installation/adoption evidence, candidate promotion,
+reviewed onboarding and production activation remain campaign work. The live site
+and its existing four-tool knowledge MCP are unchanged by this local checkpoint.
 
 - Commandry is a personal control plane spanning projects, knowledge,
   infrastructure, automations, monitoring, and agents.

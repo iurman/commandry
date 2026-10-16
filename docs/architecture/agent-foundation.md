@@ -182,13 +182,18 @@ as writers and canonical Knowledge row locks through audit. Candidate approval
 deadlines are retained conservatively through commit and delivery. A deadline
 crossing rejects delivery; an audit already committed before a delivery-time
 deadline remains historical read evidence. No snapshot grants lasting authority.
-Transactional selected import, skill adoption/drift, owner UI and task execution
-packet integration remain campaign follow-ups.
+Transactional selected memory import, actual installation/adoption evidence,
+candidate promotion and task execution packet integration remain campaign
+follow-ups. A versioned closed-bundle skill registry and three-way digest drift
+comparison are implemented without installing anything.
 
 Owner client issuance/list/revocation and separate assertion review,
 verification and instruction approval have versioned HTTP/OpenAPI endpoints.
 These require a live password-authenticated allowlisted owner session, trusted
-origin and strict bounded inputs. Bearer credentials and unauthenticated local
+origin and strict bounded inputs. Account includes paginated project/client
+selection, explicit named issuance with read-only defaults, one-time copy/dismiss
+and named revocation confirmation. The UI is an affordance; every API request
+independently authenticates the owner. Bearer credentials and unauthenticated local
 identities cannot perform owner actions. No new owner-only operation is exposed
 through MCP. The [agent workflow](../workflows/agent-foundation.md) describes
 actual methods, scope, risk, idempotency and continuation behavior. Deployment
@@ -196,7 +201,7 @@ still requires the constrained release and production verification gates.
 
 ## Database and verification
 
-Migration `0058_fat_dorian_gray.sql` is additive. It retains canonical captures,
+Migrations `0058_fat_dorian_gray.sql` and `0059_powerful_wendigo.sql` are additive. It retains canonical captures,
 Knowledge and old knowledge-client grants. Drizzle metadata includes the new
 schema; custom SQL adds history, membership and deferred revision guards. Schema
 regeneration must report no unintended changes.
@@ -263,5 +268,25 @@ assessment versions, audit rollback, revocation, immutable membership across
 savepoints, and temporary-table shadowing negatives. These local executions and
 independent source reviews do not prove deployment privileges or a production
 release. Evaluation MCP tools and the owner-only assessment review API now use
-these same services. Owner UI, transactional import and registry/adoption remain
-follow-ups; production activation is a separate constrained release.
+these same services. Separate memory/evaluation owner review UI, transactional
+selected memory import and actual installation/adoption evidence remain
+follow-ups; client-management UI is implemented. Production activation is a
+separate constrained release.
+
+The optional built-app owner browser rehearsal runs after `pnpm build`:
+
+```sh
+COMMANDRY_FOUNDATION_BROWSER=1 node scripts/test-integration.mjs --auth-only
+```
+
+It uses disposable PostgreSQL and generated owner credentials in local and
+provisional production-auth modes. Even production-mode browser URLs are
+intercepted and fulfilled exclusively from loopback. It covers project/client
+continuations, explicit read-only issuance, one-time copy/dismiss, cancel/revoke,
+actual SDK denial after revocation, and light/dark at 1440, 390 and 320 pixels.
+The same rehearsal exercises the real registry CLI, immutable configuration
+storage and exact-key retry. Its default source is self-contained synthetic data;
+`COMMANDRY_FOUNDATION_REGISTRY_SELECTION` may name an explicitly prepared closed
+selection for a real-source disposable pilot. No skill is installed or invoked.
+CLI corruption/retry tests run with `pnpm test:foundation-registry` and are also
+part of `pnpm test`.

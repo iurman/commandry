@@ -1,5 +1,6 @@
 import assert from "node:assert/strict";
 import { createHash, randomUUID } from "node:crypto";
+import { foundationSkillRegistrySmoke } from "./foundation-skill-registry-smoke.mjs";
 import {
   Client,
   StreamableHTTPClientTransport,
@@ -574,6 +575,13 @@ export async function foundationAccessSmoke(
       { headers: ownerHeaders },
     );
     assert.equal((await next.json()).items.length, 1);
+    await foundationSkillRegistrySmoke({
+      origin,
+      projectId: project.id,
+      token: issued.token,
+      client,
+      call,
+    });
     await write(
       `/api/v1/foundation/clients/${issued.client.id}/revoke`,
       {},

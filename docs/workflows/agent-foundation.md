@@ -5,7 +5,10 @@ Status: Operational local implementation. Production activation is a separate re
 ## Connect and discover
 
 Ask the owner to issue a named, expiring credential for one project and one
-runtime environment through `POST /api/v1/foundation/clients`. The owner API
+runtime environment in Account > Foundation clients, or through
+`POST /api/v1/foundation/clients`. The panel starts without a selected project,
+selects only read access by default, and requires explicit creation. Project and
+client inventories both have Load more controls. The owner API
 requires a live password session and `Idempotency-Key`. Owner mutations also
 require the configured trusted `Origin`;
 owner GET requests and bearer MCP requests may omit it. Choose only the needed
@@ -62,6 +65,58 @@ runtime, model or settings bytes, their SHA-256 digest, ordered parent IDs and
 source commit. `get_configuration_version` reads one exact snapshot. Recording
 is a reversible, granted and audited `configuration.record` action; it does not
 install a skill, select a runtime or enable metered inference.
+
+## Register a selected skill library
+
+The application registry accepts a closed JSON bundle with `schemaVersion: 1`,
+`projectId`, an observed 40-character `sourceCommit`, original `manifestContent`,
+explicit `selectedIds`, and `files: [{path, content}]`. Paths identify supplied
+content, not files the tool may open. Missing selected components use null
+content; supplying unselected extra files rejects. The original manifest stays
+byte-exact and retains its historical generated commit and entry statuses. The
+selected inventory preserves `user` or `repo` scope, versions, roles, harnesses
+and exact component digests. A claimed commit does not independently verify that
+Git contains the supplied bytes.
+
+Set `COMMANDRY_SKILL_BUNDLE` and `COMMANDRY_SKILL_REPORT` to explicit local files.
+From the repository root, preview without network effects:
+
+```sh
+node --import tsx scripts/foundation-skill-registry.mjs \
+  --bundle "$COMMANDRY_SKILL_BUNDLE" --output "$COMMANDRY_SKILL_REPORT"
+```
+
+After reviewing that selection, set `COMMANDRY_FOUNDATION_ENDPOINT` to the exact
+HTTPS `/mcp/foundation/{projectId}` endpoint and supply the separately issued
+credential only through `COMMANDRY_FOUNDATION_TOKEN`. Record the same bundle:
+
+```sh
+node --import tsx scripts/foundation-skill-registry.mjs \
+  --bundle "$COMMANDRY_SKILL_BUNDLE" --output "$COMMANDRY_SKILL_REPORT" \
+  --record --endpoint "$COMMANDRY_FOUNDATION_ENDPOINT"
+```
+
+The CLI uses actual SDK discovery and `record_configuration`. It stores the
+original manifest, each available component with that manifest as parent, then
+a versioned registry index with every configuration ID and digest. The same
+`get_configuration_version` tool retrieves each receipt's exact snapshot;
+`list_configuration_versions` discovers the complete authorized inventory. No
+extra capability is granted by registering a library. Physical malformed UTF-8,
+invalid source scope and an oversized derived index reject before registration.
+
+Each configuration is independently transactional. The registry is not an atomic
+batch. A failure preserves completed safe receipts in a mode-0600 report; rerun
+the exact bundle with the same authorized client to retry the deterministic
+keys. A different bundle creates different keys. Missing content produces an
+explicit partial registry, never reconstructed sources. Reports contain metadata
+and receipts, not original source bodies or credentials.
+
+Registration does not install or invoke skills, alter hooks, or prove enforcement.
+`compareFoundationSkillDrift` compares explicitly supplied library, installed
+baseline and observed digests. It reports upstream changes, local changes,
+divergence, missing content, absent installation, unknown baselines and local-only
+additions without overwriting them. Without real installation evidence those
+states remain unknown; matching bytes alone do not prove use or success.
 
 ## Inventory and working context
 
@@ -134,6 +189,11 @@ explicit owner decision. Unknown database details are not returned to clients.
 Owner client listing requires projectId and returns `nextCursor` and `asOf`.
 Continue using `after=nextCursor` and the same `asOf` until null. The creation
 cutoff is not a retained database snapshot. Follow every applicable metadata and
-context continuation. Import preview remains a local preflight API; it does not
-claim a private corpus was imported. Owner UI controls, transactional selected
-import, skill adoption/drift and execution packet integration remain follow-ups.
+context continuation. The Account panel displays only this server environment
+and retains expired/revoked clients. Its one-time secret has explicit copy and
+dismissal, stays out of browser storage, and is cleared on a project change.
+Revocation requires named confirmation and can be canceled.
+
+Import preview remains a local preflight API; it does not claim a private corpus
+was imported. Transactional selected memory import, installation/adoption evidence,
+candidate promotion and task execution packet integration remain follow-ups.

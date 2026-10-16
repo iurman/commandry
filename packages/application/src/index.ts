@@ -61,3 +61,4 @@ export * from "./foundation-evaluation";
 export * from "./foundation-working-context";
 export * from "./foundation-inventory";
 export * from "./foundation-general-context";
+export * from "./foundation-skill-registry";
