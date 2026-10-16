@@ -3,11 +3,13 @@
 **Status: Operational local implementation. Not production activation.**
 
 This document describes the shared application and PostgreSQL foundation on the
-agent-memory campaign branch. It does not claim new public MCP tools, credential
-issuance routes, memory import, evaluation execution or deployment. The existing
-[knowledge MCP](knowledge-mcp.md) retains its four read tools and existing scope.
-The approved [campaign plan](../plans/agent-memory-mcp-foundation/PLAN.md) tracks
-the dependent transport, import, registry and evaluation work.
+agent-memory campaign branch. Nineteen opt-in MCP tools and authenticated owner
+HTTP operations use the shared records and application services. This is local
+implementation evidence, not production activation, private memory import or
+evaluation execution. The existing [knowledge MCP](knowledge-mcp.md) retains its
+four read tools and existing scope. The approved
+[campaign plan](../plans/agent-memory-mcp-foundation/PLAN.md) tracks the remaining
+import, registry, evaluation and release work.
 
 ## Records and source ownership
 
@@ -105,8 +107,12 @@ cutoff; the page-size limit is not a cap on the total accessible population.
 
 The PostgreSQL access wrapper holds a shared lock on the grant row through the
 operation and its audit. Revocation uses an incompatible update lock on that
-same row. Grant expiry is rechecked after waiting and before operation return.
-Owner session expiry is rechecked after operation locks and before return.
+same row. Grant and owner session expiry are rechecked after operation locks,
+after the allowed audit, after successful savepoint release and after the outer
+transaction await. Expiry during an audit wait rolls back the operation, receipt
+and allowed audit. A later expiry during savepoint release aborts the outer
+transaction. A deadline crossed during the database commit withholds delivery;
+it cannot retroactively roll back history already committed.
 Memory mutations and instruction approvals share a project advisory lock,
 including across configured environments, because the assertion rows are
 project-scoped. Canonical source checks use a shared row lock that conflicts

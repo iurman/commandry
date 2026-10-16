@@ -26,6 +26,7 @@ import {
   foundationEvidence,
   foundationIdempotency,
   foundationInstructionApproval,
+  foundationMemory,
   foundationMemoryRevision,
   foundationMemoryReview,
 } from "./foundation-schema";
@@ -47,7 +48,7 @@ const causedBy =
     error instanceof Error &&
     (pattern.test(error.message) || causedBy(pattern)(error.cause));
 
-async function fixture() {
+async function fixture(clockNow: () => Date = () => new Date()) {
   const admin = createDatabase({ connectionString: ownerUrl!, max: 3 });
   const runtime = createDatabase({
     connectionString: runtimeUrl.toString(),
@@ -76,16 +77,19 @@ async function fixture() {
     title: "Source",
     content: text,
   });
-  const port = createFoundationAccessRepository(runtime.db);
+  const port = createFoundationAccessRepository(runtime.db, { now: clockNow });
   const owner = createFoundationOwnerService(
     port,
     {
       principalId: "user:foundation-integration-owner",
-      expiresAt: expiresAt(),
+      expiresAt: new Date(clockNow().getTime() + 3600000).toISOString(),
     },
-    { environment: "test" },
+    { environment: "test", now: clockNow },
   );
-  const machine = createFoundationMachineService(port, { environment: "test" });
+  const machine = createFoundationMachineService(port, {
+    environment: "test",
+    now: clockNow,
+  });
   const issued = await owner.createClient(
     {
       name: "Scoped integration client",
@@ -1092,6 +1096,204 @@ test(
       );
     } finally {
       await f.close();
+    }
+  },
+);
+
+test(
+  "expiry during a real audit wait rolls back machine writes and owner client operations",
+  { timeout: 60000 },
+  async () => {
+    for (const scenario of [
+      "evidence",
+      "review",
+      "issue",
+      "list",
+      "revoke",
+    ] as const) {
+      let clock = Date.now();
+      const f = await fixture(() => new Date(clock));
+      let unlock: (() => void) | undefined;
+      let blocking: Promise<void> | undefined;
+      try {
+        const source = await f.machine.recordEvidence(
+          f.issued.token,
+          f.evidenceInput,
+          "audit-wait-source",
+        );
+        const proposed = await f.machine.proposeMemory(
+          f.issued.token,
+          {
+            projectId: f.projectId,
+            alias: null,
+            knowledgeItemId: f.knowledgeId,
+            content: f.content(source.record.id),
+          },
+          "audit-wait-memory",
+        );
+        const operation = {
+          evidence: "evidence.record",
+          review: "memory.review",
+          issue: "foundation.client.created",
+          list: "foundation.client.listed",
+          revoke: "foundation.client.revoked",
+        }[scenario];
+        const before = async () => ({
+          evidence: (
+            await f.admin.db
+              .select()
+              .from(foundationEvidence)
+              .where(eq(foundationEvidence.projectId, f.projectId))
+          ).length,
+          memories: await f.admin.db
+            .select()
+            .from(foundationMemory)
+            .where(eq(foundationMemory.projectId, f.projectId)),
+          reviews: (
+            await f.admin.db
+              .select()
+              .from(foundationMemoryReview)
+              .where(eq(foundationMemoryReview.projectId, f.projectId))
+          ).length,
+          clients: await f.admin.db
+            .select()
+            .from(foundationClient)
+            .where(eq(foundationClient.projectId, f.projectId)),
+          receipts: (
+            await f.admin.db
+              .select()
+              .from(foundationIdempotency)
+              .where(eq(foundationIdempotency.projectId, f.projectId))
+          ).length,
+        });
+        const initial = await before();
+        const initialAuditIds = new Set(
+          (
+            await f.admin.db
+              .select({ id: foundationAudit.id })
+              .from(foundationAudit)
+              .where(eq(foundationAudit.projectId, f.projectId))
+          ).map((row) => row.id),
+        );
+        await f.admin.db.execute(
+          sql`create function commandry_test_core_expiry_wait() returns trigger language plpgsql as $$ begin if NEW.decision = 'allowed' then perform pg_advisory_xact_lock(542332); end if; return NEW; end $$`,
+        );
+        await f.admin.db.execute(
+          sql`create trigger commandry_test_core_expiry_wait before insert on foundation_audit for each row execute function commandry_test_core_expiry_wait()`,
+        );
+        let ready!: () => void;
+        const entered = new Promise<void>((resolve) => {
+          ready = resolve;
+        });
+        const held = new Promise<void>((resolve) => {
+          unlock = resolve;
+        });
+        blocking = f.admin.db.transaction(async (tx) => {
+          await tx.execute(sql`select pg_advisory_xact_lock(542332)`);
+          ready();
+          await held;
+        });
+        await entered;
+        const actions = {
+          evidence: () =>
+            f.machine.recordEvidence(
+              f.issued.token,
+              { ...f.evidenceInput, locator: "fixture://audit-wait-new" },
+              "audit-wait-attempt",
+            ),
+          review: () =>
+            f.owner.reviewMemory(
+              {
+                projectId: f.projectId,
+                memoryId: proposed.record.id,
+                expectedVersion: 1,
+                decision: "accepted",
+                reason: "Explicit owner review",
+              },
+              "audit-wait-attempt",
+            ),
+          issue: () =>
+            f.owner.createClient(
+              {
+                projectId: f.projectId,
+                environment: "test",
+                name: "Audit wait client",
+                ttlSeconds: 3600,
+                operations: ["foundation.read"],
+              },
+              "audit-wait-attempt",
+            ),
+          list: () =>
+            f.owner.listClients({ projectId: f.projectId, limit: 25 }),
+          revoke: () => f.owner.revokeClient({ clientId: f.issued.client.id }),
+        };
+        const rejected = assert.rejects(
+          actions[scenario](),
+          (error: unknown) =>
+            error instanceof FoundationError &&
+            ["EXPIRED", "FORBIDDEN"].includes(error.code),
+        );
+        let observedWait = false;
+        for (let attempt = 0; attempt < 100; attempt++) {
+          const waiting = await f.admin.db.execute(
+            sql`select count(*)::int as count from pg_locks where locktype = 'advisory' and objid = 542332 and not granted`,
+          );
+          if (Number(waiting.rows[0]!.count) > 0) {
+            observedWait = true;
+            break;
+          }
+          await delay(10);
+        }
+        assert.equal(
+          observedWait,
+          true,
+          scenario + " reached the real audit lock",
+        );
+        clock += 3600000;
+        unlock!();
+        await blocking;
+        await rejected;
+        assert.deepEqual(
+          await before(),
+          initial,
+          scenario + " leaves no mutation or receipt",
+        );
+        const auditRows = await f.admin.db
+          .select()
+          .from(foundationAudit)
+          .where(
+            and(
+              eq(foundationAudit.projectId, f.projectId),
+              eq(foundationAudit.operation, operation),
+            ),
+          );
+        const attempts = auditRows.filter(
+          (row) => !initialAuditIds.has(row.id),
+        );
+        assert.equal(
+          attempts.some((row) => row.decision === "allowed"),
+          false,
+          scenario + " has no committed success audit",
+        );
+        if (scenario === "evidence" || scenario === "review") {
+          assert.equal(
+            attempts.some(
+              (row) => row.decision === "denied" && row.code === "EXPIRED",
+            ),
+            true,
+          );
+        }
+      } finally {
+        unlock?.();
+        await blocking;
+        await f.admin.db.execute(
+          sql`drop trigger if exists commandry_test_core_expiry_wait on foundation_audit`,
+        );
+        await f.admin.db.execute(
+          sql`drop function if exists commandry_test_core_expiry_wait()`,
+        );
+        await f.close();
+      }
     }
   },
 );

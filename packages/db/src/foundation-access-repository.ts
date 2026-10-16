@@ -178,6 +178,7 @@ export function createFoundationAccessRepository(
           value = await tx.transaction(async (operation) => {
             requireFoundationGrant(client, { ...request, now: now() });
             await lockProject(operation, request);
+            requireFoundationGrant(client, { ...request, now: now() });
             const result = await action(
               client,
               createFoundationRecordRepository(
@@ -190,28 +191,45 @@ export function createFoundationAccessRepository(
               ),
             );
             requireFoundationGrant(client, { ...request, now: now() });
+            await audit(
+              operation,
+              request,
+              principalId,
+              row.id,
+              "allowed",
+              replayed ? "REPLAYED" : "OK",
+            );
+            requireFoundationGrant(client, { ...request, now: now() });
             return result;
           });
         } catch (error) {
           failure = knownFailure(error);
           if (!failure) throw error;
         }
+        // The savepoint has been released. A new expiry must abort the outer
+        // transaction rather than save a denial alongside released writes.
+        if (!failure)
+          requireFoundationGrant(client, { ...request, now: now() });
         // Attribute denied cross-project requests to the credential's own project.
-        await audit(
-          tx,
-          {
-            ...request,
-            projectId: row.projectId,
-            environment: client.environment,
-          },
-          principalId,
-          row.id,
-          failure ? "denied" : "allowed",
-          failure?.code ?? (replayed ? "REPLAYED" : "OK"),
-        );
-        return { value, failure };
+        if (failure)
+          await audit(
+            tx,
+            {
+              ...request,
+              projectId: row.projectId,
+              environment: client.environment,
+            },
+            principalId,
+            row.id,
+            "denied",
+            failure.code,
+          );
+        return { value, failure, client };
       });
       if (outcome.failure) throw outcome.failure;
+      // A deadline crossed during COMMIT withholds delivery; committed history
+      // remains historical rather than pretending that it was rolled back.
+      requireFoundationGrant(outcome.client, { ...request, now: now() });
       return outcome.value as Awaited<ReturnType<typeof action>>;
     },
     async withOwner(request, action) {
@@ -246,27 +264,45 @@ export function createFoundationAccessRepository(
               request.environment,
               now(),
             );
+            await audit(
+              operation,
+              request,
+              request.principalId,
+              null,
+              "allowed",
+              replayed ? "REPLAYED" : "OK",
+            );
+            requireOwner(
+              request,
+              request.projectId,
+              request.environment,
+              now(),
+            );
             return result;
           });
         } catch (error) {
           failure = knownFailure(error);
           if (!failure) throw error;
         }
-        await audit(
-          tx,
-          request,
-          request.principalId,
-          null,
-          failure ? "denied" : "allowed",
-          failure?.code ?? (replayed ? "REPLAYED" : "OK"),
-        );
+        if (!failure)
+          requireOwner(request, request.projectId, request.environment, now());
+        if (failure)
+          await audit(
+            tx,
+            request,
+            request.principalId,
+            null,
+            "denied",
+            failure.code,
+          );
         return { value, failure };
       });
       if (outcome.failure) throw outcome.failure;
+      requireOwner(request, request.projectId, request.environment, now());
       return outcome.value as Awaited<ReturnType<typeof action>>;
     },
     async issueClient(input) {
-      return db.transaction(async (tx) => {
+      const outcome = await db.transaction(async (tx) => {
         const client = foundationClientSchema.parse(input.client);
         await projectExists(tx, client.projectId);
         requireOwner(
@@ -331,6 +367,12 @@ export function createFoundationAccessRepository(
             "denied",
             "CREDENTIAL_ALREADY_ISSUED",
           );
+          requireOwner(
+            input.identity,
+            client.projectId,
+            client.environment,
+            now(),
+          );
           return { client: original, created: false };
         }
         if (
@@ -386,11 +428,24 @@ export function createFoundationAccessRepository(
           "allowed",
           "CREATED",
         );
+        requireOwner(
+          input.identity,
+          client.projectId,
+          client.environment,
+          now(),
+        );
         return { client: record, created: true };
       });
+      requireOwner(
+        input.identity,
+        outcome.client.projectId,
+        outcome.client.environment,
+        now(),
+      );
+      return outcome;
     },
     async listClients(input, identity, environment, correlationId) {
-      return db.transaction(async (tx) => {
+      const outcome = await db.transaction(async (tx) => {
         await projectExists(tx, input.projectId);
         requireOwner(identity, input.projectId, environment, now());
         const asOf = input.asOf ?? now().toISOString();
@@ -427,15 +482,18 @@ export function createFoundationAccessRepository(
           "allowed",
           "OK",
         );
+        requireOwner(identity, input.projectId, environment, now());
         return {
           items,
           nextCursor: rows.length > input.limit ? page.at(-1)!.id : null,
           asOf,
         };
       });
+      requireOwner(identity, input.projectId, environment, now());
+      return outcome;
     },
     async revokeClient(clientId, identity, environment, correlationId) {
-      return db.transaction(async (tx) => {
+      const outcome = await db.transaction(async (tx) => {
         const [row] = await tx
           .select()
           .from(foundationClient)
@@ -471,8 +529,11 @@ export function createFoundationAccessRepository(
           "allowed",
           "REVOKED",
         );
+        requireOwner(identity, row.projectId, environment, now());
         return record;
       });
+      requireOwner(identity, outcome.projectId, environment, now());
+      return outcome;
     },
   };
 }
