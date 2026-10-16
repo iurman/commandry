@@ -1,3 +1,13 @@
+import {
+  captureTriageSuggestionSchema,
+  captureTriageDecisionSchema,
+} from "./capture-triage";
+export {
+  captureTriageSuggestionSchema,
+  captureTriageDecisionSchema,
+} from "./capture-triage";
+import { captureSchema } from "./capture";
+export { captureFileMetadataSchema, captureSchema } from "./capture";
 import { z } from "zod";
 import { workItemSchema } from "./work";
 
@@ -581,41 +591,6 @@ export const createCaptureRequestSchema = z
       });
     }
   });
-
-export const captureFileMetadataSchema = z.object({
-  originalName: z.string().min(1),
-  mediaType: z.string().min(1),
-  byteSize: z.number().int().min(1).max(2_097_152),
-  sha256: z.string().regex(/^[a-f0-9]{64}$/),
-  downloadHref: z.string().startsWith("/api/v1/captures/"),
-  previewHref: z.string().startsWith("/api/v1/captures/").nullable().optional(),
-});
-
-export const captureSchema = z.object({
-  id: z.uuid(),
-  inputType: z.enum([
-    "text",
-    "email",
-    "conversation",
-    "voice_transcript",
-    "url",
-    "file",
-  ]),
-  originalContent: z.string(),
-  file: captureFileMetadataSchema.nullable().optional(),
-  source: z.enum(["manual-local", "automation-local-synthetic"]),
-  author: z.enum(["local-user", "system:local-automation-worker"]),
-  state: z.enum(["unfiled", "filed"]),
-  projectId: z.uuid().nullable(),
-  filedRecord: z
-    .object({
-      kind: z.enum(["task", "note", "link", "document"]),
-      id: z.uuid(),
-    })
-    .nullable(),
-  createdAt: z.iso.datetime({ offset: true }),
-  filedAt: z.iso.datetime({ offset: true }).nullable(),
-});
 
 export const localFileTextProjectionSchema = z.object({
   captureId: z.uuid(),
@@ -1365,33 +1340,6 @@ export const listKnowledgeItemRevisionsResponseSchema = z.object({
 export const fileCaptureResponseSchema = z.object({
   capture: captureSchema,
   record: z.union([workItemSchema, knowledgeItemSchema]),
-});
-
-export const captureTriageSuggestionSchema = z.object({
-  id: z.uuid(),
-  captureId: z.uuid(),
-  kind: z.enum(["task", "note"]),
-  proposedProjectId: z.uuid().nullable(),
-  title: z.string(),
-  confidence: z.number().int().min(0).max(100),
-  rationale: z.string(),
-  ruleVersion: z.literal("capture-triage/v1"),
-  sourceLabel: z.literal("Local deterministic rule"),
-  createdAt: z.iso.datetime({ offset: true }),
-});
-
-export const captureTriageDecisionSchema = z.object({
-  id: z.uuid(),
-  captureId: z.uuid(),
-  suggestionId: z.uuid(),
-  decision: z.enum(["approve", "reject"]),
-  selectedProjectId: z.uuid().nullable(),
-  selectedKind: z.enum(["task", "note"]).nullable(),
-  selectedTitle: z.string().nullable(),
-  selectedBody: z.string().nullable(),
-  filedRecordId: z.uuid().nullable(),
-  actor: z.literal("local-user:unattributed"),
-  createdAt: z.iso.datetime({ offset: true }),
 });
 
 export const captureTriageReviewSchema = z.object({
