@@ -1,34 +1,10 @@
-export const capacity = 64;
-const field = `
-uniform vec4 uWells[${capacity}];
-uniform vec4 uShapes[${capacity}];
-uniform vec3 uColors[${capacity}];
-uniform float uAttention[${capacity}];
+export const terrainVertex = `
+uniform sampler2D uField;
+uniform vec2 uFieldSize;
+uniform int uFieldColumns;
 uniform int uCount;
 uniform float uTime;
 uniform float uAmbient;
-vec2 wellOffset(vec2 p, int i) {
-  vec2 d = p - uWells[i].xy;
-  float c = cos(uShapes[i].y), s = sin(uShapes[i].y);
-  return vec2(d.x * c + d.y * s, -d.x * s + d.y * c) / vec2(uWells[i].z * uShapes[i].x, uWells[i].z);
-}
-float heightAt(vec2 p) {
-  float h = sin(p.x * 0.14 + p.y * 0.11) * 0.55 + cos(p.y * 0.18 - p.x * 0.09) * 0.35;
-  h += sin(length(p) * 0.7 - uTime * 0.35) * cos(p.x * 0.12 + p.y * 0.09) * 0.055 * uAmbient;
-  for (int i = 0; i < ${capacity}; i++) {
-    if (i >= uCount) break;
-    vec4 w = uWells[i];
-    vec2 d = wellOffset(p, i);
-    float r2 = dot(d, d);
-    float strength = min(1.0, w.w);
-    h += uShapes[i].z * exp(-r2 * 0.23) * strength;
-    h -= w.w * exp(-pow(r2, uShapes[i].w) * 1.5);
-    h += 0.13 * w.z * exp(-pow(sqrt(r2) - 1.05, 2.0) * 12.0) * strength;
-  }
-  return h;
-}`;
-
-export const terrainVertex = `${field}
 varying vec3 vWorld;
 varying vec3 vColor;
 varying float vRim;
@@ -36,30 +12,44 @@ varying float vAlert;
 varying float vDash;
 varying float vDepth;
 varying float vInfluence;
+vec4 fieldRecord(int index, int part) {
+  ivec2 pixel = ivec2((index % uFieldColumns) * 3 + part, index / uFieldColumns);
+  return texture2D(uField, (vec2(pixel) + 0.5) / uFieldSize);
+}
 void main() {
-  vec3 p = position;
-  p.y = heightAt(p.xz);
-  vWorld = p;
+  vec3 p = (modelMatrix * vec4(position, 1.0)).xyz;
+  float h = sin(p.x * 0.14 + p.z * 0.11) * 0.55 + cos(p.z * 0.18 - p.x * 0.09) * 0.35;
+  h += sin(length(p.xz) * 0.7 - uTime * 0.35) * cos(p.x * 0.12 + p.z * 0.09) * 0.055 * uAmbient;
   vec3 tint = vec3(0.25, 0.55, 0.8) * 0.025;
   float weight = 0.025;
   vRim = 0.0; vAlert = 0.0; vDash = 0.0; vDepth = 0.0; vInfluence = 0.0;
-  for (int i = 0; i < ${capacity}; i++) {
-    if (i >= uCount) break;
-    vec4 w = uWells[i];
-    vec2 d = wellOffset(p.xz, i);
+  for (int i = 0; i < uCount; i++) {
+    vec4 w = fieldRecord(i, 0);
+    vec4 shape = fieldRecord(i, 1);
+    vec4 color = fieldRecord(i, 2);
+    vec2 delta = p.xz - w.xy;
+    float c = cos(shape.y), s = sin(shape.y);
+    vec2 d = vec2(delta.x * c + delta.y * s, -delta.x * s + delta.y * c) / vec2(w.z * shape.x, w.z);
     float r2 = dot(d, d), r = sqrt(r2);
-    float influence = exp(-r2 * 0.45) * min(1.0, w.w);
-    tint += uColors[i] * influence;
+    float strength = min(1.0, w.w);
+    float wellDepth = w.w * exp(-pow(r2, shape.w) * 1.5);
+    h += shape.z * exp(-r2 * 0.23) * strength;
+    h -= wellDepth;
+    h += 0.13 * w.z * exp(-pow(r - 1.05, 2.0) * 12.0) * strength;
+    float influence = exp(-r2 * 0.45) * strength;
+    tint += color.rgb * influence;
     weight += influence;
     vInfluence = max(vInfluence, influence);
-    vDepth = max(vDepth, w.w * exp(-pow(r2, uShapes[i].w) * 1.5));
-    float rim = exp(-pow((r - 1.08) * 20.0, 2.0)) * min(1.0, w.w);
+    vDepth = max(vDepth, wellDepth);
+    float rim = exp(-pow((r - 1.08) * 20.0, 2.0)) * strength;
     vRim = max(vRim, rim);
-    vAlert = max(vAlert, uAttention[i] * exp(-r2 * 0.25) * min(1.0, w.w));
-    vDash = max(vDash, rim * uAttention[i] * step(0.0, sin(atan(d.y, d.x) * 22.0)));
+    vAlert = max(vAlert, color.a * exp(-r2 * 0.25) * strength);
+    vDash = max(vDash, rim * color.a * step(0.0, sin(atan(d.y, d.x) * 22.0)));
   }
+  p.y = h;
+  vWorld = p;
   vColor = tint / weight;
-  gl_Position = projectionMatrix * modelViewMatrix * vec4(p, 1.0);
+  gl_Position = projectionMatrix * viewMatrix * vec4(p, 1.0);
 }`;
 
 export const terrainFragment = `
@@ -126,7 +116,7 @@ void main() {
 
 export const skyVertex = `
 varying vec3 vDirection;
-void main() { vDirection = normalize(position); gl_Position = projectionMatrix * modelViewMatrix * vec4(position, 1.0); }
+void main() { vDirection = normalize(position); gl_Position = projectionMatrix * modelViewMatrix * vec4(position, 1.0); gl_Position.z = gl_Position.w; }
 `;
 export const skyFragment = `
 uniform float uNight;
