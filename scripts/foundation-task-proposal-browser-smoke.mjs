@@ -49,13 +49,15 @@ export async function foundationTaskProposalBrowserSmoke({
         },
       ),
     );
+    const originals = new Map();
     async function propose(label) {
+      const originalContent =
+        `Synthetic browser ${label} <img src=x onerror=alert(1)>\r\n` +
+        "long-unverified-source-".repeat(16);
       const result = await client.callTool({
         name: "propose_task",
         arguments: {
-          originalContent:
-            `Synthetic browser ${label} <img src=x onerror=alert(1)>\r\n` +
-            "long-unverified-source-".repeat(16),
+          originalContent,
           proposedTitle: `Synthetic browser ${label}`,
           proposedBody: "Suggested text only; no execution authority.",
           rationale: "Owner browser review rehearsal.",
@@ -63,7 +65,9 @@ export async function foundationTaskProposalBrowserSmoke({
         },
       });
       assert.notEqual(result.isError, true, JSON.stringify(result));
-      return result.structuredContent.record;
+      const record = result.structuredContent.record;
+      originals.set(record.captureId, originalContent);
+      return record;
     }
     const first = await propose("approve");
     const second = await propose("reject");
@@ -83,8 +87,18 @@ export async function foundationTaskProposalBrowserSmoke({
       page.getByRole("heading", { name: "Capture suggestion", exact: true }),
     ).toHaveCount(0);
     await expect(
-      page.getByRole("button", { name: "File record", exact: true }),
+      page.getByRole("heading", { name: "File this capture", exact: true }),
     ).toHaveCount(0);
+    await expect(page.getByRole("button", { name: /^File as / })).toHaveCount(
+      0,
+    );
+    assert.equal(
+      await page
+        .getByRole("article", { name: "Original input", exact: true })
+        .locator("pre")
+        .textContent(),
+      originals.get(first.captureId),
+    );
     await panel
       .getByLabel("Task title", { exact: true })
       .fill("Browser owner selected task");
