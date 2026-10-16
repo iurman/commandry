@@ -16,7 +16,16 @@ import { createDatabase } from "./client";
 import { createFoundationAccessRepository } from "./foundation-access-repository";
 import { createFoundationWorkflowAccessRepository } from "./foundation-workflow-access-repository";
 import { foundationAudit, foundationIdempotency } from "./foundation-schema";
-import { project, session, user } from "./schema";
+import {
+  capture,
+  knowledgeItem,
+  knowledgeItemRevision,
+  project,
+  session,
+  user,
+} from "./schema";
+import { fileCaptureNoteInTransaction } from "./capture-note-filing";
+import { foundationByteDigest } from "./foundation-record-repository";
 
 const adminUrl = process.env.COMMANDRY_TEST_DATABASE_URL;
 const runtimePassword = process.env.COMMANDRY_TEST_RUNTIME_PASSWORD;
@@ -465,6 +474,105 @@ test("a session revoker waits for an already authorized transaction", async () =
     await outcome;
     if (deletion) await deletion;
     revoker.release();
+    await world.close();
+  }
+});
+
+test("canonical historical Knowledge remains immutable during a dependent transaction", async () => {
+  const world = await fixture();
+  const peer = await world.admin.pool.connect();
+  let release!: () => void;
+  const gate = new Promise<void>((resolve) => {
+    release = resolve;
+  });
+  let validated!: () => void;
+  const observed = new Promise<void>((resolve) => {
+    validated = resolve;
+  });
+  let pending: Promise<unknown> | undefined;
+  try {
+    const captureId = randomUUID(),
+      knowledgeId = randomUUID(),
+      revisionId = randomUUID();
+    const original = "Historical exact bytes\r\nversion one";
+    await world.admin.db.insert(capture).values({
+      id: captureId,
+      projectId: world.projectId,
+      inputType: "text",
+      originalContent: original,
+    });
+    await world.admin.db.transaction((tx) =>
+      fileCaptureNoteInTransaction(tx, {
+        captureId,
+        recordId: knowledgeId,
+        projectId: world.projectId,
+        title: "Historical source",
+        content: original,
+        at: world.now(),
+      }),
+    );
+    await world.admin.db
+      .update(knowledgeItem)
+      .set({ version: 2, content: "Current version two" })
+      .where(eq(knowledgeItem.id, knowledgeId));
+    await world.admin.db.insert(knowledgeItemRevision).values({
+      id: revisionId,
+      knowledgeItemId: knowledgeId,
+      version: 2,
+      previousTitle: "Historical source",
+      previousContent: original,
+      title: "Historical source",
+      content: "Current version two",
+      actor: "local-user:unattributed",
+    });
+    const reference = {
+      projectId: world.projectId,
+      sourceKind: "knowledge_revision" as const,
+      sourceId: knowledgeId,
+      sourceVersion: "1",
+      contentDigest: foundationByteDigest(original),
+      locator: "knowledge:" + knowledgeId,
+      observedAt: null,
+      availability: "available" as const,
+    };
+    pending = world.port.withOwner(world.request(), async (records) => {
+      await records.validateEvidenceReference(reference);
+      validated();
+      await gate;
+      return { validated: true };
+    });
+    await observed;
+    await assert.rejects(
+      peer.query(
+        "update knowledge_item_revision set previous_content=$1 where id=$2",
+        ["Rejected historical rewrite", revisionId],
+      ),
+      (error: unknown) =>
+        !!error &&
+        typeof error === "object" &&
+        "code" in error &&
+        error.code === "P0001" &&
+        "message" in error &&
+        error.message === "Knowledge item revisions are immutable",
+    );
+    release();
+    await pending;
+    await world.port.withOwner(world.request(), (records) =>
+      records.validateEvidenceReference(reference),
+    );
+    assert.equal(
+      (
+        await peer.query(
+          "select previous_content from knowledge_item_revision where id=$1",
+          [revisionId],
+        )
+      ).rows[0].previous_content,
+      original,
+    );
+  } finally {
+    release();
+    await pending?.catch(() => {});
+    peer.release();
     await world.close();
   }
 });

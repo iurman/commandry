@@ -50,19 +50,49 @@ const text = (maximum?: number) => {
     .refine((value) => value.trim().length > 0, "Must not be blank")
     .refine(validText, "Must contain valid Unicode without NUL");
 };
-const safeUrl = z.url().refine((value) => {
+// A bounded authority grammar is shared with the onboarding SQL guard. IDN
+// authorities are deferred; Unicode paths remain valid and original bytes survive.
+const safeUrl = z.string().refine((value) => {
+  if (!validText(value) || /[\u0000-\u0020\u007f\\]/.test(value)) return false;
+  const parts =
+    /^https?:\/\/(\[[0-9a-f:.]+\]|[a-z0-9.-]+)(?::([0-9]{1,5}))?(?:[/?#][\s\S]*)?$/i.exec(
+      value,
+    );
+  if (!parts || (parts[2] !== undefined && Number(parts[2]) > 65535))
+    return false;
+  const host = parts[1]!.toLowerCase();
+  if (!host.startsWith("[")) {
+    const dns = host.endsWith(".") ? host.slice(0, -1) : host;
+    const labels = dns.split(".");
+    if (
+      dns.length > 253 ||
+      labels.some(
+        (label) =>
+          !/^[a-z0-9](?:[a-z0-9-]{0,61}[a-z0-9])?$/.test(label) ||
+          label.startsWith("xn--"),
+      )
+    )
+      return false;
+    const last = labels.at(-1)!;
+    if (
+      /^(?:[0-9]+|0x[0-9a-f]*)$/.test(last) &&
+      !(
+        labels.length === 4 &&
+        labels.every(
+          (label) =>
+            /^(?:0|[1-9][0-9]{0,2})$/.test(label) && Number(label) <= 255,
+        )
+      )
+    )
+      return false;
+  }
   try {
     const url = new URL(value);
-    return (
-      (url.protocol === "http:" || url.protocol === "https:") &&
-      url.username === "" &&
-      url.password === "" &&
-      validText(value)
-    );
+    return url.username === "" && url.password === "";
   } catch {
     return false;
   }
-}, "Must be an HTTP(S) URL without userinfo");
+}, "Must be an HTTP(S) URL with an ASCII DNS, IPv4 or bracketed IPv6 authority, valid port and no userinfo");
 const userPrincipal = text(500).refine(
   (value) => value.startsWith("user:") && value.slice(5).trim().length > 0,
   "Must be a user principal",

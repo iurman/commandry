@@ -931,3 +931,52 @@ test("compares sub-millisecond expiry fractions exactly across UTC offsets", () 
     );
   }
 });
+
+test("onboarding URL authority grammar matches durable SQL intake", () => {
+  const valid = [
+    "https://example.test",
+    "https://example.test/a\u2028b\u2029c",
+    "HTTP://LOCALHOST:0/a",
+    "https://host.example:65535/路径?q=é#part",
+    "http://192.168.0.1:8080/",
+    "https://[::1]:443/",
+    "http://[2001:db8:0:0:0:0:0:1]/",
+    "http://[::ffff:192.168.0.1]/",
+    "https://host.example./",
+  ];
+  const invalid = [
+    "https://example.test:99999",
+    "https://[bad",
+    "http://[::ffff:192.168.01.1]/",
+    "https://example.test:",
+    "https://@example.test",
+    "https://user:secret@example.test",
+    "https://127.1",
+    "http://0x7f000001",
+    "http://a.123",
+    "https://xn--broken-",
+    "https://例子.test/",
+    "https://host..test",
+    "https://host.test/a\nb",
+    "https://host.test/a b",
+    "https://host.test/a\\b",
+  ];
+  for (const externalUrl of valid)
+    assert.equal(
+      foundationOnboardingTargetSchema.safeParse({
+        ...createTarget(),
+        externalUrl,
+      }).success,
+      true,
+      externalUrl,
+    );
+  for (const externalUrl of invalid)
+    assert.equal(
+      foundationOnboardingTargetSchema.safeParse({
+        ...createTarget(),
+        externalUrl,
+      }).success,
+      false,
+      externalUrl,
+    );
+});
