@@ -48,6 +48,10 @@ const machineOperations = [
   "foundation.read",
   "work.read",
   "resources.read",
+  "observatory.read",
+  "observatory.signals.read",
+  "observatory.security.read",
+  "observatory.providers.read",
   "work.propose",
   "evidence.record",
   "memory.propose",
@@ -134,7 +138,7 @@ const invalidDatetimes = [
   new Date(createdAt),
 ];
 
-test("machine operations include exactly fifteen opt-in capabilities", () => {
+test("machine operations include exactly nineteen opt-in capabilities", () => {
   assert.deepEqual(foundationMachineOperationSchema.options, machineOperations);
   for (const operation of machineOperations) {
     assert.equal(foundationMachineOperationSchema.parse(operation), operation);

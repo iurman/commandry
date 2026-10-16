@@ -1,4 +1,6 @@
 export { AppShell } from "./components/AppShell";
+export { FloatingSurface } from "./components/FloatingSurface";
+export type { FloatingSurfaceProps } from "./components/FloatingSurface";
 export { ConnectionStatus } from "./components/ConnectionStatus";
 export type { ConnectionState } from "./components/ConnectionStatus";
 export { LocalBackupCard } from "./components/LocalBackupCard";

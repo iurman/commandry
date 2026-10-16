@@ -100,6 +100,10 @@ test("operation policies enumerate every operation without expanding owner autho
     "foundation.read",
     "work.read",
     "resources.read",
+    "observatory.read",
+    "observatory.signals.read",
+    "observatory.security.read",
+    "observatory.providers.read",
     "work.propose",
     "work.proposal.read",
     "work.proposal.review",
@@ -147,6 +151,7 @@ test("operation policies enumerate every operation without expanding owner autho
         : operation === "foundation.read" ||
             operation === "work.read" ||
             operation === "resources.read" ||
+            operation.startsWith("observatory.") ||
             operation === "improvement.read" ||
             operation === "finding.read" ||
             operation === "onboarding.read" ||
@@ -160,6 +165,7 @@ test("operation policies enumerate every operation without expanding owner autho
       operation === "foundation.read" ||
         operation === "work.read" ||
         operation === "resources.read" ||
+        operation.startsWith("observatory.") ||
         operation === "improvement.read" ||
         operation === "finding.read" ||
         operation === "onboarding.read" ||

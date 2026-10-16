@@ -484,6 +484,13 @@
       "when": 1792194343559,
       "tag": "0068_observatory_provider_status",
       "breakpoints": true
+    },
+    {
+      "idx": 69,
+      "version": "7",
+      "when": 1792194343560,
+      "tag": "0069_observatory_read_capabilities",
+      "breakpoints": true
     }
   ]
 }

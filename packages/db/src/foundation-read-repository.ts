@@ -320,7 +320,14 @@ function records(
  * a factory or choose an operation outside its separately issued grant. */
 export function createFoundationProjectReadAccessRepository<Records>(
   db: CommandryDatabase,
-  requiredOperation: "foundation.read" | "work.read" | "resources.read",
+  requiredOperation:
+    | "foundation.read"
+    | "work.read"
+    | "resources.read"
+    | "observatory.read"
+    | "observatory.signals.read"
+    | "observatory.security.read"
+    | "observatory.providers.read",
   makeRecords: (
     tx: FoundationTransaction,
     request: FoundationMachineRequest,
@@ -333,7 +340,11 @@ export function createFoundationProjectReadAccessRepository<Records>(
   if (
     requiredOperation !== "foundation.read" &&
     requiredOperation !== "work.read" &&
-    requiredOperation !== "resources.read"
+    requiredOperation !== "resources.read" &&
+    requiredOperation !== "observatory.read" &&
+    requiredOperation !== "observatory.signals.read" &&
+    requiredOperation !== "observatory.security.read" &&
+    requiredOperation !== "observatory.providers.read"
   )
     throw new FoundationError("FORBIDDEN");
   const now = options.now ?? (() => new Date());
