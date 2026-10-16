@@ -72,7 +72,7 @@ No production writes, dispatcher, new framework or fabricated mappings.
   ],
   "acceptance": [
     {
-      "id": "T01-tests",
+      "id": "A1",
       "kind": "command",
       "run": "PATH=/home/urmani/.local/share/pnpm/.tools/pnpm/11.19.0/bin:/home/urmani/.cache/codex-runtimes/codex-primary-runtime/dependencies/node/bin:$PATH pnpm exec vitest run --config vitest.config.mts packages/ui/src/gravity/field.test.ts packages/ui/src/gravity/basin-geometry.test.ts",
       "expect": {
@@ -81,7 +81,7 @@ No production writes, dispatcher, new framework or fabricated mappings.
       "covers": "Smooth active basin geometry with identity-aware transitions behavior including documented failure boundaries"
     },
     {
-      "id": "T01-format",
+      "id": "A2",
       "kind": "command",
       "run": "PATH=/home/urmani/.local/share/pnpm/.tools/pnpm/11.19.0/bin:/home/urmani/.cache/codex-runtimes/codex-primary-runtime/dependencies/node/bin:$PATH pnpm exec prettier --check packages/ui/src/gravity/field.ts packages/ui/src/gravity/field.test.ts packages/ui/src/gravity/renderer.ts packages/ui/src/gravity/materials.ts packages/ui/src/gravity/basin-geometry.ts packages/ui/src/gravity/basin-geometry.test.ts",
       "expect": {
@@ -144,7 +144,7 @@ No production writes, dispatcher, new framework or fabricated mappings.
   ],
   "acceptance": [
     {
-      "id": "T02-tests",
+      "id": "A1",
       "kind": "command",
       "run": "PATH=/home/urmani/.local/share/pnpm/.tools/pnpm/11.19.0/bin:/home/urmani/.cache/codex-runtimes/codex-primary-runtime/dependencies/node/bin:$PATH pnpm exec vitest run --config vitest.config.mts packages/ui/src/components/FloatingSurface.test.tsx packages/ui/src/floating-position.test.ts",
       "expect": {
@@ -153,7 +153,7 @@ No production writes, dispatcher, new framework or fabricated mappings.
       "covers": "Accessible collision-aware shared floating surfaces behavior including documented failure boundaries"
     },
     {
-      "id": "T02-format",
+      "id": "A2",
       "kind": "command",
       "run": "PATH=/home/urmani/.local/share/pnpm/.tools/pnpm/11.19.0/bin:/home/urmani/.cache/codex-runtimes/codex-primary-runtime/dependencies/node/bin:$PATH pnpm exec prettier --check packages/ui/src/components/FloatingSurface.tsx packages/ui/src/components/floating-surface.css packages/ui/src/components/FloatingSurface.test.tsx packages/ui/src/floating-position.ts packages/ui/src/floating-position.test.ts apps/lab/stories/FloatingSurface.stories.tsx",
       "expect": {
@@ -216,7 +216,7 @@ No production writes, dispatcher, new framework or fabricated mappings.
   ],
   "acceptance": [
     {
-      "id": "T03-tests",
+      "id": "A1",
       "kind": "command",
       "run": "PATH=/home/urmani/.local/share/pnpm/.tools/pnpm/11.19.0/bin:/home/urmani/.cache/codex-runtimes/codex-primary-runtime/dependencies/node/bin:$PATH pnpm exec vitest run --config vitest.config.mts packages/contracts/src/observatory.test.ts packages/domain/src/observatory.test.ts",
       "expect": {
@@ -225,7 +225,7 @@ No production writes, dispatcher, new framework or fabricated mappings.
       "covers": "Complete semantic Observatory projection and independent operational facets behavior including documented failure boundaries"
     },
     {
-      "id": "T03-format",
+      "id": "A2",
       "kind": "command",
       "run": "PATH=/home/urmani/.local/share/pnpm/.tools/pnpm/11.19.0/bin:/home/urmani/.cache/codex-runtimes/codex-primary-runtime/dependencies/node/bin:$PATH pnpm exec prettier --check packages/contracts/src/observatory.ts packages/contracts/src/observatory.test.ts packages/domain/src/observatory.ts packages/domain/src/observatory.test.ts tests/fixtures/observatory.ts",
       "expect": {
