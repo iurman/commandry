@@ -41,6 +41,7 @@ const compareDatetimes = (left: string, right: string): number => {
 export const foundationMachineOperationSchema =
   foundationOperationSchema.extract([
     "foundation.read",
+    "work.read",
     "evidence.record",
     "memory.propose",
     "memory.revise",
