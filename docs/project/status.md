@@ -97,11 +97,15 @@ application and PostgreSQL foundation in PR 11 at revision
 [activation record](../architecture/agent-foundation.md#production-activation-2026-10-16)
 records exact release, backup/restore and live verification boundaries. The
 separate [PR 12 resource release](../architecture/agent-foundation.md#resource-read-activation-2026-10-16)
-was deployed at `07c8bfdb159728dd2d09899ee7245e28eb4c3def`. The later
+was deployed at `07c8bfdb159728dd2d09899ee7245e28eb4c3def`. The
 [PR 13 owner-review release](../architecture/agent-foundation.md#owner-review-activation-2026-10-16)
-is live at `5ffca1dee591051625f60c780fccb20f5f58f600`, preserving that resource
-capability and adding import-to-assertion review controls plus versioned
-onboarding/improvement procedures. Twenty-two opt-in MCP tools cover
+added import-to-assertion review controls and versioned onboarding/improvement
+procedures. The current
+[PR 16 governed proposal release](../architecture/agent-foundation.md#governed-proposal-activation-2026-10-16)
+is live at `1859d261d3e86e9dfa29e89ac846f06d7d90d1ff`, adding cited finding
+filing, immutable improvement association and reviewed inventory onboarding
+through eight optional tools and a separate owner console. Thirty opt-in tools
+with fifteen explicit capability choices now cover
 source-anchored evidence/memory/configurations, complete paginated inventories,
 approved working context and immutable evaluation observations with separate
 owner assessment review. Separately granted `work.read` lists the same canonical primary/related Work
@@ -126,12 +130,20 @@ The PR 13 integration passed check/build, 1437 workspace tests, 33 lab tests,
 130 Node checks and 172 PostgreSQL tests with one explicit unavailable live-input
 skip. Focused foundation tests passed 90/90; both-mode built SDK/HTTP/browser
 rehearsals passed. Exact main CI passed 195 browser cases with three existing
-skips before constrained deployment. Verified finding/citation proposals,
-broader product MCP coverage, installation/adoption evidence, candidate promotion,
-reviewed onboarding remain campaign work. Production owner client reads and
-existing native knowledge MCP passed after release. No foundation credential was
-issued and no private corpus imported; write acceptance remains attributed to
-the exact-image disposable rehearsals.
+skips before constrained deployment. The PR 16 source passed independent review, check/build, 1,818 workspace,
+33 lab and 130 Node tests, and 234 PostgreSQL tests with one explicit missing
+live-input skip. Clean latest and populated 0063 upgrades ran twice with old
+records, grants and receipts preserved. Exact main CI passed 195 browser cases
+with three existing skips and both governed workflow authentication modes.
+Constrained backup/restore, migration and owner/worker smoke passed before
+live reads preserved all 91 resources, 15 projects, five sources and existing
+client scopes. Production owner client reads, the new workflow views and
+existing native knowledge MCP passed. Broader product MCP coverage, external
+operational adapters and actual selected-runtime evaluation, installation and
+adoption remain separate work. No foundation credential was issued and no
+private corpus imported; workflow write acceptance remains attributed to
+the exact-release-source disposable rehearsals. First-client scope/runtime and private
+Mnemosyne cohort/disclosure remain explicit owner choices.
 
 - Commandry is a personal control plane spanning projects, knowledge,
   infrastructure, automations, monitoring, and agents.
@@ -160,6 +172,11 @@ the exact-image disposable rehearsals.
 - The repository has a `main` default branch and an `origin` remote.
 
 ## Local implementation evidence
+
+These entries preserve the earlier local MVP checkpoint. Present-tense
+statements in this section describe that checkpoint, including its then-open
+production gates. Current VPS deployment, provisional owner sign-in, source
+activation and backup/restore evidence are recorded above.
 
 - The web application exposes `/health/live`, `/health/ready`, `/version`, and
   versioned `/api/v1` routes for project and resource relationships, original
@@ -474,16 +491,23 @@ the exact-image disposable rehearsals.
   PostgreSQL checks cover the local paths. On this Bazzite laptop, the
   Docker-compatible Podman service and Compose provider build the image and run
   PostgreSQL, migrations, web, and worker locally. The database, web, and worker
-  report healthy. Release workflow `36636036729` passed at exact commit
-  `64cfb06` and published and read back its immutable GHCR digest. No
-  Commandry application or production environment is running on the VPS.
+  report healthy. At an earlier local-only checkpoint, release workflow
+  `36636036729` passed at exact commit `64cfb06` and published and read back its
+  immutable GHCR digest. No Commandry application or production environment was
+  running on the VPS at that checkpoint. The current production activation is
+  recorded above.
 
 ## Not yet decided
 
-- whether the existing VPS meets the minimum storage, memory, recovery, and
-  backup requirements for the accepted production topology;
-- exact first human sign-in and account-recovery method;
-- initial connector pair;
+The current release passed its initial VPS capacity, deployment and
+backup/restore gates and uses provisional single-owner password sign-in.
+GitHub and Linux host telemetry are live. Remaining choices include:
+
+- recovery after complete loss of VPS operator access and capacity planning for
+  future topology changes;
+- long-term human sign-in and account-recovery policy beyond the provisional
+  owner-password path;
+- next application connector activations beyond GitHub and Linux host telemetry;
 - first concrete external agent runtime adapter and runner protocol details;
 - exact first-release feature cut and success metrics;
 - full visual design language beyond the initial semantic token set;
