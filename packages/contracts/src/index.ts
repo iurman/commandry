@@ -1,15 +1,30 @@
-import {
-  captureTriageSuggestionSchema,
-  captureTriageDecisionSchema,
-} from "./capture-triage";
-export {
-  captureTriageSuggestionSchema,
-  captureTriageDecisionSchema,
-} from "./capture-triage";
-import { captureSchema } from "./capture";
-export { captureFileMetadataSchema, captureSchema } from "./capture";
 import { z } from "zod";
+import {
+  captureTriageSuggestionSchema as localCaptureTriageSuggestionSchema,
+  captureTriageDecisionSchema as localCaptureTriageDecisionSchema,
+} from "./capture-triage";
+import { captureSchema as localCaptureSchema } from "./capture";
+import {
+  foundationTaskProposalCaptureSchema,
+  foundationTaskProposalSuggestionSchema,
+  foundationTaskProposalDecisionSchema,
+} from "./foundation-task-proposal";
 import { workItemSchema } from "./work";
+
+export { captureFileMetadataSchema } from "./capture";
+export * from "./foundation-task-proposal";
+export const captureSchema = z.union([
+  localCaptureSchema,
+  foundationTaskProposalCaptureSchema,
+]);
+export const captureTriageSuggestionSchema = z.union([
+  localCaptureTriageSuggestionSchema,
+  foundationTaskProposalSuggestionSchema,
+]);
+export const captureTriageDecisionSchema = z.union([
+  localCaptureTriageDecisionSchema,
+  foundationTaskProposalDecisionSchema,
+]);
 
 export { workItemSchema } from "./work";
 

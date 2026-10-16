@@ -4,6 +4,7 @@ export const FOUNDATION_OPERATIONS = Object.freeze([
   "foundation.read",
   "work.read",
   "work.propose",
+  "work.proposal.read",
   "work.proposal.review",
   "evidence.record",
   "memory.propose",
@@ -106,6 +107,12 @@ export const FOUNDATION_OPERATION_POLICIES = Object.freeze({
     "immutable_create",
   ),
   // Owner review binds an exact version; this declaration does not execute it.
+  "work.proposal.read": operationPolicy(
+    "work.proposal.read",
+    "read_only",
+    "owner_only",
+    "read_snapshot",
+  ),
   "work.proposal.review": operationPolicy(
     "work.proposal.review",
     "sensitive",

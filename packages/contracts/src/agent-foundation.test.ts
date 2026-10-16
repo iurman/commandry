@@ -378,6 +378,7 @@ test("operations are the exact foundation family", () => {
     "foundation.read",
     "work.read",
     "work.propose",
+    "work.proposal.read",
     "work.proposal.review",
     "evidence.record",
     "memory.propose",

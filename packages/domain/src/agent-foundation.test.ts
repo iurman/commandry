@@ -82,6 +82,7 @@ function approval(
 }
 
 const ownerOnly: readonly FoundationOperation[] = [
+  "work.proposal.read",
   "work.proposal.review",
   "memory.import",
   "memory.review",
@@ -94,6 +95,7 @@ test("operation policies enumerate every operation without expanding owner autho
     "foundation.read",
     "work.read",
     "work.propose",
+    "work.proposal.read",
     "work.proposal.review",
     "evidence.record",
     "memory.propose",
@@ -121,15 +123,19 @@ test("operation policies enumerate every operation without expanding owner autho
     );
     assert.equal(
       policy.risk,
-      ownerOnly.includes(operation)
+      ownerOnly.includes(operation) && operation !== "work.proposal.read"
         ? "sensitive"
-        : operation === "foundation.read" || operation === "work.read"
+        : operation === "foundation.read" ||
+            operation === "work.read" ||
+            operation === "work.proposal.read"
           ? "read_only"
           : "reversible",
     );
     assert.equal(
       policy.concurrency,
-      operation === "foundation.read" || operation === "work.read"
+      operation === "foundation.read" ||
+        operation === "work.read" ||
+        operation === "work.proposal.read"
         ? "read_snapshot"
         : operation === "memory.revise" || ownerOnly.includes(operation)
           ? "expected_version"
@@ -1107,5 +1113,25 @@ test("long fractional timestamps cannot extend an expired grant or instruction a
   requireFoundationGrant(
     grant({ expiresAt: "2026-10-15T13:00:00.101000000000000001+01:00" }),
     request({ now: at }),
+  );
+});
+
+test("proposal inbox reads are owner-only without a machine read grant", () => {
+  assert.deepEqual(FOUNDATION_OPERATION_POLICIES["work.proposal.read"], {
+    scope: "project",
+    risk: "read_only",
+    requiredCapability: "work.proposal.read",
+    approval: "owner_only",
+    auditEvent: "work.proposal.read",
+    concurrency: "read_snapshot",
+    idempotency: "principal_operation_key",
+  });
+  assert.throws(
+    () =>
+      requireFoundationGrant(
+        grant({ operations: ["work.proposal.read"] }),
+        request({ operation: "work.proposal.read" }),
+      ),
+    { code: "FORBIDDEN" },
   );
 });
