@@ -3,14 +3,14 @@
 **Status: Operational implementation. Production release verified 2026-10-16.**
 
 This document describes the shared application and PostgreSQL foundation.
-Twenty-one opt-in MCP tools and authenticated owner HTTP operations use the
+Twenty-two opt-in MCP tools and authenticated owner HTTP operations use the
 shared records and application services. The reviewed foundation release is
 deployed; [activation evidence](#production-activation-2026-10-16) distinguishes
 production checks from disposable tool/write rehearsals. No private memory import
 or evaluation execution was performed. The existing [knowledge MCP](knowledge-mcp.md) retains its
 four read tools and existing scope. The approved
 [campaign plan](../plans/agent-memory-mcp-foundation/PLAN.md) tracks the remaining
-broader finding coverage, adoption, candidate and release work.
+broader finding coverage, adoption, candidate and onboarding work.
 
 ## Records and source ownership
 
@@ -110,6 +110,7 @@ to reach them.
 | Record unverified evidence                                   | Reversible | `evidence.record`, automatic with exact grant                    | `evidence.record`                                        |
 | Propose assertion                                            | Reversible | `memory.propose`, automatic with exact grant                     | `memory.propose`                                         |
 | Revise assertion                                             | Reversible | `memory.revise`, automatic with exact grant and expected version | `memory.revise`                                          |
+| Read assertion and source anchor                            | Read-only  | `memory.read`, authenticated owner only                         | `memory.read`                                            |
 | Review assertion                                             | Sensitive  | `memory.review`, owner only                                      | `memory.review`                                          |
 | Record factual verification                                  | Sensitive  | `memory.verify`, owner only                                      | `memory.verify`                                          |
 | Approve exact instruction                                    | Sensitive  | `instruction.approve`, owner only                                | `instruction.approve`                                    |
@@ -167,7 +168,7 @@ Only the known pre-mutation `413 PAYLOAD_TOO_LARGE` releases that frozen decisio
 for replacement. Success clears the component's raw file and originals.
 
 Import and original-text disclosure intentionally remain owner-only, absent from
-machine tool discovery and all eight machine grant choices. This prevents a general read
+machine tool discovery and all nine machine grant choices. This prevents a general read
 credential from disclosing a selected private export. Agents can discover the
 workflow and versioned contract, prepare a closed export under separate source
 selection authority, and use the existing scoped memory reads after owner import.
@@ -268,7 +269,7 @@ credential in the exact project/environment, and audits
 `foundation.client.authenticated`. Every tool still rechecks its current grant
 inside the database transaction.
 
-Discovery filters twenty-one implemented tools by the credential's capabilities.
+Discovery filters twenty-two implemented tools by the credential's capabilities.
 Write-only clients can authenticate without receiving `foundation.read`.
 Three paginated metadata inventories and a distinct general-context request now
 use the real read adapter. Scope filtering precedes UUID pagination and the
@@ -521,3 +522,51 @@ Actual resource reads, pagination, revocation and explicit permission selection
 were verified in the exact-source disposable SDK/HTTP/browser rehearsals. No
 production credential, private import, installation, inference or host mutation
 was introduced by this release.
+
+## Owner-review activation, 2026-10-16
+
+[PR 13](https://github.com/iurman/commandry/pull/13) was normally merged as
+`5ffca1dee591051625f60c780fccb20f5f58f600`. Attempt 1 of the exact
+[release workflow](https://github.com/iurman/commandry/actions/runs/38918055801)
+passed, including 195 browser checks and three existing skipped cases, and
+published/read back
+`ghcr.io/iurman/commandry@sha256:9ea2497233e1928e32379e57353e02228bff123d5ad8330e611fd012976f921d`.
+
+The constrained deployment completed its application smoke at
+`2026-10-16T15:04:50.645Z`. Fresh encrypted offsite backup, isolated restore and
+host recovery passed before release; actual owner sign-in, authenticated read,
+worker completion and probe-session revocation passed before ingress reopened.
+The original PostgreSQL volume and cluster identity remained unchanged. This
+release adds no migration or machine capability and does not establish recovery
+after complete loss of VPS access.
+
+Post-release reads preserved all 91 resource identities, names, parents and
+project memberships, all 15 projects and five source identities and enabled states. Four
+hosts continued reporting four real metrics each, with service health unknown.
+All 15 owner client inventories remained empty. Credentialless foundation MCP
+returned `401 INVALID_CREDENTIAL` with `no-store`; the actual native knowledge
+project/brief reads still worked. The signed-in browser loaded Gravity and the
+owner assertion review route, and Account retained nine explicit choices with
+only `foundation.read` checked by default. A valid missing assertion returned
+`404 NOT_FOUND` with `no-store`. This checks the live route and denial boundary;
+it is not a production review mutation.
+
+Independent backend, UI/composition and runbook reviews passed after retained
+corrections. Full source checks and build passed with 15 existing nonfatal
+warnings. Local tests passed: 1,437 workspace, 33 lab and 130 Node checks;
+PostgreSQL passed 172 with one explicit unavailable live-input skip, and the
+focused foundation population passed 90 of 90 without skips. Actual built
+SDK/HTTP/owner-browser rehearsals passed both disposable authentication modes,
+including acceptance, rejection and exact-key replay after a committed review
+with a withheld receipt. Six production-auth-mode light/dark captures at 1440,
+390 and 320 pixels were visually inspected. These write and visual checks used
+disposable data; no private corpus or production assertion was created for QA.
+
+The versioned [server-onboarding](../workflows/server-onboarding.md) and
+[agent-improvement](../workflows/agent-improvement-cycle.md) procedures describe
+current operations and their limits. Durable improvement associations and
+promotion, verified finding/citation proposals, reviewed onboarding changesets
+and wider product MCP coverage remain unbuilt. No standing foundation client,
+private import, skill installation or inference run was introduced. First
+external-client adoption and private-memory selection remain explicit owner
+choices; they do not block independent engineering.
