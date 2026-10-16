@@ -283,6 +283,12 @@ export const foundationMemoryAlias = pgTable(
   },
   (t) => [
     primaryKey({ columns: [t.projectId, t.namespace, t.externalId] }),
+    uniqueIndex("foundation_alias_memory_scope_idx").on(
+      t.projectId,
+      t.namespace,
+      t.externalId,
+      t.memoryId,
+    ),
     foreignKey({
       columns: [t.memoryId, t.projectId],
       foreignColumns: [foundationMemory.id, foundationMemory.projectId],

@@ -1341,6 +1341,11 @@ try {
     await runTests(
       connectionString,
       runtimePassword,
+      "packages/db/src/foundation-import.integration.test.ts",
+    );
+    await runTests(
+      connectionString,
+      runtimePassword,
       "packages/db/src/foundation-upgrade.integration.test.ts",
     );
   } else {

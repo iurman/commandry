@@ -25,6 +25,7 @@ import { createKnowledgeAccessRepository } from "./knowledge-access-repository";
 import { foundationByteDigest } from "./foundation-record-repository";
 import { capture, knowledgeClient, knowledgeItem, project } from "./schema";
 import { foundationConfiguration } from "./foundation-schema";
+import { foundationImportRevision } from "./foundation-import-schema";
 
 const ownerUrl = process.env.COMMANDRY_TEST_DATABASE_URL;
 const runtimePassword = process.env.COMMANDRY_TEST_RUNTIME_PASSWORD;
@@ -32,7 +33,7 @@ if (!ownerUrl || !runtimePassword)
   throw new Error("Use scripts/test-integration.mjs --foundation-only");
 
 test(
-  "populated 0057 upgrade preserves canonical records and legacy grants, reruns safely and explicitly regrants new tables",
+  "populated 0057 and 0059 upgrades preserve canonical memory and legacy grants, rerun safely and explicitly regrant new tables",
   { timeout: 60000 },
   async () => {
     const databaseName = `foundation_upgrade_${randomUUID().replaceAll("-", "")}`;
@@ -116,6 +117,135 @@ test(
       await upgrade.pool.query(
         "GRANT SELECT, INSERT, UPDATE, DELETE ON ALL TABLES IN SCHEMA public TO commandry_app_integration",
       );
+      // Populate the existing foundation BEFORE the selected-import migration.
+      // This checks an actual 0059 database, as well as the retained 0057 records.
+      const foundationPrefix = {
+        ...journal,
+        entries: journal.entries.filter((entry) => entry.idx <= 59),
+      };
+      await writeFile(
+        join(fixtureDir, "meta/_journal.json"),
+        JSON.stringify(foundationPrefix),
+      );
+      for (const entry of foundationPrefix.entries.filter(
+        (entry) => entry.idx > 57,
+      ))
+        await copyFile(
+          join(migrations, `${entry.tag}.sql`),
+          join(fixtureDir, `${entry.tag}.sql`),
+        );
+      await migrateDatabase({
+        connectionString: upgradeUrl.toString(),
+        migrationsDir: fixtureDir,
+      });
+      const priorAccess = createFoundationAccessRepository(upgrade.db);
+      const priorOwner = createFoundationOwnerService(
+        priorAccess,
+        {
+          principalId: "user:upgrade-owner",
+          expiresAt: new Date(Date.now() + 3600000).toISOString(),
+        },
+        { environment: "test" },
+      );
+      const priorMachine = createFoundationMachineService(priorAccess, {
+        environment: "test",
+      });
+      const priorClient = await priorOwner.createClient(
+        {
+          name: "Retained pre-import foundation grant",
+          projectId,
+          environment: "test",
+          operations: [
+            "foundation.read",
+            "evidence.record",
+            "memory.propose",
+            "configuration.record",
+          ],
+          ttlSeconds: 3600,
+        },
+        "before-import-client",
+      );
+      const priorEvidence = await priorMachine.recordEvidence(
+        priorClient.token,
+        {
+          projectId,
+          sourceKind: "knowledge_revision",
+          sourceId: knowledgeId,
+          sourceVersion: "1",
+          contentDigest: foundationByteDigest(text),
+          locator: `commandry:knowledge/${knowledgeId}/versions/1`,
+          observedAt: null,
+          availability: "available",
+        },
+        "before-import-evidence",
+      );
+      const priorMemory = await priorMachine.proposeMemory(
+        priorClient.token,
+        {
+          projectId,
+          knowledgeItemId: knowledgeId,
+          content: {
+            statement: "Retained approved instruction before import support.",
+            category: "instruction",
+            evidenceIds: [priorEvidence.record.id],
+            relatedMemoryIds: [],
+            relationType: null,
+          },
+          alias: { namespace: "pre-import", externalId: "retained" },
+        },
+        "before-import-memory",
+      );
+      await priorOwner.reviewMemory(
+        {
+          projectId,
+          memoryId: priorMemory.record.id,
+          expectedVersion: 1,
+          decision: "accepted",
+          reason: "Synthetic upgrade owner review",
+        },
+        "before-import-review",
+      );
+      await priorOwner.verifyMemory(
+        {
+          projectId,
+          memoryId: priorMemory.record.id,
+          expectedVersion: 1,
+          verification: "source_matched",
+          evidenceIds: [priorEvidence.record.id],
+          reason: "Synthetic exact source bytes",
+        },
+        "before-import-verify",
+      );
+      const priorApproval = await priorOwner.approveInstruction(
+        {
+          projectId,
+          memoryId: priorMemory.record.id,
+          expectedVersion: 1,
+          contentDigest: priorMemory.record.contentDigest,
+          disclosureProjectId: projectId,
+          expiresAt: new Date(Date.now() + 600000).toISOString(),
+        },
+        "before-import-approval",
+      );
+      const frozenMemory = await priorMachine.getMemory(priorClient.token, {
+        projectId,
+        id: priorMemory.record.id,
+      });
+      const priorConfig = await priorMachine.recordConfiguration(
+        priorClient.token,
+        {
+          projectId,
+          kind: "prompt",
+          content: "Retained configuration bytes before selected import.",
+          parentIds: [],
+          sourceCommit: null,
+        },
+        "before-import-config",
+      );
+      const frozenRows = await upgrade.pool.query(
+        "select to_jsonb(r) as record from public.foundation_instruction_approval r where id = $1",
+        [priorApproval.record.id],
+      );
       await migrateDatabase({ connectionString: upgradeUrl.toString() });
       await migrateDatabase({ connectionString: upgradeUrl.toString() });
       runtime = createDatabase({
@@ -130,12 +260,48 @@ test(
           error.cause instanceof Error &&
           /permission denied/.test(error.cause.message),
       );
+      await assert.rejects(
+        runtime.db.select().from(foundationImportRevision),
+        (error: unknown) =>
+          error instanceof Error &&
+          error.cause instanceof Error &&
+          /permission denied/.test(error.cause.message),
+      );
       await upgrade.pool.query(
         "GRANT SELECT, INSERT, UPDATE, DELETE ON ALL TABLES IN SCHEMA public TO commandry_app_integration",
       );
       await upgrade.pool.query(
         "GRANT USAGE, SELECT ON ALL SEQUENCES IN SCHEMA public TO commandry_app_integration",
       );
+      assert.deepEqual(
+        await priorMachine.getMemory(priorClient.token, {
+          projectId,
+          id: priorMemory.record.id,
+        }),
+        frozenMemory,
+      );
+      assert.deepEqual(
+        await priorMachine.getConfiguration(priorClient.token, {
+          projectId,
+          id: priorConfig.record.id,
+        }),
+        priorConfig.record,
+      );
+      assert.deepEqual(
+        (await priorMachine.describe(priorClient.token, projectId)).actor
+          .capabilities,
+        priorClient.client.operations,
+      );
+      const retainedApproval = await upgrade.pool.query(
+        "select to_jsonb(r) as record from public.foundation_instruction_approval r where id = $1",
+        [priorApproval.record.id],
+      );
+      assert.deepEqual(retainedApproval.rows, frozenRows.rows);
+      assert.deepEqual(
+        await runtime.db.select().from(foundationImportRevision),
+        [],
+      );
+
       const [original] = await runtime.db
         .select()
         .from(knowledgeItem)
