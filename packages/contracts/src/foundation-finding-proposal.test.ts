@@ -1,5 +1,5 @@
 import assert from "node:assert/strict";
-import test from "node:test";
+import { test } from "vitest";
 import {
   FOUNDATION_FINDING_PROPOSAL_MAX_INPUT_BYTES,
   foundationFindingCitationSchema,

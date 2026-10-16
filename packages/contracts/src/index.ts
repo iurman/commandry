@@ -3490,3 +3490,5 @@ export * from "./foundation-work";
 export * from "./foundation-resources";
 export * from "./foundation-improvement";
 export * from "./foundation-workflow";
+export * from "./foundation-finding-proposal";
+export * from "./foundation-onboarding";
