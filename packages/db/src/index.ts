@@ -78,3 +78,5 @@ export * as foundationFindingSchema from "./foundation-finding-schema";
 
 export { createFoundationOnboardingAccessRepository } from "./foundation-onboarding-repository";
 export * as foundationOnboardingSchema from "./foundation-onboarding-schema";
+
+export * from "./observatory-provider-repository";

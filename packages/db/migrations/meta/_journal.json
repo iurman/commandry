@@ -477,6 +477,13 @@
       "when": 1792172595171,
       "tag": "0067_foundation_onboarding",
       "breakpoints": true
+    },
+    {
+      "idx": 68,
+      "version": "7",
+      "when": 1792194343559,
+      "tag": "0068_observatory_provider_status",
+      "breakpoints": true
     }
   ]
 }

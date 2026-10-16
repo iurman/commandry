@@ -241,10 +241,12 @@ No production writes, dispatcher, new framework or fabricated mappings.
 ```
 
 ## Convergence order
-T01, T02, T03
+T02, T03, T01
 
 ## Risks
 Mandatory repository orientation is large; explicitly permit a 360000-byte manifest budget while keeping exclusive changes at six files. Root integrates shared exports, React DOM dependency if needed and browser/API/MCP wiring after independently checked packets. Actual device and production evidence cannot be substituted.
 
 ## Escalation answers
 Task-specific specifications are seeded T01.md through T03.md. Use the pinned existing subscription models; no paid fallback. Workers are not alone and must preserve others. Runtime actual permissions must be verified separately. Logs/review/scratch are local only; durable result is committed by coordinator. Existing user authority permits routine implementation and normal gates remain.
+
+The first wave converges T02 and T03 before T01 because independent Astra review found a swept-transition correctness defect and a synchronous geometry-planning stall in T01. T01 remains active for correction and must pass re-review; unrelated controls and semantic contracts continue independently. Packet comparisons explicitly pin base commit 4062ad5 as integration advances.

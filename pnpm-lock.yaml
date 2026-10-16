@@ -320,6 +320,9 @@ importers:
       '@commandry/contracts':
         specifier: workspace:*
         version: link:../contracts
+      react-dom:
+        specifier: 19.3.0
+        version: 19.3.0(react@19.3.0)
       three:
         specifier: 0.186.1
         version: 0.186.1
