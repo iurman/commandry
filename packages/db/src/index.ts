@@ -1,4 +1,5 @@
 export { createDatabase } from "./client";
+export * from "./foundation-work-repository";
 export type { CommandryDatabase } from "./client";
 export { createAuth } from "./auth";
 export * from "./owner-password-recovery-repository";
@@ -56,3 +57,15 @@ export * from "./real-integration-repository";
 export * from "./knowledge-access-repository";
 
 export * from "./infrastructure-overview-repository";
+
+export { createFoundationAccessRepository } from "./foundation-access-repository";
+export * as foundationSchema from "./foundation-schema";
+export { createFoundationAuthenticationRepository } from "./foundation-authentication-repository";
+export { createFoundationEvaluationAccessRepository } from "./foundation-evaluation-access-repository";
+export * as foundationEvaluationSchema from "./foundation-evaluation-schema";
+export { createFoundationReadAccessRepository } from "./foundation-read-repository";
+
+export { createFoundationSelectedImportRepository } from "./foundation-import-repository";
+export * as foundationImportSchema from "./foundation-import-schema";
+
+export { createFoundationTaskProposalAccessRepository } from "./foundation-task-proposal-repository";

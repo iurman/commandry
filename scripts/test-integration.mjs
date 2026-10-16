@@ -9,6 +9,8 @@ import { join, resolve } from "node:path";
 import { setTimeout as delay } from "node:timers/promises";
 import { fileURLToPath } from "node:url";
 import EmbeddedPostgres from "embedded-postgres";
+import { foundationAccessSmoke } from "./foundation-access-smoke.mjs";
+import { foundationClientsBrowserSmoke } from "./foundation-clients-browser-smoke.mjs";
 import { knowledgeAccessSmoke } from "./knowledge-access-smoke.mjs";
 import { sendLinuxHost } from "./linux-host-collector.mjs";
 
@@ -25,6 +27,22 @@ async function freeLoopbackPort() {
     throw new Error("Could not allocate a loopback port");
   await new Promise((resolveClose) => server.close(resolveClose));
   return address.port;
+}
+
+async function prepareStandaloneWebAssets() {
+  await mkdir(join(root, "apps/web/.next/standalone/apps/web/.next"), {
+    recursive: true,
+  });
+  await cp(
+    join(root, "apps/web/.next/static"),
+    join(root, "apps/web/.next/standalone/apps/web/.next/static"),
+    { recursive: true },
+  );
+  await cp(
+    join(root, "apps/web/public"),
+    join(root, "apps/web/.next/standalone/apps/web/public"),
+    { recursive: true },
+  );
 }
 
 async function runTests(connectionString, runtimePassword, testPath) {
@@ -145,19 +163,7 @@ async function runRealSourceBrowser(
   runtimeUrl.username = "commandry_app_integration";
   runtimeUrl.password = runtimePassword;
   const origin = `http://127.0.0.1:${webPort}`;
-  await mkdir(join(root, "apps/web/.next/standalone/apps/web/.next"), {
-    recursive: true,
-  });
-  await cp(
-    join(root, "apps/web/.next/static"),
-    join(root, "apps/web/.next/standalone/apps/web/.next/static"),
-    { recursive: true },
-  );
-  await cp(
-    join(root, "apps/web/public"),
-    join(root, "apps/web/.next/standalone/apps/web/public"),
-    { recursive: true },
-  );
+  await prepareStandaloneWebAssets();
   const web = startService("real source browser web", webEntry, {
     NODE_ENV: "production",
     APP_ENV: "local",
@@ -1052,6 +1058,7 @@ async function runAuthSmoke(
         `Build artifact is missing: ${entry}. Run pnpm build first.`,
       );
   }
+  await prepareStandaloneWebAssets();
   const port = await freeLoopbackPort();
   const origin = `http://127.0.0.1:${port}`;
   const appOrigin = production ? "https://commandry.site" : origin;
@@ -1210,6 +1217,19 @@ async function runAuthSmoke(
     assert.equal(allowedOverview.status, 200);
     await realSourceApiSmoke(origin, cookie, appOrigin);
     await knowledgeAccessSmoke(origin, cookie, appOrigin);
+    await foundationAccessSmoke(
+      origin,
+      cookie,
+      appOrigin,
+      production ? "production" : "test",
+    );
+    if (process.env.COMMANDRY_FOUNDATION_BROWSER === "1")
+      await foundationClientsBrowserSmoke(
+        origin,
+        cookie,
+        appOrigin,
+        production ? "production" : "test",
+      );
     const signOut = await postAuth("sign-out", {}, cookie);
     assert.equal(signOut.status, 200);
     const signedOutRead = await fetch(`${origin}/api/v1/projects`, {
@@ -1302,77 +1322,130 @@ try {
     runtimePassword,
     "packages/platform/src/foundation.integration.test.ts",
   );
-  const knowledgeOnly = process.argv.includes("--knowledge-only");
-  const authOnly = process.argv.includes("--auth-only");
-  const realLiveOnly = process.argv.includes("--real-live");
-  const realBrowserOnly =
-    process.argv.includes("--real-browser") ||
-    process.argv.includes("--real-browser-all");
-  if (realLiveOnly) {
-    if (!process.env.COMMANDRY_LIVE_HOST_SAMPLE_PATH)
-      throw new Error("A real electra sample file is required");
+  if (process.argv.includes("--foundation-only")) {
     await runTests(
       connectionString,
       runtimePassword,
-      "packages/platform/src/real-source-live.integration.test.ts",
+      "packages/db/src/foundation-repository.integration.test.ts",
     );
-    await runRealSourceBrowser(connectionString, runtimePassword, false, true);
-  }
-  if (realBrowserOnly)
-    await runRealSourceBrowser(
-      connectionString,
-      runtimePassword,
-      process.argv.includes("--real-browser-all"),
-    );
-  if (!authOnly && !knowledgeOnly && !realLiveOnly && !realBrowserOnly) {
-    const platformTests = (
-      await readdir(resolve(root, "packages/platform/src"))
-    )
-      .filter(
-        (file) =>
-          file.endsWith(".integration.test.ts") &&
-          file !== "foundation.integration.test.ts",
-      )
-      .sort();
-    for (const file of platformTests)
-      await runTests(
-        connectionString,
-        runtimePassword,
-        `packages/platform/src/${file}`,
-      );
-  }
-  if (process.argv.includes("--smoke")) {
-    await runSmoke(postgres, connectionString, runtimePassword);
-  }
-  if (process.argv.includes("--smoke") || authOnly || knowledgeOnly) {
-    await runAuthSmoke(postgres, connectionString, runtimePassword);
-    await runAuthSmoke(postgres, connectionString, runtimePassword, true);
-  }
-  if (authOnly) {
     await runTests(
       connectionString,
       runtimePassword,
-      "packages/db/src/auth.integration.test.ts",
+      "packages/db/src/foundation-evaluation.integration.test.ts",
     );
-  } else if (!realLiveOnly && !realBrowserOnly) {
-    const repositoryTests = (await readdir(resolve(root, "packages/db/src")))
-      .filter(
-        (file) =>
-          file.endsWith(".integration.test.ts") &&
-          (!knowledgeOnly ||
-            [
-              "knowledge-access.integration.test.ts",
-              "brief-repository.integration.test.ts",
-              "local-mcp-repository.integration.test.ts",
-            ].includes(file)),
-      )
-      .sort();
-    for (const file of repositoryTests)
+    await runTests(
+      connectionString,
+      runtimePassword,
+      "packages/db/src/foundation-read.integration.test.ts",
+    );
+    await runTests(
+      connectionString,
+      runtimePassword,
+      "packages/db/src/foundation-import.integration.test.ts",
+    );
+    await runTests(
+      connectionString,
+      runtimePassword,
+      "packages/db/src/foundation-work.integration.test.ts",
+    );
+    await runTests(
+      connectionString,
+      runtimePassword,
+      "packages/db/src/project-work-query.integration.test.ts",
+    );
+    await runTests(
+      connectionString,
+      runtimePassword,
+      "packages/db/src/foundation-record-factory.integration.test.ts",
+    );
+    await runTests(
+      connectionString,
+      runtimePassword,
+      "packages/db/src/foundation-task-proposal.integration.test.ts",
+    );
+    await runTests(
+      connectionString,
+      runtimePassword,
+      "packages/db/src/foundation-upgrade.integration.test.ts",
+    );
+  } else {
+    const knowledgeOnly = process.argv.includes("--knowledge-only");
+    const authOnly = process.argv.includes("--auth-only");
+    const realLiveOnly = process.argv.includes("--real-live");
+    const realBrowserOnly =
+      process.argv.includes("--real-browser") ||
+      process.argv.includes("--real-browser-all");
+    if (realLiveOnly) {
+      if (!process.env.COMMANDRY_LIVE_HOST_SAMPLE_PATH)
+        throw new Error("A real electra sample file is required");
       await runTests(
         connectionString,
         runtimePassword,
-        `packages/db/src/${file}`,
+        "packages/platform/src/real-source-live.integration.test.ts",
       );
+      await runRealSourceBrowser(
+        connectionString,
+        runtimePassword,
+        false,
+        true,
+      );
+    }
+    if (realBrowserOnly)
+      await runRealSourceBrowser(
+        connectionString,
+        runtimePassword,
+        process.argv.includes("--real-browser-all"),
+      );
+    if (!authOnly && !knowledgeOnly && !realLiveOnly && !realBrowserOnly) {
+      const platformTests = (
+        await readdir(resolve(root, "packages/platform/src"))
+      )
+        .filter(
+          (file) =>
+            file.endsWith(".integration.test.ts") &&
+            file !== "foundation.integration.test.ts",
+        )
+        .sort();
+      for (const file of platformTests)
+        await runTests(
+          connectionString,
+          runtimePassword,
+          `packages/platform/src/${file}`,
+        );
+    }
+    if (process.argv.includes("--smoke")) {
+      await runSmoke(postgres, connectionString, runtimePassword);
+    }
+    if (process.argv.includes("--smoke") || authOnly || knowledgeOnly) {
+      await runAuthSmoke(postgres, connectionString, runtimePassword);
+      await runAuthSmoke(postgres, connectionString, runtimePassword, true);
+    }
+    if (authOnly) {
+      await runTests(
+        connectionString,
+        runtimePassword,
+        "packages/db/src/auth.integration.test.ts",
+      );
+    } else if (!realLiveOnly && !realBrowserOnly) {
+      const repositoryTests = (await readdir(resolve(root, "packages/db/src")))
+        .filter(
+          (file) =>
+            file.endsWith(".integration.test.ts") &&
+            (!knowledgeOnly ||
+              [
+                "knowledge-access.integration.test.ts",
+                "brief-repository.integration.test.ts",
+                "local-mcp-repository.integration.test.ts",
+              ].includes(file)),
+        )
+        .sort();
+      for (const file of repositoryTests)
+        await runTests(
+          connectionString,
+          runtimePassword,
+          `packages/db/src/${file}`,
+        );
+    }
   }
 } catch (error) {
   failed = true;

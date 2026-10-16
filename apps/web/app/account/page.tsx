@@ -4,6 +4,8 @@ import { headers } from "next/headers";
 import { getAuth } from "../../lib/auth";
 import SignOutButton from "./SignOutButton";
 import FeedbackSettings from "./FeedbackSettings";
+import FoundationClientsPanel from "./FoundationClientsPanel";
+import FoundationImportPanel from "./FoundationImportPanel";
 
 export const dynamic = "force-dynamic";
 
@@ -13,6 +15,11 @@ export default async function AccountPage() {
     config.humanAuthMode === "password"
       ? await getAuth().api.getSession({ headers: await headers() })
       : null;
+  const ownerSignedIn = Boolean(
+    session &&
+    session.user.email.toLowerCase() ===
+      config.initialAdminEmail?.toLowerCase(),
+  );
   return (
     <AppShell current="Account">
       <header className="cmd-page-header">
@@ -43,6 +50,14 @@ export default async function AccountPage() {
           </p>
         )}
       </section>
+      <FoundationClientsPanel
+        enabled={ownerSignedIn}
+        environment={config.appEnv}
+      />
+      <FoundationImportPanel
+        enabled={ownerSignedIn}
+        environment={config.appEnv}
+      />
       <FeedbackSettings />
     </AppShell>
   );

@@ -10,6 +10,7 @@ export class CaptureTriageError extends Error {
       | "SUGGESTION_NOT_READY"
       | "CAPTURE_ALREADY_FILED"
       | "CAPTURE_UNSUPPORTED"
+      | "CAPTURE_REVIEW_REQUIRED"
       | "TRIAGE_ALREADY_REVIEWED"
       | "PROJECT_NOT_FOUND",
     message: string,
@@ -90,3 +91,23 @@ export function requireCaptureTriageReview(input: {
   }
 }
 import type { ManualCaptureInputType } from "./capture";
+
+export function requireLocalCaptureTriage(capture: { source: string }): void {
+  if (capture.source === "foundation-client") {
+    throw new CaptureTriageError(
+      "CAPTURE_REVIEW_REQUIRED",
+      "Use the separate owner decision for this agent task proposal",
+    );
+  }
+}
+export function isLocalDeterministicTriageEligible(capture: {
+  source: string;
+  state: string;
+  inputType: string;
+}): boolean {
+  return (
+    capture.source !== "foundation-client" &&
+    capture.state === "unfiled" &&
+    capture.inputType !== "file"
+  );
+}

@@ -407,6 +407,41 @@
       "when": 1792026792950,
       "tag": "0057_simple_mongu",
       "breakpoints": true
+    },
+    {
+      "idx": 58,
+      "version": "7",
+      "when": 1792126398940,
+      "tag": "0058_fat_dorian_gray",
+      "breakpoints": true
+    },
+    {
+      "idx": 59,
+      "version": "7",
+      "when": 1792130297737,
+      "tag": "0059_powerful_wendigo",
+      "breakpoints": true
+    },
+    {
+      "idx": 60,
+      "version": "7",
+      "when": 1792139481689,
+      "tag": "0060_foundation_selected_import",
+      "breakpoints": true
+    },
+    {
+      "idx": 61,
+      "version": "7",
+      "when": 1792144227495,
+      "tag": "0061_foundation_work_read",
+      "breakpoints": true
+    },
+    {
+      "idx": 62,
+      "version": "7",
+      "when": 1792148873273,
+      "tag": "0062_foundation_task_proposals",
+      "breakpoints": true
     }
   ]
 }

@@ -52,3 +52,18 @@ export * from "./real-integrations";
 export * from "./knowledge-access";
 
 export * from "./infrastructure-overview";
+
+export * from "./agent-foundation";
+export * from "./foundation-authentication";
+export * from "./mnemosyne-import-preview";
+export * from "./foundation-evaluation-report";
+export * from "./foundation-evaluation";
+export * from "./foundation-working-context";
+export * from "./foundation-inventory";
+export * from "./foundation-general-context";
+export * from "./foundation-skill-registry";
+export * from "./mnemosyne-selected-import";
+
+export * from "./foundation-work";
+
+export * from "./foundation-task-proposal";

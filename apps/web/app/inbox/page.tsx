@@ -22,6 +22,7 @@ import {
   type PageResponse,
   type ProjectRecord,
 } from "../projects/api";
+import { FoundationTaskProposalPanel } from "./FoundationTaskProposalPanel";
 import type {
   CaptureRecord,
   CaptureTriageReview,
@@ -56,6 +57,10 @@ export default function InboxPage() {
   const [listError, setListError] = useState<string | null>(null);
   const [selectedId, setSelectedId] = useState<string | null>(null);
   const [detail, setDetail] = useState<CaptureRecord | null>(null);
+  const [proposalSelection, setProposalSelection] = useState<{
+    captureId: string;
+    projectId: string;
+  } | null>(null);
   const [detailError, setDetailError] = useState<string | null>(null);
   const [detailReload, setDetailReload] = useState(0);
   const [triageReview, setTriageReview] = useState<CaptureTriageReview | null>(
@@ -167,6 +172,16 @@ export default function InboxPage() {
             ? (locallyFiledCaptures.current.get(record.id) ?? record)
             : record;
         setDetail(currentRecord);
+        if (
+          currentRecord.id === selectedId &&
+          currentRecord.source === "foundation-client" &&
+          currentRecord.projectId
+        ) {
+          setProposalSelection({
+            captureId: currentRecord.id,
+            projectId: currentRecord.projectId,
+          });
+        }
         setCaptures((current) =>
           current.some((item) => item.id === currentRecord.id)
             ? current.map((item) =>
@@ -189,7 +204,14 @@ export default function InboxPage() {
   }, [selectedId, detailReload]);
 
   useEffect(() => {
-    if (!selectedId || detail?.inputType === "file") return;
+    if (
+      !selectedId ||
+      !detail ||
+      detail.id !== selectedId ||
+      detail.inputType === "file" ||
+      detail.source === "foundation-client"
+    )
+      return;
     let active = true;
     let timer: ReturnType<typeof setTimeout> | undefined;
     let attempts = 0;
@@ -236,7 +258,14 @@ export default function InboxPage() {
       active = false;
       if (timer) clearTimeout(timer);
     };
-  }, [selectedId, triageReload, detail?.state, detail?.inputType]);
+  }, [
+    selectedId,
+    triageReload,
+    detail?.id,
+    detail?.state,
+    detail?.inputType,
+    detail?.source,
+  ]);
 
   function selectCapture(id: string) {
     detailRef.current?.scrollIntoView?.({ behavior: "smooth", block: "start" });
@@ -792,58 +821,60 @@ export default function InboxPage() {
                 <span className="cmd-count">Capture ID {detail.id}</span>
               </div>
               <CaptureOriginal capture={detail} />
-              {detail.inputType !== "file" && (
-                <section
-                  className="cmd-inbox-file-form"
-                  aria-labelledby="triage-suggestion-heading"
-                >
-                  <p className="cmd-eyebrow">
-                    Reviewable local rule / No automatic filing
-                  </p>
-                  <h3 id="triage-suggestion-heading">Capture suggestion</h3>
-                  {triageLoading && !triageReview?.suggestion && (
-                    <p className="cmd-inline-state" role="status">
-                      Checking for a suggestion...
+              {detail.inputType !== "file" &&
+                detail.source !== "foundation-client" && (
+                  <section
+                    className="cmd-inbox-file-form"
+                    aria-labelledby="triage-suggestion-heading"
+                  >
+                    <p className="cmd-eyebrow">
+                      Reviewable local rule / No automatic filing
                     </p>
-                  )}
-                  {!triageLoading &&
-                    !triageReview?.suggestion &&
-                    detail.state === "unfiled" && (
-                      <div>
-                        <p>
-                          No suggestion is ready yet. The local worker may still
-                          be processing; the original is safe in the Inbox, and
-                          manual filing remains available.
-                        </p>
-                        <Button onClick={queueSuggestion} type="button">
-                          Generate local suggestion
-                        </Button>
-                      </div>
+                    <h3 id="triage-suggestion-heading">Capture suggestion</h3>
+                    {triageLoading && !triageReview?.suggestion && (
+                      <p className="cmd-inline-state" role="status">
+                        Checking for a suggestion...
+                      </p>
                     )}
-                  {triageReview?.suggestion && (
-                    <CaptureTriageSummary
-                      captureState={detail.state}
-                      onReject={() => reviewSuggestion("reject")}
-                      review={{
-                        suggestion: triageReview.suggestion,
-                        decision: triageReview.decision,
-                      }}
-                      saving={triageSaving}
-                    />
-                  )}
-                  {triageError && (
-                    <p className="cmd-form-error" role="alert">
-                      {triageError}
-                    </p>
-                  )}
-                  {triageFeedback && (
-                    <p className="cmd-form-success" role="status">
-                      {triageFeedback}
-                    </p>
-                  )}
-                </section>
-              )}
-              {detail.state === "filed" && detail.filedRecord ? (
+                    {!triageLoading &&
+                      !triageReview?.suggestion &&
+                      detail.state === "unfiled" && (
+                        <div>
+                          <p>
+                            No suggestion is ready yet. The local worker may
+                            still be processing; the original is safe in the
+                            Inbox, and manual filing remains available.
+                          </p>
+                          <Button onClick={queueSuggestion} type="button">
+                            Generate local suggestion
+                          </Button>
+                        </div>
+                      )}
+                    {triageReview?.suggestion && (
+                      <CaptureTriageSummary
+                        captureState={detail.state}
+                        onReject={() => reviewSuggestion("reject")}
+                        review={{
+                          suggestion: triageReview.suggestion,
+                          decision: triageReview.decision,
+                        }}
+                        saving={triageSaving}
+                      />
+                    )}
+                    {triageError && (
+                      <p className="cmd-form-error" role="alert">
+                        {triageError}
+                      </p>
+                    )}
+                    {triageFeedback && (
+                      <p className="cmd-form-success" role="status">
+                        {triageFeedback}
+                      </p>
+                    )}
+                  </section>
+                )}
+              {detail.source === "foundation-client" ? null : detail.state ===
+                  "filed" && detail.filedRecord ? (
                 <div className="cmd-inbox-filed">
                   <p className="cmd-eyebrow">Connected record</p>
                   <h3>
@@ -1105,6 +1136,21 @@ export default function InboxPage() {
                 </div>
               )}
             </div>
+          )}
+          {proposalSelection && (
+            <FoundationTaskProposalPanel
+              captureId={proposalSelection.captureId}
+              projectId={proposalSelection.projectId}
+              active={
+                detail?.source === "foundation-client" &&
+                detail.id === proposalSelection.captureId &&
+                detail.id === selectedId
+              }
+              onReviewed={() => {
+                if (selectedIdRef.current === proposalSelection.captureId)
+                  setDetailReload((value) => value + 1);
+              }}
+            />
           )}
         </section>
       </div>

@@ -1,0 +1,126 @@
+.panel {
+  display: grid;
+  gap: var(--cmd-space-4);
+  min-width: 0;
+  max-width: 100%;
+  color: var(--cmd-text);
+}
+
+.panel h2,
+.panel h3,
+.panel p {
+  margin: 0;
+}
+
+.panel p,
+.panel h2,
+.panel h3,
+.panel dd,
+.panel label,
+.panel a,
+.panel time {
+  overflow-wrap: anywhere;
+}
+
+.form,
+.message,
+.suggestion {
+  display: grid;
+  gap: var(--cmd-space-3);
+  min-width: 0;
+}
+
+.suggestion,
+.form {
+  padding: var(--cmd-space-4);
+  border: 1px solid var(--cmd-border);
+  border-radius: var(--cmd-radius);
+  background: var(--cmd-surface);
+}
+
+.exact {
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+  min-width: 0;
+}
+
+.hint,
+.metadata dt {
+  color: var(--cmd-text-muted);
+}
+
+.metadata {
+  display: grid;
+  grid-template-columns: minmax(0, 8rem) minmax(0, 1fr);
+  gap: var(--cmd-space-2) var(--cmd-space-3);
+  margin: 0;
+  min-width: 0;
+}
+
+.metadata dd {
+  margin: 0;
+  min-width: 0;
+}
+
+.status {
+  justify-self: start;
+  padding: var(--cmd-space-1) var(--cmd-space-2);
+  border: 1px solid var(--cmd-border);
+  border-radius: var(--cmd-radius);
+  background: var(--cmd-surface-muted);
+}
+
+.actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--cmd-space-3);
+  min-width: 0;
+}
+
+.panel textarea,
+.panel button {
+  box-sizing: border-box;
+  min-width: 0;
+  max-width: 100%;
+  padding: var(--cmd-space-2) var(--cmd-space-3);
+  border: 1px solid var(--cmd-border);
+  border-radius: var(--cmd-radius);
+  color: var(--cmd-text);
+  background: var(--cmd-surface);
+  font: inherit;
+}
+
+.panel textarea {
+  width: 100%;
+  resize: vertical;
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+}
+
+.panel button {
+  min-height: 2.75rem;
+  white-space: normal;
+  overflow-wrap: anywhere;
+  cursor: pointer;
+}
+
+.panel button:disabled,
+.panel textarea:disabled {
+  opacity: 0.65;
+  cursor: default;
+}
+
+.panel :is(button, textarea, a):focus-visible {
+  outline: 2px solid var(--cmd-focus);
+  outline-offset: 3px;
+}
+
+@media (max-width: 30rem) {
+  .metadata {
+    grid-template-columns: minmax(0, 1fr);
+  }
+
+  .actions button {
+    width: 100%;
+  }
+}

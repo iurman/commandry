@@ -1,0 +1,151 @@
+.panel,
+.field,
+.card,
+.sources,
+.confirm {
+  display: grid;
+  gap: var(--cmd-space-3);
+  min-width: 0;
+  color: var(--cmd-text);
+}
+
+.panel h2,
+.panel h3,
+.panel h4,
+.panel p {
+  margin: 0;
+}
+
+.panel :is(p, label, h3, h4, dd, a, code) {
+  overflow-wrap: anywhere;
+}
+
+.panel :is(button, input) {
+  max-width: 100%;
+  box-sizing: border-box;
+  font: inherit;
+  color: var(--cmd-text);
+}
+
+.panel button,
+.panel input[type="file"] {
+  min-height: 2.75rem;
+  padding: var(--cmd-space-2) var(--cmd-space-3);
+  border: 1px solid var(--cmd-border);
+  border-radius: var(--cmd-radius);
+  background: var(--cmd-surface);
+  white-space: normal;
+  overflow-wrap: anywhere;
+}
+
+.panel button {
+  cursor: pointer;
+}
+
+.panel input[type="file"] {
+  width: 100%;
+  min-width: 0;
+}
+
+.panel :disabled {
+  opacity: 0.65;
+  cursor: default;
+}
+
+.panel :is(button, input, summary, a):focus-visible {
+  outline: 2px solid var(--cmd-focus);
+  outline-offset: 3px;
+}
+
+.card,
+.sources,
+.confirm {
+  padding: var(--cmd-space-3);
+  border: 1px solid var(--cmd-border);
+  border-radius: var(--cmd-radius);
+  background: var(--cmd-surface);
+}
+
+.records,
+.sourceList {
+  display: grid;
+  gap: var(--cmd-space-3);
+  margin: 0;
+  padding: 0;
+  list-style: none;
+  min-width: 0;
+}
+
+.metadata {
+  display: grid;
+  grid-template-columns: minmax(0, 8rem) minmax(0, 1fr);
+  gap: var(--cmd-space-2) var(--cmd-space-3);
+  margin: 0;
+}
+
+.metadata dt,
+.hint {
+  color: var(--cmd-text-muted);
+}
+
+.metadata dd {
+  margin: 0;
+  min-width: 0;
+}
+
+.actions,
+.checkbox {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: var(--cmd-space-3);
+}
+
+.checkbox {
+  min-height: 2.75rem;
+  flex-wrap: nowrap;
+}
+
+.checkbox input {
+  flex-shrink: 0;
+  width: 1.1rem;
+  height: 1.1rem;
+  accent-color: var(--cmd-accent);
+}
+
+.original {
+  display: block;
+  max-height: 20rem;
+  overflow: auto;
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+  margin: 0;
+  padding: var(--cmd-space-2);
+  background: var(--cmd-surface-muted);
+  border-radius: var(--cmd-radius);
+}
+
+.sources summary {
+  min-height: 2.75rem;
+  cursor: pointer;
+  overflow-wrap: anywhere;
+}
+
+.confirm {
+  background: var(--cmd-caution-bg);
+  color: var(--cmd-caution-text);
+}
+
+.selfStart {
+  justify-self: start;
+}
+
+@media (max-width: 30rem) {
+  .metadata {
+    grid-template-columns: minmax(0, 1fr);
+  }
+
+  .metadata dd + dt {
+    margin-top: var(--cmd-space-2);
+  }
+}

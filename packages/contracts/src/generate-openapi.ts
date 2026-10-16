@@ -3,6 +3,28 @@ import { dirname } from "node:path";
 import { fileURLToPath } from "node:url";
 import { z } from "zod";
 import {
+  mnemosyneImportEnvelopeSchema,
+  mnemosyneImportPlanSchema,
+  foundationSelectedImportInputSchema,
+  foundationSelectedImportResultSchema,
+  foundationImportRevisionSchema,
+  foundationImportOriginalSourceSchema,
+  foundationImportOriginalPageSchema,
+  foundationImportOriginalQuerySchema,
+  foundationCreateClientSchema,
+  foundationClientSchema,
+  foundationIssuedClientSchema,
+  foundationClientListSchema,
+  foundationFailureSchema,
+  foundationReviewMemorySchema,
+  foundationVerifyMemorySchema,
+  foundationApproveInstructionSchema,
+  foundationMemorySchema,
+  foundationInstructionApprovalSchema,
+  foundationAssessmentSchema,
+  foundationTaskProposalDetailSchema,
+  foundationTaskProposalReviewInputSchema,
+  foundationTaskProposalReviewReceiptSchema,
   createKnowledgeClientSchema,
   knowledgeClientSchema,
   createdKnowledgeClientSchema,
@@ -302,8 +324,11 @@ import {
   workItemSchema,
 } from "./index";
 
-function component(schema: z.ZodType): Record<string, unknown> {
-  const definition: Record<string, unknown> = z.toJSONSchema(schema);
+function component(
+  schema: z.ZodType,
+  io: "input" | "output" = "output",
+): Record<string, unknown> {
+  const definition: Record<string, unknown> = z.toJSONSchema(schema, { io });
   delete definition.$schema;
   return definition;
 }
@@ -313,6 +338,15 @@ function jsonContent(schema: string) {
     "application/json": { schema: { $ref: `#/components/schemas/${schema}` } },
   };
 }
+
+const ownerOriginParameter = {
+  in: "header",
+  name: "Origin",
+  required: true,
+  description:
+    "Configured trusted application origin required for owner mutations",
+  schema: { type: "string", format: "uri", minLength: 1 },
+};
 
 const idParameter = {
   in: "path",
@@ -3913,6 +3947,979 @@ export function generateOpenApi(): string {
           },
         },
       },
+      "/api/v1/foundation/task-proposals/by-capture/{captureId}": {
+        get: {
+          operationId: "getOwnerTaskProposal",
+          summary:
+            "Live owner reads an actual-client task proposal and immutable original",
+          description:
+            "Requires a live owner password session in this environment. Exact project/capture selector, strict query with no duplicate keys, no-store response. Machine credentials grant no raw read or review authority. Text and references remain unverified data.",
+          parameters: [
+            {
+              in: "path",
+              name: "captureId",
+              required: true,
+              schema: { type: "string", format: "uuid" },
+            },
+            {
+              in: "query",
+              name: "projectId",
+              required: true,
+              schema: { type: "string", format: "uuid" },
+            },
+          ],
+          responses: {
+            "200": {
+              description:
+                "Validated immutable source, suggestion and current terminal decision if any",
+              content: jsonContent("FoundationTaskProposalDetail"),
+            },
+            "400": {
+              description: "Invalid strict selector",
+              content: jsonContent("FoundationFailure"),
+            },
+            "401": {
+              description: "Live owner password session required",
+              content: jsonContent("FoundationFailure"),
+            },
+            "403": {
+              description: "Origin or authority denied",
+              content: jsonContent("FoundationFailure"),
+            },
+            "404": {
+              description: "No proposal in this project/environment",
+              content: jsonContent("FoundationFailure"),
+            },
+            "503": {
+              description: "Unavailable or invalid persisted output",
+              content: jsonContent("FoundationFailure"),
+            },
+          },
+        },
+      },
+      "/api/v1/foundation/task-proposals/review": {
+        post: {
+          operationId: "reviewOwnerTaskProposal",
+          summary:
+            "Owner approves selected text into one canonical task or rejects the proposal",
+          description:
+            "Live owner password session and trusted Origin required. work.proposal.review is sensitive and owner-only, audited and bound to immutable source/proposal digests and expected version. JSON physical body is limited to 524288 bytes. Approval atomically creates canonical unassigned open Work; rejection preserves the unfiled original. Retry the exact input and Idempotency-Key after an uncertain response. Historical receipts retain the original result after later Work edits. No source verification, assignment, execution or instruction promotion.",
+          parameters: [
+            {
+              in: "header",
+              name: "Origin",
+              required: true,
+              schema: { type: "string", format: "uri" },
+            },
+            {
+              in: "header",
+              name: "Idempotency-Key",
+              required: true,
+              schema: { type: "string", minLength: 1, maxLength: 200 },
+            },
+          ],
+          requestBody: {
+            required: true,
+            content: jsonContent("FoundationTaskProposalReviewInput"),
+          },
+          responses: {
+            "200": {
+              description:
+                "Validated historical initial canonical Work or terminal rejection receipt",
+              content: jsonContent("FoundationTaskProposalReviewMutation"),
+            },
+            "400": {
+              description: "Invalid strict input or key",
+              content: jsonContent("FoundationFailure"),
+            },
+            "401": {
+              description: "Live owner password session required",
+              content: jsonContent("FoundationFailure"),
+            },
+            "403": {
+              description: "Trusted Origin or owner authority denied",
+              content: jsonContent("FoundationFailure"),
+            },
+            "404": {
+              description: "No proposal in this scope",
+              content: jsonContent("FoundationFailure"),
+            },
+            "409": {
+              description:
+                "Digest, version, terminal decision or idempotency conflict",
+              content: jsonContent("FoundationFailure"),
+            },
+            "413": {
+              description: "Physical JSON request exceeds the byte budget",
+              content: {
+                "application/json": {
+                  schema: {
+                    type: "object",
+                    additionalProperties: false,
+                    required: ["code"],
+                    properties: {
+                      code: { type: "string", const: "PAYLOAD_TOO_LARGE" },
+                    },
+                  },
+                },
+              },
+            },
+            "503": {
+              description: "Unavailable; retry the exact input and key",
+              content: jsonContent("FoundationFailure"),
+            },
+          },
+        },
+      },
+      "/api/v1/foundation/imports/preview": {
+        post: {
+          operationId: "previewSelectedMemoryImport",
+          summary:
+            "Live owner previews an explicitly supplied closed memory export without writes",
+          description:
+            "Requires an owner password session and trusted Origin. Physical JSON and canonical application input each have an 8 MiB bound, with at most 1000 records and 1000 aggregate sources. Original text is not fetched from supplied paths. No machine access or instruction approval.",
+          parameters: [
+            {
+              in: "header",
+              name: "Origin",
+              required: true,
+              description:
+                "Configured trusted application Origin for owner mutations",
+              schema: {
+                type: "string",
+                format: "uri",
+                minLength: 1,
+              },
+            },
+          ],
+          requestBody: {
+            required: true,
+            content: {
+              "application/json": {
+                schema: {
+                  $ref: "#/components/schemas/MnemosyneImportEnvelope",
+                },
+              },
+            },
+          },
+          responses: {
+            "200": {
+              description: "Complete scoped result; no inferred approval",
+              content: {
+                "application/json": {
+                  schema: {
+                    $ref: "#/components/schemas/MnemosyneImportPlan",
+                  },
+                },
+              },
+            },
+            "400": {
+              description: "Strict input or reference denied",
+              content: {
+                "application/json": {
+                  schema: {
+                    $ref: "#/components/schemas/FoundationFailure",
+                  },
+                },
+              },
+            },
+            "401": {
+              description:
+                "Live owner sign-in required. Apply may have committed before expiry; preserve the exact input and key for manual retry.",
+              content: {
+                "application/json": {
+                  schema: {
+                    $ref: "#/components/schemas/FoundationFailure",
+                  },
+                },
+              },
+            },
+            "403": {
+              description: "Owner scope or trusted Origin denied",
+              content: {
+                "application/json": {
+                  schema: {
+                    $ref: "#/components/schemas/FoundationFailure",
+                  },
+                },
+              },
+            },
+            "404": {
+              description: "Scoped import revision not found",
+              content: {
+                "application/json": {
+                  schema: {
+                    $ref: "#/components/schemas/FoundationFailure",
+                  },
+                },
+              },
+            },
+            "409": {
+              description:
+                "Changed head, destination, version or idempotency input; review a fresh preview",
+              content: {
+                "application/json": {
+                  schema: {
+                    $ref: "#/components/schemas/FoundationFailure",
+                  },
+                },
+              },
+            },
+            "503": {
+              description:
+                "Unavailable or invalid output. Apply outcome may be unknown; preserve exact input and key.",
+              content: {
+                "application/json": {
+                  schema: {
+                    $ref: "#/components/schemas/FoundationFailure",
+                  },
+                },
+              },
+            },
+            "413": {
+              description:
+                "Physical JSON request exceeds 8 MiB, rejected before mutation. Split whole records and preview a smaller export.",
+              content: {
+                "application/json": {
+                  schema: {
+                    type: "object",
+                    additionalProperties: false,
+                    required: ["code"],
+                    properties: {
+                      code: {
+                        type: "string",
+                        const: "PAYLOAD_TOO_LARGE",
+                      },
+                    },
+                  },
+                },
+              },
+            },
+          },
+        },
+      },
+      "/api/v1/foundation/imports/apply": {
+        post: {
+          operationId: "applySelectedMemoryImport",
+          summary:
+            "Owner reviews all selected records and imports proposed, unverified memory",
+          description:
+            "Sensitive owner-only memory.import. Requires exact individual review in every tier, current expected heads, destination binding and a live session. Atomically preserves immutable UTF8 originals, evidence, versions, receipt and audit. No instruction approval or overwrite of owner edits. Exact input/key replays the historical receipt. The complete reviewed wrapper must fit 8 MiB, not merely its preview envelope.",
+          parameters: [
+            {
+              in: "header",
+              name: "Origin",
+              required: true,
+              description:
+                "Configured trusted application Origin for owner mutations",
+              schema: {
+                type: "string",
+                format: "uri",
+                minLength: 1,
+              },
+            },
+            {
+              in: "header",
+              name: "Idempotency-Key",
+              required: true,
+              schema: {
+                type: "string",
+                minLength: 1,
+                maxLength: 200,
+                pattern: "^[A-Za-z0-9][A-Za-z0-9._:-]{0,199}$",
+              },
+            },
+          ],
+          requestBody: {
+            required: true,
+            content: {
+              "application/json": {
+                schema: {
+                  $ref: "#/components/schemas/FoundationSelectedImportInput",
+                },
+              },
+            },
+          },
+          responses: {
+            "200": {
+              description: "Complete scoped result; no inferred approval",
+              content: {
+                "application/json": {
+                  schema: {
+                    $ref: "#/components/schemas/FoundationSelectedImportResult",
+                  },
+                },
+              },
+            },
+            "400": {
+              description: "Strict input or reference denied",
+              content: {
+                "application/json": {
+                  schema: {
+                    $ref: "#/components/schemas/FoundationFailure",
+                  },
+                },
+              },
+            },
+            "401": {
+              description:
+                "Live owner sign-in required. Apply may have committed before expiry; preserve the exact input and key for manual retry.",
+              content: {
+                "application/json": {
+                  schema: {
+                    $ref: "#/components/schemas/FoundationFailure",
+                  },
+                },
+              },
+            },
+            "403": {
+              description: "Owner scope or trusted Origin denied",
+              content: {
+                "application/json": {
+                  schema: {
+                    $ref: "#/components/schemas/FoundationFailure",
+                  },
+                },
+              },
+            },
+            "404": {
+              description: "Scoped import revision not found",
+              content: {
+                "application/json": {
+                  schema: {
+                    $ref: "#/components/schemas/FoundationFailure",
+                  },
+                },
+              },
+            },
+            "409": {
+              description:
+                "Changed head, destination, version or idempotency input; review a fresh preview",
+              content: {
+                "application/json": {
+                  schema: {
+                    $ref: "#/components/schemas/FoundationFailure",
+                  },
+                },
+              },
+            },
+            "503": {
+              description:
+                "Unavailable or invalid output. Apply outcome may be unknown; preserve exact input and key.",
+              content: {
+                "application/json": {
+                  schema: {
+                    $ref: "#/components/schemas/FoundationFailure",
+                  },
+                },
+              },
+            },
+            "413": {
+              description:
+                "Physical JSON request exceeds 8 MiB, rejected before mutation. Split whole records and preview a smaller export.",
+              content: {
+                "application/json": {
+                  schema: {
+                    type: "object",
+                    additionalProperties: false,
+                    required: ["code"],
+                    properties: {
+                      code: {
+                        type: "string",
+                        const: "PAYLOAD_TOO_LARGE",
+                      },
+                    },
+                  },
+                },
+              },
+            },
+          },
+        },
+      },
+      "/api/v1/foundation/imports/{id}": {
+        get: {
+          operationId: "getSelectedMemoryImportRevision",
+          summary: "Owner-only immutable revision metadata, without originals",
+          parameters: [
+            {
+              in: "path",
+              name: "id",
+              required: true,
+              schema: {
+                type: "string",
+                format: "uuid",
+              },
+            },
+            {
+              in: "query",
+              name: "projectId",
+              required: true,
+              schema: {
+                type: "string",
+                format: "uuid",
+              },
+            },
+          ],
+          responses: {
+            "200": {
+              description: "Complete scoped result; no inferred approval",
+              content: {
+                "application/json": {
+                  schema: {
+                    $ref: "#/components/schemas/FoundationImportRevision",
+                  },
+                },
+              },
+            },
+            "400": {
+              description: "Strict input or reference denied",
+              content: {
+                "application/json": {
+                  schema: {
+                    $ref: "#/components/schemas/FoundationFailure",
+                  },
+                },
+              },
+            },
+            "401": {
+              description:
+                "Live owner sign-in required. Apply may have committed before expiry; preserve the exact input and key for manual retry.",
+              content: {
+                "application/json": {
+                  schema: {
+                    $ref: "#/components/schemas/FoundationFailure",
+                  },
+                },
+              },
+            },
+            "403": {
+              description: "Owner scope or trusted Origin denied",
+              content: {
+                "application/json": {
+                  schema: {
+                    $ref: "#/components/schemas/FoundationFailure",
+                  },
+                },
+              },
+            },
+            "404": {
+              description: "Scoped import revision not found",
+              content: {
+                "application/json": {
+                  schema: {
+                    $ref: "#/components/schemas/FoundationFailure",
+                  },
+                },
+              },
+            },
+            "409": {
+              description:
+                "Changed head, destination, version or idempotency input; review a fresh preview",
+              content: {
+                "application/json": {
+                  schema: {
+                    $ref: "#/components/schemas/FoundationFailure",
+                  },
+                },
+              },
+            },
+            "503": {
+              description:
+                "Unavailable or invalid output. Apply outcome may be unknown; preserve exact input and key.",
+              content: {
+                "application/json": {
+                  schema: {
+                    $ref: "#/components/schemas/FoundationFailure",
+                  },
+                },
+              },
+            },
+          },
+        },
+      },
+      "/api/v1/foundation/imports/{id}/sources": {
+        get: {
+          operationId: "listSelectedMemoryImportOriginals",
+          summary:
+            "Owner-only complete ordinal pagination of preserved originals",
+          description:
+            "Revision and project checked on every page. fromOrdinal is inclusive; nextOrdinal is the next request boundary, null only at exhaustion. Derived response size may exceed the request budget. Content is preserved, never executed. Machine grants do not disclose these originals.",
+          parameters: [
+            {
+              in: "path",
+              name: "id",
+              required: true,
+              schema: {
+                type: "string",
+                format: "uuid",
+              },
+            },
+            {
+              in: "query",
+              name: "projectId",
+              required: true,
+              schema: {
+                type: "string",
+                format: "uuid",
+              },
+            },
+            {
+              in: "query",
+              name: "fromOrdinal",
+              schema: {
+                type: "integer",
+                minimum: 0,
+                maximum: 1000,
+                default: 0,
+              },
+            },
+            {
+              in: "query",
+              name: "limit",
+              schema: {
+                type: "integer",
+                minimum: 1,
+                maximum: 1000,
+                default: 100,
+              },
+            },
+          ],
+          responses: {
+            "200": {
+              description: "Complete scoped result; no inferred approval",
+              content: {
+                "application/json": {
+                  schema: {
+                    $ref: "#/components/schemas/FoundationImportOriginalPage",
+                  },
+                },
+              },
+            },
+            "400": {
+              description: "Strict input or reference denied",
+              content: {
+                "application/json": {
+                  schema: {
+                    $ref: "#/components/schemas/FoundationFailure",
+                  },
+                },
+              },
+            },
+            "401": {
+              description:
+                "Live owner sign-in required. Apply may have committed before expiry; preserve the exact input and key for manual retry.",
+              content: {
+                "application/json": {
+                  schema: {
+                    $ref: "#/components/schemas/FoundationFailure",
+                  },
+                },
+              },
+            },
+            "403": {
+              description: "Owner scope or trusted Origin denied",
+              content: {
+                "application/json": {
+                  schema: {
+                    $ref: "#/components/schemas/FoundationFailure",
+                  },
+                },
+              },
+            },
+            "404": {
+              description: "Scoped import revision not found",
+              content: {
+                "application/json": {
+                  schema: {
+                    $ref: "#/components/schemas/FoundationFailure",
+                  },
+                },
+              },
+            },
+            "409": {
+              description:
+                "Changed head, destination, version or idempotency input; review a fresh preview",
+              content: {
+                "application/json": {
+                  schema: {
+                    $ref: "#/components/schemas/FoundationFailure",
+                  },
+                },
+              },
+            },
+            "503": {
+              description:
+                "Unavailable or invalid output. Apply outcome may be unknown; preserve exact input and key.",
+              content: {
+                "application/json": {
+                  schema: {
+                    $ref: "#/components/schemas/FoundationFailure",
+                  },
+                },
+              },
+            },
+          },
+        },
+      },
+      "/api/v1/foundation/clients": {
+        get: {
+          operationId: "listFoundationClients",
+          summary:
+            "Owner-only project and environment credential metadata; no secrets",
+          parameters: [
+            {
+              in: "query",
+              name: "projectId",
+              required: true,
+              schema: { type: "string", format: "uuid" },
+            },
+            {
+              in: "query",
+              name: "limit",
+              schema: {
+                type: "integer",
+                minimum: 1,
+                maximum: 100,
+                default: 25,
+              },
+            },
+            {
+              in: "query",
+              name: "after",
+              schema: { type: "string", format: "uuid" },
+            },
+            {
+              in: "query",
+              name: "asOf",
+              schema: { type: "string", format: "date-time" },
+            },
+          ],
+          responses: {
+            "200": {
+              description: "Complete reachable page with creation cutoff",
+              content: jsonContent("FoundationClientList"),
+            },
+            "400": {
+              description: "Strict input or reference denied",
+              content: jsonContent("FoundationFailure"),
+            },
+            "401": {
+              description: "Live owner sign-in required",
+              content: jsonContent("FoundationFailure"),
+            },
+            "403": {
+              description: "Origin or operation denied",
+              content: jsonContent("FoundationFailure"),
+            },
+            "409": {
+              description: "Version or idempotency conflict",
+              content: jsonContent("FoundationFailure"),
+            },
+            "503": {
+              description: "Unavailable; do not infer success",
+              content: jsonContent("FoundationFailure"),
+            },
+          },
+        },
+        post: {
+          operationId: "createFoundationClient",
+          summary:
+            "Owner-only opt-in capability credential shown once; no inferred grants",
+          parameters: [
+            ownerOriginParameter,
+            {
+              in: "header",
+              name: "Idempotency-Key",
+              required: true,
+              schema: {
+                type: "string",
+                minLength: 1,
+                maxLength: 200,
+                pattern: "^[A-Za-z0-9][A-Za-z0-9._:-]{0,199}$",
+              },
+            },
+          ],
+          requestBody: {
+            required: true,
+            content: jsonContent("FoundationCreateClient"),
+          },
+          responses: {
+            "201": {
+              description:
+                "Credential shown once. Retry cannot reveal it again; list/revoke and issue with a new key if response lost.",
+              content: jsonContent("FoundationIssuedClient"),
+            },
+            "400": {
+              description: "Strict input or reference denied",
+              content: jsonContent("FoundationFailure"),
+            },
+            "401": {
+              description: "Live owner sign-in required",
+              content: jsonContent("FoundationFailure"),
+            },
+            "403": {
+              description: "Origin or operation denied",
+              content: jsonContent("FoundationFailure"),
+            },
+            "409": {
+              description: "Version or idempotency conflict",
+              content: jsonContent("FoundationFailure"),
+            },
+            "503": {
+              description: "Unavailable; do not infer success",
+              content: jsonContent("FoundationFailure"),
+            },
+          },
+        },
+      },
+      "/api/v1/foundation/clients/{id}/revoke": {
+        post: {
+          operationId: "revokeFoundationClient",
+          summary:
+            "Live owner session revokes exact credential; cannot widen grants",
+          parameters: [ownerOriginParameter, idParameter],
+          responses: {
+            "200": {
+              description: "Revoked public metadata",
+              content: jsonContent("FoundationClient"),
+            },
+            "400": {
+              description: "Strict input or reference denied",
+              content: jsonContent("FoundationFailure"),
+            },
+            "401": {
+              description: "Live owner sign-in required",
+              content: jsonContent("FoundationFailure"),
+            },
+            "403": {
+              description: "Origin or operation denied",
+              content: jsonContent("FoundationFailure"),
+            },
+            "409": {
+              description: "Version or idempotency conflict",
+              content: jsonContent("FoundationFailure"),
+            },
+            "503": {
+              description: "Unavailable; do not infer success",
+              content: jsonContent("FoundationFailure"),
+            },
+          },
+        },
+      },
+      "/api/v1/foundation/evaluations/assessments/review": {
+        post: {
+          operationId: "reviewFoundationAssessment",
+          summary:
+            "Owner-only append of an exact assessment review; no score changes or promotion",
+          parameters: [
+            ownerOriginParameter,
+            {
+              in: "header",
+              name: "Idempotency-Key",
+              required: true,
+              schema: {
+                type: "string",
+                minLength: 1,
+                maxLength: 200,
+                pattern: "^[A-Za-z0-9][A-Za-z0-9._:-]{0,199}$",
+              },
+            },
+          ],
+          requestBody: {
+            required: true,
+            content: jsonContent("FoundationAssessment"),
+          },
+          responses: {
+            "200": {
+              description: "Immutable next-version reviewed assessment receipt",
+              content: jsonContent("FoundationAssessmentMutation"),
+            },
+            "400": {
+              description: "Strict input or reference denied",
+              content: jsonContent("FoundationFailure"),
+            },
+            "401": {
+              description: "Live owner sign-in required",
+              content: jsonContent("FoundationFailure"),
+            },
+            "403": {
+              description: "Origin or operation denied",
+              content: jsonContent("FoundationFailure"),
+            },
+            "404": {
+              description: "Scoped assessment reference unavailable",
+              content: jsonContent("FoundationFailure"),
+            },
+            "409": {
+              description: "Version or idempotency conflict",
+              content: jsonContent("FoundationFailure"),
+            },
+            "503": {
+              description: "Unavailable; do not infer success",
+              content: jsonContent("FoundationFailure"),
+            },
+          },
+        },
+      },
+      "/api/v1/foundation/memory/{id}/review": {
+        post: {
+          operationId: "reviewFoundationMemory",
+          summary:
+            "Sensitive owner-only exact-version action; separate review, verification and instruction approval",
+          parameters: [
+            ownerOriginParameter,
+            idParameter,
+            {
+              in: "header",
+              name: "Idempotency-Key",
+              required: true,
+              schema: {
+                type: "string",
+                minLength: 1,
+                maxLength: 200,
+                pattern: "^[A-Za-z0-9][A-Za-z0-9._:-]{0,199}$",
+              },
+            },
+          ],
+          requestBody: {
+            required: true,
+            content: jsonContent("FoundationReviewMemoryBody"),
+          },
+          responses: {
+            "200": {
+              description:
+                "Atomic original-result receipt; no instruction execution",
+              content: jsonContent("FoundationMemoryMutation"),
+            },
+            "400": {
+              description: "Strict input or reference denied",
+              content: jsonContent("FoundationFailure"),
+            },
+            "401": {
+              description: "Live owner sign-in required",
+              content: jsonContent("FoundationFailure"),
+            },
+            "403": {
+              description: "Origin or operation denied",
+              content: jsonContent("FoundationFailure"),
+            },
+            "409": {
+              description: "Version or idempotency conflict",
+              content: jsonContent("FoundationFailure"),
+            },
+            "503": {
+              description: "Unavailable; do not infer success",
+              content: jsonContent("FoundationFailure"),
+            },
+          },
+        },
+      },
+      "/api/v1/foundation/memory/{id}/verify": {
+        post: {
+          operationId: "verifyFoundationMemory",
+          summary:
+            "Sensitive owner-only exact-version action; separate review, verification and instruction approval",
+          parameters: [
+            ownerOriginParameter,
+            idParameter,
+            {
+              in: "header",
+              name: "Idempotency-Key",
+              required: true,
+              schema: {
+                type: "string",
+                minLength: 1,
+                maxLength: 200,
+                pattern: "^[A-Za-z0-9][A-Za-z0-9._:-]{0,199}$",
+              },
+            },
+          ],
+          requestBody: {
+            required: true,
+            content: jsonContent("FoundationVerifyMemoryBody"),
+          },
+          responses: {
+            "200": {
+              description:
+                "Atomic original-result receipt; no instruction execution",
+              content: jsonContent("FoundationMemoryMutation"),
+            },
+            "400": {
+              description: "Strict input or reference denied",
+              content: jsonContent("FoundationFailure"),
+            },
+            "401": {
+              description: "Live owner sign-in required",
+              content: jsonContent("FoundationFailure"),
+            },
+            "403": {
+              description: "Origin or operation denied",
+              content: jsonContent("FoundationFailure"),
+            },
+            "409": {
+              description: "Version or idempotency conflict",
+              content: jsonContent("FoundationFailure"),
+            },
+            "503": {
+              description: "Unavailable; do not infer success",
+              content: jsonContent("FoundationFailure"),
+            },
+          },
+        },
+      },
+      "/api/v1/foundation/memory/{id}/approve-instruction": {
+        post: {
+          operationId: "approveFoundationInstruction",
+          summary:
+            "Sensitive owner-only exact-version action; separate review, verification and instruction approval",
+          parameters: [
+            ownerOriginParameter,
+            idParameter,
+            {
+              in: "header",
+              name: "Idempotency-Key",
+              required: true,
+              schema: {
+                type: "string",
+                minLength: 1,
+                maxLength: 200,
+                pattern: "^[A-Za-z0-9][A-Za-z0-9._:-]{0,199}$",
+              },
+            },
+          ],
+          requestBody: {
+            required: true,
+            content: jsonContent("FoundationApproveInstructionBody"),
+          },
+          responses: {
+            "200": {
+              description:
+                "Atomic original-result receipt; no instruction execution",
+              content: jsonContent("FoundationInstructionMutation"),
+            },
+            "400": {
+              description: "Strict input or reference denied",
+              content: jsonContent("FoundationFailure"),
+            },
+            "401": {
+              description: "Live owner sign-in required",
+              content: jsonContent("FoundationFailure"),
+            },
+            "403": {
+              description: "Origin or operation denied",
+              content: jsonContent("FoundationFailure"),
+            },
+            "409": {
+              description: "Version or idempotency conflict",
+              content: jsonContent("FoundationFailure"),
+            },
+            "503": {
+              description: "Unavailable; do not infer success",
+              content: jsonContent("FoundationFailure"),
+            },
+          },
+        },
+      },
       "/api/v1/knowledge-clients": {
         get: {
           operationId: "listKnowledgeClients",
@@ -4682,6 +5689,98 @@ export function generateOpenApi(): string {
         },
       },
       schemas: {
+        MnemosyneImportEnvelope: component(
+          mnemosyneImportEnvelopeSchema,
+          "input",
+        ),
+        MnemosyneImportPlan: component(mnemosyneImportPlanSchema, "input"),
+        FoundationTaskProposalDetail: component(
+          foundationTaskProposalDetailSchema,
+        ),
+        FoundationTaskProposalReviewInput: component(
+          foundationTaskProposalReviewInputSchema,
+          "input",
+        ),
+        FoundationTaskProposalReviewMutation: component(
+          z.strictObject({
+            record: foundationTaskProposalReviewReceiptSchema,
+            replayed: z.boolean(),
+            correlationId: z.uuid(),
+          }),
+          "input",
+        ),
+        FoundationSelectedImportInput: component(
+          foundationSelectedImportInputSchema,
+          "input",
+        ),
+        FoundationSelectedImportResult: component(
+          foundationSelectedImportResultSchema,
+          "input",
+        ),
+        FoundationImportRevision: component(
+          foundationImportRevisionSchema,
+          "input",
+        ),
+        FoundationImportOriginalSource: component(
+          foundationImportOriginalSourceSchema,
+          "input",
+        ),
+        FoundationImportOriginalPage: component(
+          foundationImportOriginalPageSchema,
+          "input",
+        ),
+        FoundationImportOriginalQuery: component(
+          foundationImportOriginalQuerySchema,
+          "input",
+        ),
+        FoundationCreateClient: component(
+          foundationCreateClientSchema,
+          "input",
+        ),
+        FoundationClient: component(foundationClientSchema, "input"),
+        FoundationIssuedClient: component(
+          foundationIssuedClientSchema,
+          "input",
+        ),
+        FoundationClientList: component(foundationClientListSchema, "input"),
+        FoundationFailure: component(foundationFailureSchema, "input"),
+        FoundationAssessment: component(foundationAssessmentSchema, "input"),
+        FoundationAssessmentMutation: component(
+          z.strictObject({
+            record: foundationAssessmentSchema,
+            replayed: z.boolean(),
+            correlationId: z.uuid(),
+          }),
+          "input",
+        ),
+        FoundationReviewMemoryBody: component(
+          foundationReviewMemorySchema.omit({ memoryId: true }),
+          "input",
+        ),
+        FoundationVerifyMemoryBody: component(
+          foundationVerifyMemorySchema.omit({ memoryId: true }),
+          "input",
+        ),
+        FoundationApproveInstructionBody: component(
+          foundationApproveInstructionSchema.omit({ memoryId: true }),
+          "input",
+        ),
+        FoundationMemoryMutation: component(
+          z.strictObject({
+            record: foundationMemorySchema,
+            replayed: z.boolean(),
+            correlationId: z.uuid(),
+          }),
+          "input",
+        ),
+        FoundationInstructionMutation: component(
+          z.strictObject({
+            record: foundationInstructionApprovalSchema,
+            replayed: z.boolean(),
+            correlationId: z.uuid(),
+          }),
+          "input",
+        ),
         CreateKnowledgeClient: component(createKnowledgeClientSchema),
         KnowledgeClient: component(knowledgeClientSchema),
         CreatedKnowledgeClient: component(createdKnowledgeClientSchema),

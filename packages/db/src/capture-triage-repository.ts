@@ -1,3 +1,10 @@
+import {
+  captureTriageSuggestionSchema,
+  captureTriageDecisionSchema,
+} from "@commandry/contracts";
+import { captureRecord } from "./capture-repository";
+import { fileCaptureTaskInTransaction } from "./capture-task-filing";
+import { canonicalWorkRecord } from "./project-work-query";
 import { and, eq } from "drizzle-orm";
 import type {
   KnowledgeItem,
@@ -9,6 +16,7 @@ import {
   CAPTURE_TRIAGE_SOURCE_LABEL,
   CaptureTriageError,
   requireCaptureTriageReview,
+  requireLocalCaptureTriage,
 } from "@commandry/domain";
 import type { CommandryDatabase } from "./client";
 import {
@@ -17,29 +25,12 @@ import {
   captureTriageSuggestion,
   knowledgeItem,
   project,
-  workItem,
 } from "./schema";
 
-function captureRecord(row: typeof capture.$inferSelect) {
-  return {
-    id: row.id,
-    inputType: row.inputType,
-    originalContent: row.originalContent,
-    source: "manual-local" as const,
-    author: "local-user" as const,
-    state: row.state,
-    projectId: row.projectId,
-    filedRecord:
-      row.filedRecordKind && row.filedRecordId
-        ? { kind: row.filedRecordKind, id: row.filedRecordId }
-        : null,
-    createdAt: row.createdAt.toISOString(),
-    filedAt: row.filedAt?.toISOString() ?? null,
-  };
-}
-
-function suggestionRecord(row: typeof captureTriageSuggestion.$inferSelect) {
-  return {
+export function captureTriageSuggestionRecord(
+  row: typeof captureTriageSuggestion.$inferSelect,
+) {
+  return captureTriageSuggestionSchema.parse({
     id: row.id,
     captureId: row.captureId,
     kind: row.kind,
@@ -47,14 +38,19 @@ function suggestionRecord(row: typeof captureTriageSuggestion.$inferSelect) {
     title: row.title,
     confidence: row.confidence,
     rationale: row.rationale,
-    ruleVersion: CAPTURE_TRIAGE_RULE_VERSION,
-    sourceLabel: CAPTURE_TRIAGE_SOURCE_LABEL,
+    ruleVersion: row.ruleVersion,
+    sourceLabel: row.sourceLabel,
+    ...(row.proposal === null
+      ? {}
+      : { body: row.body, proposal: row.proposal }),
     createdAt: row.createdAt.toISOString(),
-  };
+  });
 }
 
-function decisionRecord(row: typeof captureTriageDecision.$inferSelect) {
-  return {
+export function captureTriageDecisionRecord(
+  row: typeof captureTriageDecision.$inferSelect,
+) {
+  return captureTriageDecisionSchema.parse({
     id: row.id,
     captureId: row.captureId,
     suggestionId: row.suggestionId,
@@ -64,9 +60,10 @@ function decisionRecord(row: typeof captureTriageDecision.$inferSelect) {
     selectedTitle: row.selectedTitle,
     selectedBody: row.selectedBody,
     filedRecordId: row.filedRecordId,
-    actor: "local-user:unattributed" as const,
+    actor: row.actor,
+    ...(row.provenance === null ? {} : { provenance: row.provenance }),
     createdAt: row.createdAt.toISOString(),
-  };
+  });
 }
 
 export function createCaptureTriageRepository(db: CommandryDatabase) {
@@ -76,6 +73,7 @@ export function createCaptureTriageRepository(db: CommandryDatabase) {
         .select({
           id: capture.id,
           inputType: capture.inputType,
+          source: capture.source,
           originalContent: capture.originalContent,
           state: capture.state,
           projectId: capture.projectId,
@@ -97,8 +95,10 @@ export function createCaptureTriageRepository(db: CommandryDatabase) {
         .where(eq(captureTriageDecision.captureId, captureId))
         .limit(1);
       return {
-        suggestion: suggestion ? suggestionRecord(suggestion) : null,
-        decision: decision ? decisionRecord(decision) : null,
+        suggestion: suggestion
+          ? captureTriageSuggestionRecord(suggestion)
+          : null,
+        decision: decision ? captureTriageDecisionRecord(decision) : null,
       };
     },
     async createSuggestionOnce(input: {
@@ -111,7 +111,11 @@ export function createCaptureTriageRepository(db: CommandryDatabase) {
     }) {
       const row = await db.transaction(async (tx) => {
         const [source] = await tx
-          .select({ state: capture.state, projectId: capture.projectId })
+          .select({
+            state: capture.state,
+            projectId: capture.projectId,
+            source: capture.source,
+          })
           .from(capture)
           .where(eq(capture.id, input.captureId))
           .for("share")
@@ -122,6 +126,7 @@ export function createCaptureTriageRepository(db: CommandryDatabase) {
             "Capture not found",
           );
         }
+        requireLocalCaptureTriage(source);
         if (source.state === "filed") return null;
         const [inserted] = await tx
           .insert(captureTriageSuggestion)
@@ -147,7 +152,7 @@ export function createCaptureTriageRepository(db: CommandryDatabase) {
         if (!existing) throw new Error("Suggestion conflict disappeared");
         return existing;
       });
-      return row ? suggestionRecord(row) : null;
+      return row ? captureTriageSuggestionRecord(row) : null;
     },
     async review(captureId: string, input: ReviewCaptureTriageRequest) {
       return db.transaction(async (tx) => {
@@ -163,6 +168,7 @@ export function createCaptureTriageRepository(db: CommandryDatabase) {
             "Capture not found",
           );
         }
+        requireLocalCaptureTriage(source);
         const [suggestion] = await tx
           .select()
           .from(captureTriageSuggestion)
@@ -198,52 +204,37 @@ export function createCaptureTriageRepository(db: CommandryDatabase) {
           }
           filedRecordId = crypto.randomUUID();
           selectedBody = input.body ?? source.originalContent;
-          const [updated] = await tx
-            .update(capture)
-            .set({
-              state: "filed",
-              projectId: input.projectId,
-              filedRecordKind: input.kind,
-              filedRecordId,
-              filedAt: now,
-            })
-            .where(and(eq(capture.id, captureId), eq(capture.state, "unfiled")))
-            .returning();
-          if (!updated) {
-            throw new CaptureTriageError(
-              "CAPTURE_ALREADY_FILED",
-              "Capture is already filed",
-            );
-          }
-          updatedCapture = updated;
           if (input.kind === "task") {
-            const [item] = await tx
-              .insert(workItem)
-              .values({
-                id: filedRecordId,
-                projectId: input.projectId,
-                sourceCaptureId: captureId,
-                title: input.title,
-                description: selectedBody,
-              })
-              .returning();
-            if (!item) throw new Error("Task filing returned no row");
-            record = {
-              id: item.id,
-              projectId: item.projectId,
-              sourceCaptureId: item.sourceCaptureId,
-              title: item.title,
-              description: item.description,
-              workType: item.workType,
-              generatedFromWorkItemId: item.generatedFromWorkItemId,
-              assigneeKind: item.assigneeKind,
-              assigneeAgentId: item.assigneeAgentId,
-              assigneeLabel: item.assigneeLabel,
-              status: item.status,
-              createdAt: item.createdAt.toISOString(),
-              updatedAt: item.updatedAt.toISOString(),
-            };
+            const converted = await fileCaptureTaskInTransaction(tx, {
+              captureId,
+              recordId: filedRecordId,
+              projectId: input.projectId,
+              title: input.title,
+              description: selectedBody,
+              at: now,
+            });
+            updatedCapture = converted.capture;
+            record = canonicalWorkRecord(converted.record);
           } else {
+            const [updated] = await tx
+              .update(capture)
+              .set({
+                state: "filed",
+                projectId: input.projectId,
+                filedRecordKind: "note",
+                filedRecordId,
+                filedAt: now,
+              })
+              .where(
+                and(eq(capture.id, captureId), eq(capture.state, "unfiled")),
+              )
+              .returning();
+            if (!updated)
+              throw new CaptureTriageError(
+                "CAPTURE_ALREADY_FILED",
+                "Capture is already filed",
+              );
+            updatedCapture = updated;
             const [item] = await tx
               .insert(knowledgeItem)
               .values({
@@ -289,8 +280,8 @@ export function createCaptureTriageRepository(db: CommandryDatabase) {
         if (!decision) throw new Error("Triage decision returned no row");
         return {
           capture: captureRecord(updatedCapture),
-          suggestion: suggestionRecord(suggestion),
-          decision: decisionRecord(decision),
+          suggestion: captureTriageSuggestionRecord(suggestion),
+          decision: captureTriageDecisionRecord(decision),
           record,
         };
       });

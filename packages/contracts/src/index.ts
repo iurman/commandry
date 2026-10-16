@@ -1,4 +1,54 @@
 import { z } from "zod";
+import {
+  captureTriageSuggestionSchema as localCaptureTriageSuggestionSchema,
+  captureTriageDecisionSchema as localCaptureTriageDecisionSchema,
+} from "./capture-triage";
+import { captureSchema as localCaptureSchema } from "./capture";
+import {
+  foundationTaskProposalCaptureSchema,
+  foundationTaskProposalSuggestionSchema,
+  foundationTaskProposalDecisionSchema,
+} from "./foundation-task-proposal";
+import { workItemSchema } from "./work";
+
+export { captureFileMetadataSchema } from "./capture";
+export * from "./foundation-task-proposal";
+// Check actual-client markers before a legacy object can strip unknown keys.
+// Legacy additive-field parsing otherwise retains its existing behavior.
+function localVariant<Schema extends z.ZodType>(
+  schema: Schema,
+  markers: string[],
+) {
+  return z
+    .unknown()
+    .superRefine((value, context) => {
+      if (
+        typeof value === "object" &&
+        value !== null &&
+        markers.some((key) => Object.hasOwn(value, key))
+      ) {
+        context.addIssue({
+          code: "custom",
+          message: "Actual-client provenance requires the proposal variant",
+        });
+      }
+    })
+    .pipe(schema);
+}
+export const captureSchema = z.union([
+  localCaptureSchema,
+  foundationTaskProposalCaptureSchema,
+]);
+export const captureTriageSuggestionSchema = z.union([
+  localVariant(localCaptureTriageSuggestionSchema, ["proposal", "body"]),
+  foundationTaskProposalSuggestionSchema,
+]);
+export const captureTriageDecisionSchema = z.union([
+  localVariant(localCaptureTriageDecisionSchema, ["provenance"]),
+  foundationTaskProposalDecisionSchema,
+]);
+
+export { workItemSchema } from "./work";
 
 export const SCHEMA_COMPATIBILITY = "1";
 
@@ -579,41 +629,6 @@ export const createCaptureRequestSchema = z
     }
   });
 
-export const captureFileMetadataSchema = z.object({
-  originalName: z.string().min(1),
-  mediaType: z.string().min(1),
-  byteSize: z.number().int().min(1).max(2_097_152),
-  sha256: z.string().regex(/^[a-f0-9]{64}$/),
-  downloadHref: z.string().startsWith("/api/v1/captures/"),
-  previewHref: z.string().startsWith("/api/v1/captures/").nullable().optional(),
-});
-
-export const captureSchema = z.object({
-  id: z.uuid(),
-  inputType: z.enum([
-    "text",
-    "email",
-    "conversation",
-    "voice_transcript",
-    "url",
-    "file",
-  ]),
-  originalContent: z.string(),
-  file: captureFileMetadataSchema.nullable().optional(),
-  source: z.enum(["manual-local", "automation-local-synthetic"]),
-  author: z.enum(["local-user", "system:local-automation-worker"]),
-  state: z.enum(["unfiled", "filed"]),
-  projectId: z.uuid().nullable(),
-  filedRecord: z
-    .object({
-      kind: z.enum(["task", "note", "link", "document"]),
-      id: z.uuid(),
-    })
-    .nullable(),
-  createdAt: z.iso.datetime({ offset: true }),
-  filedAt: z.iso.datetime({ offset: true }).nullable(),
-});
-
 export const localFileTextProjectionSchema = z.object({
   captureId: z.uuid(),
   sourceSha256: z.string().regex(/^[a-f0-9]{64}$/),
@@ -654,32 +669,6 @@ export const fileCaptureRequestSchema = z.object({
     .optional(),
   title: z.string().trim().min(1).max(200),
   body: z.string().max(20_000).optional(),
-});
-
-export const workItemSchema = z.object({
-  id: z.uuid(),
-  projectId: z.uuid(),
-  sourceCaptureId: z.uuid(),
-  generatedFromWorkItemId: z.uuid().nullable().optional(),
-  title: z.string(),
-  description: z.string(),
-  workType: z.enum(["task", "initiative", "subtask"]).optional(),
-  assigneeKind: z.enum(["unassigned", "local_user", "agent"]).optional(),
-  assigneeAgentId: z.uuid().nullable().optional(),
-  assigneeLabel: z.string().nullable().optional(),
-  status: z.enum(["open", "done"]),
-  priority: z.enum(["low", "normal", "high"]).nullable().optional(),
-  dueOn: z.iso.date().nullable().optional(),
-  contextLink: z
-    .object({
-      id: z.uuid(),
-      projectId: z.uuid(),
-      createdAt: z.iso.datetime({ offset: true }),
-    })
-    .nullable()
-    .optional(),
-  createdAt: z.iso.datetime({ offset: true }),
-  updatedAt: z.iso.datetime({ offset: true }),
 });
 
 export const createWorkProjectLinkRequestSchema = z.strictObject({
@@ -1388,33 +1377,6 @@ export const listKnowledgeItemRevisionsResponseSchema = z.object({
 export const fileCaptureResponseSchema = z.object({
   capture: captureSchema,
   record: z.union([workItemSchema, knowledgeItemSchema]),
-});
-
-export const captureTriageSuggestionSchema = z.object({
-  id: z.uuid(),
-  captureId: z.uuid(),
-  kind: z.enum(["task", "note"]),
-  proposedProjectId: z.uuid().nullable(),
-  title: z.string(),
-  confidence: z.number().int().min(0).max(100),
-  rationale: z.string(),
-  ruleVersion: z.literal("capture-triage/v1"),
-  sourceLabel: z.literal("Local deterministic rule"),
-  createdAt: z.iso.datetime({ offset: true }),
-});
-
-export const captureTriageDecisionSchema = z.object({
-  id: z.uuid(),
-  captureId: z.uuid(),
-  suggestionId: z.uuid(),
-  decision: z.enum(["approve", "reject"]),
-  selectedProjectId: z.uuid().nullable(),
-  selectedKind: z.enum(["task", "note"]).nullable(),
-  selectedTitle: z.string().nullable(),
-  selectedBody: z.string().nullable(),
-  filedRecordId: z.uuid().nullable(),
-  actor: z.literal("local-user:unattributed"),
-  createdAt: z.iso.datetime({ offset: true }),
 });
 
 export const captureTriageReviewSchema = z.object({
@@ -3530,3 +3492,10 @@ export * from "./real-integrations";
 export * from "./knowledge-access";
 
 export * from "./infrastructure-overview";
+
+export * from "./agent-foundation";
+
+export * from "./foundation-access";
+export * from "./foundation-import";
+
+export * from "./foundation-work";

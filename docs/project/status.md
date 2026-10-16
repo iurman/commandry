@@ -2,7 +2,7 @@
 
 **Status: Operational**
 
-**Last updated:** 2026-10-15
+**Last updated:** 2026-10-16
 
 ## Current phase
 
@@ -89,6 +89,33 @@ inventory/source/presentation access remains explicitly deferred to the separate
 comprehensive MCP planning work; the live MCP still has four knowledge read tools.
 
 ## Established direction
+
+The owner-authorized agent-memory campaign now has a local shared application
+and PostgreSQL foundation on its campaign branch. Twenty-one opt-in MCP tools cover
+source-anchored evidence/memory/configurations, complete paginated inventories,
+approved working context and immutable evaluation observations with separate
+owner assessment review. Separately granted `work.read` lists the same canonical primary/related Work
+as the UI with complete live pagination, exact digests and unchanged existing
+grants. Account includes explicit scoped credential creation,
+one-time copy/dismiss and revocation. A closed-bundle skill registry preserves
+exact library components and reports three-way digest drift without installation.
+Independent review and real disposable PostgreSQL tests cover authorization,
+retries, concurrent edits, revocation, audit-wait expiry rollback and populated
+prior-schema upgrades. Built-app SDK/browser rehearsals passed both authentication
+modes, including five selected shipped Mnemosyne skills with 20 exact components,
+22 configurations and unchanged retries. These were disposable records.
+The [implementation boundary](../architecture/agent-foundation.md) and
+[agent workflow](../workflows/agent-foundation.md) separate this local evidence from
+production. Selected import has real owner Account/HTTP review and immutable
+source revisions. Explicit `work.propose` now records actual-client task proposals
+for owner Inbox approval or rejection and atomic canonical Work filing. Exact
+originals and historical retries survive review; existing grants do not expand.
+Integrated check/build, 1229 workspace tests, 33 lab tests, 130 Node checks,
+161 PostgreSQL passes (one explicit unavailable live-input skip), and both-mode
+built SDK/HTTP/browser rehearsals passed. Verified finding/citation proposals,
+broader product MCP coverage, installation/adoption evidence, candidate promotion,
+reviewed onboarding and production activation remain campaign work. The live site
+and its existing four-tool knowledge MCP are unchanged by this local checkpoint.
 
 - Commandry is a personal control plane spanning projects, knowledge,
   infrastructure, automations, monitoring, and agents.

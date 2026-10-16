@@ -96,11 +96,21 @@ test("project edits update one current record and retain immutable paged version
     const current = await catalog.getProject(created.id);
     assert.equal(current?.name, "Autumn garden");
     assert.equal(current?.version, 3);
-    const listing = await catalog.listProjects({ limit: 100 });
-    assert.equal(
-      listing.items.find((item) => item.id === created.id)?.lifecycle,
-      "paused",
-    );
+    let cursor: string | undefined;
+    let listedLifecycle: string | undefined;
+    const seenCursors = new Set<string>();
+    do {
+      const listing = await catalog.listProjects({ limit: 100, cursor });
+      listedLifecycle = listing.items.find(
+        (item) => item.id === created.id,
+      )?.lifecycle;
+      cursor = listing.nextCursor ?? undefined;
+      if (cursor) {
+        assert.ok(!seenCursors.has(cursor), "Project continuation advances");
+        seenCursors.add(cursor);
+      }
+    } while (listedLifecycle === undefined && cursor);
+    assert.equal(listedLifecycle, "paused");
     const snapshot = await createBriefRepository(
       database.db,
     ).readProjectSnapshot(created.id, { limit: 5 });
