@@ -29,6 +29,16 @@ test("synthetic availability rule produces a source-linked run after a crossing"
   await page.getByLabel("Name").fill(`Availability ${suffix}`);
   const projectChoice = page.getByLabel("Project", { exact: true });
   const option = projectChoice.locator(`option[value="${project.id}"]`);
+  await expect
+    .poll(
+      async () =>
+        (await option.count()) +
+        (await page
+          .getByRole("button", { name: "Load more project choices" })
+          .count()),
+      { timeout: 30_000 },
+    )
+    .toBeGreaterThan(0);
   while ((await option.count()) === 0) {
     const before = await projectChoice.locator("option").count();
     await page
@@ -38,7 +48,8 @@ test("synthetic availability rule produces a source-linked run after a crossing"
       .poll(() => projectChoice.locator("option").count())
       .toBeGreaterThan(before);
   }
-  await projectChoice.selectOption(project.id);
+  if ((await projectChoice.inputValue()) !== project.id)
+    await projectChoice.selectOption(project.id);
   await expect(projectChoice).toHaveValue(project.id);
   await page.getByLabel("Trigger").selectOption("synthetic_condition");
   const resourceChoice = page.getByLabel("Linked resource to watch");
@@ -63,6 +74,10 @@ test("synthetic availability rule produces a source-linked run after a crossing"
       .toBeGreaterThan(before);
   }
   await resourceChoice.selectOption(resource.id);
+  // Choosing the current project must retain its already selected resource.
+  await projectChoice.selectOption(project.id);
+  await expect(resourceChoice).toHaveValue(resource.id);
+  await expect(resourceOption).toHaveCount(1);
   await page.getByLabel("At or below availability (%)").fill("50");
   const createResponsePromise = page.waitForResponse(
     (response) =>
