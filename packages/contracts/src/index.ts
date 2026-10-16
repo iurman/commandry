@@ -1,4 +1,7 @@
 import { z } from "zod";
+import { workItemSchema } from "./work";
+
+export { workItemSchema } from "./work";
 
 export const SCHEMA_COMPATIBILITY = "1";
 
@@ -654,32 +657,6 @@ export const fileCaptureRequestSchema = z.object({
     .optional(),
   title: z.string().trim().min(1).max(200),
   body: z.string().max(20_000).optional(),
-});
-
-export const workItemSchema = z.object({
-  id: z.uuid(),
-  projectId: z.uuid(),
-  sourceCaptureId: z.uuid(),
-  generatedFromWorkItemId: z.uuid().nullable().optional(),
-  title: z.string(),
-  description: z.string(),
-  workType: z.enum(["task", "initiative", "subtask"]).optional(),
-  assigneeKind: z.enum(["unassigned", "local_user", "agent"]).optional(),
-  assigneeAgentId: z.uuid().nullable().optional(),
-  assigneeLabel: z.string().nullable().optional(),
-  status: z.enum(["open", "done"]),
-  priority: z.enum(["low", "normal", "high"]).nullable().optional(),
-  dueOn: z.iso.date().nullable().optional(),
-  contextLink: z
-    .object({
-      id: z.uuid(),
-      projectId: z.uuid(),
-      createdAt: z.iso.datetime({ offset: true }),
-    })
-    .nullable()
-    .optional(),
-  createdAt: z.iso.datetime({ offset: true }),
-  updatedAt: z.iso.datetime({ offset: true }),
 });
 
 export const createWorkProjectLinkRequestSchema = z.strictObject({

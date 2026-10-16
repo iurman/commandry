@@ -404,7 +404,11 @@ test("Work read is explicit in actor capabilities without expanding existing cli
     "configuration.record",
     "evaluation.record",
   ];
-  assert.deepEqual(foundationMachineOperationSchema.options, operations);
+  assert.deepEqual(foundationMachineOperationSchema.options, [
+    operations[0],
+    "work.read",
+    ...operations.slice(1),
+  ]);
   assert.deepEqual(
     foundation.foundationActorSchema.parse({
       ...actor,
