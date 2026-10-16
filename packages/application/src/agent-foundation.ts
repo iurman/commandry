@@ -1,4 +1,13 @@
-import { createHash, randomBytes, randomUUID } from "node:crypto";
+import { createHash, randomBytes } from "node:crypto";
+import {
+  runtime,
+  scoped,
+  exact,
+  notFound,
+  anchorFor,
+  proposeFoundationMemory,
+  reviseFoundationMemory,
+} from "./foundation-memory-writes.js";
 import {
   foundationActorSchema,
   foundationApproveInstructionSchema,
@@ -186,94 +195,6 @@ const supportedOperations = Object.freeze([
   "memory.revise",
   "configuration.record",
 ] as const);
-
-function runtime(options: FoundationServiceOptions) {
-  const environment = foundationActorSchema.shape.environment.parse(
-    options.environment,
-  );
-  const clock = options.now ?? (() => new Date());
-  const createId = options.createId ?? randomUUID;
-  return {
-    environment,
-    now() {
-      const value = clock();
-      if (!(value instanceof Date) || !Number.isFinite(value.getTime())) {
-        throw new FoundationError(
-          "FORBIDDEN",
-          "A valid server time is required",
-        );
-      }
-      return new Date(value.getTime());
-    },
-    id: () => foundationActorSchema.shape.correlationId.parse(createId()),
-  };
-}
-
-function notFound(): never {
-  throw new FoundationError("NOT_FOUND", "Foundation record is unavailable");
-}
-
-function scoped<T extends ScopedRecord>(
-  schema: Parser<T>,
-  value: unknown,
-  projectId: string,
-  id?: string,
-): T {
-  if (value === null) notFound();
-  const record = schema.parse(value);
-  if (
-    record.projectId !== projectId ||
-    (id !== undefined && record.id !== id)
-  ) {
-    notFound();
-  }
-  return record;
-}
-
-function exact<T>(schema: Parser<T>, value: unknown, expected: T): T {
-  const record = schema.parse(value);
-  if (foundationDigest(record) !== foundationDigest(expected)) {
-    throw new FoundationError("INVALID_REFERENCE", "Invalid foundation result");
-  }
-  return record;
-}
-
-function anchorFor(
-  anchor: FoundationAnchor,
-  knowledgeItemId: string,
-  evidenceIds: readonly string[],
-  fresh = false,
-): FoundationAnchor {
-  if (
-    !anchor ||
-    anchor.knowledgeItemId !== knowledgeItemId ||
-    !Number.isSafeInteger(anchor.knowledgeVersion) ||
-    anchor.knowledgeVersion < 1 ||
-    !foundationEvidenceSchema.shape.id.safeParse(anchor.evidenceId).success ||
-    !evidenceIds.includes(anchor.evidenceId) ||
-    !foundationEvidenceSchema.shape.sourceVersion.safeParse(
-      anchor.sourceVersion,
-    ).success ||
-    !foundationEvidenceSchema.shape.contentDigest.safeParse(
-      anchor.contentDigest,
-    ).success ||
-    !["fresh", "stale", "unknown"].includes(anchor.freshness) ||
-    (fresh && anchor.freshness !== "fresh")
-  ) {
-    throw new FoundationError(
-      "INVALID_REFERENCE",
-      "Source anchor is unavailable",
-    );
-  }
-  return {
-    knowledgeItemId,
-    knowledgeVersion: anchor.knowledgeVersion,
-    evidenceId: anchor.evidenceId,
-    sourceVersion: anchor.sourceVersion,
-    contentDigest: anchor.contentDigest,
-    freshness: anchor.freshness,
-  };
-}
 
 function requestDigest(
   operation: string,
@@ -524,39 +445,11 @@ export function createFoundationMachineService(
                 verification: "unverified",
                 recordedBy: actor.principalId,
               }),
-            async () => {
-              await r.assertReferences({
-                evidenceIds: input.content.evidenceIds,
-                memoryIds: input.content.relatedMemoryIds,
-                configurationIds: [],
-              });
-              const anchor = anchorFor(
-                await r.resolveMemoryAnchor(
-                  input.knowledgeItemId,
-                  input.content.evidenceIds,
-                ),
-                input.knowledgeItemId,
-                input.content.evidenceIds,
-              );
-              const record = foundationMemorySchema.parse({
-                schemaVersion: 1,
-                id: server.id(),
-                projectId: input.projectId,
-                knowledgeItemId: input.knowledgeItemId,
-                version: 1,
-                contentDigest: foundationDigest(input.content),
-                content: input.content,
-                lifecycle: "proposed",
-                verification: "unverified",
-                recordedBy: actor.principalId,
-                recordedAt: server.now().toISOString(),
-              });
-              return exact(
-                foundationMemorySchema,
-                await r.saveMemory(record, null, input.alias, anchor),
-                record,
-              );
-            },
+            () =>
+              proposeFoundationMemory(r, input, {
+                ...server,
+                principalId: actor.principalId,
+              }),
           ),
       );
     },
@@ -585,45 +478,11 @@ export function createFoundationMachineService(
                 verification: "unverified",
                 recordedBy: actor.principalId,
               }),
-            async () => {
-              const current = scoped(
-                foundationMemorySchema,
-                await r.getMemory(input.memoryId, true),
-                input.projectId,
-                input.memoryId,
-              );
-              requireFoundationVersion(current.version, input.expectedVersion);
-              await r.assertReferences({
-                evidenceIds: input.content.evidenceIds,
-                memoryIds: input.content.relatedMemoryIds,
-                configurationIds: [],
-              });
-              const anchor = anchorFor(
-                await r.resolveMemoryAnchor(
-                  current.knowledgeItemId,
-                  input.content.evidenceIds,
-                ),
-                current.knowledgeItemId,
-                input.content.evidenceIds,
-                true,
-              );
-              const record = foundationMemorySchema.parse({
-                ...current,
-                version: current.version + 1,
-                content: input.content,
-                contentDigest: foundationDigest(input.content),
-                lifecycle: "proposed",
-                verification: "unverified",
-                recordedBy: actor.principalId,
-                recordedAt: server.now().toISOString(),
-              });
-              // null adds no alias; adapters retain existing aliases on revision.
-              return exact(
-                foundationMemorySchema,
-                await r.saveMemory(record, current.version, null, anchor),
-                record,
-              );
-            },
+            () =>
+              reviseFoundationMemory(r, input, {
+                ...server,
+                principalId: actor.principalId,
+              }),
           ),
       );
     },
