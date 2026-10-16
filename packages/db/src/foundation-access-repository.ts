@@ -4,6 +4,8 @@ import type {
   FoundationAccessPort,
   FoundationIdentity,
   FoundationOperationContext,
+  FoundationOwnerRequest,
+  FoundationRecordPort,
 } from "@commandry/application";
 import {
   foundationActorSchema,
@@ -100,11 +102,52 @@ function knownFailure(error: unknown): FoundationError | null {
   return null;
 }
 
+export type FoundationOwnerRecordFactory<Records extends FoundationRecordPort> =
+  (
+    tx: FoundationTransaction,
+    request: FoundationOwnerRequest,
+    records: FoundationRecordPort,
+    now: () => Date,
+  ) => Records;
+
+type OwnerRecordsAccess<Records extends FoundationRecordPort> = {
+  withOwner<T>(
+    request: FoundationOwnerRequest,
+    action: (records: Records) => Promise<T>,
+  ): Promise<T>;
+};
+
+/** Trusted persistence composition only. The factory receives the actual operation
+ * savepoint and must synchronously return records bound to that transaction.
+ * The owner identity shape is not proof of session authentication or revocation. */
+export function createFoundationOwnerRecordsAccessRepository<
+  Records extends FoundationRecordPort,
+>(
+  db: CommandryDatabase,
+  factory: FoundationOwnerRecordFactory<Records>,
+  options: { now?: () => Date } = {},
+): OwnerRecordsAccess<Records> {
+  const access = createAccessRepository(db, factory, options);
+  return { withOwner: access.withOwner };
+}
+
 /** Owns authorization locks, savepoint rollback, idempotency and the same-transaction audit. */
 export function createFoundationAccessRepository(
   db: CommandryDatabase,
   options: { now?: () => Date } = {},
 ): FoundationAccessPort {
+  return createAccessRepository(
+    db,
+    (_tx, _request, records) => records,
+    options,
+  );
+}
+
+function createAccessRepository<Records extends FoundationRecordPort>(
+  db: CommandryDatabase,
+  ownerRecords: FoundationOwnerRecordFactory<Records>,
+  options: { now?: () => Date },
+): Omit<FoundationAccessPort, "withOwner"> & OwnerRecordsAccess<Records> {
   const now = options.now ?? (() => new Date());
   const lockProject = async (
     tx: FoundationTransaction,
@@ -254,9 +297,19 @@ export function createFoundationAccessRepository(
               now(),
             );
             const result = await action(
-              createFoundationRecordRepository(operation, request, now, () => {
-                replayed = true;
-              }),
+              ownerRecords(
+                operation,
+                request,
+                createFoundationRecordRepository(
+                  operation,
+                  request,
+                  now,
+                  () => {
+                    replayed = true;
+                  },
+                ),
+                now,
+              ),
             );
             requireOwner(
               request,
