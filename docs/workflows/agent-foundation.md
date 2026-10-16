@@ -44,6 +44,29 @@ corrections. Never infer approval from repetition, model confidence or a score.
 
 ## Owner decisions remain separate
 
+The owner can open **Review assertion** from each Account selected-import
+receipt. The page at `/foundation/memory/{id}?projectId={projectId}` reads the
+current assertion and historical source anchor through the audited owner-only
+`memory.read` service. It shows the complete evidence ID population and source
+freshness, then requires an explicit lifecycle decision and reason. A review
+preserves the content version. Factual verification and instruction approval
+remain separate owner HTTP operations below; this screen does not grant either.
+
+The read endpoint is `GET /api/v1/foundation/memory/{id}?projectId={projectId}`.
+It requires the live owner cookie, one exact project selector and the existing
+canonical record. Missing or foreign assertions are unavailable. Failed audits
+or corrupt internal records withhold the response. This adds no machine grant;
+a scoped agent continues to use `get_memory_assertion` when actually authorized.
+Owner review, verification and instruction disclosure deliberately remain outside
+machine MCP to preserve the human decision boundary.
+
+An uncertain review response freezes its exact body and key in the mounted page.
+Use **Retry same decision** to recover that receipt. A current GET alone does not
+confirm the earlier POST. Reloading or leaving the page discards this in-memory
+attempt, so retain the receipt/key externally when recovery across navigation is
+needed; private payloads are not saved to browser storage. A confirmed receipt is
+historical. Reload current state to inspect any subsequent decisions or revisions.
+
 The sensitive owner-only HTTP operations are:
 
 | Path suffix under `/api/v1/foundation/memory/{id}` | Capability and audit  | Effect                                                                             |
@@ -346,3 +369,11 @@ collectors or deploy services. Infrastructure onboarding still requires those
 separately reviewed action capabilities and source evidence. Use existing owner
 inventory controls for operations not offered through MCP; do not infer a shell
 or broader access from this read capability.
+
+## Operational procedures
+
+Follow [server onboarding](server-onboarding.md) for scoped intake and the
+[agent improvement cycle](agent-improvement-cycle.md) for exact configuration,
+trial and assessment evidence. These versioned runbooks distinguish currently
+available tools and owner controls from unimplemented changesets, candidate
+promotion and external runtime execution.

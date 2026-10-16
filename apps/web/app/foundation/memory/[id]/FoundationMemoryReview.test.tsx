@@ -127,7 +127,7 @@ function save() {
 }
 async function uncertain() {
   await screen.findByText(
-    "This review may have been saved. Retry the same decision to confirm its receipt.",
+    "This review may have been saved. Keep this page open and retry the same decision to confirm its receipt.",
   );
 }
 

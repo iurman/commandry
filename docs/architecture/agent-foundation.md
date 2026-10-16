@@ -221,6 +221,25 @@ under an old content digest. Deferred constraints require a complete revision
 and current-version head at commit. Per-write reference limits do not truncate
 the total historical provenance population.
 
+## Owner assertion read and review screen
+
+The owner-only `memory.read` operation shares the trusted-session transaction,
+project advisory lock, canonical memory/source reads and audit boundary. It
+returns the exact current assertion with its historical source anchor and
+current freshness. The read validates descriptor-based JSON snapshots, strict
+record/anchor membership, content digests and producer/delivery integrity, and
+requires the authenticated callback to complete. Corrupt adapter output is an
+internal unavailable failure rather than caller validation. Null or foreign
+records remain unavailable; expiry and audit failure withhold delivery.
+
+Selected-import receipts link to a small owner review screen. Lifecycle decisions
+reuse the existing review service, expected content version and exact keyed
+receipt. Lost or invalid responses retain one attempt while mounted; no private
+browser storage is introduced. Factual verification and instruction disclosure
+approval retain their separate owner HTTP operations. Existing machine choices
+and the opt-in MCP surface are unchanged. The UI and read add no schema migration
+or new installation, inference or production infrastructure action.
+
 ## Agent workflow and current coverage
 
 The application services and separate opt-in MCP transport use the same records.

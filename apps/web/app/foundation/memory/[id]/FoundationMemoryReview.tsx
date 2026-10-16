@@ -70,8 +70,11 @@ export function FoundationMemoryReview({
   const scope = JSON.stringify([projectId, memoryId]);
   const viewScope = JSON.stringify([scope, enabled]);
   const [visit, setVisit] = useState({ scope: viewScope, epoch: 0 });
-  if (visit.scope !== viewScope)
+  const [sending, setSending] = useState(false);
+  if (visit.scope !== viewScope) {
     setVisit({ scope: viewScope, epoch: visit.epoch + 1 });
+    setSending(false);
+  }
   const [reload, setReload] = useState(0);
   const requestKey = JSON.stringify([viewScope, visit.epoch, reload]);
   const [loaded, setLoaded] = useState<Loaded>({
@@ -85,7 +88,6 @@ export function FoundationMemoryReview({
     reason: string;
   }>({ scope, decision: "", reason: "" });
   const [attempt, setAttempt] = useState<Attempt | null>(null);
-  const [sending, setSending] = useState(false);
   const [receipt, setReceipt] = useState<Receipt | null>(null);
   const [issue, setIssue] = useState<Issue | null>(null);
   const alive = useRef(true);
@@ -103,7 +105,6 @@ export function FoundationMemoryReview({
     sendGeneration.current += 1;
     sendController.current?.abort();
     sendingRef.current = false;
-    setSending(false);
   }, [viewScope]);
   useEffect(() => {
     alive.current = true;
@@ -434,7 +435,7 @@ export function FoundationMemoryReview({
             </a>
             <p className={styles.hint}>
               The link shows current Knowledge. The anchor above records the
-              assertion's source version.
+              assertion&apos;s source version.
             </p>
             <h3>Evidence IDs ({detail.memory.content.evidenceIds.length})</h3>
             <ul aria-label="All evidence IDs" className={styles.ids}>
@@ -523,7 +524,7 @@ export function FoundationMemoryReview({
           <p role="status">
             {sending
               ? "Saving review decision..."
-              : "This review may have been saved. Retry the same decision to confirm its receipt."}
+              : "This review may have been saved. Keep this page open and retry the same decision to confirm its receipt."}
           </p>
           <button
             type="button"
@@ -551,8 +552,8 @@ export function FoundationMemoryReview({
             Correlation ID: <code>{currentReceipt.value.correlationId}</code>
           </p>
           <p className={styles.hint}>
-            This is the submitted review's historical receipt. Reload current
-            state to check later changes.
+            This is the submitted review&apos;s historical receipt. Reload
+            current state to check later changes.
           </p>
         </section>
       )}

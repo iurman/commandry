@@ -931,6 +931,16 @@ function OwnerImport({ environment }: Pick<Props, "environment">) {
                 </p>
                 <a
                   href={
+                    "/foundation/memory/" +
+                    encodeURIComponent(row.memoryId) +
+                    "?projectId=" +
+                    encodeURIComponent(receipt.projectId)
+                  }
+                >
+                  Review assertion
+                </a>
+                <a
+                  href={
                     "/api/v1/foundation/imports/" +
                     encodeURIComponent(row.importRevisionId) +
                     "?projectId=" +

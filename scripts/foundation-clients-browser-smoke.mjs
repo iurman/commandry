@@ -275,6 +275,8 @@ export async function foundationClientsBrowserSmoke(
       await foundationImportBrowserSmoke({
         page,
         create,
+        origin,
+        trustedOrigin,
         project,
         environment,
         screenshots,
