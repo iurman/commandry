@@ -33,6 +33,7 @@ contributors need. They do not record minor implementation details.
 
 | [0013](0013-share-the-gravity-renderer-with-production.md) | Share the Gravity renderer with production infrastructure views | Accepted |
 | [0014](0014-govern-agent-proposals-through-canonical-transactions.md) | Govern agent proposals through canonical transactions | Accepted |
+| [0015](0015-show-the-complete-gravity-landscape.md) | Show the complete Gravity landscape | Accepted |
 
 ## Creating an ADR
 

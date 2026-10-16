@@ -408,7 +408,7 @@ export default function GravityInfrastructure({
         </details>
       </div>
       <p className="cmd-gravity-note">
-        {snapshot.items.length} resources on this page.{" "}
+        {snapshot.items.length} resources in this scene.{" "}
         {preferences.grouping === "projects"
           ? "Resources with multiple projects use their first project for layout; the inspector shows every membership. "
           : ""}
@@ -503,7 +503,7 @@ export default function GravityInfrastructure({
         </div>
       </div>
       <details className="cmd-gravity-resource-picker" open={!compact}>
-        <summary>Resources on this page ({snapshot.items.length})</summary>
+        <summary>Resources in this scene ({snapshot.items.length})</summary>
         <div
           className="cmd-gravity-resource-buttons"
           role="group"

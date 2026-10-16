@@ -7,8 +7,9 @@ export type LabelPosition = {
   y: number;
   visible: boolean;
   opacity: number;
+  attention?: boolean;
 };
-type State = { x: number; y: number; opacity: number };
+type State = { x: number; y: number; opacity: number; admitted: boolean };
 type Separation = { axis: "x" | "y"; direction: number };
 
 // Labels belong to the structural crest, not the animated floor or a neighbour.
@@ -41,6 +42,7 @@ export class LabelLayout {
     dt: number,
     motion: boolean,
     top = 52,
+    selected: string | null = null,
   ): T[] {
     const active = new Set(anchors.map((anchor) => anchor.id));
     for (const id of this.states.keys()) {
@@ -51,7 +53,12 @@ export class LabelLayout {
     }
     const boxes = anchors
       .map((anchor) => {
-        const state = this.states.get(anchor.id) ?? { x: 0, y: 0, opacity: 0 };
+        const state = this.states.get(anchor.id) ?? {
+          x: 0,
+          y: 0,
+          opacity: 0,
+          admitted: false,
+        };
         this.states.set(anchor.id, state);
         const size = this.sizes.get(anchor.id) ?? { width: 110, height: 42 };
         return {
@@ -71,7 +78,10 @@ export class LabelLayout {
       );
       box.y = Math.max(
         top + box.height / 2,
-        Math.min(height - 100 - box.height / 2, box.y),
+        Math.min(
+          height - Math.max(36, Math.min(100, height * 0.15)) - box.height / 2,
+          box.y,
+        ),
       );
     };
     const contacts = new Set<string>();
@@ -121,28 +131,63 @@ export class LabelLayout {
       if (!contacts.has(key)) this.separations.delete(key);
     this.changing = false;
     const smoothing = motion ? 1 - Math.exp(-dt * 8) : 1;
-    return boxes.map((box) => {
-      if (!box.engaged) {
-        box.x = box.anchor.x;
-        box.y = box.anchor.y - box.height / 2;
-      }
-      clamp(box);
-      const { anchor, state } = box;
-      const x = box.x - anchor.x;
-      const y = box.y + box.height / 2 - anchor.y;
-      const opacity = anchor.visible ? 1 : 0;
-      state.x += (x - state.x) * smoothing;
-      state.y += (y - state.y) * smoothing;
-      state.opacity += (opacity - state.opacity) * smoothing;
-      this.changing ||=
-        Math.abs(x - state.x) + Math.abs(y - state.y) > 0.05 ||
-        Math.abs(opacity - state.opacity) > 0.002;
-      return {
-        ...anchor,
-        x: anchor.x + state.x,
-        y: anchor.y + state.y,
-        opacity: state.opacity,
-      };
-    });
+    const occupied: { x: number; y: number; width: number; height: number }[] =
+      [];
+    const priority = (box: (typeof boxes)[number]) =>
+      (box.anchor.id === selected || box.anchor.id === `lens-${selected}`
+        ? 1000
+        : 0) +
+      (box.anchor.attention ? 100 : 0) +
+      (box.state.admitted ? 1 : 0);
+    return boxes
+      .sort(
+        (a, b) =>
+          priority(b) - priority(a) || a.anchor.id.localeCompare(b.anchor.id),
+      )
+      .map((box) => {
+        if (!box.engaged) {
+          box.x = box.anchor.x;
+          box.y = box.anchor.y - box.height / 2;
+        }
+        clamp(box);
+        const { anchor, state } = box;
+        const x = box.x - anchor.x;
+        const y = box.y + box.height / 2 - anchor.y;
+        state.x += (x - state.x) * smoothing;
+        state.y += (y - state.y) * smoothing;
+        const rendered = {
+          x: anchor.x + state.x,
+          y: anchor.y + state.y - box.height / 2,
+          width: box.width,
+          height: box.height,
+        };
+        const fits =
+          rendered.x - box.width / 2 >= 7 &&
+          rendered.x + box.width / 2 <= width - 7 &&
+          rendered.y - box.height / 2 >= top - 1 &&
+          rendered.y + box.height / 2 <= height - 28;
+        const overlaps = occupied.some(
+          (other) =>
+            Math.abs(rendered.x - other.x) <
+              (rendered.width + other.width) / 2 + 6 &&
+            Math.abs(rendered.y - other.y) <
+              (rendered.height + other.height) / 2 + 6,
+        );
+        // Every well remains rendered and in the picker. Only labels compete for space.
+        state.admitted = anchor.visible && fits && !overlaps;
+        const opacity = state.admitted ? 1 : 0;
+        if (state.admitted) occupied.push(rendered);
+        else state.opacity = Math.min(state.opacity, 0.04);
+        state.opacity += (opacity - state.opacity) * smoothing;
+        this.changing ||=
+          Math.abs(x - state.x) + Math.abs(y - state.y) > 0.05 ||
+          Math.abs(opacity - state.opacity) > 0.002;
+        return {
+          ...anchor,
+          x: anchor.x + state.x,
+          y: anchor.y + state.y,
+          opacity: state.opacity,
+        };
+      });
   }
 }

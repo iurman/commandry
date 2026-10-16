@@ -1,34 +1,14 @@
-export const capacity = 64;
-const field = `
-uniform vec4 uWells[${capacity}];
-uniform vec4 uShapes[${capacity}];
-uniform vec3 uColors[${capacity}];
-uniform float uAttention[${capacity}];
+// Explicit multiplication keeps signed contour offsets defined on every GLSL device.
+const square = `float gravitySquare(float value) { return value * value; }`;
+
+export const terrainVertex = `
+${square}
+uniform sampler2D uField;
+uniform vec2 uFieldSize;
+uniform int uFieldColumns;
 uniform int uCount;
 uniform float uTime;
 uniform float uAmbient;
-vec2 wellOffset(vec2 p, int i) {
-  vec2 d = p - uWells[i].xy;
-  float c = cos(uShapes[i].y), s = sin(uShapes[i].y);
-  return vec2(d.x * c + d.y * s, -d.x * s + d.y * c) / vec2(uWells[i].z * uShapes[i].x, uWells[i].z);
-}
-float heightAt(vec2 p) {
-  float h = sin(p.x * 0.14 + p.y * 0.11) * 0.55 + cos(p.y * 0.18 - p.x * 0.09) * 0.35;
-  h += sin(length(p) * 0.7 - uTime * 0.35) * cos(p.x * 0.12 + p.y * 0.09) * 0.055 * uAmbient;
-  for (int i = 0; i < ${capacity}; i++) {
-    if (i >= uCount) break;
-    vec4 w = uWells[i];
-    vec2 d = wellOffset(p, i);
-    float r2 = dot(d, d);
-    float strength = min(1.0, w.w);
-    h += uShapes[i].z * exp(-r2 * 0.23) * strength;
-    h -= w.w * exp(-pow(r2, uShapes[i].w) * 1.5);
-    h += 0.13 * w.z * exp(-pow(sqrt(r2) - 1.05, 2.0) * 12.0) * strength;
-  }
-  return h;
-}`;
-
-export const terrainVertex = `${field}
 varying vec3 vWorld;
 varying vec3 vColor;
 varying float vRim;
@@ -36,33 +16,48 @@ varying float vAlert;
 varying float vDash;
 varying float vDepth;
 varying float vInfluence;
+vec4 fieldRecord(int index, int part) {
+  ivec2 pixel = ivec2((index % uFieldColumns) * 3 + part, index / uFieldColumns);
+  return texture2D(uField, (vec2(pixel) + 0.5) / uFieldSize);
+}
 void main() {
-  vec3 p = position;
-  p.y = heightAt(p.xz);
-  vWorld = p;
+  vec3 p = (modelMatrix * vec4(position, 1.0)).xyz;
+  float h = sin(p.x * 0.14 + p.z * 0.11) * 0.55 + cos(p.z * 0.18 - p.x * 0.09) * 0.35;
+  h += sin(length(p.xz) * 0.7 - uTime * 0.35) * cos(p.x * 0.12 + p.z * 0.09) * 0.055 * uAmbient;
   vec3 tint = vec3(0.25, 0.55, 0.8) * 0.025;
   float weight = 0.025;
   vRim = 0.0; vAlert = 0.0; vDash = 0.0; vDepth = 0.0; vInfluence = 0.0;
-  for (int i = 0; i < ${capacity}; i++) {
-    if (i >= uCount) break;
-    vec4 w = uWells[i];
-    vec2 d = wellOffset(p.xz, i);
+  for (int i = 0; i < uCount; i++) {
+    vec4 w = fieldRecord(i, 0);
+    vec4 shape = fieldRecord(i, 1);
+    vec4 color = fieldRecord(i, 2);
+    vec2 delta = p.xz - w.xy;
+    float c = cos(shape.y), s = sin(shape.y);
+    vec2 d = vec2(delta.x * c + delta.y * s, -delta.x * s + delta.y * c) / vec2(w.z * shape.x, w.z);
     float r2 = dot(d, d), r = sqrt(r2);
-    float influence = exp(-r2 * 0.45) * min(1.0, w.w);
-    tint += uColors[i] * influence;
+    float strength = min(1.0, w.w);
+    float wellDepth = w.w * exp(-pow(r2, shape.w) * 1.5);
+    h += shape.z * exp(-r2 * 0.23) * strength;
+    h -= wellDepth;
+    h += 0.13 * w.z * exp(-gravitySquare(r - 1.05) * 12.0) * strength;
+    float influence = exp(-r2 * 0.45) * strength;
+    tint += color.rgb * influence;
     weight += influence;
     vInfluence = max(vInfluence, influence);
-    vDepth = max(vDepth, w.w * exp(-pow(r2, uShapes[i].w) * 1.5));
-    float rim = exp(-pow((r - 1.08) * 20.0, 2.0)) * min(1.0, w.w);
+    vDepth = max(vDepth, wellDepth);
+    float rim = exp(-gravitySquare((r - 1.08) * 20.0)) * strength;
     vRim = max(vRim, rim);
-    vAlert = max(vAlert, uAttention[i] * exp(-r2 * 0.25) * min(1.0, w.w));
-    vDash = max(vDash, rim * uAttention[i] * step(0.0, sin(atan(d.y, d.x) * 22.0)));
+    vAlert = max(vAlert, color.a * exp(-r2 * 0.25) * strength);
+    vDash = max(vDash, rim * color.a * step(0.0, sin(atan(d.y, d.x) * 22.0)));
   }
+  p.y = h;
+  vWorld = p;
   vColor = tint / weight;
-  gl_Position = projectionMatrix * modelViewMatrix * vec4(p, 1.0);
+  gl_Position = projectionMatrix * viewMatrix * vec4(p, 1.0);
 }`;
 
 export const terrainFragment = `
+${square}
 uniform float uNight;
 uniform vec3 uWarning;
 uniform vec3 uReporting;
@@ -94,7 +89,7 @@ void main() {
   vec3 view = normalize(cameraPosition - vWorld);
   float sheen = pow(max(dot(normal, normalize(light + view)), 0.0), 48.0);
   color += vec3(0.10, 0.14, 0.16) * sheen * (1.0 - depth * 0.7);
-  color += vColor * exp(-pow((depth - 0.28) * 9.0, 2.0)) * mix(0.035, 0.09, uNight);
+  color += vColor * exp(-gravitySquare((depth - 0.28) * 9.0)) * mix(0.035, 0.09, uNight);
   float band = vWorld.y * 11.0;
   float contour = 1.0 - smoothstep(0.0, max(fwidth(band) * 1.2, 0.045), abs(fract(band - 0.5) - 0.5));
   vec3 ink = mix(vColor * 0.32, vColor * 0.85, uNight);
@@ -115,7 +110,7 @@ void main() {
   vec2 selectedDelta = vWorld.xz - uSelection.xy;
   float c = cos(uSelectedAngle), s = sin(uSelectedAngle);
   vec2 selectedOffset = vec2(selectedDelta.x * c + selectedDelta.y * s, -selectedDelta.x * s + selectedDelta.y * c) / vec2(uSelection.z * uSelection.w, uSelection.z);
-  float selection = exp(-pow((length(selectedOffset) - 1.38) * 12.0, 2.0)) * uSelected;
+  float selection = exp(-gravitySquare((length(selectedOffset) - 1.38) * 12.0)) * uSelected;
   color += vec3(0.10, 0.28, 0.42) * selection * 0.2;
   vec3 haze = mix(vec3(0.91, 0.94, 0.94), vec3(0.012, 0.026, 0.045), uNight);
   color = mix(color, haze, smoothstep(uFogStart, uFogStart + 65.0, distance(cameraPosition, vWorld)));
@@ -126,9 +121,10 @@ void main() {
 
 export const skyVertex = `
 varying vec3 vDirection;
-void main() { vDirection = normalize(position); gl_Position = projectionMatrix * modelViewMatrix * vec4(position, 1.0); }
+void main() { vDirection = normalize(position); gl_Position = projectionMatrix * modelViewMatrix * vec4(position, 1.0); gl_Position.z = gl_Position.w; }
 `;
 export const skyFragment = `
+${square}
 uniform float uNight;
 uniform float uTime;
 uniform float uAmbient;
@@ -140,7 +136,7 @@ void main() {
   vec3 day = mix(vec3(0.91, 0.94, 0.94), vec3(0.62, 0.75, 0.81), smoothstep(0.0, 0.8, altitude));
   vec3 night = mix(vec3(0.012, 0.026, 0.045), vec3(0.002, 0.005, 0.014), smoothstep(0.0, 0.65, altitude));
   float cloud = sin(d.x * 3.0 + d.z * 4.0) * sin(d.z * 7.0 - d.y * 5.0) * 0.5 + 0.5;
-  float nebula = exp(-pow((d.y - d.x * 0.3 - d.z * 0.25 - 0.25) * 5.0, 2.0)) * cloud;
+  float nebula = exp(-gravitySquare((d.y - d.x * 0.3 - d.z * 0.25 - 0.25) * 5.0)) * cloud;
   night += vec3(0.005, 0.008, 0.018) * nebula;
   vec2 uv = vec2(atan(d.z, d.x) / 6.283185 + 0.5, asin(d.y) / 3.141593 + 0.5);
   vec2 cell = floor(uv * vec2(850.0, 425.0));
