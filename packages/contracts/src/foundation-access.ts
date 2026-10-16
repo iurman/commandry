@@ -260,3 +260,37 @@ export const foundationFailureSchema = z.strictObject({
     "FOUNDATION_UNAVAILABLE",
   ]),
 });
+
+// Owner-only reads reuse the exact canonical assertion and source-anchor shape.
+// Factual verification and instruction approval remain separate decisions.
+export const foundationOwnerMemoryReadSchema = z
+  .strictObject({
+    memory: foundationMemorySchema,
+    anchor: z.strictObject({
+      knowledgeItemId: identity,
+      knowledgeVersion: z.number().int().positive(),
+      evidenceId: identity,
+      sourceVersion: z.string().nullable(),
+      contentDigest: z.string().regex(/^[a-f0-9]{64}$/),
+      freshness: z.enum(["fresh", "stale", "unknown"]),
+    }),
+  })
+  .superRefine((value, context) => {
+    if (
+      value.anchor.knowledgeItemId !== value.memory.knowledgeItemId ||
+      !value.memory.content.evidenceIds.includes(value.anchor.evidenceId)
+    )
+      context.addIssue({
+        code: "custom",
+        path: ["anchor"],
+        message: "Source anchor must belong to this assertion",
+      });
+  });
+export type FoundationOwnerMemoryRead = z.infer<
+  typeof foundationOwnerMemoryReadSchema
+>;
+export const foundationOwnerMemoryReviewResultSchema = z.strictObject({
+  record: foundationMemorySchema,
+  replayed: z.boolean(),
+  correlationId: identity,
+});

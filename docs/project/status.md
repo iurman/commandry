@@ -94,12 +94,16 @@ The owner-authorized agent-memory campaign has deployed its reviewed shared
 application and PostgreSQL foundation in PR 11 at revision
 `e472f843c5f20961d03af7d15b540f9ba791649b`. The
 [activation record](../architecture/agent-foundation.md#production-activation-2026-10-16)
-records exact release, backup/restore and live verification boundaries. Twenty-one opt-in MCP tools cover
+records exact release, backup/restore and live verification boundaries. The
+separate [PR 12 resource release](../architecture/agent-foundation.md#resource-read-activation-2026-10-16)
+is live at `07c8bfdb159728dd2d09899ee7245e28eb4c3def`. Twenty-two opt-in MCP tools cover
 source-anchored evidence/memory/configurations, complete paginated inventories,
 approved working context and immutable evaluation observations with separate
 owner assessment review. Separately granted `work.read` lists the same canonical primary/related Work
 as the UI with complete live pagination, exact digests and unchanged existing
-grants. Account includes explicit scoped credential creation,
+grants. Separately granted `resources.read` returns every active canonical
+project-resource connection with exact digests and complete live continuation,
+without parent traversal or health inference. Account includes explicit scoped credential creation,
 one-time copy/dismiss and revocation. A closed-bundle skill registry preserves
 exact library components and reports three-way digest drift without installation.
 Independent review and real disposable PostgreSQL tests cover authorization,

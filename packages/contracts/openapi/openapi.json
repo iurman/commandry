@@ -10833,6 +10833,94 @@
         }
       }
     },
+    "/api/v1/foundation/memory/{id}": {
+      "get": {
+        "operationId": "getOwnerFoundationMemory",
+        "summary": "Owner-only exact assertion and source anchor; review is separate from verification and instruction approval",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "id",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          },
+          {
+            "in": "query",
+            "name": "projectId",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Current canonical assertion with historical source anchor and freshness",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/FoundationOwnerMemoryRead"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Strict singleton project selector required",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/FoundationFailure"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Live owner sign-in required",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/FoundationFailure"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Owner or origin denied",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/FoundationFailure"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Scoped assertion unavailable",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/FoundationFailure"
+                }
+              }
+            }
+          },
+          "503": {
+            "description": "Read unavailable; no assertion delivered",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/FoundationFailure"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/api/v1/foundation/memory/{id}/review": {
       "post": {
         "operationId": "reviewFoundationMemory",
@@ -15882,6 +15970,197 @@
           "contentDigest",
           "disclosureProjectId",
           "expiresAt"
+        ],
+        "additionalProperties": false
+      },
+      "FoundationOwnerMemoryRead": {
+        "type": "object",
+        "properties": {
+          "memory": {
+            "type": "object",
+            "properties": {
+              "schemaVersion": {
+                "type": "number",
+                "const": 1
+              },
+              "id": {
+                "type": "string",
+                "format": "uuid",
+                "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$"
+              },
+              "projectId": {
+                "type": "string",
+                "format": "uuid",
+                "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$"
+              },
+              "knowledgeItemId": {
+                "type": "string",
+                "format": "uuid",
+                "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$"
+              },
+              "version": {
+                "type": "integer",
+                "exclusiveMinimum": 0,
+                "maximum": 9007199254740991
+              },
+              "contentDigest": {
+                "type": "string",
+                "pattern": "^[a-f0-9]{64}$"
+              },
+              "content": {
+                "type": "object",
+                "properties": {
+                  "statement": {
+                    "type": "string",
+                    "minLength": 1,
+                    "maxLength": 20000
+                  },
+                  "category": {
+                    "type": "string",
+                    "enum": [
+                      "finding",
+                      "preference",
+                      "instruction",
+                      "decision"
+                    ]
+                  },
+                  "evidenceIds": {
+                    "minItems": 1,
+                    "maxItems": 1000,
+                    "type": "array",
+                    "items": {
+                      "type": "string",
+                      "format": "uuid",
+                      "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$"
+                    }
+                  },
+                  "relatedMemoryIds": {
+                    "maxItems": 1000,
+                    "type": "array",
+                    "items": {
+                      "type": "string",
+                      "format": "uuid",
+                      "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$"
+                    }
+                  },
+                  "relationType": {
+                    "anyOf": [
+                      {
+                        "type": "string",
+                        "enum": [
+                          "contradicts",
+                          "supersedes"
+                        ]
+                      },
+                      {
+                        "type": "null"
+                      }
+                    ]
+                  }
+                },
+                "required": [
+                  "statement",
+                  "category",
+                  "evidenceIds",
+                  "relatedMemoryIds",
+                  "relationType"
+                ],
+                "additionalProperties": false
+              },
+              "lifecycle": {
+                "type": "string",
+                "enum": [
+                  "proposed",
+                  "accepted",
+                  "rejected",
+                  "superseded"
+                ]
+              },
+              "verification": {
+                "type": "string",
+                "enum": [
+                  "unverified",
+                  "source_matched",
+                  "independently_verified"
+                ]
+              },
+              "recordedBy": {
+                "type": "string",
+                "minLength": 1,
+                "maxLength": 4000
+              },
+              "recordedAt": {
+                "type": "string",
+                "format": "date-time",
+                "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))T(?:(?:[01]\\d|2[0-3]):[0-5]\\d:[0-5]\\d(?:\\.\\d+)?(?:Z|([+-](?:[01]\\d|2[0-3]):[0-5]\\d)))$"
+              }
+            },
+            "required": [
+              "schemaVersion",
+              "id",
+              "projectId",
+              "knowledgeItemId",
+              "version",
+              "contentDigest",
+              "content",
+              "lifecycle",
+              "verification",
+              "recordedBy",
+              "recordedAt"
+            ],
+            "additionalProperties": false
+          },
+          "anchor": {
+            "type": "object",
+            "properties": {
+              "knowledgeItemId": {
+                "type": "string",
+                "format": "uuid",
+                "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$"
+              },
+              "knowledgeVersion": {
+                "type": "integer",
+                "exclusiveMinimum": 0,
+                "maximum": 9007199254740991
+              },
+              "evidenceId": {
+                "type": "string",
+                "format": "uuid",
+                "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$"
+              },
+              "sourceVersion": {
+                "type": [
+                  "string",
+                  "null"
+                ]
+              },
+              "contentDigest": {
+                "type": "string",
+                "pattern": "^[a-f0-9]{64}$"
+              },
+              "freshness": {
+                "type": "string",
+                "enum": [
+                  "fresh",
+                  "stale",
+                  "unknown"
+                ]
+              }
+            },
+            "required": [
+              "knowledgeItemId",
+              "knowledgeVersion",
+              "evidenceId",
+              "sourceVersion",
+              "contentDigest",
+              "freshness"
+            ],
+            "additionalProperties": false
+          }
+        },
+        "required": [
+          "memory",
+          "anchor"
         ],
         "additionalProperties": false
       },

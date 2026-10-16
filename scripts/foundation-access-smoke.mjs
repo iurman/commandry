@@ -239,6 +239,31 @@ export async function foundationAccessSmoke(
       config.record.contentDigest,
     );
     const memoryPath = `/api/v1/foundation/memory/${proposed.record.id}`;
+    const ownerReadPath = `${memoryPath}?projectId=${project.id}`;
+    for (const [path, headers, status] of [
+      [ownerReadPath, { authorization: `Bearer ${issued.token}` }, 401],
+      [
+        ownerReadPath,
+        { ...ownerHeaders, origin: "https://untrusted.invalid" },
+        403,
+      ],
+      [`${memoryPath}?projectId=${other.id}`, ownerHeaders, 404],
+      [`${memoryPath}?projectId=${project.id}&owner=true`, ownerHeaders, 400],
+      [`${ownerReadPath}&projectId=${project.id}`, ownerHeaders, 400],
+    ]) {
+      const response = await fetch(origin + path, { headers });
+      assert.equal(response.status, status);
+      assert.equal(response.headers.get("cache-control"), "no-store");
+    }
+    const ownerRead = await fetch(origin + ownerReadPath, {
+      headers: ownerHeaders,
+    });
+    assert.equal(ownerRead.status, 200);
+    const ownerSnapshot = await ownerRead.json();
+    assert.deepEqual(ownerSnapshot.memory, proposed.record);
+    assert.equal(ownerSnapshot.anchor.evidenceId, evidence.record.id);
+    assert.equal(ownerSnapshot.anchor.knowledgeItemId, knowledge.id);
+    assert.equal(ownerSnapshot.anchor.freshness, "fresh");
     const bearerApproval = await fetch(`${origin}${memoryPath}/review`, {
       method: "POST",
       headers: {

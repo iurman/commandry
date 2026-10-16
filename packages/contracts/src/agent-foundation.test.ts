@@ -384,6 +384,7 @@ test("operations are the exact foundation family", () => {
     "evidence.record",
     "memory.propose",
     "memory.revise",
+    "memory.read",
     "memory.import",
     "memory.review",
     "memory.verify",

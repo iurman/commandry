@@ -2,12 +2,15 @@ import assert from "node:assert/strict";
 import { createHash, randomUUID } from "node:crypto";
 import { join } from "node:path";
 import { expect } from "@playwright/test";
+import { foundationMemoryReviewBrowserSmoke } from "./foundation-memory-review-browser-smoke.mjs";
 
 // Reuses the Account page, owner persona and loopback-only browser routing.
 // Every record below is synthetic; this never loads the owner's exports.
 export async function foundationImportBrowserSmoke({
   page,
   create,
+  origin,
+  trustedOrigin,
   project,
   environment,
   screenshots,
@@ -311,7 +314,15 @@ export async function foundationImportBrowserSmoke({
       name: "Import receipt",
       exact: true,
     });
-    const links = receipt.getByRole("link");
+    const reviewLinks = receipt.getByRole("link", {
+      name: "Review assertion",
+      exact: true,
+    });
+    await expect(reviewLinks).toHaveCount(21);
+    const reviewHrefs = await reviewLinks.evaluateAll((links) =>
+      links.map((link) => link.getAttribute("href")),
+    );
+    const links = receipt.getByRole("link", { name: /^Import revision / });
     await expect(links).toHaveCount(21);
     const response = await page.evaluate(
       async (href) => {
@@ -336,6 +347,18 @@ export async function foundationImportBrowserSmoke({
     assert.equal(memory.structuredContent.memory.lifecycle, "proposed");
     assert.equal(memory.structuredContent.memory.verification, "unverified");
     assert.equal(memory.structuredContent.memory.knowledgeItemId, knowledge.id);
+    phase = "owner memory review";
+    // The import watchdog covers its own flow, not the separate owner review.
+    clearTimeout(watchdog);
+    await foundationMemoryReviewBrowserSmoke({
+      page,
+      origin,
+      trustedOrigin,
+      environment,
+      screenshots,
+      reviewHrefs,
+      project,
+    });
     console.log(
       `Foundation selected-import browser rehearsal passed (${environment}): actual 21-record/all-tier review, complete record/source pagination, safe originals, cancel, canonical import/MCP identity and private-input clearing; dark/light at1440/390/320px on reused Account page.`,
     );

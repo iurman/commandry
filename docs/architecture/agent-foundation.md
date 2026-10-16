@@ -221,6 +221,25 @@ under an old content digest. Deferred constraints require a complete revision
 and current-version head at commit. Per-write reference limits do not truncate
 the total historical provenance population.
 
+## Owner assertion read and review screen
+
+The owner-only `memory.read` operation shares the trusted-session transaction,
+project advisory lock, canonical memory/source reads and audit boundary. It
+returns the exact current assertion with its historical source anchor and
+current freshness. The read validates descriptor-based JSON snapshots, strict
+record/anchor membership, content digests and producer/delivery integrity, and
+requires the authenticated callback to complete. Corrupt adapter output is an
+internal unavailable failure rather than caller validation. Null or foreign
+records remain unavailable; expiry and audit failure withhold delivery.
+
+Selected-import receipts link to a small owner review screen. Lifecycle decisions
+reuse the existing review service, expected content version and exact keyed
+receipt. Lost or invalid responses retain one attempt while mounted; no private
+browser storage is introduced. Factual verification and instruction disclosure
+approval retain their separate owner HTTP operations. Existing machine choices
+and the opt-in MCP surface are unchanged. The UI and read add no schema migration
+or new installation, inference or production infrastructure action.
+
 ## Agent workflow and current coverage
 
 The application services and separate opt-in MCP transport use the same records.
@@ -381,10 +400,10 @@ assessment versions, audit rollback, revocation, immutable membership across
 savepoints, and temporary-table shadowing negatives. These local executions and
 independent source reviews do not prove deployment privileges or a production
 release. Evaluation MCP tools and the owner-only assessment review API now use
-these same services. Separate memory/evaluation owner review UI, transactional
-selected memory import and actual installation/adoption evidence remain
-follow-ups; client-management UI is implemented. Production activation is a
-separate constrained release.
+these same services. Owner memory review and transactional selected import now
+have dedicated controls; evaluation review UI and actual installation/adoption
+evidence remain follow-ups. Client-management UI is implemented. Production
+activation remains a separate constrained release.
 
 The optional built-app owner browser rehearsal runs after `pnpm build`:
 
@@ -472,6 +491,33 @@ error. Grant, audit and deadline checks remain active through transaction commit
 and application delivery.
 
 The [resource workflow](../workflows/agent-foundation.md#read-canonical-project-resource-connections)
-records how an agent discovers and continues this population. This follow-up is
-not part of the production activation revision recorded above; separate release
-evidence is required before describing it as deployed.
+records how an agent discovers and continues this population. It was deployed
+separately from the initial foundation release, as recorded below.
+
+## Resource-read activation, 2026-10-16
+
+[PR 12](https://github.com/iurman/commandry/pull/12) was normally merged as
+`07c8bfdb159728dd2d09899ee7245e28eb4c3def`. Attempt 2 of the exact
+[release workflow](https://github.com/iurman/commandry/actions/runs/38911464901)
+passed all gates and published/read back
+`ghcr.io/iurman/commandry@sha256:48caf71a905385f07506ce255b06828c6bb6acfc0446b9d957376f34222d24e1`.
+The first attempt stopped on the 320 px Gravity focus-lens geometry test; its
+failure remains recorded. The identical source passed the complete rerun;
+no test was removed or disabled.
+
+The existing constrained deployment passed fresh encrypted backup, isolated
+restore and host recovery, migration 0063, exact owner sign-in/authenticated
+read, worker completion and probe-session revocation. Its application smoke
+completed at `2026-10-16T14:39:24.810Z`; live verification followed at 14:40 UTC.
+All 91 canonical resources, 15 projects, five integration sources, identities,
+parents and memberships were preserved. Four hosts still reported real metrics
+with service health unknown. Live Account showed the ninth permission unchecked
+and no Commandry clients. All 15 owner client reads returned zero standing
+clients. Credentialless MCP returned `401 INVALID_CREDENTIAL` with `no-store`,
+and actual native legacy project/brief reads still worked.
+
+Production invocation with a newly issued resource credential was not performed.
+Actual resource reads, pagination, revocation and explicit permission selection
+were verified in the exact-source disposable SDK/HTTP/browser rehearsals. No
+production credential, private import, installation, inference or host mutation
+was introduced by this release.
