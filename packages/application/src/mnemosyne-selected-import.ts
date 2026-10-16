@@ -170,7 +170,6 @@ function invalid(): never {
 function canonical<T>(raw: T): T {
   try {
     const json = canonicalFoundationJson(raw);
-    if (Buffer.byteLength(json, "utf8") > maximumBytes) invalid();
     const value: unknown = JSON.parse(json);
     function unicode(item: unknown): void {
       if (typeof item === "string") {
@@ -184,6 +183,17 @@ function canonical<T>(raw: T): T {
     }
     unicode(value);
     return value as T;
+  } catch {
+    invalid();
+  }
+}
+// The byte budget governs external requests, not derived plans or persistence
+// wrappers. Internal snapshots still use the same lossless JSON validation.
+function requestSnapshot<T>(raw: T): T {
+  try {
+    const json = canonicalFoundationJson(raw);
+    if (Buffer.byteLength(json, "utf8") > maximumBytes) invalid();
+    return canonical(JSON.parse(json) as T);
   } catch {
     invalid();
   }
@@ -338,7 +348,7 @@ function expectedMemory(raw: unknown): FoundationImportExpectedMemory | null {
 }
 function input(raw: unknown): MnemosyneSelectedImportInput {
   return safe(() => {
-    const value = object(canonical(raw), [
+    const value = object(requestSnapshot(raw), [
       "envelope",
       "decision",
       "reviewedSelections",
@@ -646,7 +656,7 @@ export function createMnemosyneSelectedImportService(
   }
   return {
     async preview(rawEnvelope: unknown): Promise<MnemosyneImportPlan> {
-      const e = safe(() => envelope(rawEnvelope));
+      const e = safe(() => envelope(requestSnapshot(rawEnvelope)));
       return run(e.projectId, "foundation.read", null, async (r) => {
         const { existing } = await load(r, e);
         return planMnemosyneImport(e, {
@@ -892,7 +902,7 @@ export function createMnemosyneSelectedImportService(
     },
     async getRevision(rawInput: unknown): Promise<FoundationImportRevision> {
       const value = safe(() =>
-        object(canonical(rawInput), ["projectId", "id"]),
+        object(requestSnapshot(rawInput), ["projectId", "id"]),
       );
       const projectId = safe(() => ids.parse(value.projectId));
       const id = safe(() => ids.parse(value.id));
@@ -907,7 +917,7 @@ export function createMnemosyneSelectedImportService(
     async listOriginalSources(
       rawInput: unknown,
     ): Promise<FoundationImportOriginalPage> {
-      const value = canonical(rawInput);
+      const value = requestSnapshot(rawInput);
       if (value === null || typeof value !== "object" || Array.isArray(value))
         invalid();
       const q = value as Record<string, unknown>;
