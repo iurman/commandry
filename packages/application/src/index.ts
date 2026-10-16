@@ -69,3 +69,4 @@ export * from "./foundation-work";
 export * from "./foundation-task-proposal";
 
 export * from "./foundation-resources";
+export * from "./foundation-workflow-access";
