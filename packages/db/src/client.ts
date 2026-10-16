@@ -4,6 +4,9 @@ import * as schema from "./schema";
 import * as foundationSchema from "./foundation-schema";
 import * as foundationEvaluationSchema from "./foundation-evaluation-schema";
 import * as foundationImportSchema from "./foundation-import-schema";
+import * as foundationImprovementSchema from "./foundation-improvement-schema";
+import * as foundationFindingSchema from "./foundation-finding-schema";
+import * as foundationOnboardingSchema from "./foundation-onboarding-schema";
 
 export function createDatabase(options: {
   connectionString: string;
@@ -21,6 +24,9 @@ export function createDatabase(options: {
       ...foundationSchema,
       ...foundationEvaluationSchema,
       ...foundationImportSchema,
+      ...foundationImprovementSchema,
+      ...foundationFindingSchema,
+      ...foundationOnboardingSchema,
     },
   });
   return { db, pool, close: () => pool.end() };

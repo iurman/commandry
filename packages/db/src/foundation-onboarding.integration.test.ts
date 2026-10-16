@@ -563,8 +563,8 @@ test("all project proposals remain reachable and cursor scope/anchors are checke
   try {
     for (let i = 0; i < 28; i++)
       await w.propose({ mode: "reuse", resourceId: randomUUID() });
-    let cursor: string | undefined,
-      ids: string[] = [];
+    let cursor: string | undefined;
+    const ids: string[] = [];
     do {
       const page = await w.service.list(w.issued.token, {
         projectId: w.projectId,

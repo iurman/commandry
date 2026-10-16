@@ -22,7 +22,7 @@ import {
   type PageResponse,
   type ProjectRecord,
 } from "../projects/api";
-import { FoundationTaskProposalPanel } from "./FoundationTaskProposalPanel";
+import { FoundationCaptureProposalRouter } from "./FoundationCaptureProposalRouter";
 import type {
   CaptureRecord,
   CaptureTriageReview,
@@ -1138,7 +1138,7 @@ export default function InboxPage() {
             </div>
           )}
           {proposalSelection && (
-            <FoundationTaskProposalPanel
+            <FoundationCaptureProposalRouter
               captureId={proposalSelection.captureId}
               projectId={proposalSelection.projectId}
               active={

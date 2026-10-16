@@ -36,6 +36,9 @@ export async function POST(
       work,
       resources,
       proposals,
+      improvement,
+      findings,
+      onboarding,
       context: workingContext,
     } = getFoundationServices();
     const actor = await authentication.authenticate(token, projectId);
@@ -47,6 +50,9 @@ export async function POST(
           work,
           resources,
           proposals,
+          improvement,
+          findings,
+          onboarding,
           context: workingContext,
         }),
       { responseMode: "json" },

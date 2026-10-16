@@ -5,7 +5,10 @@
 Use this procedure for an owner-authorized intake and evidence review of one
 server. Completion means the agreed intake scope is verified; it does not mean
 a host was provisioned, renamed, monitored or made available. This document
-does not implement a resumable workflow engine or an inventory changeset API.
+does not itself implement a workflow engine. The source-level
+[governed onboarding workflow](governed-agent-proposals.md#propose-and-apply-reviewed-host-onboarding)
+adds resumable inventory proposals, owner preview, review and separate apply.
+Its activation must be verified separately from the earlier runbook release.
 
 Check the [foundation activation record](../architecture/agent-foundation.md#production-activation-2026-10-16)
 for the exact verified production release and its limits. The
@@ -22,17 +25,17 @@ current request and applicable AGENTS rules. Keep normal hooks, review gates
 and constrained deployment controls intact. These tools expose no shell,
 SSH session, inference runner or paid fallback.
 
-| Need                                                                      | Existing path and authority                                                                                                     | Risk, approval and evidence                                                                                                                             |
-| ------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| Project context and exact Knowledge sources                               | Legacy authorized knowledge connection: `list_projects`, `get_project_brief`, `search_knowledge`, `get_knowledge_item`          | Read-only under its existing credential and audit boundary; no actions                                                                                  |
-| Current approved instructions and foundation evidence/configuration       | Separate `af_` foundation endpoint; `foundation.read`; discover supplied tools                                                  | Read-only, automatic with exact current grant; `foundation.read` audit                                                                                  |
-| Active project-resource connections                                       | `list_project_resources`, only with an actual supplied service and explicit `resources.read` grant                              | Read-only, automatic with exact grant; `resources.read` audit                                                                                           |
-| Existing primary or related Work                                          | `list_project_work` with separate `work.read`                                                                                   | Read-only, automatic with exact grant; `work.read` audit; no Work mutation                                                                              |
-| Store an allowed nonsecret evidence reference                             | `record_evidence` with `evidence.record`                                                                                        | Reversible, automatic with exact grant; `evidence.record` audit; reference starts unverified                                                            |
-| Submit a task suggestion                                                  | `propose_task` with explicit `work.propose`                                                                                     | Reversible, automatic with exact grant; `work.propose` audit; owner review precedes Work                                                                |
-| Resolve inventory/source identity or change owner records                 | Existing owner inventory at `/infrastructure/inventory` and Integrations controls, within a separately authorized owner session | Owner-operated path; inspect its actual operation, risk, approval and audit before each change; no equivalent machine mutation granted here             |
-| Rename a host, install a collector, change services or deploy             | Separately scoped owner decision and supported constrained external adapter                                                     | Sensitive or destructive as the actual action requires; exact target, approval, rollback and verification required; unavailable through these MCP tools |
-| Product onboarding state, dry-run changeset or automatic alias resolution | Not implemented by this runbook                                                                                                 | No machine tool or approval shortcut; maintain the operator checkpoint below                                                                            |
+| Need                                                                | Existing path and authority                                                                                                                                   | Risk, approval and evidence                                                                                                                                                     |
+| ------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Project context and exact Knowledge sources                         | Legacy authorized knowledge connection: `list_projects`, `get_project_brief`, `search_knowledge`, `get_knowledge_item`                                        | Read-only under its existing credential and audit boundary; no actions                                                                                                          |
+| Current approved instructions and foundation evidence/configuration | Separate `af_` foundation endpoint; `foundation.read`; discover supplied tools                                                                                | Read-only, automatic with exact current grant; `foundation.read` audit                                                                                                          |
+| Active project-resource connections                                 | `list_project_resources`, only with an actual supplied service and explicit `resources.read` grant                                                            | Read-only, automatic with exact grant; `resources.read` audit                                                                                                                   |
+| Existing primary or related Work                                    | `list_project_work` with separate `work.read`                                                                                                                 | Read-only, automatic with exact grant; `work.read` audit; no Work mutation                                                                                                      |
+| Store an allowed nonsecret evidence reference                       | `record_evidence` with `evidence.record`                                                                                                                      | Reversible, automatic with exact grant; `evidence.record` audit; reference starts unverified                                                                                    |
+| Submit a task suggestion                                            | `propose_task` with explicit `work.propose`                                                                                                                   | Reversible, automatic with exact grant; `work.propose` audit; owner review precedes Work                                                                                        |
+| Resolve inventory/source identity or change owner records           | Existing owner inventory at `/infrastructure/inventory` and Integrations controls, within a separately authorized owner session                               | Owner-operated path; inspect its actual operation, risk, approval and audit before each change; no equivalent machine mutation granted here                                     |
+| Rename a host, install a collector, change services or deploy       | Separately scoped owner decision and supported constrained external adapter                                                                                   | Sensitive or destructive as the actual action requires; exact target, approval, rollback and verification required; unavailable through these MCP tools                         |
+| Product onboarding state, preview and reviewed inventory apply      | [Governed onboarding source workflow](governed-agent-proposals.md#propose-and-apply-reviewed-host-onboarding); automatic alias resolution remains unsupported | Source MCP proposal/status tools: `propose_host_onboarding`, `get_host_onboarding`, `list_host_onboardings`; discover actual activation. Preview/review/apply remain owner-only |
 
 A `ck_` knowledge credential does not become an `af_` foundation credential.
 The foundation endpoint binds project and environment through the actual
@@ -154,9 +157,10 @@ decisions remain owner operations; see the
    proposed inventory/source changes with current canonical IDs, expected
    versions if the owner operation exposes them, exact desired values, risk,
    capability gap, approval, rollback and verification. An absent version is
-   unknown, not permission for an unconditional overwrite. There is currently
-   no agent inventory changeset/apply tool; the table is a proposal for owner
-   review. Do not claim it reserves records or protects concurrent edits.
+   unknown, not permission for an unconditional overwrite. Source MCP proposal
+   and status tools now support onboarding intake after actual activation is
+   discovered. Preview, review and apply remain separate owner-only operations.
+   A draft table alone neither reserves records nor protects concurrent edits.
 
    Check all authorized `list_project_work` pages for existing follow-up tasks
    before submitting another proposal. Reuse real known proposal/task IDs from
@@ -266,4 +270,7 @@ handoff does not turn an unverified host check into a passing one.
 For the related configuration/evaluation procedure, use
 [agent improvement](agent-improvement-cycle.md). The
 [onboarding workstream](../plans/agent-memory-mcp-foundation/workstreams/05-candidates-and-onboarding.md)
-tracks the product workflow, changeset and action capabilities still to implement.
+tracks broader operational adapters. The
+[governed onboarding source workflow](governed-agent-proposals.md#propose-and-apply-reviewed-host-onboarding)
+now implements reviewed inventory changesets; automatic remote setup and
+operational action capabilities remain unfinished.

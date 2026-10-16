@@ -456,6 +456,27 @@
       "when": 1792168941587,
       "tag": "0064_foundation_workflow_scopes",
       "breakpoints": true
+    },
+    {
+      "idx": 65,
+      "version": "7",
+      "when": 1792172595169,
+      "tag": "0065_foundation_improvement",
+      "breakpoints": true
+    },
+    {
+      "idx": 66,
+      "version": "7",
+      "when": 1792172595170,
+      "tag": "0066_foundation_finding_proposals",
+      "breakpoints": true
+    },
+    {
+      "idx": 67,
+      "version": "7",
+      "when": 1792172595171,
+      "tag": "0067_foundation_onboarding",
+      "breakpoints": true
     }
   ]
 }

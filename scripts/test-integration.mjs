@@ -1078,6 +1078,23 @@ async function runAuthSmoke(
       );
   }
   await prepareStandaloneWebAssets();
+  // Each auth mode owns a clone of the disposable template. Immutable provenance
+  // must retain its owner; deleting that principal is not valid fixture cleanup.
+  const databaseName = production
+    ? "commandry_auth_production"
+    : "commandry_auth_local";
+  const manager = postgres.getPgClient("postgres", "127.0.0.1");
+  await manager.connect();
+  try {
+    await manager.query(
+      `CREATE DATABASE "${databaseName}" WITH TEMPLATE commandry_integration`,
+    );
+  } finally {
+    await manager.end();
+  }
+  const authUrl = new URL(adminUrl);
+  authUrl.pathname = "/" + databaseName;
+  adminUrl = authUrl.toString();
   const port = await freeLoopbackPort();
   const origin = `http://127.0.0.1:${port}`;
   const appOrigin = production ? "https://commandry.site" : origin;
@@ -1281,7 +1298,7 @@ async function runAuthSmoke(
       headers: { cookie: recoveredCookie },
     });
     assert.equal(recoveredRead.status, 200);
-    const client = postgres.getPgClient("commandry_integration", "127.0.0.1");
+    const client = postgres.getPgClient(databaseName, "127.0.0.1");
     await client.connect();
     try {
       const audit = await client.query(
@@ -1302,10 +1319,15 @@ async function runAuthSmoke(
   } finally {
     await stopService(web);
     await stopService(worker);
-    const cleanup = postgres.getPgClient("commandry_integration", "127.0.0.1");
+    const cleanup = postgres.getPgClient(databaseName, "127.0.0.1");
     await cleanup.connect();
     try {
-      await cleanup.query('DELETE FROM "user" WHERE email = $1', [email]);
+      // Revoke all fixture sessions without rewriting immutable owner provenance.
+      // The parent stops and removes the complete owned cluster in its finally.
+      await cleanup.query(
+        'DELETE FROM "session" WHERE user_id IN (SELECT id FROM "user" WHERE email=$1)',
+        [email],
+      );
     } finally {
       await cleanup.end();
     }
@@ -1496,7 +1518,7 @@ try {
   }
 } catch (error) {
   failed = true;
-  console.error(error instanceof Error ? error.message : error);
+  console.error(error instanceof Error ? error.stack : error);
 } finally {
   if (started) await postgres.stop();
   await rm(directory, { recursive: true, force: true });

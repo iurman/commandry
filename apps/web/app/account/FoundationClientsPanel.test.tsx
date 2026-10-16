@@ -376,7 +376,7 @@ describe("Foundation owner clients", () => {
       (screen.getByLabelText("resources.read") as HTMLInputElement).checked,
     ).toBe(false);
     const checkboxes = screen.getAllByRole("checkbox") as HTMLInputElement[];
-    expect(checkboxes).toHaveLength(9);
+    expect(checkboxes).toHaveLength(15);
     expect(
       (screen.getByLabelText("work.propose") as HTMLInputElement).checked,
     ).toBe(false);
@@ -390,6 +390,26 @@ describe("Foundation owner clients", () => {
     expect(screen.queryByLabelText("instruction.approve")).toBeNull();
     expect(screen.queryByLabelText("memory.review")).toBeNull();
     expect(screen.queryByLabelText("memory.verify")).toBeNull();
+    for (const operation of [
+      "improvement.read",
+      "improvement.propose",
+      "finding.read",
+      "finding.propose",
+      "onboarding.read",
+      "onboarding.propose",
+    ]) {
+      expect(
+        (screen.getByLabelText(operation) as HTMLInputElement).checked,
+      ).toBe(false);
+    }
+    for (const operation of [
+      "improvement.review",
+      "finding.review",
+      "onboarding.review",
+      "onboarding.apply",
+    ]) {
+      expect(screen.queryByLabelText(operation)).toBeNull();
+    }
     const lifetime = screen.getByLabelText("Lifetime") as HTMLSelectElement;
     expect(lifetime.value).toBe("86400");
     expect([...lifetime.options].map((option) => option.value)).toEqual([

@@ -71,3 +71,10 @@ export * as foundationImportSchema from "./foundation-import-schema";
 export { createFoundationTaskProposalAccessRepository } from "./foundation-task-proposal-repository";
 
 export { createFoundationResourceReadAccessRepository } from "./foundation-resources-repository";
+export { createFoundationImprovementAccessRepository } from "./foundation-improvement-repository";
+export * as foundationImprovementSchema from "./foundation-improvement-schema";
+export { createFoundationFindingProposalAccessRepository } from "./foundation-finding-proposal-repository";
+export * as foundationFindingSchema from "./foundation-finding-schema";
+
+export { createFoundationOnboardingAccessRepository } from "./foundation-onboarding-repository";
+export * as foundationOnboardingSchema from "./foundation-onboarding-schema";

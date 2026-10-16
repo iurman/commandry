@@ -58,6 +58,17 @@ export default async function AccountPage() {
         enabled={ownerSignedIn}
         environment={config.appEnv}
       />
+      <section className="cmd-workspace-section">
+        <h2>Agent workflow review</h2>
+        <p>
+          <a href="/foundation/workflows">
+            Review configuration comparisons and host onboarding
+          </a>
+        </p>
+        <p>
+          <a href="/inbox">Review cited findings in Inbox</a>
+        </p>
+      </section>
       <FeedbackSettings />
     </AppShell>
   );

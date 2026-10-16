@@ -10,6 +10,9 @@ import {
   createFoundationWorkService,
   createFoundationResourceService,
   createFoundationTaskProposalService,
+  createFoundationImprovementService,
+  createFoundationFindingProposalService,
+  createFoundationOnboardingService,
   createMnemosyneSelectedImportService,
   FoundationImportUnavailableError,
 } from "@commandry/application";
@@ -21,10 +24,17 @@ import {
   createFoundationWorkReadAccessRepository,
   createFoundationResourceReadAccessRepository,
   createFoundationTaskProposalAccessRepository,
+  createFoundationImprovementAccessRepository,
+  createFoundationFindingProposalAccessRepository,
+  createFoundationOnboardingAccessRepository,
   createFoundationSelectedImportRepository,
 } from "@commandry/db";
 import { FoundationError } from "@commandry/domain";
 import { ZodError, type ZodType } from "zod";
+import {
+  foundationIdempotencyKeySchema,
+  type FoundationWorkflowListQuery,
+} from "@commandry/contracts";
 import { getDatabase } from "./database";
 import { getAuth } from "./auth";
 import { jsonResponse } from "./http";
@@ -76,6 +86,18 @@ export function getFoundationServices() {
       createFoundationWorkReadAccessRepository(db),
       options,
     ),
+    improvement: createFoundationImprovementService(
+      createFoundationImprovementAccessRepository(db),
+      options,
+    ),
+    findings: createFoundationFindingProposalService(
+      createFoundationFindingProposalAccessRepository(db),
+      options,
+    ),
+    onboarding: createFoundationOnboardingService(
+      createFoundationOnboardingAccessRepository(db),
+      options,
+    ),
   };
 }
 
@@ -109,8 +131,8 @@ async function foundationOwnerIdentity(request: Request) {
     identity: {
       principalId: `user:${session.user.id}`,
       expiresAt: expiresAt.toISOString(),
-      sessionId: session.session.id,
     },
+    sessionId: session.session.id,
     options: { environment: config.appEnv },
   };
 }
@@ -153,6 +175,54 @@ export async function foundationTaskProposalOwner(request: Request) {
       service.getTaskProposal(identity, input),
     reviewTaskProposal: (input: unknown, key: unknown) =>
       service.reviewTaskProposal(identity, key, input),
+  };
+}
+
+export async function foundationWorkflowOwner(request: Request) {
+  const owner = await foundationOwnerIdentity(request);
+  const identity = { ...owner.identity, sessionId: owner.sessionId };
+  const { improvement, findings, onboarding } = getFoundationServices();
+  return {
+    improvement: {
+      list: (input: FoundationWorkflowListQuery) =>
+        improvement.listOwner(identity, input),
+      get: (input: { projectId: string; id: string }) =>
+        improvement.getOwner(identity, input),
+      review: (input: unknown, key: unknown) =>
+        improvement.review(identity, key, input),
+    },
+    findings: {
+      get: (input: { projectId: string; id: string }) =>
+        findings.getFindingProposalOwner(identity, input),
+      byCapture: (input: { projectId: string; captureId: string }) =>
+        findings.getFindingProposalByCaptureOwner(identity, input),
+      review: (input: unknown, key: unknown) =>
+        findings.reviewFindingProposal(
+          identity,
+          foundationIdempotencyKeySchema.parse(key),
+          input,
+        ),
+    },
+    onboarding: {
+      list: (input: FoundationWorkflowListQuery) =>
+        onboarding.listOwner(identity, input),
+      get: (input: { projectId: string; id: string }) =>
+        onboarding.getOwner(identity, input),
+      preview: (input: { projectId: string; id: string }) =>
+        onboarding.preview(identity, input),
+      review: (input: unknown, key: unknown) =>
+        onboarding.review(
+          identity,
+          foundationIdempotencyKeySchema.parse(key),
+          input,
+        ),
+      apply: (input: unknown, key: unknown) =>
+        onboarding.apply(
+          identity,
+          foundationIdempotencyKeySchema.parse(key),
+          input,
+        ),
+    },
   };
 }
 

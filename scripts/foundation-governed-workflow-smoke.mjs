@@ -838,12 +838,30 @@ export async function foundationGovernedWorkflowSmoke({
       idempotencyKey: randomUUID(),
     });
     const pendingNewer = await get(improvementPath);
-    assert.equal(pendingNewer.advisory.eligibleForReview, false);
+    // New unreviewed versions remain visible without replacing the selected
+    // reviewed assessment. Bind any new decision to the changed full population.
+    assert.equal(pendingNewer.advisory.eligibleForReview, true);
     assert.ok(pendingNewer.advisory.pendingNewerAssessmentCount > 0);
+    assert.equal(pendingNewer.advisory.comparisons[0].counts.passedCells, 2);
+    assert.notEqual(
+      pendingNewer.advisory.populationDigest,
+      eligible.advisory.populationDigest,
+    );
+    assert.notEqual(
+      pendingNewer.advisory.reportDigest,
+      eligible.advisory.reportDigest,
+    );
+    const stalePopulation = {
+      ...improvementDecision,
+      expectedDecisionVersion: accepted.record.version,
+    };
     assert.equal(
-      (await write(improvementReviewPath, improvementReview(pendingNewer), 403))
-        .code,
-      "APPROVAL_REQUIRED",
+      (await write(improvementReviewPath, stalePopulation, 409)).code,
+      "VERSION_CONFLICT",
+    );
+    assert.deepEqual(
+      (await get(improvementPath)).currentDecision,
+      accepted.record,
     );
     const acceptedReplay = await write(
       improvementReviewPath,
@@ -862,7 +880,7 @@ export async function foundationGovernedWorkflowSmoke({
     assert.deepEqual(improvementHistory.record, improvement);
     await pages(client, "list_improvements", [improvement.id]);
     console.log(
-      `Governed SDK/HTTP rehearsal passed (${environment}): eight exact scoped tools, citation-bound findings, owner filing with proposed/unverified assertions, inventory preview/review/separate create and reuse apply, complete reviewed synthetic comparison, pending-newer refusal and historical retries. No inference, adoption or deployment occurred.`,
+      `Governed SDK/HTTP rehearsal passed (${environment}): eight exact scoped tools, citation-bound findings, owner filing with proposed/unverified assertions, inventory preview/review/separate create and reuse apply, complete reviewed synthetic comparison, pending-newer disclosure, stale-population refusal and historical retries. No inference, adoption or deployment occurred.`,
     );
   } finally {
     await Promise.allSettled(transports.map((client) => client.close()));

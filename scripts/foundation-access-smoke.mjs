@@ -5,6 +5,7 @@ import { foundationImportSmoke } from "./foundation-import-smoke.mjs";
 import { foundationResourcesSmoke } from "./foundation-resources-smoke.mjs";
 import { foundationWorkSmoke } from "./foundation-work-smoke.mjs";
 import { foundationTaskProposalSmoke } from "./foundation-task-proposal-smoke.mjs";
+import { foundationGovernedWorkflowSmoke } from "./foundation-governed-workflow-smoke.mjs";
 import {
   Client,
   StreamableHTTPClientTransport,
@@ -652,6 +653,19 @@ export async function foundationAccessSmoke(
       existingClient: client,
     });
     await foundationTaskProposalSmoke({
+      origin,
+      cookie,
+      trustedOrigin,
+      environment,
+      project,
+      other,
+      issue,
+      connect,
+      call,
+      write,
+      existingClient: client,
+    });
+    await foundationGovernedWorkflowSmoke({
       origin,
       cookie,
       trustedOrigin,

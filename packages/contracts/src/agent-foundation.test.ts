@@ -391,6 +391,16 @@ test("operations are the exact foundation family", () => {
     "instruction.approve",
     "configuration.record",
     "evaluation.record",
+    "improvement.read",
+    "improvement.propose",
+    "improvement.review",
+    "finding.read",
+    "finding.propose",
+    "finding.review",
+    "onboarding.read",
+    "onboarding.propose",
+    "onboarding.review",
+    "onboarding.apply",
   ]);
   for (const operation of ["memory.approve", "work.create", "", "unknown"]) {
     assert.equal(
@@ -415,6 +425,12 @@ test("Work read is explicit in actor capabilities without expanding existing cli
     "resources.read",
     "work.propose",
     ...operations.slice(1),
+    "improvement.read",
+    "improvement.propose",
+    "finding.read",
+    "finding.propose",
+    "onboarding.read",
+    "onboarding.propose",
   ]);
   assert.deepEqual(
     foundation.foundationActorSchema.parse({
@@ -497,6 +513,12 @@ test("task proposal declarations preserve explicit capabilities and machine issu
     "resources.read",
     "work.propose",
     ...existingOperations.slice(2),
+    "improvement.read",
+    "improvement.propose",
+    "finding.read",
+    "finding.propose",
+    "onboarding.read",
+    "onboarding.propose",
   ]);
   assert.deepEqual(
     foundationCreateClientSchema.parse(clientInput).operations,

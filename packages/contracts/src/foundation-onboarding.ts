@@ -1,9 +1,9 @@
 import { z } from "zod";
-import { foundationActorSchema } from "./agent-foundation.js";
+import { foundationActorSchema } from "./agent-foundation";
 import {
   projectResourceRelationshipTypeSchema,
   resourceSummarySchema,
-} from "./resources.js";
+} from "./resources";
 
 export const FOUNDATION_ONBOARDING_MAX_INPUT_BYTES = 131072;
 

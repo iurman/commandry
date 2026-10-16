@@ -87,6 +87,18 @@ export async function foundationGovernedWorkflowBrowserSmoke({
             ),
             fullPage: true,
           });
+        if (screenshots && label === "finding-pending")
+          await page
+            .getByRole("region", {
+              name: "Agent finding proposal",
+              exact: true,
+            })
+            .screenshot({
+              path: join(
+                screenshots,
+                `governed-finding-panel-${environment}-${colorScheme}-${width}.png`,
+              ),
+            });
       }
     }
     await page.setViewportSize({ width: 1440, height: 1000 });
@@ -388,6 +400,15 @@ export async function foundationGovernedWorkflowBrowserSmoke({
       ),
     ).toBeVisible();
     await expect(apply).toHaveCount(0);
+    await expect(
+      workflows.getByText(
+        "Inventory changes were applied. Current inventory is shown below.",
+        { exact: true },
+      ),
+    ).toBeVisible();
+    await expect(
+      workflows.getByText("identity conflict", { exact: true }),
+    ).toHaveCount(0);
     await visual(
       "onboarding-applied",
       workflows.getByRole("link", {

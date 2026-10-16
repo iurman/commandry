@@ -254,8 +254,10 @@ The owner-only HTTP surfaces are:
   bytes. Exact retry returns the initial canonical result after later Work edits.
 
 Neither owner operation is issuable as a machine capability or exposed as an
-MCP owner tool. Verified citation links, finding/note/file proposals, assignment,
-execution, standing-instruction promotion and proposal editing are deferred.
+MCP owner tool. Cited finding/note proposals now have a separate
+[governed proposal workflow](governed-agent-proposals.md) in source. General file
+proposals, assignment, execution, standing-instruction promotion and proposal
+editing remain deferred.
 
 ## Record and compare evaluation observations
 
@@ -379,5 +381,6 @@ or broader access from this read capability.
 Follow [server onboarding](server-onboarding.md) for scoped intake and the
 [agent improvement cycle](agent-improvement-cycle.md) for exact configuration,
 trial and assessment evidence. These versioned runbooks distinguish currently
-available tools and owner controls from unimplemented changesets, candidate
-promotion and external runtime execution.
+the prior released tools from the new
+[governed improvement, finding and onboarding source workflows](governed-agent-proposals.md).
+Candidate installation/adoption and external runtime execution remain separate.
