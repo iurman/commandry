@@ -346,8 +346,9 @@ Request `resources.read` explicitly when issuing a client. `foundation.read`
 and `work.read` do not imply it. Account starts this permission unchecked.
 Discover `list_project_resources` before use: the tool requires the actual
 implemented service and the credential's current project/environment grant.
-This follow-up is separate from the October 16 foundation activation revision;
-check release evidence before assuming a production endpoint offers it.
+This capability was deployed in the separate October 16
+[resource-read activation](../architecture/agent-foundation.md#resource-read-activation-2026-10-16).
+Discovery and the credential's current explicit grant are still required.
 
 Call with `{ "limit": 25 }`, then copy each returned structured `nextCursor`
 into the next call until null. The endpoint injects the credential's project;

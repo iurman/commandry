@@ -117,8 +117,14 @@ inference was performed. Earlier local checkpoints above remain historical.
 
 Canonical resource reads are a separate explicit `resources.read` follow-up.
 They reuse the UI population and preserve distinct relationships to one resource.
-Independent application and real PostgreSQL checks passed; build/full regression
-and both-mode transport evidence must be recorded separately before release.
+PR 12 was normally merged as `07c8bfdb159728dd2d09899ee7245e28eb4c3def`
+and deployed after exact CI, fresh backup/restore/recovery and live preservation
+checks. The [activation record](../../architecture/agent-foundation.md#resource-read-activation-2026-10-16)
+separates actual production reads from disposable permission/write rehearsals.
+All 91 resources, 15 projects and five sources were preserved, with no standing
+foundation clients issued. Owner assertion review and two versioned operational
+runbooks are implemented and independently reviewed on the campaign branch;
+their separate PR 13 release gates still apply.
 Verified finding/citation proposals, actual adoption/native invocation, candidate
 association/promotion and reviewed onboarding remain unfinished campaign scope.
 
