@@ -1,6 +1,6 @@
 # Agent foundation workflow
 
-Status: Operational local implementation. Production activation is a separate release gate.
+Status: Operational. The [October 16 foundation release](../architecture/agent-foundation.md#production-activation-2026-10-16) is deployed. Foundation clients remain explicitly opt-in; no standing credential was issued by the release.
 
 ## Connect and discover
 
@@ -316,3 +316,33 @@ the same canonical assertion IDs; imports do not expand a credential's grants.
 No selected private corpus or production database has been imported by the local
 rehearsals. Installation/adoption evidence, candidate promotion and task execution
 packet integration remain follow-ups.
+
+## Read canonical project resource connections
+
+Request `resources.read` explicitly when issuing a client. `foundation.read`
+and `work.read` do not imply it. Account starts this permission unchecked.
+Discover `list_project_resources` before use: the tool requires the actual
+implemented service and the credential's current project/environment grant.
+This follow-up is separate from the October 16 foundation activation revision;
+check release evidence before assuming a production endpoint offers it.
+
+Call with `{ "limit": 25 }`, then copy each returned structured `nextCursor`
+into the next call until null. The endpoint injects the credential's project;
+do not supply `projectId`, actor, environment or arbitrary filters as tool
+arguments. `selectedAt` is the read time, not a frozen snapshot. If continuation
+returns `INVALID_REFERENCE`, restart because its active project connection is no
+longer available. Expired or revoked access is a denial, never an empty page.
+
+Each item is `{ connection, contentDigest }`. Preserve the connection ID and
+relationship type: different relationships to one resource are distinct records
+and should not be silently dropped. Canonical metadata includes the resource's
+name, kind, subtype, recorded state, external URL, parent reference and last
+observation time, with explicit nulls. The digest covers the whole exact
+connection. A recorded state or observation timestamp is not current service
+availability. Parent references and URLs do not authorize traversal or fetching.
+
+This read does not register hosts, edit inventory, configure credentials, install
+collectors or deploy services. Infrastructure onboarding still requires those
+separately reviewed action capabilities and source evidence. Use existing owner
+inventory controls for operations not offered through MCP; do not infer a shell
+or broader access from this read capability.

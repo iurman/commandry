@@ -1,6 +1,6 @@
 # Workstream 2: MCP reads, context and governed findings
 
-**Status: Proposed dispatch brief. Not launched.**
+**Status: Active partial delivery. Twenty-one opt-in tools, canonical Work reads and governed task proposals released in PR 11. Canonical resource reads are the current tested follow-up; verified finding/citation proposals and broader reads/actions remain unfinished.**
 
 **Model:** GPT-6.1 Sol, ultra. Depends on workstream 1's contract checkpoint.
 

@@ -1,6 +1,6 @@
 # Workstream 4: evaluations and measurable work loops
 
-**Status: Proposed dispatch brief. Not launched.**
+**Status: Active partial delivery. Immutable evaluation definitions/trials/assessments, separate owner assessment review and advisory reports released in PR 11. Native runtime execution and candidate promotion remain unfinished; no paid inference fallback was introduced.**
 
 **Model:** GPT-6.1 Sol, ultra. Independent review: GPT-6 Astra, ultra.
 Depends on workstream 1's contract checkpoint; registry integration uses 3.

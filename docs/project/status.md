@@ -90,8 +90,11 @@ comprehensive MCP planning work; the live MCP still has four knowledge read tool
 
 ## Established direction
 
-The owner-authorized agent-memory campaign now has a local shared application
-and PostgreSQL foundation on its campaign branch. Twenty-one opt-in MCP tools cover
+The owner-authorized agent-memory campaign has deployed its reviewed shared
+application and PostgreSQL foundation in PR 11 at revision
+`e472f843c5f20961d03af7d15b540f9ba791649b`. The
+[activation record](../architecture/agent-foundation.md#production-activation-2026-10-16)
+records exact release, backup/restore and live verification boundaries. Twenty-one opt-in MCP tools cover
 source-anchored evidence/memory/configurations, complete paginated inventories,
 approved working context and immutable evaluation observations with separate
 owner assessment review. Separately granted `work.read` lists the same canonical primary/related Work
@@ -114,8 +117,10 @@ Integrated check/build, 1229 workspace tests, 33 lab tests, 130 Node checks,
 161 PostgreSQL passes (one explicit unavailable live-input skip), and both-mode
 built SDK/HTTP/browser rehearsals passed. Verified finding/citation proposals,
 broader product MCP coverage, installation/adoption evidence, candidate promotion,
-reviewed onboarding and production activation remain campaign work. The live site
-and its existing four-tool knowledge MCP are unchanged by this local checkpoint.
+reviewed onboarding remain campaign work. Production owner client reads and
+existing native knowledge MCP passed after release. No foundation credential was
+issued and no private corpus imported; write acceptance remains attributed to
+the exact-image disposable rehearsals.
 
 - Commandry is a personal control plane spanning projects, knowledge,
   infrastructure, automations, monitoring, and agents.

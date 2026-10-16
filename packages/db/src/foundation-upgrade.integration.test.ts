@@ -16,12 +16,14 @@ import {
   createFoundationMachineService,
   createFoundationOwnerService,
   createFoundationWorkService,
+  createFoundationResourceService,
   createFoundationTaskProposalService,
   createKnowledgeAccessService,
 } from "@commandry/application";
 import { knowledgeTokenDigest } from "@commandry/domain";
 import { createDatabase } from "./client";
 import { migrateDatabase } from "./migrate";
+import { createFoundationResourceReadAccessRepository } from "./foundation-resources-repository";
 import { createFoundationWorkReadAccessRepository } from "./foundation-work-repository";
 import { createFoundationAccessRepository } from "./foundation-access-repository";
 import { createFoundationTaskProposalAccessRepository } from "./foundation-task-proposal-repository";
@@ -37,7 +39,7 @@ if (!ownerUrl || !runtimePassword)
   throw new Error("Use scripts/test-integration.mjs --foundation-only");
 
 test(
-  "populated 0057 through 0061 upgrades preserve canonical memory, triage and exact grants, rerun safely and explicitly admit Work and proposals",
+  "populated 0057 through 0062 upgrades preserve canonical memory, triage and exact grants, rerun safely and explicitly admit Work, proposals and resource reads",
   { timeout: 60000 },
   async () => {
     const databaseName = `foundation_upgrade_${randomUUID().replaceAll("-", "")}`;
@@ -390,8 +392,77 @@ test(
           "before-proposal-migration",
         ),
       );
+      const proposalPrefix = {
+        ...journal,
+        entries: journal.entries.filter((entry) => entry.idx <= 62),
+      };
+      await writeFile(
+        join(fixtureDir, "meta/_journal.json"),
+        JSON.stringify(proposalPrefix),
+      );
+      for (const entry of proposalPrefix.entries.filter(
+        (entry) => entry.idx > 61,
+      ))
+        await copyFile(
+          join(migrations, `${entry.tag}.sql`),
+          join(fixtureDir, `${entry.tag}.sql`),
+        );
+      await migrateDatabase({
+        connectionString: upgradeUrl.toString(),
+        migrationsDir: fixtureDir,
+      });
+      const oldEight = await priorOwner.createClient(
+        {
+          name: "Retained exact eight grants",
+          projectId,
+          environment: "test",
+          operations: [
+            "foundation.read",
+            "work.read",
+            "work.propose",
+            "evidence.record",
+            "memory.propose",
+            "memory.revise",
+            "configuration.record",
+            "evaluation.record",
+          ],
+          ttlSeconds: 3600,
+        },
+        "before-resource-migration",
+      );
+      const beforeResourceGrants = await upgrade.pool.query(
+        "select to_jsonb(r) as record from foundation_client r order by id",
+      );
+      await assert.rejects(
+        priorOwner.createClient(
+          {
+            name: "Resource unavailable before 0063",
+            projectId,
+            environment: "test",
+            operations: ["resources.read"],
+            ttlSeconds: 3600,
+          },
+          "before-resource-denied",
+        ),
+      );
       await migrateDatabase({ connectionString: upgradeUrl.toString() });
       await migrateDatabase({ connectionString: upgradeUrl.toString() });
+      assert.deepEqual(
+        (
+          await upgrade.pool.query(
+            "select to_jsonb(r) as record from foundation_client r order by id",
+          )
+        ).rows,
+        beforeResourceGrants.rows,
+      );
+      const resourceMigration = await readFile(
+        join(migrations, "0063_foundation_resource_read.sql"),
+        "utf8",
+      );
+      // Execute the actual two statements twice, independently of the journal.
+      await upgrade.pool.query(resourceMigration);
+      await upgrade.pool.query(resourceMigration);
+
       const retainedLocal = await upgrade.pool.query(
         "select jsonb_build_object('capture',(select to_jsonb(r) from capture r where id=$1),'work',(select to_jsonb(r) from work_item r where id=$2),'suggestion',(select to_jsonb(r)-'body'-'proposal' from capture_triage_suggestion r where id=$3),'decision',(select to_jsonb(r)-'provenance'-'creation_transaction' from capture_triage_decision r where id=$4)) as records",
         [
@@ -617,6 +688,37 @@ test(
         ).contentDigest,
         foundationByteDigest(text),
       );
+      const resourceClient = await owner.createClient(
+        {
+          name: "Explicit post0063 resource reader",
+          projectId,
+          environment: "test",
+          operations: ["resources.read"],
+          ttlSeconds: 3600,
+        },
+        "post-resource-issue",
+      );
+      const resourceReader = createFoundationResourceService(
+        createFoundationResourceReadAccessRepository(runtime.db),
+        { environment: "test" },
+      );
+      assert.deepEqual(
+        (
+          await resourceReader.listProjectResources(resourceClient.token, {
+            projectId,
+          })
+        ).items,
+        [],
+      );
+      await assert.rejects(
+        resourceReader.listProjectResources(oldEight.token, { projectId }),
+      );
+      const [unchangedEight] = await upgrade.pool
+        .query("select operations from foundation_client where id=$1", [
+          oldEight.client.id,
+        ])
+        .then((x) => x.rows);
+      assert.deepEqual(unchangedEight.operations, oldEight.client.operations);
       const count = await upgrade.db.execute(
         sql`select count(*)::integer as count from drizzle.__drizzle_migrations`,
       );

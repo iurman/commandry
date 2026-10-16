@@ -69,3 +69,5 @@ export { createFoundationSelectedImportRepository } from "./foundation-import-re
 export * as foundationImportSchema from "./foundation-import-schema";
 
 export { createFoundationTaskProposalAccessRepository } from "./foundation-task-proposal-repository";
+
+export { createFoundationResourceReadAccessRepository } from "./foundation-resources-repository";

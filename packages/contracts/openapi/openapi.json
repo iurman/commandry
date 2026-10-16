@@ -15133,13 +15133,14 @@
           },
           "operations": {
             "minItems": 1,
-            "maxItems": 8,
+            "maxItems": 9,
             "type": "array",
             "items": {
               "type": "string",
               "enum": [
                 "foundation.read",
                 "work.read",
+                "resources.read",
                 "work.propose",
                 "evidence.record",
                 "memory.propose",
@@ -15197,13 +15198,14 @@
           },
           "operations": {
             "minItems": 1,
-            "maxItems": 8,
+            "maxItems": 9,
             "type": "array",
             "items": {
               "type": "string",
               "enum": [
                 "foundation.read",
                 "work.read",
+                "resources.read",
                 "work.propose",
                 "evidence.record",
                 "memory.propose",
@@ -15291,13 +15293,14 @@
               },
               "operations": {
                 "minItems": 1,
-                "maxItems": 8,
+                "maxItems": 9,
                 "type": "array",
                 "items": {
                   "type": "string",
                   "enum": [
                     "foundation.read",
                     "work.read",
+                    "resources.read",
                     "work.propose",
                     "evidence.record",
                     "memory.propose",
@@ -15405,13 +15408,14 @@
                 },
                 "operations": {
                   "minItems": 1,
-                  "maxItems": 8,
+                  "maxItems": 9,
                   "type": "array",
                   "items": {
                     "type": "string",
                     "enum": [
                       "foundation.read",
                       "work.read",
+                      "resources.read",
                       "work.propose",
                       "evidence.record",
                       "memory.propose",

@@ -10,6 +10,7 @@ import type {
   createFoundationInventoryService,
   createFoundationGeneralContextService,
   createFoundationWorkService,
+  createFoundationResourceService,
   createFoundationTaskProposalService,
 } from "@commandry/application";
 import {
@@ -27,6 +28,7 @@ import {
   foundationScopedPageSchema,
   foundationGeneralContextRequestSchema,
   foundationProjectWorkToolQuerySchema,
+  foundationProjectResourceToolQuerySchema,
   foundationTaskProposalToolInputSchema,
   type FoundationActor,
 } from "@commandry/contracts";
@@ -72,6 +74,7 @@ export function createFoundationMcpServer(
     inventory?: ReturnType<typeof createFoundationInventoryService>;
     context?: ReturnType<typeof createFoundationGeneralContextService>;
     work?: ReturnType<typeof createFoundationWorkService>;
+    resources?: ReturnType<typeof createFoundationResourceService>;
     proposals?: ReturnType<typeof createFoundationTaskProposalService>;
   },
 ) {
@@ -102,6 +105,9 @@ export function createFoundationMcpServer(
           : "") +
         (proposals
           ? " Task proposals require the separate work.propose grant. Submit exact original text and proposed fields with an idempotencyKey; retain that input and key for historical retries. A pending, unverified submission needs owner review before canonical task creation and grants no execution authority."
+          : "") +
+        (extras?.resources
+          ? " Project resource connections require the separate resources.read grant and audit resources.read. Follow each structured nextCursor until null. This is a live active-link population, not a snapshot. Distinct relationships to one resource remain distinct records. No parent/child traversal, remote fetch or availability inference is performed."
           : "") +
         (extras?.work
           ? " Project Work is a live primary-or-related population, including completed and undated records. Follow each structured nextCursor until null. selectedAt is a read time, not a frozen snapshot. INVALID_REFERENCE on continuation requires restarting the live traversal. A related item's primary project stays unchanged; its original capture content is not disclosed."
@@ -218,6 +224,10 @@ export function createFoundationMcpServer(
                 ...(extras?.work &&
                 identity.actor.capabilities.includes("work.read")
                   ? ["work.read"]
+                  : []),
+                ...(extras?.resources &&
+                identity.actor.capabilities.includes("resources.read")
+                  ? ["resources.read"]
                   : []),
               ]),
             ],
@@ -570,6 +580,23 @@ export function createFoundationMcpServer(
       },
       (input) =>
         result(() => work.listProjectWork(token, { ...input, projectId })),
+    );
+  }
+  if (capabilities.has("resources.read") && extras?.resources) {
+    const resources = extras.resources;
+    register(
+      "list_project_resources",
+      {
+        description:
+          scope +
+          "Read-only; requires the separate resources.read grant, automatic with exact current grant and audits resources.read. List every active canonical project resource connection, across resource kinds and recorded states. Multiple relationships to the same resource remain distinct connections. Return exact canonical metadata and server-computed connection content digests. A parentResourceId is a reference, not permission to traverse it. No original source content, telemetry fetch, remote URL fetch or derived service availability is included. Follow structured nextCursor until null; selectedAt is a read time in a live population. INVALID_REFERENCE on a removed, foreign or archived cursor requires restarting traversal.",
+        inputSchema: foundationProjectResourceToolQuerySchema,
+        annotations: readAnnotations,
+      },
+      (input) =>
+        result(() =>
+          resources.listProjectResources(token, { ...input, projectId }),
+        ),
     );
   }
   if (capabilities.has("work.propose") && proposals) {

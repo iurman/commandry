@@ -3,6 +3,7 @@ import { createHash } from "node:crypto";
 export const FOUNDATION_OPERATIONS = Object.freeze([
   "foundation.read",
   "work.read",
+  "resources.read",
   "work.propose",
   "work.proposal.read",
   "work.proposal.review",
@@ -95,6 +96,12 @@ export const FOUNDATION_OPERATION_POLICIES = Object.freeze({
   ),
   "work.read": operationPolicy(
     "work.read",
+    "read_only",
+    "automatic_with_grant",
+    "read_snapshot",
+  ),
+  "resources.read": operationPolicy(
+    "resources.read",
     "read_only",
     "automatic_with_grant",
     "read_snapshot",

@@ -1,6 +1,6 @@
 # Workstream 3: Mnemosyne pilot, preferences and skills
 
-**Status: Proposed dispatch brief. Not launched.**
+**Status: Active partial delivery. Selected-memory owner review/import and closed-bundle skill registration/drift released in PR 11. Private corpus selection, installation and actual invocation/adoption remain unperformed.**
 
 **Model:** GPT-6.1 Sol, ultra. Depends on workstream 1's contract checkpoint.
 

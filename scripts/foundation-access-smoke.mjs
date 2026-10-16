@@ -2,6 +2,7 @@ import assert from "node:assert/strict";
 import { createHash, randomUUID } from "node:crypto";
 import { foundationSkillRegistrySmoke } from "./foundation-skill-registry-smoke.mjs";
 import { foundationImportSmoke } from "./foundation-import-smoke.mjs";
+import { foundationResourcesSmoke } from "./foundation-resources-smoke.mjs";
 import { foundationWorkSmoke } from "./foundation-work-smoke.mjs";
 import { foundationTaskProposalSmoke } from "./foundation-task-proposal-smoke.mjs";
 import {
@@ -604,6 +605,17 @@ export async function foundationAccessSmoke(
       call,
     });
     await foundationWorkSmoke({
+      origin,
+      cookie,
+      project,
+      other,
+      issue,
+      connect,
+      call,
+      write,
+      existingClient: client,
+    });
+    await foundationResourcesSmoke({
       origin,
       cookie,
       project,

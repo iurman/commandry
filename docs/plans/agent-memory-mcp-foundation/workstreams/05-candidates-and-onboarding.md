@@ -1,6 +1,6 @@
 # Workstream 5: workflow improvement and operational onboarding
 
-**Status: Proposed dispatch brief. Not launched.**
+**Status: Active research and prerequisite delivery. Canonical resource reads are the current infrastructure prerequisite. Candidate association/promotion, resumable onboarding and authorized inventory changesets remain unimplemented.**
 
 **Model:** GPT-6.1 Sol, ultra. Independent review: GPT-6 Astra, ultra.
 Depends on 2, 3 and 4 for the complete improvement loop. Isolated definition and

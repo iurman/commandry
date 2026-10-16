@@ -1351,6 +1351,16 @@ try {
     await runTests(
       connectionString,
       runtimePassword,
+      "packages/db/src/foundation-resources.integration.test.ts",
+    );
+    await runTests(
+      connectionString,
+      runtimePassword,
+      "packages/db/src/project-resource-query.integration.test.ts",
+    );
+    await runTests(
+      connectionString,
+      runtimePassword,
       "packages/db/src/project-work-query.integration.test.ts",
     );
     await runTests(

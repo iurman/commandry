@@ -47,6 +47,7 @@ const token = "af_" + "A".repeat(43);
 const machineOperations = [
   "foundation.read",
   "work.read",
+  "resources.read",
   "work.propose",
   "evidence.record",
   "memory.propose",
@@ -123,7 +124,7 @@ const invalidDatetimes = [
   new Date(createdAt),
 ];
 
-test("machine operations include exactly eight opt-in capabilities", () => {
+test("machine operations include exactly nine opt-in capabilities", () => {
   assert.deepEqual(foundationMachineOperationSchema.options, machineOperations);
   for (const operation of machineOperations) {
     assert.equal(foundationMachineOperationSchema.parse(operation), operation);
@@ -777,6 +778,44 @@ test("Work content read remains an explicit separate issuance choice", () => {
     foundationCreateClientSchema.safeParse({
       ...common,
       operations: ["work.read", "work.read"],
+    }).success,
+    false,
+  );
+});
+
+test("canonical resources read is a separate explicit machine choice and old grants remain exact", () => {
+  const common = {
+    name: "Resource reader",
+    projectId,
+    environment: "test",
+    ttlSeconds: 3600,
+  };
+  assert.deepEqual(
+    foundationCreateClientSchema.parse({
+      ...common,
+      operations: ["resources.read"],
+    }).operations,
+    ["resources.read"],
+  );
+  const old = [
+    "foundation.read",
+    "work.read",
+    "work.propose",
+    "evidence.record",
+    "memory.propose",
+    "memory.revise",
+    "configuration.record",
+    "evaluation.record",
+  ];
+  assert.deepEqual(
+    foundationCreateClientSchema.parse({ ...common, operations: old })
+      .operations,
+    old,
+  );
+  assert.equal(
+    foundationCreateClientSchema.safeParse({
+      ...common,
+      operations: ["resources.read", "resources.read"],
     }).success,
     false,
   );

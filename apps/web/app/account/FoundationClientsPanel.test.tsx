@@ -372,8 +372,11 @@ describe("Foundation owner clients", () => {
         "All client statuses in test are included. Load more to continue through this project's clients.",
       ),
     ).toBeTruthy();
+    expect(
+      (screen.getByLabelText("resources.read") as HTMLInputElement).checked,
+    ).toBe(false);
     const checkboxes = screen.getAllByRole("checkbox") as HTMLInputElement[];
-    expect(checkboxes).toHaveLength(8);
+    expect(checkboxes).toHaveLength(9);
     expect(
       (screen.getByLabelText("work.propose") as HTMLInputElement).checked,
     ).toBe(false);

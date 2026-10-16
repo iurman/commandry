@@ -1,0 +1,2 @@
+ALTER TABLE "foundation_client" DROP CONSTRAINT IF EXISTS "foundation_client_operations_valid";--> statement-breakpoint
+ALTER TABLE "foundation_client" ADD CONSTRAINT "foundation_client_operations_valid" CHECK (jsonb_typeof("foundation_client"."operations") = 'array' and jsonb_array_length("foundation_client"."operations") between 1 and 9 and "foundation_client"."operations" <@ '["foundation.read","work.read","resources.read","work.propose","evidence.record","memory.propose","memory.revise","configuration.record","evaluation.record"]'::jsonb);

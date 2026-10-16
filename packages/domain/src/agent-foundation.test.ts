@@ -94,6 +94,7 @@ test("operation policies enumerate every operation without expanding owner autho
   assert.deepEqual(FOUNDATION_OPERATIONS, [
     "foundation.read",
     "work.read",
+    "resources.read",
     "work.propose",
     "work.proposal.read",
     "work.proposal.review",
@@ -127,6 +128,7 @@ test("operation policies enumerate every operation without expanding owner autho
         ? "sensitive"
         : operation === "foundation.read" ||
             operation === "work.read" ||
+            operation === "resources.read" ||
             operation === "work.proposal.read"
           ? "read_only"
           : "reversible",
@@ -135,6 +137,7 @@ test("operation policies enumerate every operation without expanding owner autho
       policy.concurrency,
       operation === "foundation.read" ||
         operation === "work.read" ||
+        operation === "resources.read" ||
         operation === "work.proposal.read"
         ? "read_snapshot"
         : operation === "memory.revise" || ownerOnly.includes(operation)
@@ -1133,5 +1136,67 @@ test("proposal inbox reads are owner-only without a machine read grant", () => {
         request({ operation: "work.proposal.read" }),
       ),
     { code: "FORBIDDEN" },
+  );
+});
+
+test("resource reads require their own exact live grant and never widen prior clients", () => {
+  const operations = Object.freeze(["resources.read"] as const);
+  const resourceGrant = Object.freeze(grant({ operations }));
+  const resourceRequest = request({ operation: "resources.read" });
+  assert.equal(
+    requireFoundationGrant(resourceGrant, resourceRequest),
+    undefined,
+  );
+  const oldOperations = Object.freeze([
+    "foundation.read",
+    "work.read",
+    "work.propose",
+    "evidence.record",
+    "memory.propose",
+    "memory.revise",
+    "configuration.record",
+    "evaluation.record",
+  ] as const);
+  const oldGrant = Object.freeze(grant({ operations: oldOperations }));
+  denies(() => requireFoundationGrant(oldGrant, resourceRequest), "FORBIDDEN");
+  assert.deepEqual(oldGrant.operations, oldOperations);
+  for (const operation of FOUNDATION_OPERATIONS.filter(
+    (value) => value !== "resources.read",
+  ))
+    denies(
+      () => requireFoundationGrant(resourceGrant, request({ operation })),
+      "FORBIDDEN",
+    );
+  denies(
+    () =>
+      requireFoundationGrant(resourceGrant, {
+        ...resourceRequest,
+        projectId: otherProjectId,
+      }),
+    "FORBIDDEN",
+  );
+  denies(
+    () =>
+      requireFoundationGrant(resourceGrant, {
+        ...resourceRequest,
+        environment: "production",
+      }),
+    "FORBIDDEN",
+  );
+  denies(
+    () =>
+      requireFoundationGrant(
+        { ...resourceGrant, revokedAt: now },
+        resourceRequest,
+      ),
+    "REVOKED",
+  );
+  denies(
+    () =>
+      requireFoundationGrant(
+        { ...resourceGrant, expiresAt: now },
+        resourceRequest,
+      ),
+    "EXPIRED",
   );
 });

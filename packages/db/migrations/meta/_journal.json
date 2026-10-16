@@ -442,6 +442,13 @@
       "when": 1792148873273,
       "tag": "0062_foundation_task_proposals",
       "breakpoints": true
+    },
+    {
+      "idx": 63,
+      "version": "7",
+      "when": 1792156768029,
+      "tag": "0063_foundation_resource_read",
+      "breakpoints": true
     }
   ]
 }
