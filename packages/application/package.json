@@ -7,7 +7,7 @@
   },
   "scripts": {
     "typecheck": "tsc --noEmit -p tsconfig.json",
-    "test": "vitest run src"
+    "test": "pnpm --dir ../.. exec vitest run --config vitest.config.mts packages/application/src"
   },
   "dependencies": {
     "@commandry/contracts": "workspace:*",

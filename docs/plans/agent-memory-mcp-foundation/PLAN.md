@@ -11,6 +11,12 @@ overnight follow-up. Implementation should proceed under the recorded scope;
 exact production action and disclosure gates still apply. Launch evidence belongs
 in the command center's private campaign ledger.
 
+A second access-contract slice adds opt-in machine clients, one-time credential
+response shapes, scoped selectors, configuration write inputs and separate
+instruction-approval records. Its 19 focused tests and independent boundary
+review passed. These strict inputs still do not issue a live credential or
+provide application/database authorization by themselves.
+
 **Execution adaptation:** Native chat creation delivered interactive workspace
 permissions despite the intended Full Access mode. After preserving and idling
 that chat, the command center verified internal workers with actual Full Access

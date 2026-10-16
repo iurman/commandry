@@ -11,7 +11,7 @@
     "openapi:generate": "tsx src/generate-openapi.ts",
     "openapi:check": "tsx src/generate-openapi.ts --check && node src/validate-openapi.mjs",
     "check:generated": "pnpm openapi:check",
-    "test": "tsx --test src/*.test.ts"
+    "test": "pnpm --dir ../.. exec vitest run --config vitest.config.mts packages/contracts/src"
   },
   "dependencies": {
     "zod": "4.6.5"
