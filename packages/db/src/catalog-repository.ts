@@ -3,13 +3,16 @@ import {
   defaultProjectPresentation,
   prepareProjectMetadataRevision,
   prepareProjectPresentationRevision,
-  projectResourceRelationship,
   type ProjectMetadata,
   type ProjectMetadataRevision,
   type ProjectPresentation,
   type ProjectPresentationRevision,
 } from "@commandry/domain";
 import type { CommandryDatabase } from "./client";
+import {
+  insertCanonicalResource,
+  insertCanonicalProjectResourceLink,
+} from "./catalog-resource-writes";
 import {
   canonicalResourceSummary as resourceSummary,
   listCanonicalProjectResources,
@@ -21,7 +24,6 @@ import {
   projectMetadataEvent,
   projectPresentation,
   projectPresentationEvent,
-  projectResourceLink,
   resource,
 } from "./schema";
 
@@ -367,19 +369,7 @@ export function createCatalogRepository(db: CommandryDatabase) {
       subtype?: string;
       externalUrl?: string;
     }) {
-      const [row] = await db
-        .insert(resource)
-        .values({
-          id: input.id,
-          kind: input.kind,
-          name: input.name,
-          subtype: input.subtype ?? null,
-          state: null,
-          externalUrl: input.externalUrl ?? null,
-        })
-        .returning();
-      if (!row) throw new Error("Resource insert returned no row");
-      return resourceSummary(row);
+      return resourceSummary(await insertCanonicalResource(db, input));
     },
     async getResource(id: string) {
       const [row] = await db
@@ -411,24 +401,7 @@ export function createCatalogRepository(db: CommandryDatabase) {
       sourceKind: "project" | "resource";
       targetKind: "project" | "resource";
     }) {
-      const definition = projectResourceRelationship(input.type);
-      if (
-        input.sourceKind !== definition.sourceKind ||
-        input.targetKind !== definition.targetKind
-      ) {
-        throw new Error("Relationship direction does not match its type");
-      }
-      const rows = await db
-        .insert(projectResourceLink)
-        .values({ ...input, lifecycle: "active", provenance: "manual" })
-        .onConflictDoNothing({
-          target: [
-            projectResourceLink.projectId,
-            projectResourceLink.resourceId,
-            projectResourceLink.type,
-          ],
-        })
-        .returning({ id: projectResourceLink.id });
+      const rows = await insertCanonicalProjectResourceLink(db, input);
       return rows.length === 1;
     },
     async listProjectResourceLinks(projectId: string, input: PageQuery) {
