@@ -1,0 +1,129 @@
+.panel {
+  display: grid;
+  gap: var(--cmd-space-4);
+  min-width: 0;
+  max-width: 100%;
+  color: var(--cmd-text);
+}
+
+.panel :is(h2, h3, p) {
+  margin: 0;
+}
+
+.panel :is(p, h2, h3, dd, label, a, time, code, summary, li) {
+  overflow-wrap: anywhere;
+}
+
+.card,
+.form,
+.message,
+.notice {
+  display: grid;
+  gap: var(--cmd-space-3);
+  min-width: 0;
+}
+
+.card,
+.form,
+.notice {
+  padding: var(--cmd-space-4);
+  border: 1px solid var(--cmd-border);
+  border-radius: var(--cmd-radius);
+  background: var(--cmd-surface);
+}
+
+.notice {
+  background: var(--cmd-caution-bg);
+  color: var(--cmd-caution-text);
+}
+
+.card summary {
+  cursor: pointer;
+  min-height: 2.75rem;
+}
+
+.exact {
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+  min-width: 0;
+  margin: 0;
+  font: inherit;
+}
+
+.hint,
+.metadata dt {
+  color: var(--cmd-text-muted);
+}
+
+.metadata {
+  display: grid;
+  grid-template-columns: minmax(0, 9rem) minmax(0, 1fr);
+  gap: var(--cmd-space-2) var(--cmd-space-3);
+  min-width: 0;
+  margin: 0;
+}
+
+.metadata dd {
+  margin: 0;
+  min-width: 0;
+}
+
+.ids {
+  padding-inline-start: var(--cmd-space-6);
+  margin: 0;
+  min-width: 0;
+}
+
+.panel :is(button, select, textarea) {
+  box-sizing: border-box;
+  min-width: 0;
+  max-width: 100%;
+  min-height: 2.75rem;
+  padding: var(--cmd-space-2) var(--cmd-space-3);
+  border: 1px solid var(--cmd-border);
+  border-radius: var(--cmd-radius);
+  color: var(--cmd-text);
+  background: var(--cmd-surface);
+  font: inherit;
+}
+
+.panel textarea,
+.panel select {
+  width: 100%;
+}
+
+.panel textarea {
+  resize: vertical;
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+}
+
+.panel button {
+  white-space: normal;
+  overflow-wrap: anywhere;
+  cursor: pointer;
+}
+
+.panel :is(button, select, textarea):disabled {
+  opacity: 0.65;
+  cursor: default;
+}
+
+.panel :is(button, select, textarea, a, summary):focus-visible {
+  outline: 2px solid var(--cmd-focus);
+  outline-offset: 3px;
+}
+
+.selfStart {
+  justify-self: start;
+}
+
+@media (max-width: 30rem) {
+  .metadata {
+    grid-template-columns: minmax(0, 1fr);
+  }
+
+  .panel button {
+    width: 100%;
+  }
+}
