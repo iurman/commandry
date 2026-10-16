@@ -247,6 +247,127 @@ for (const [name, schema, fixture] of objectFamilies) {
   });
 }
 
+test("UUID scalar and reference outputs use one lowercase identity representation", () => {
+  const lowercase = "bbbbbbbb-bbbb-4bbb-8bbb-bbbbbbbbbbbb";
+  const uppercase = lowercase.toUpperCase();
+  const parsedActor = foundation.foundationActorSchema.parse({
+    ...actor,
+    projectId: uppercase,
+    clientId: uppercase,
+    runId: uppercase,
+    correlationId: uppercase,
+    resourceIds: [uppercase],
+  });
+  assert.equal(parsedActor.projectId, lowercase);
+  assert.equal(parsedActor.clientId, lowercase);
+  assert.equal(parsedActor.runId, lowercase);
+  assert.equal(parsedActor.correlationId, lowercase);
+  assert.deepEqual(parsedActor.resourceIds, [lowercase]);
+  assert.equal(
+    foundation.foundationEvidenceInputSchema.parse({
+      ...evidenceInput,
+      projectId: uppercase,
+    }).projectId,
+    lowercase,
+  );
+  assert.equal(
+    foundation.foundationMemorySchema.parse({ ...memory, id: uppercase }).id,
+    lowercase,
+  );
+  const snapshot = foundation.foundationWorkingContextSchema.parse({
+    ...workingContext,
+    sourceVersions: [{ evidenceId: uppercase, contentDigest }],
+    instructionVersions: [
+      {
+        memoryId: uppercase,
+        version: 1,
+        contentDigest,
+        approvalId: uppercase,
+      },
+    ],
+  });
+  assert.equal(snapshot.sourceVersions[0]!.evidenceId, lowercase);
+  assert.equal(snapshot.instructionVersions[0]!.memoryId, lowercase);
+  assert.equal(snapshot.instructionVersions[0]!.approvalId, lowercase);
+  assert.equal(
+    foundation.foundationPageSchema.parse({ after: uppercase }).after,
+    lowercase,
+  );
+});
+
+test("generic UUID identity arrays reject mixed-case duplicate identities", () => {
+  const lowercase = "bbbbbbbb-bbbb-4bbb-8bbb-bbbbbbbbbbbb";
+  const uppercase = lowercase.toUpperCase();
+  assert.equal(
+    foundation.foundationMemoryContentSchema.safeParse({
+      ...content,
+      evidenceIds: [lowercase, uppercase],
+    }).success,
+    false,
+  );
+  assert.equal(
+    foundation.foundationConfigurationSchema.safeParse({
+      ...configuration,
+      parentIds: [lowercase, uppercase],
+    }).success,
+    false,
+  );
+  assert.deepEqual(
+    foundation.foundationMemoryContentSchema.parse({
+      ...content,
+      evidenceIds: [uppercase],
+    }).evidenceIds,
+    [lowercase],
+  );
+});
+
+test("working-context source versions reject conflicting mixed-case evidence identities", () => {
+  const lowercase = "bbbbbbbb-bbbb-4bbb-8bbb-bbbbbbbbbbbb";
+  const uppercase = lowercase.toUpperCase();
+  for (const secondDigest of [contentDigest, "b".repeat(64)]) {
+    assert.equal(
+      foundation.foundationWorkingContextSchema.safeParse({
+        ...workingContext,
+        sourceVersions: [
+          { evidenceId: lowercase, contentDigest },
+          { evidenceId: uppercase, contentDigest: secondDigest },
+        ],
+      }).success,
+      false,
+    );
+  }
+});
+
+test("working-context instruction versions reject conflicting mixed-case memory identities", () => {
+  const lowercase = "bbbbbbbb-bbbb-4bbb-8bbb-bbbbbbbbbbbb";
+  const uppercase = lowercase.toUpperCase();
+  for (const [version, secondDigest] of [
+    [1, contentDigest],
+    [2, "b".repeat(64)],
+  ] as const) {
+    assert.equal(
+      foundation.foundationWorkingContextSchema.safeParse({
+        ...workingContext,
+        instructionVersions: [
+          {
+            memoryId: lowercase,
+            version: 1,
+            contentDigest,
+            approvalId: uuid(7),
+          },
+          {
+            memoryId: uppercase,
+            version,
+            contentDigest: secondDigest,
+            approvalId: uuid(8),
+          },
+        ],
+      }).success,
+      false,
+    );
+  }
+});
+
 test("operations are the exact foundation family", () => {
   assert.deepEqual(foundation.foundationOperationSchema.options, [
     "foundation.read",
