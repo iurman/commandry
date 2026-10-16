@@ -167,6 +167,11 @@ export const foundationAssessment = pgTable(
   },
   (t) => [
     uniqueIndex("foundation_assessment_scope_idx").on(t.id, t.projectId),
+    uniqueIndex("foundation_assessment_version_scope_idx").on(
+      t.id,
+      t.version,
+      t.projectId,
+    ),
     uniqueIndex("foundation_assessment_trial_version_idx").on(
       t.trialId,
       t.version,

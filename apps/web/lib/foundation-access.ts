@@ -109,6 +109,7 @@ async function foundationOwnerIdentity(request: Request) {
     identity: {
       principalId: `user:${session.user.id}`,
       expiresAt: expiresAt.toISOString(),
+      sessionId: session.session.id,
     },
     options: { environment: config.appEnv },
   };

@@ -1322,7 +1322,18 @@ try {
     runtimePassword,
     "packages/platform/src/foundation.integration.test.ts",
   );
-  if (process.argv.includes("--foundation-only")) {
+  if (process.argv.includes("--foundation-workflows-only")) {
+    await runTests(
+      connectionString,
+      runtimePassword,
+      "packages/db/src/foundation-workflow-access.integration.test.ts",
+    );
+  } else if (process.argv.includes("--foundation-only")) {
+    await runTests(
+      connectionString,
+      runtimePassword,
+      "packages/db/src/foundation-workflow-access.integration.test.ts",
+    );
     await runTests(
       connectionString,
       runtimePassword,
