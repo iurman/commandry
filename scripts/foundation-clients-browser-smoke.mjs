@@ -5,6 +5,7 @@ import { join } from "node:path";
 import { chromium, expect } from "@playwright/test";
 import { foundationImportBrowserSmoke } from "./foundation-import-browser-smoke.mjs";
 import { foundationTaskProposalBrowserSmoke } from "./foundation-task-proposal-browser-smoke.mjs";
+import { foundationGovernedWorkflowBrowserSmoke } from "./foundation-governed-workflow-browser-smoke.mjs";
 import {
   Client,
   StreamableHTTPClientTransport,
@@ -189,6 +190,12 @@ export async function foundationClientsBrowserSmoke(
       "memory.revise",
       "configuration.record",
       "evaluation.record",
+      "improvement.read",
+      "improvement.propose",
+      "finding.read",
+      "finding.propose",
+      "onboarding.read",
+      "onboarding.propose",
     ]) {
       await expect(
         panel.getByRole("checkbox", { name: operation, exact: true }),
@@ -283,6 +290,15 @@ export async function foundationClientsBrowserSmoke(
         client: mcp,
       });
       await foundationTaskProposalBrowserSmoke({
+        page,
+        create,
+        origin,
+        trustedOrigin,
+        project,
+        environment,
+        screenshots,
+      });
+      await foundationGovernedWorkflowBrowserSmoke({
         page,
         create,
         origin,

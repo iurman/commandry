@@ -54,6 +54,12 @@ const machineOperations = [
   "memory.revise",
   "configuration.record",
   "evaluation.record",
+  "improvement.read",
+  "improvement.propose",
+  "finding.read",
+  "finding.propose",
+  "onboarding.read",
+  "onboarding.propose",
 ];
 const ownerOperations = [
   "work.proposal.read",
@@ -62,6 +68,10 @@ const ownerOperations = [
   "memory.import",
   "memory.verify",
   "instruction.approve",
+  "improvement.review",
+  "finding.review",
+  "onboarding.review",
+  "onboarding.apply",
 ];
 const createClient = () => ({
   name: "  Foundation recorder  ",
@@ -124,7 +134,7 @@ const invalidDatetimes = [
   new Date(createdAt),
 ];
 
-test("machine operations include exactly nine opt-in capabilities", () => {
+test("machine operations include exactly fifteen opt-in capabilities", () => {
   assert.deepEqual(foundationMachineOperationSchema.options, machineOperations);
   for (const operation of machineOperations) {
     assert.equal(foundationMachineOperationSchema.parse(operation), operation);

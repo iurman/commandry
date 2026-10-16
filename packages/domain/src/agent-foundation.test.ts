@@ -89,6 +89,10 @@ const ownerOnly: readonly FoundationOperation[] = [
   "memory.review",
   "memory.verify",
   "instruction.approve",
+  "improvement.review",
+  "finding.review",
+  "onboarding.review",
+  "onboarding.apply",
 ];
 
 test("operation policies enumerate every operation without expanding owner authority", () => {
@@ -109,6 +113,16 @@ test("operation policies enumerate every operation without expanding owner autho
     "instruction.approve",
     "configuration.record",
     "evaluation.record",
+    "improvement.read",
+    "improvement.propose",
+    "improvement.review",
+    "finding.read",
+    "finding.propose",
+    "finding.review",
+    "onboarding.read",
+    "onboarding.propose",
+    "onboarding.review",
+    "onboarding.apply",
   ]);
   assert.deepEqual(
     Object.keys(FOUNDATION_OPERATION_POLICIES),
@@ -133,6 +147,9 @@ test("operation policies enumerate every operation without expanding owner autho
         : operation === "foundation.read" ||
             operation === "work.read" ||
             operation === "resources.read" ||
+            operation === "improvement.read" ||
+            operation === "finding.read" ||
+            operation === "onboarding.read" ||
             operation === "memory.read" ||
             operation === "work.proposal.read"
           ? "read_only"
@@ -143,6 +160,9 @@ test("operation policies enumerate every operation without expanding owner autho
       operation === "foundation.read" ||
         operation === "work.read" ||
         operation === "resources.read" ||
+        operation === "improvement.read" ||
+        operation === "finding.read" ||
+        operation === "onboarding.read" ||
         operation === "memory.read" ||
         operation === "work.proposal.read"
         ? "read_snapshot"

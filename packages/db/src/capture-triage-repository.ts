@@ -4,8 +4,9 @@ import {
 } from "@commandry/contracts";
 import { captureRecord } from "./capture-repository";
 import { fileCaptureTaskInTransaction } from "./capture-task-filing";
+import { fileCaptureNoteInTransaction } from "./capture-note-filing";
 import { canonicalWorkRecord } from "./project-work-query";
-import { and, eq } from "drizzle-orm";
+import { eq } from "drizzle-orm";
 import type {
   KnowledgeItem,
   ReviewCaptureTriageRequest,
@@ -23,7 +24,6 @@ import {
   capture,
   captureTriageDecision,
   captureTriageSuggestion,
-  knowledgeItem,
   project,
 } from "./schema";
 
@@ -216,37 +216,16 @@ export function createCaptureTriageRepository(db: CommandryDatabase) {
             updatedCapture = converted.capture;
             record = canonicalWorkRecord(converted.record);
           } else {
-            const [updated] = await tx
-              .update(capture)
-              .set({
-                state: "filed",
-                projectId: input.projectId,
-                filedRecordKind: "note",
-                filedRecordId,
-                filedAt: now,
-              })
-              .where(
-                and(eq(capture.id, captureId), eq(capture.state, "unfiled")),
-              )
-              .returning();
-            if (!updated)
-              throw new CaptureTriageError(
-                "CAPTURE_ALREADY_FILED",
-                "Capture is already filed",
-              );
-            updatedCapture = updated;
-            const [item] = await tx
-              .insert(knowledgeItem)
-              .values({
-                id: filedRecordId,
-                projectId: input.projectId,
-                sourceCaptureId: captureId,
-                kind: "note",
-                title: input.title,
-                content: selectedBody,
-              })
-              .returning();
-            if (!item) throw new Error("Note filing returned no row");
+            const converted = await fileCaptureNoteInTransaction(tx, {
+              captureId,
+              recordId: filedRecordId,
+              projectId: input.projectId,
+              title: input.title,
+              content: selectedBody,
+              at: now,
+            });
+            updatedCapture = converted.capture;
+            const item = converted.record;
             record = {
               id: item.id,
               projectId: item.projectId,

@@ -7,6 +7,9 @@ export default defineConfig({
     "./src/foundation-schema.ts",
     "./src/foundation-evaluation-schema.ts",
     "./src/foundation-import-schema.ts",
+    "./src/foundation-improvement-schema.ts",
+    "./src/foundation-finding-schema.ts",
+    "./src/foundation-onboarding-schema.ts",
   ],
   out: "./migrations",
   dbCredentials: {

@@ -3,14 +3,19 @@
 **Status: Operational implementation. Production release verified 2026-10-16.**
 
 This document describes the shared application and PostgreSQL foundation.
-Twenty-two opt-in MCP tools and authenticated owner HTTP operations use the
-shared records and application services. The reviewed foundation release is
+Thirty opt-in MCP tools and authenticated owner HTTP operations are defined in
+the source through shared records and application services. The verified
+production baseline exposes twenty-two tools; the eight governed proposal tools
+await their separate activation evidence. The reviewed prior foundation release is
 deployed; [activation evidence](#production-activation-2026-10-16) distinguishes
 production checks from disposable tool/write rehearsals. No private memory import
 or evaluation execution was performed. The existing [knowledge MCP](knowledge-mcp.md) retains its
 four read tools and existing scope. The approved
 [campaign plan](../plans/agent-memory-mcp-foundation/PLAN.md) tracks the remaining
-broader finding coverage, adoption, candidate and onboarding work.
+broader feature coverage, external-runtime adoption and operational adapters.
+The [governed proposal workflow](../workflows/governed-agent-proposals.md) documents
+source-level improvement association, cited finding filing and reviewed inventory
+apply, including their separate owner actions and exact retry boundaries.
 
 ## Records and source ownership
 
@@ -110,7 +115,7 @@ to reach them.
 | Record unverified evidence                                   | Reversible | `evidence.record`, automatic with exact grant                    | `evidence.record`                                        |
 | Propose assertion                                            | Reversible | `memory.propose`, automatic with exact grant                     | `memory.propose`                                         |
 | Revise assertion                                             | Reversible | `memory.revise`, automatic with exact grant and expected version | `memory.revise`                                          |
-| Read assertion and source anchor                            | Read-only  | `memory.read`, authenticated owner only                         | `memory.read`                                            |
+| Read assertion and source anchor                             | Read-only  | `memory.read`, authenticated owner only                          | `memory.read`                                            |
 | Review assertion                                             | Sensitive  | `memory.review`, owner only                                      | `memory.review`                                          |
 | Record factual verification                                  | Sensitive  | `memory.verify`, owner only                                      | `memory.verify`                                          |
 | Approve exact instruction                                    | Sensitive  | `instruction.approve`, owner only                                | `instruction.approve`                                    |
@@ -168,7 +173,7 @@ Only the known pre-mutation `413 PAYLOAD_TOO_LARGE` releases that frozen decisio
 for replacement. Success clears the component's raw file and originals.
 
 Import and original-text disclosure intentionally remain owner-only, absent from
-machine tool discovery and all nine machine grant choices. This prevents a general read
+machine tool discovery and all fifteen source-level machine grant choices. This prevents a general read
 credential from disclosing a selected private export. Agents can discover the
 workflow and versioned contract, prepare a closed export under separate source
 selection authority, and use the existing scoped memory reads after owner import.
@@ -269,7 +274,8 @@ credential in the exact project/environment, and audits
 `foundation.client.authenticated`. Every tool still rechecks its current grant
 inside the database transaction.
 
-Discovery filters twenty-two implemented tools by the credential's capabilities.
+Discovery filters thirty source-level tools by the credential's capabilities and
+the actual supplied application services.
 Write-only clients can authenticate without receiving `foundation.read`.
 Three paginated metadata inventories and a distinct general-context request now
 use the real read adapter. Scope filtering precedes UUID pagination and the
@@ -281,7 +287,7 @@ as writers and canonical Knowledge row locks through audit. Candidate approval
 deadlines are retained conservatively through commit and delivery. A deadline
 crossing rejects delivery; an audit already committed before a delivery-time
 deadline remains historical read evidence. No snapshot grants lasting authority.
-Actual installation/adoption evidence, verified finding/citation proposals,
+Actual installation/adoption evidence, broader feature coverage,
 candidate promotion and task execution packet integration remain campaign
 follow-ups. A versioned closed-bundle skill registry and three-way digest drift
 comparison are implemented without installing anything.
@@ -454,8 +460,9 @@ grant expanded and no inference or installation performed during this release.
 The 21-tool/write/retry and owner decision acceptance remains attributed to the
 exact-image disposable SDK/HTTP/browser rehearsals, not a production write test.
 Reviewed source and full regression evidence preceded release. Broader product
-MCP coverage, finding/citation proposals, candidate promotion and reviewed host
-onboarding remain separate follow-ups.
+MCP coverage and candidate installation/adoption remain separate follow-ups.
+Cited finding and reviewed inventory source workflows now have a
+[dedicated operational contract](../workflows/governed-agent-proposals.md).
 
 ## Canonical project resource reads
 
@@ -564,9 +571,12 @@ disposable data; no private corpus or production assertion was created for QA.
 
 The versioned [server-onboarding](../workflows/server-onboarding.md) and
 [agent-improvement](../workflows/agent-improvement-cycle.md) procedures describe
-current operations and their limits. Durable improvement associations and
-promotion, verified finding/citation proposals, reviewed onboarding changesets
-and wider product MCP coverage remain unbuilt. No standing foundation client,
+the operations and limits of the release above. Subsequent source implementation
+adds durable improvement associations, cited finding proposals and reviewed
+onboarding changesets, documented in the
+[governed proposal workflow](../workflows/governed-agent-proposals.md). Their
+activation is separate from this historical release. Candidate installation or
+adoption and wider product MCP coverage remain unfinished. No standing foundation client,
 private import, skill installation or inference run was introduced. First
 external-client adoption and private-memory selection remain explicit owner
 choices; they do not block independent engineering.

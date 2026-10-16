@@ -1,0 +1,92 @@
+.panel,
+.controls,
+.proposals,
+.review,
+.comparison {
+  display: grid;
+  gap: var(--cmd-space-3);
+  min-width: 0;
+}
+.controls,
+.review,
+.proposals {
+  padding: var(--cmd-space-4);
+  border: 1px solid var(--cmd-border);
+  border-radius: var(--cmd-radius);
+  background: var(--cmd-surface);
+}
+.panel {
+  color: var(--cmd-text);
+}
+.panel :is(p, h2, h3, dd, button, label, a, li) {
+  overflow-wrap: anywhere;
+}
+.panel :is(select, textarea, button) {
+  box-sizing: border-box;
+  width: 100%;
+  min-width: 0;
+  max-width: 100%;
+  padding: var(--cmd-space-2) var(--cmd-space-3);
+  border: 1px solid var(--cmd-border);
+  border-radius: var(--cmd-radius);
+  background: var(--cmd-surface);
+  color: var(--cmd-text);
+  font: inherit;
+}
+.panel button,
+.panel select {
+  min-height: 2.75rem;
+}
+.panel button {
+  cursor: pointer;
+  text-align: left;
+}
+.panel textarea {
+  resize: vertical;
+}
+.panel :disabled {
+  opacity: 0.65;
+  cursor: default;
+}
+.panel :is(button, select, textarea, input, a):focus-visible {
+  outline: 2px solid var(--cmd-focus);
+  outline-offset: 3px;
+}
+.panel ul {
+  display: grid;
+  gap: var(--cmd-space-2);
+  padding-left: var(--cmd-space-4);
+}
+.panel dl {
+  display: grid;
+  grid-template-columns: minmax(0, 10rem) minmax(0, 1fr);
+  gap: var(--cmd-space-2);
+  margin: 0;
+}
+.panel dd {
+  margin: 0;
+}
+.panel p,
+.panel h2,
+.panel h3 {
+  margin: 0;
+}
+.actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--cmd-space-3);
+}
+.actions button {
+  width: auto;
+  flex: 1 1 12rem;
+}
+.meta {
+  display: block;
+  color: var(--cmd-text-muted);
+  font-size: var(--cmd-font-sm);
+}
+@media (max-width: 30rem) {
+  .panel dl {
+    grid-template-columns: minmax(0, 1fr);
+  }
+}

@@ -12,6 +12,9 @@ import type {
   createFoundationWorkService,
   createFoundationResourceService,
   createFoundationTaskProposalService,
+  createFoundationImprovementService,
+  createFoundationFindingProposalService,
+  createFoundationOnboardingService,
 } from "@commandry/application";
 import {
   foundationActorSchema,
@@ -30,6 +33,10 @@ import {
   foundationProjectWorkToolQuerySchema,
   foundationProjectResourceToolQuerySchema,
   foundationTaskProposalToolInputSchema,
+  foundationImprovementToolInputSchema,
+  foundationFindingProposalToolInputSchema,
+  foundationOnboardingToolInputSchema,
+  foundationWorkflowListToolQuerySchema,
   type FoundationActor,
 } from "@commandry/contracts";
 import { FoundationError } from "@commandry/domain";
@@ -76,6 +83,18 @@ export function createFoundationMcpServer(
     work?: ReturnType<typeof createFoundationWorkService>;
     resources?: ReturnType<typeof createFoundationResourceService>;
     proposals?: ReturnType<typeof createFoundationTaskProposalService>;
+    improvement?: Pick<
+      ReturnType<typeof createFoundationImprovementService>,
+      "propose" | "get" | "list"
+    >;
+    findings?: Pick<
+      ReturnType<typeof createFoundationFindingProposalService>,
+      "submitFindingProposal" | "getFindingProposal"
+    >;
+    onboarding?: Pick<
+      ReturnType<typeof createFoundationOnboardingService>,
+      "propose" | "get" | "list"
+    >;
   },
 ) {
   const parsed = foundationActorSchema.safeParse(actor);
@@ -108,6 +127,15 @@ export function createFoundationMcpServer(
           : "") +
         (extras?.resources
           ? " Project resource connections require the separate resources.read grant and audit resources.read. Follow each structured nextCursor until null. This is a live active-link population, not a snapshot. Distinct relationships to one resource remain distinct records. No parent/child traversal, remote fetch or availability inference is performed."
+          : "") +
+        (extras?.onboarding
+          ? " Host onboarding requires onboarding.propose for nonsecret inventory intent and onboarding.read for proposal inventory and redacted status. Machine tools never resolve global host existence, preview inventory, approve or apply changes. Reuse requires an explicit canonical UUID; create uses an owner-asserted provider/Tailscale identity, with no inference of physical uniqueness. Owner review and apply are separate signed-in actions. No SSH, provisioning, rename, reparent, collector install or deployment occurs."
+          : "") +
+        (extras?.findings
+          ? " Cited findings require finding.propose; exact proposal reads require finding.read. Submit immutable original text and ordered canonical whole-source evidence citations. Submission is pending and unverified; owner filing creates Knowledge and a proposed unverified assertion, with assertion acceptance, verification and instruction approval remaining separate. Retain exact input/key for historical retries."
+          : "") +
+        (extras?.improvement
+          ? " Improvement proposals require improvement.propose; exact reads and complete paginated inventories require improvement.read. An immutable candidate association links an exact reviewed baseline failure to a separate controlled regression. Current reports are advisory and may change. Separate expiring owner decisions never install or execute a configuration. Follow nextCursor until null and retain exact input/key for historical proposal retries."
           : "") +
         (extras?.work
           ? " Project Work is a live primary-or-related population, including completed and undated records. Follow each structured nextCursor until null. selectedAt is a read time, not a frozen snapshot. INVALID_REFERENCE on continuation requires restarting the live traversal. A related item's primary project stays unchanged; its original capture content is not disclosed."
@@ -228,6 +256,25 @@ export function createFoundationMcpServer(
                 ...(extras?.resources &&
                 identity.actor.capabilities.includes("resources.read")
                   ? ["resources.read"]
+                  : []),
+                ...(extras?.onboarding
+                  ? (["onboarding.read", "onboarding.propose"] as const).filter(
+                      (operation) =>
+                        identity.actor.capabilities.includes(operation),
+                    )
+                  : []),
+                ...(extras?.findings
+                  ? (["finding.read", "finding.propose"] as const).filter(
+                      (operation) =>
+                        identity.actor.capabilities.includes(operation),
+                    )
+                  : []),
+                ...(extras?.improvement
+                  ? (
+                      ["improvement.read", "improvement.propose"] as const
+                    ).filter((operation) =>
+                      identity.actor.capabilities.includes(operation),
+                    )
                   : []),
               ]),
             ],
@@ -619,6 +666,139 @@ export function createFoundationMcpServer(
           }),
         ),
     );
+  }
+  if (extras?.improvement) {
+    const improvement = extras.improvement;
+    if (capabilities.has("improvement.propose")) {
+      register(
+        "propose_improvement",
+        {
+          description:
+            scope +
+            "Reversible immutable internal proposal; requires improvement.propose and audits improvement.propose. Bind a candidate configuration to its baseline parent, exact reviewed failing hard-gate assessments and a controlled regression definition. This records an association only. No inference, installation or execution occurs. Retain exact input/idempotencyKey for historical receipt recovery; pending proposal is not current owner approval.",
+          inputSchema: foundationImprovementToolInputSchema.safeExtend({
+            idempotencyKey: foundationIdempotencyKeySchema,
+          }),
+          annotations: writeAnnotations,
+        },
+        ({ idempotencyKey, ...input }) =>
+          result(() =>
+            improvement.propose(token, idempotencyKey, { ...input, projectId }),
+          ),
+      );
+    }
+    if (capabilities.has("improvement.read")) {
+      register(
+        "get_improvement",
+        {
+          description:
+            scope +
+            "Read-only; requires improvement.read and audits improvement.read. Read an immutable improvement association, the complete current regression advisory and the latest separate owner decision. Compare the decision's report and population digests and expiry with the current advisory. Eligibility and stale or expired historical decisions never grant execution or installation authority.",
+          inputSchema: readSchema,
+          annotations: readAnnotations,
+        },
+        (input) =>
+          result(() => improvement.get(token, { ...input, projectId })),
+      );
+      register(
+        "list_improvements",
+        {
+          description:
+            scope +
+            "Read-only; requires improvement.read and audits improvement.read. List every eligible immutable improvement proposal with a server creation cutoff. Follow each opaque nextCursor until null with the same client and project. The cutoff does not freeze current advisories or owner decisions. Read exact proposal IDs for their current report and review state.",
+          inputSchema: foundationWorkflowListToolQuerySchema,
+          annotations: readAnnotations,
+        },
+        (input) =>
+          result(() => improvement.list(token, { ...input, projectId })),
+      );
+    }
+  }
+  if (extras?.findings) {
+    const findings = extras.findings;
+    if (capabilities.has("finding.propose")) {
+      register(
+        "propose_finding",
+        {
+          description:
+            scope +
+            "Reversible internal proposal; requires finding.propose and audits finding.propose. Preserve exact original text and proposed finding with ordered whole-source citations to existing available canonical Capture or Knowledge revision evidence in this project. This capability does not create evidence. Byte identity is not factual verification. Owner filing creates canonical Knowledge and an unverified proposed assertion; separate assertion review, verification and instruction approval remain necessary. Retry identical input/key for the original pending historical receipt.",
+          inputSchema: foundationFindingProposalToolInputSchema.extend({
+            idempotencyKey: foundationIdempotencyKeySchema,
+          }),
+          annotations: writeAnnotations,
+        },
+        ({ idempotencyKey, ...input }) =>
+          result(() =>
+            findings.submitFindingProposal(token, idempotencyKey, {
+              ...input,
+              projectId,
+            }),
+          ),
+      );
+    }
+    if (capabilities.has("finding.read")) {
+      register(
+        "get_finding",
+        {
+          description:
+            scope +
+            "Read-only; requires finding.read and audits finding.read. Read an exact cited finding proposal, original Capture, immutable producer/source bindings and current owner filing decision. Historical citation identity and owner filing do not establish factual verification or instruction authority. Pending findings are discoverable to the owner in Inbox; this exact-ID tool grants no global source search or other-project access.",
+          inputSchema: readSchema,
+          annotations: readAnnotations,
+        },
+        (input) =>
+          result(() =>
+            findings.getFindingProposal(token, { ...input, projectId }),
+          ),
+      );
+    }
+  }
+  if (extras?.onboarding) {
+    const onboarding = extras.onboarding;
+    if (capabilities.has("onboarding.propose")) {
+      register(
+        "propose_host_onboarding",
+        {
+          description:
+            scope +
+            "Reversible immutable nonsecret inventory intent; requires onboarding.propose and audits onboarding.propose. Reuse an explicitly selected canonical host UUID or propose creating a host with an owner-asserted provider/Tailscale identity. This submission does not resolve global inventory or establish physical uniqueness. Existing project evidence IDs are scoped references, never credentials. Owner inventory review, exact expiring decision and separate apply are required. No resource/link changes, SSH, rename, reparent, provisioning, collector install or deployment. Retain exact input/key for historical retries.",
+          inputSchema: foundationOnboardingToolInputSchema.extend({
+            idempotencyKey: foundationIdempotencyKeySchema,
+          }),
+          annotations: writeAnnotations,
+        },
+        ({ idempotencyKey, ...input }) =>
+          result(() =>
+            onboarding.propose(token, idempotencyKey, { ...input, projectId }),
+          ),
+      );
+    }
+    if (capabilities.has("onboarding.read")) {
+      register(
+        "get_host_onboarding",
+        {
+          description:
+            scope +
+            "Read-only; requires onboarding.read and audits onboarding.read. Read the exact immutable onboarding proposal plus redacted decision status and historical outcome IDs. Owner inventory snapshots and decision reasons are excluded. This cannot inspect global inventory or authorize apply; use the owner's signed-in workflow for preview and review. An outcome records a past inventory change, not live service health or current deployment state.",
+          inputSchema: readSchema,
+          annotations: readAnnotations,
+        },
+        (input) => result(() => onboarding.get(token, { ...input, projectId })),
+      );
+      register(
+        "list_host_onboardings",
+        {
+          description:
+            scope +
+            "Read-only; requires onboarding.read and audits onboarding.read. List every eligible project onboarding proposal using a server creation cutoff and scope-bound cursor. Follow nextCursor until null. This inventory contains proposed intent, not a global host inventory or verified host discovery; read exact proposal IDs for redacted current review status and historical outcome IDs.",
+          inputSchema: foundationWorkflowListToolQuerySchema,
+          annotations: readAnnotations,
+        },
+        (input) =>
+          result(() => onboarding.list(token, { ...input, projectId })),
+      );
+    }
   }
   return server;
 }

@@ -23,6 +23,20 @@ import {
   foundationOwnerMemoryReadSchema,
   foundationInstructionApprovalSchema,
   foundationAssessmentSchema,
+  foundationImprovementPageSchema,
+  foundationImprovementDetailSchema,
+  foundationImprovementDecisionInputSchema,
+  foundationImprovementDecisionSchema,
+  foundationFindingProposalDetailSchema,
+  foundationFindingProposalReviewInputSchema,
+  foundationFindingProposalReviewReceiptSchema,
+  foundationOnboardingPageSchema,
+  foundationOnboardingDetailSchema,
+  foundationOnboardingPreviewSchema,
+  foundationOnboardingReviewInputSchema,
+  foundationOnboardingDecisionSchema,
+  foundationOnboardingApplyInputSchema,
+  foundationOnboardingOutcomeSchema,
   foundationTaskProposalDetailSchema,
   foundationTaskProposalReviewInputSchema,
   foundationTaskProposalReviewReceiptSchema,
@@ -337,6 +351,102 @@ function component(
 function jsonContent(schema: string) {
   return {
     "application/json": { schema: { $ref: `#/components/schemas/${schema}` } },
+  };
+}
+
+const workflowProjectParameter = {
+  in: "query",
+  name: "projectId",
+  required: true,
+  schema: { type: "string", format: "uuid" },
+};
+function workflowResponses(schema: string) {
+  return Object.fromEntries([
+    [
+      "200",
+      {
+        description:
+          "Strict current owner result or exact historical mutation receipt; no-store",
+        content: jsonContent(schema),
+      },
+    ],
+    ...[400, 401, 403, 404, 409, 413, 503].map((status) => [
+      String(status),
+      {
+        description:
+          "Invalid input, owner session/origin denial, unavailable scope, stale comparison or unavailable result; safe code only",
+        content: jsonContent("FoundationFailure"),
+      },
+    ]),
+  ]);
+}
+function workflowRead(
+  operationId: string,
+  schema: string,
+  selection: "page" | "id" | "capture",
+  summary: string,
+) {
+  return {
+    get: {
+      operationId,
+      summary,
+      description:
+        "Live allowlisted owner password session required. Machine credentials grant no owner authority. Strict query rejects unknown or duplicate keys. No-store; reads audit the exact workflow read operation. Follow every nextCursor to reach the full scoped population.",
+      parameters: [
+        workflowProjectParameter,
+        ...(selection === "id"
+          ? [idParameter]
+          : selection === "capture"
+            ? [{ ...idParameter, name: "captureId" }]
+            : [
+                {
+                  in: "query",
+                  name: "limit",
+                  required: false,
+                  schema: {
+                    type: "integer",
+                    minimum: 1,
+                    maximum: 100,
+                    default: 25,
+                  },
+                },
+                {
+                  in: "query",
+                  name: "cursor",
+                  required: false,
+                  schema: { type: "string", minLength: 1, maxLength: 8192 },
+                },
+              ]),
+      ],
+      responses: workflowResponses(schema),
+    },
+  };
+}
+function workflowWrite(
+  operationId: string,
+  input: string,
+  output: string,
+  description: string,
+) {
+  return {
+    post: {
+      operationId,
+      summary: description,
+      description:
+        "Sensitive owner-only action requires the actual live allowlisted password session and trusted Origin. Strict JSON and exact project/digest/version preconditions; scoped Idempotency-Key recovers the original immutable receipt. Same transaction canonical records and audit. No machine grant, shell, inference, installation or external action. " +
+        description,
+      parameters: [
+        ownerOriginParameter,
+        {
+          in: "header",
+          name: "Idempotency-Key",
+          required: true,
+          schema: { type: "string", minLength: 1, maxLength: 200 },
+        },
+      ],
+      requestBody: { required: true, content: jsonContent(input) },
+      responses: workflowResponses(output),
+    },
   };
 }
 
@@ -3948,6 +4058,73 @@ export function generateOpenApi(): string {
           },
         },
       },
+      "/api/v1/foundation/workflows/improvements": workflowRead(
+        "listOwnerImprovements",
+        "FoundationImprovementPage",
+        "page",
+        "List all configuration improvement proposals in the project",
+      ),
+      "/api/v1/foundation/workflows/improvements/{id}": workflowRead(
+        "getOwnerImprovement",
+        "FoundationImprovementDetail",
+        "id",
+        "Read exact proposal and complete current regression advisory",
+      ),
+      "/api/v1/foundation/workflows/improvements/review": workflowWrite(
+        "reviewOwnerImprovement",
+        "FoundationImprovementDecisionInput",
+        "FoundationImprovementDecisionMutation",
+        "Record an expiring owner decision bound to the exact current comparison. Does not adopt or install configurations. JSON body limit 131072 bytes. Exact decision retry also requires an unexpired input deadline.",
+      ),
+      "/api/v1/foundation/workflows/findings/by-capture/{captureId}":
+        workflowRead(
+          "getOwnerFindingByCapture",
+          "FoundationFindingProposalDetail",
+          "capture",
+          "Read canonical cited finding and its immutable original by Capture",
+        ),
+      "/api/v1/foundation/workflows/findings/{id}": workflowRead(
+        "getOwnerFinding",
+        "FoundationFindingProposalDetail",
+        "id",
+        "Read canonical cited finding by proposal identity",
+      ),
+      "/api/v1/foundation/workflows/findings/review": workflowWrite(
+        "reviewOwnerFinding",
+        "FoundationFindingProposalReviewInput",
+        "FoundationFindingProposalReviewMutation",
+        "Approve selected finding words into canonical Knowledge and a proposed unverified assertion, or reject without filing. Assertion acceptance, verification and instruction approval remain separate. JSON body limit 524288 bytes.",
+      ),
+      "/api/v1/foundation/workflows/onboarding": workflowRead(
+        "listOwnerOnboardings",
+        "FoundationOnboardingPage",
+        "page",
+        "List all reviewed host onboarding intentions in the project",
+      ),
+      "/api/v1/foundation/workflows/onboarding/{id}": workflowRead(
+        "getOwnerOnboarding",
+        "FoundationOnboardingDetail",
+        "id",
+        "Read the owner's full onboarding proposal, decision and outcome",
+      ),
+      "/api/v1/foundation/workflows/onboarding/{id}/preview": workflowRead(
+        "previewOwnerOnboarding",
+        "FoundationOnboardingPreview",
+        "id",
+        "Inspect exact current host, connection, asserted identity and apply blockers",
+      ),
+      "/api/v1/foundation/workflows/onboarding/review": workflowWrite(
+        "reviewOwnerOnboarding",
+        "FoundationOnboardingReviewInput",
+        "FoundationOnboardingDecisionMutation",
+        "Record an expiring inventory decision tied to a current preview and explicit inventory review acknowledgement. Apply remains separate. JSON body limit 131072 bytes. Exact historical retries may recover after decision expiry.",
+      ),
+      "/api/v1/foundation/workflows/onboarding/apply": workflowWrite(
+        "applyOwnerOnboarding",
+        "FoundationOnboardingApplyInput",
+        "FoundationOnboardingOutcomeMutation",
+        "Apply the exact current unexpired approval to canonical local host inventory and project connection atomically. No rename, reparent, archived reactivation, SSH, provisioning or collector deployment. JSON body limit 131072 bytes. Historical retries return the original outcome without repeating effects.",
+      ),
       "/api/v1/foundation/task-proposals/by-capture/{captureId}": {
         get: {
           operationId: "getOwnerTaskProposal",
@@ -5738,6 +5915,78 @@ export function generateOpenApi(): string {
           "input",
         ),
         MnemosyneImportPlan: component(mnemosyneImportPlanSchema, "input"),
+        FoundationImprovementPage: component(
+          foundationImprovementPageSchema,
+          "input",
+        ),
+        FoundationImprovementDetail: component(
+          foundationImprovementDetailSchema,
+          "input",
+        ),
+        FoundationImprovementDecisionInput: component(
+          foundationImprovementDecisionInputSchema,
+          "input",
+        ),
+        FoundationFindingProposalDetail: component(
+          foundationFindingProposalDetailSchema,
+          "input",
+        ),
+        FoundationFindingProposalReviewInput: component(
+          foundationFindingProposalReviewInputSchema,
+          "input",
+        ),
+        FoundationOnboardingPage: component(
+          foundationOnboardingPageSchema,
+          "input",
+        ),
+        FoundationOnboardingDetail: component(
+          foundationOnboardingDetailSchema,
+          "input",
+        ),
+        FoundationOnboardingPreview: component(
+          foundationOnboardingPreviewSchema,
+          "input",
+        ),
+        FoundationOnboardingReviewInput: component(
+          foundationOnboardingReviewInputSchema,
+          "input",
+        ),
+        FoundationOnboardingApplyInput: component(
+          foundationOnboardingApplyInputSchema,
+          "input",
+        ),
+        FoundationImprovementDecisionMutation: component(
+          z.strictObject({
+            record: foundationImprovementDecisionSchema,
+            replayed: z.boolean(),
+            correlationId: z.uuid(),
+          }),
+          "input",
+        ),
+        FoundationFindingProposalReviewMutation: component(
+          z.strictObject({
+            record: foundationFindingProposalReviewReceiptSchema,
+            replayed: z.boolean(),
+            correlationId: z.uuid(),
+          }),
+          "input",
+        ),
+        FoundationOnboardingDecisionMutation: component(
+          z.strictObject({
+            record: foundationOnboardingDecisionSchema,
+            replayed: z.boolean(),
+            correlationId: z.uuid(),
+          }),
+          "input",
+        ),
+        FoundationOnboardingOutcomeMutation: component(
+          z.strictObject({
+            record: foundationOnboardingOutcomeSchema,
+            replayed: z.boolean(),
+            correlationId: z.uuid(),
+          }),
+          "input",
+        ),
         FoundationTaskProposalDetail: component(
           foundationTaskProposalDetailSchema,
         ),

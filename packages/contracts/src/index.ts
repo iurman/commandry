@@ -19,6 +19,11 @@ import {
   foundationTaskProposalSuggestionSchema,
   foundationTaskProposalDecisionSchema,
 } from "./foundation-task-proposal";
+import {
+  foundationFindingProposalCaptureSchema,
+  foundationFindingProposalSuggestionSchema,
+  foundationFindingProposalDecisionSchema,
+} from "./foundation-finding-proposal";
 import { workItemSchema } from "./work";
 
 export { captureFileMetadataSchema } from "./capture";
@@ -48,14 +53,17 @@ function localVariant<Schema extends z.ZodType>(
 export const captureSchema = z.union([
   localCaptureSchema,
   foundationTaskProposalCaptureSchema,
+  foundationFindingProposalCaptureSchema,
 ]);
 export const captureTriageSuggestionSchema = z.union([
   localVariant(localCaptureTriageSuggestionSchema, ["proposal", "body"]),
   foundationTaskProposalSuggestionSchema,
+  foundationFindingProposalSuggestionSchema,
 ]);
 export const captureTriageDecisionSchema = z.union([
   localVariant(localCaptureTriageDecisionSchema, ["provenance"]),
   foundationTaskProposalDecisionSchema,
+  foundationFindingProposalDecisionSchema,
 ]);
 
 export { workItemSchema } from "./work";
@@ -3488,3 +3496,7 @@ export * from "./foundation-import";
 export * from "./foundation-work";
 
 export * from "./foundation-resources";
+export * from "./foundation-improvement";
+export * from "./foundation-workflow";
+export * from "./foundation-finding-proposal";
+export * from "./foundation-onboarding";

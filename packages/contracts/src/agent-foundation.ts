@@ -49,6 +49,16 @@ export const foundationOperationSchema = z.enum([
   "instruction.approve",
   "configuration.record",
   "evaluation.record",
+  "improvement.read",
+  "improvement.propose",
+  "improvement.review",
+  "finding.read",
+  "finding.propose",
+  "finding.review",
+  "onboarding.read",
+  "onboarding.propose",
+  "onboarding.review",
+  "onboarding.apply",
 ]);
 export type FoundationOperation = z.infer<typeof foundationOperationSchema>;
 

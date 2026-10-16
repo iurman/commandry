@@ -57,7 +57,11 @@ import {
 
 // Trusted boundary: only an authenticated human session adapter supplies this.
 // This shape is not proof of session authentication or session revocation.
-export type FoundationIdentity = { principalId: string; expiresAt: string };
+export type FoundationIdentity = {
+  principalId: string;
+  expiresAt: string;
+  sessionId?: string;
+};
 export type FoundationServiceOptions = {
   environment: FoundationEnvironment;
   now?: () => Date;

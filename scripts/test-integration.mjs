@@ -15,6 +15,25 @@ import { knowledgeAccessSmoke } from "./knowledge-access-smoke.mjs";
 import { sendLinuxHost } from "./linux-host-collector.mjs";
 
 const root = resolve(fileURLToPath(new URL("..", import.meta.url)));
+// Select a real repository integration file while retaining the same disposable
+// PostgreSQL bootstrap, runtime role and teardown as the full suite.
+const selectedDatabaseFiles = process.argv
+  .filter((argument) => argument.startsWith("--db-test="))
+  .map((argument) => argument.slice("--db-test=".length));
+if (selectedDatabaseFiles.length > 0) {
+  const available = new Set(await readdir(resolve(root, "packages/db/src")));
+  for (const file of selectedDatabaseFiles) {
+    if (
+      !/^[a-z0-9][a-z0-9-]*\.integration\.test\.ts$/.test(file) ||
+      !available.has(file)
+    )
+      throw new Error(
+        "Select an existing repository integration test filename",
+      );
+  }
+  if (new Set(selectedDatabaseFiles).size !== selectedDatabaseFiles.length)
+    throw new Error("Duplicate integration test selection");
+}
 
 async function freeLoopbackPort() {
   const server = createServer();
@@ -1059,6 +1078,23 @@ async function runAuthSmoke(
       );
   }
   await prepareStandaloneWebAssets();
+  // Each auth mode owns a clone of the disposable template. Immutable provenance
+  // must retain its owner; deleting that principal is not valid fixture cleanup.
+  const databaseName = production
+    ? "commandry_auth_production"
+    : "commandry_auth_local";
+  const manager = postgres.getPgClient("postgres", "127.0.0.1");
+  await manager.connect();
+  try {
+    await manager.query(
+      `CREATE DATABASE "${databaseName}" WITH TEMPLATE commandry_integration`,
+    );
+  } finally {
+    await manager.end();
+  }
+  const authUrl = new URL(adminUrl);
+  authUrl.pathname = "/" + databaseName;
+  adminUrl = authUrl.toString();
   const port = await freeLoopbackPort();
   const origin = `http://127.0.0.1:${port}`;
   const appOrigin = production ? "https://commandry.site" : origin;
@@ -1262,7 +1298,7 @@ async function runAuthSmoke(
       headers: { cookie: recoveredCookie },
     });
     assert.equal(recoveredRead.status, 200);
-    const client = postgres.getPgClient("commandry_integration", "127.0.0.1");
+    const client = postgres.getPgClient(databaseName, "127.0.0.1");
     await client.connect();
     try {
       const audit = await client.query(
@@ -1283,10 +1319,15 @@ async function runAuthSmoke(
   } finally {
     await stopService(web);
     await stopService(worker);
-    const cleanup = postgres.getPgClient("commandry_integration", "127.0.0.1");
+    const cleanup = postgres.getPgClient(databaseName, "127.0.0.1");
     await cleanup.connect();
     try {
-      await cleanup.query('DELETE FROM "user" WHERE email = $1', [email]);
+      // Revoke all fixture sessions without rewriting immutable owner provenance.
+      // The parent stops and removes the complete owned cluster in its finally.
+      await cleanup.query(
+        'DELETE FROM "session" WHERE user_id IN (SELECT id FROM "user" WHERE email=$1)',
+        [email],
+      );
     } finally {
       await cleanup.end();
     }
@@ -1322,7 +1363,25 @@ try {
     runtimePassword,
     "packages/platform/src/foundation.integration.test.ts",
   );
-  if (process.argv.includes("--foundation-only")) {
+  if (selectedDatabaseFiles.length > 0) {
+    for (const file of selectedDatabaseFiles)
+      await runTests(
+        connectionString,
+        runtimePassword,
+        `packages/db/src/${file}`,
+      );
+  } else if (process.argv.includes("--foundation-workflows-only")) {
+    await runTests(
+      connectionString,
+      runtimePassword,
+      "packages/db/src/foundation-workflow-access.integration.test.ts",
+    );
+  } else if (process.argv.includes("--foundation-only")) {
+    await runTests(
+      connectionString,
+      runtimePassword,
+      "packages/db/src/foundation-workflow-access.integration.test.ts",
+    );
     await runTests(
       connectionString,
       runtimePassword,
@@ -1459,7 +1518,7 @@ try {
   }
 } catch (error) {
   failed = true;
-  console.error(error instanceof Error ? error.message : error);
+  console.error(error instanceof Error ? error.stack : error);
 } finally {
   if (started) await postgres.stop();
   await rm(directory, { recursive: true, force: true });

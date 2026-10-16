@@ -3,6 +3,8 @@ import type {
   SavedViewDefinition,
   FoundationTaskProposalSuggestion,
   FoundationTaskProposalDecision,
+  FoundationFindingProposalSuggestion,
+  FoundationFindingProposalDecision,
 } from "@commandry/contracts";
 import type {
   LocalReleasePreflightChecks,
@@ -848,8 +850,10 @@ export const captureTriageSuggestion = pgTable(
     title: text("title").notNull(),
     confidence: integer("confidence"),
     body: text("body"),
-    proposal:
-      jsonb("proposal").$type<FoundationTaskProposalSuggestion["proposal"]>(),
+    proposal: jsonb("proposal").$type<
+      | FoundationTaskProposalSuggestion["proposal"]
+      | FoundationFindingProposalSuggestion["proposal"]
+    >(),
     rationale: text("rationale").notNull(),
     ruleVersion: text("rule_version").notNull(),
     sourceLabel: text("source_label").notNull(),
@@ -867,15 +871,15 @@ export const captureTriageSuggestion = pgTable(
     ),
     check(
       "capture_triage_suggestion_confidence_valid",
-      sql`((${table.ruleVersion} = 'capture-triage/v1' and ${table.confidence} between 0 and 100 and ${table.body} is null and ${table.proposal} is null) or (${table.ruleVersion} = 'agent-task-proposal/v1' and ${table.confidence} is null and ${table.body} is not null and ${table.proposal} is not null)) is true`,
+      sql`((${table.ruleVersion} = 'capture-triage/v1' and ${table.confidence} between 0 and 100 and ${table.body} is null and ${table.proposal} is null) or (${table.ruleVersion} in ('agent-task-proposal/v1', 'agent-finding-proposal/v1') and ${table.confidence} is null and ${table.body} is not null and ${table.proposal} is not null)) is true`,
     ),
     check(
       "capture_triage_suggestion_rule_v1",
-      sql`${table.ruleVersion} in ('capture-triage/v1', 'agent-task-proposal/v1')`,
+      sql`${table.ruleVersion} in ('capture-triage/v1', 'agent-task-proposal/v1', 'agent-finding-proposal/v1')`,
     ),
     check(
       "capture_triage_suggestion_source_local",
-      sql`((${table.ruleVersion} = 'capture-triage/v1' and ${table.sourceLabel} = 'Local deterministic rule') or (${table.ruleVersion} = 'agent-task-proposal/v1' and ${table.sourceLabel} = 'Agent task proposal')) is true`,
+      sql`((${table.ruleVersion} = 'capture-triage/v1' and ${table.sourceLabel} = 'Local deterministic rule') or (${table.ruleVersion} = 'agent-task-proposal/v1' and ${table.sourceLabel} = 'Agent task proposal') or (${table.ruleVersion} = 'agent-finding-proposal/v1' and ${table.sourceLabel} = 'Agent finding proposal')) is true`,
     ),
   ],
 );
@@ -905,8 +909,10 @@ export const captureTriageDecision = pgTable(
     creationTransaction: text("creation_transaction")
       .notNull()
       .default(sql`pg_current_xact_id()::text`),
-    provenance:
-      jsonb("provenance").$type<FoundationTaskProposalDecision["provenance"]>(),
+    provenance: jsonb("provenance").$type<
+      | FoundationTaskProposalDecision["provenance"]
+      | FoundationFindingProposalDecision["provenance"]
+    >(),
     createdAt: createdAt(),
   },
   (table) => [

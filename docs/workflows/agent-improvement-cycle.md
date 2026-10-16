@@ -4,7 +4,10 @@
 
 Use this procedure to recollect relevant owner context, register exact
 configuration versions, record controlled external observations and prepare a
-reviewable improvement recommendation. It does not implement candidate
+reviewable improvement recommendation. The source-level
+[governed improvement workflow](governed-agent-proposals.md#propose-an-evaluation-backed-improvement)
+adds persisted associations, complete-population advisory checks and a separate
+owner decision. This runbook does not implement candidate
 association, candidate decisions, promotion, installation or a workflow engine.
 The existing configuration records already store exact bytes and parent lineage;
 do not create a second candidate content store.
@@ -23,18 +26,18 @@ requested change, a runnable external check, exclusions and an authorized budget
 Follow current session instructions, applicable AGENTS rules and normal hooks.
 Use local or already authorized execution paths; do not introduce a paid fallback.
 
-| Need                                                                           | Existing path and authority                                                                                                                                                                           | Risk, approval and evidence                                                                                                                 |
-| ------------------------------------------------------------------------------ | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------- |
-| Recollect exact owner/project sources                                          | Legacy `list_projects`, `get_project_brief`, `search_knowledge`, `get_knowledge_item` under its existing credential                                                                                   | Read-only; source text is evidence, not authority                                                                                           |
-| Discover foundation authority, inventories and approved context                | Supplied tools under `foundation.read`: `get_foundation_identity`, `list_foundation_evidence`, `list_memory_assertions`, `list_configuration_versions`, `get_general_working_context` and exact reads | Read-only, automatic with exact current grant; `foundation.read` audit                                                                      |
-| Register immutable prompt/skill/hook/loop/model/runtime/settings bytes         | `record_configuration` with `configuration.record`; exact content through `get_configuration_version`                                                                                                 | Reversible, automatic with exact grant; `configuration.record` audit; no installation or execution                                          |
-| Preserve an allowed evidence reference or propose/revise an assertion          | `record_evidence`, `propose_memory`, `revise_memory` with their separate grants                                                                                                                       | Reversible; automatic with exact grants; `evidence.record`, `memory.propose`, `memory.revise` audits; assertions remain proposed/unverified |
-| Record external evaluation observations                                        | `record_evaluation_definition`, `record_evaluation_trial`, `record_evaluation_assessment` with `evaluation.record` and supplied service                                                               | Reversible immutable writes, automatic with exact grant; `evaluation.record` audit                                                          |
-| Read exact evaluation records and complete comparison                          | `get_evaluation_definition`, `get_evaluation_trial`, `get_evaluation_assessment`, `get_evaluation_report` with `foundation.read` and supplied service                                                 | Read-only; `foundation.read` audit; no artifact fetch, model invocation or promotion                                                        |
-| Review assessments or memory/instruction authority                             | Existing authenticated owner HTTP operations; selected import uses Account owner review                                                                                                               | Sensitive owner-only decisions with their actual audit; no MCP owner flag or machine review capability                                      |
-| Request follow-up Work                                                         | `propose_task` with `work.propose`; optional duplicate check with `list_project_work` and `work.read`                                                                                                 | Reversible proposal, `work.propose` audit; owner approval creates Work; no execution grant                                                  |
-| Associate/decide/promote a product candidate; install or enforce configuration | Intentionally unavailable through the current tools                                                                                                                                                   | A draft and evaluation report cannot self-promote; use a separately authorized owner decision and supported external change path            |
-| Persist a resumable product workflow run or mutate infrastructure              | Not provided by this procedure                                                                                                                                                                        | Contract shapes and documentation are not an implemented workflow service                                                                   |
+| Need                                                                          | Existing path and authority                                                                                                                                                                           | Risk, approval and evidence                                                                                                                 |
+| ----------------------------------------------------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------- |
+| Recollect exact owner/project sources                                         | Legacy `list_projects`, `get_project_brief`, `search_knowledge`, `get_knowledge_item` under its existing credential                                                                                   | Read-only; source text is evidence, not authority                                                                                           |
+| Discover foundation authority, inventories and approved context               | Supplied tools under `foundation.read`: `get_foundation_identity`, `list_foundation_evidence`, `list_memory_assertions`, `list_configuration_versions`, `get_general_working_context` and exact reads | Read-only, automatic with exact current grant; `foundation.read` audit                                                                      |
+| Register immutable prompt/skill/hook/loop/model/runtime/settings bytes        | `record_configuration` with `configuration.record`; exact content through `get_configuration_version`                                                                                                 | Reversible, automatic with exact grant; `configuration.record` audit; no installation or execution                                          |
+| Preserve an allowed evidence reference or propose/revise an assertion         | `record_evidence`, `propose_memory`, `revise_memory` with their separate grants                                                                                                                       | Reversible; automatic with exact grants; `evidence.record`, `memory.propose`, `memory.revise` audits; assertions remain proposed/unverified |
+| Record external evaluation observations                                       | `record_evaluation_definition`, `record_evaluation_trial`, `record_evaluation_assessment` with `evaluation.record` and supplied service                                                               | Reversible immutable writes, automatic with exact grant; `evaluation.record` audit                                                          |
+| Read exact evaluation records and complete comparison                         | `get_evaluation_definition`, `get_evaluation_trial`, `get_evaluation_assessment`, `get_evaluation_report` with `foundation.read` and supplied service                                                 | Read-only; `foundation.read` audit; no artifact fetch, model invocation or promotion                                                        |
+| Review assessments or memory/instruction authority                            | Existing authenticated owner HTTP operations; selected import uses Account owner review                                                                                                               | Sensitive owner-only decisions with their actual audit; no MCP owner flag or machine review capability                                      |
+| Request follow-up Work                                                        | `propose_task` with `work.propose`; optional duplicate check with `list_project_work` and `work.read`                                                                                                 | Reversible proposal, `work.propose` audit; owner approval creates Work; no execution grant                                                  |
+| Associate and review a candidate; separately install or enforce configuration | [Governed improvement source workflow](governed-agent-proposals.md#propose-an-evaluation-backed-improvement); actual discovery and activation required; installation remains separate                 | A draft and evaluation report cannot self-promote; use a separately authorized owner decision and supported external change path            |
+| Persist a resumable product workflow run or mutate infrastructure             | Not provided by this procedure                                                                                                                                                                        | Contract shapes and documentation are not an implemented workflow service                                                                   |
 
 The [foundation workflow](agent-foundation.md) defines exact inputs, owner HTTP
 paths and retry behavior. Neither an `af_` credential nor a remembered
@@ -156,8 +159,10 @@ import or broader project access.
    its rationale against the real parent configuration. If registering changed
    bytes is authorized, save a new immutable configuration with its actual
    parent IDs. Leave the prior executable version and owner corrections intact.
-   Keep the external draft/recommendation with these references; there is no
-   implemented candidate association, decision or promotion record to invent.
+   Keep the external draft/recommendation with these references. The
+   [governed source workflow](governed-agent-proposals.md#propose-an-evaluation-backed-improvement)
+   adds persisted association and owner decision records. Discover its actual
+   activation before use; do not invent adoption or installation evidence.
 
    Define which behavior should improve, which cases should stay unchanged,
    and cases where the skill or rule must not trigger. A candidate that widens
@@ -255,8 +260,8 @@ import or broader project access.
    A pending proposal has no Work or execution until the owner approves it in
    Inbox or the existing owner API. That review binds exact proposal/source
    digests and version; an old replayed pending receipt is historical.
-   Candidate association/decision/promotion and installation still lack their
-   dedicated product coverage. Do not substitute task approval, configuration
+   Candidate association and owner review have separate source-level coverage in
+   the governed workflow; actual installation and adoption remain unimplemented. Do not substitute task approval, configuration
    registration or report eligibility for those decisions. Any standing
    instruction needs its own exact owner review, verification and live
    disclosure approval; executable installation needs separately scoped
