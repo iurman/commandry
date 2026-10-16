@@ -10,6 +10,7 @@ import type {
   createFoundationInventoryService,
   createFoundationGeneralContextService,
   createFoundationWorkService,
+  createFoundationTaskProposalService,
 } from "@commandry/application";
 import {
   foundationActorSchema,
@@ -26,6 +27,7 @@ import {
   foundationScopedPageSchema,
   foundationGeneralContextRequestSchema,
   foundationProjectWorkToolQuerySchema,
+  foundationTaskProposalToolInputSchema,
   type FoundationActor,
 } from "@commandry/contracts";
 import { FoundationError } from "@commandry/domain";
@@ -70,6 +72,7 @@ export function createFoundationMcpServer(
     inventory?: ReturnType<typeof createFoundationInventoryService>;
     context?: ReturnType<typeof createFoundationGeneralContextService>;
     work?: ReturnType<typeof createFoundationWorkService>;
+    proposals?: ReturnType<typeof createFoundationTaskProposalService>;
   },
 ) {
   const parsed = foundationActorSchema.safeParse(actor);
@@ -80,6 +83,7 @@ export function createFoundationMcpServer(
   const { projectId, environment } = trusted;
   const capabilities = new Set(trusted.capabilities);
   const evaluation = extras?.evaluation;
+  const proposals = extras?.proposals;
   const scope = "Project " + projectId + ", environment " + environment + ". ";
   const server = new McpServer(
     { name: "commandry-foundation", version: "1.0.0" },
@@ -95,6 +99,9 @@ export function createFoundationMcpServer(
           : "") +
         (extras?.context
           ? " General working context is distinct from task execution packets. Supply current taskDirection and a character budget. Reuse returned asOf with snapshot.continuation for the next candidate page. Omissions, source versions and selection time remain explicit. Quoted approved instructions do not grant execution authority or last forever."
+          : "") +
+        (proposals
+          ? " Task proposals require the separate work.propose grant. Submit exact original text and proposed fields with an idempotencyKey; retain that input and key for historical retries. A pending, unverified submission needs owner review before canonical task creation and grants no execution authority."
           : "") +
         (extras?.work
           ? " Project Work is a live primary-or-related population, including completed and undated records. Follow each structured nextCursor until null. selectedAt is a read time, not a frozen snapshot. INVALID_REFERENCE on continuation requires restarting the live traversal. A related item's primary project stays unchanged; its original capture content is not disclosed."
@@ -203,6 +210,10 @@ export function createFoundationMcpServer(
                 ...(evaluation &&
                 identity.actor.capabilities.includes("evaluation.record")
                   ? ["evaluation.record"]
+                  : []),
+                ...(proposals &&
+                identity.actor.capabilities.includes("work.propose")
+                  ? ["work.propose"]
                   : []),
                 ...(extras?.work &&
                 identity.actor.capabilities.includes("work.read")
@@ -559,6 +570,27 @@ export function createFoundationMcpServer(
       },
       (input) =>
         result(() => work.listProjectWork(token, { ...input, projectId })),
+    );
+  }
+  if (capabilities.has("work.propose") && proposals) {
+    register(
+      "propose_task",
+      {
+        description:
+          scope +
+          "Reversible internal proposal write; requires work.propose, automatic with the current grant and audited as work.propose. Preserve immutable original text and actual-client attribution; textual references remain unverified. Owner review is required for canonical task creation. Retry identical input and exact idempotencyKey for the original historical submission: pending/unverified is not current review state. No instruction or execution authority.",
+        inputSchema: foundationTaskProposalToolInputSchema.extend({
+          idempotencyKey: foundationIdempotencyKeySchema,
+        }),
+        annotations: writeAnnotations,
+      },
+      ({ idempotencyKey, ...input }) =>
+        result(() =>
+          proposals.submitTaskProposal(token, idempotencyKey, {
+            ...input,
+            projectId,
+          }),
+        ),
     );
   }
   return server;
