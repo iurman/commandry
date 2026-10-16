@@ -3,6 +3,7 @@ import { and, asc, eq, gt, lte, sql } from "drizzle-orm";
 import type {
   FoundationAccessPort,
   FoundationIdentity,
+  FoundationMachineRequest,
   FoundationOperationContext,
   FoundationOwnerRequest,
   FoundationRecordPort,
@@ -102,6 +103,18 @@ function knownFailure(error: unknown): FoundationError | null {
   return null;
 }
 
+export type FoundationMachineRecordFactory<
+  Records extends FoundationRecordPort,
+> = (
+  tx: FoundationTransaction,
+  request: FoundationMachineRequest & {
+    principalId: string;
+    clientId: string;
+  },
+  records: FoundationRecordPort,
+  now: () => Date,
+) => Records;
+
 export type FoundationOwnerRecordFactory<Records extends FoundationRecordPort> =
   (
     tx: FoundationTransaction,
@@ -110,12 +123,36 @@ export type FoundationOwnerRecordFactory<Records extends FoundationRecordPort> =
     now: () => Date,
   ) => Records;
 
+type MachineRecordsAccess<Records extends FoundationRecordPort> = {
+  withClient<T>(
+    request: FoundationMachineRequest,
+    action: (client: FoundationClient, records: Records) => Promise<T>,
+  ): Promise<T>;
+};
+
 type OwnerRecordsAccess<Records extends FoundationRecordPort> = {
   withOwner<T>(
     request: FoundationOwnerRequest,
     action: (records: Records) => Promise<T>,
   ): Promise<T>;
 };
+
+/** Server-owned factories extend the same authorized operation savepoint.
+ * Callers receive record methods only, without client-management capabilities. */
+export function createFoundationRecordsAccessRepository<
+  MachineRecords extends FoundationRecordPort,
+  OwnerRecords extends FoundationRecordPort,
+>(
+  db: CommandryDatabase,
+  factories: {
+    machine: FoundationMachineRecordFactory<MachineRecords>;
+    owner: FoundationOwnerRecordFactory<OwnerRecords>;
+  },
+  options: { now?: () => Date } = {},
+): MachineRecordsAccess<MachineRecords> & OwnerRecordsAccess<OwnerRecords> {
+  const access = createAccessRepository(db, factories, options);
+  return { withClient: access.withClient, withOwner: access.withOwner };
+}
 
 /** Trusted persistence composition only. The factory receives the actual operation
  * savepoint and must synchronously return records bound to that transaction.
@@ -127,7 +164,11 @@ export function createFoundationOwnerRecordsAccessRepository<
   factory: FoundationOwnerRecordFactory<Records>,
   options: { now?: () => Date } = {},
 ): OwnerRecordsAccess<Records> {
-  const access = createAccessRepository(db, factory, options);
+  const access = createAccessRepository(
+    db,
+    { machine: (_tx, _request, records) => records, owner: factory },
+    options,
+  );
   return { withOwner: access.withOwner };
 }
 
@@ -138,16 +179,27 @@ export function createFoundationAccessRepository(
 ): FoundationAccessPort {
   return createAccessRepository(
     db,
-    (_tx, _request, records) => records,
+    {
+      machine: (_tx, _request, records) => records,
+      owner: (_tx, _request, records) => records,
+    },
     options,
   );
 }
 
-function createAccessRepository<Records extends FoundationRecordPort>(
+function createAccessRepository<
+  MachineRecords extends FoundationRecordPort,
+  OwnerRecords extends FoundationRecordPort,
+>(
   db: CommandryDatabase,
-  ownerRecords: FoundationOwnerRecordFactory<Records>,
+  factories: {
+    machine: FoundationMachineRecordFactory<MachineRecords>;
+    owner: FoundationOwnerRecordFactory<OwnerRecords>;
+  },
   options: { now?: () => Date },
-): Omit<FoundationAccessPort, "withOwner"> & OwnerRecordsAccess<Records> {
+): Omit<FoundationAccessPort, "withClient" | "withOwner"> &
+  MachineRecordsAccess<MachineRecords> &
+  OwnerRecordsAccess<OwnerRecords> {
   const now = options.now ?? (() => new Date());
   const lockProject = async (
     tx: FoundationTransaction,
@@ -224,13 +276,18 @@ function createAccessRepository<Records extends FoundationRecordPort>(
             requireFoundationGrant(client, { ...request, now: now() });
             const result = await action(
               client,
-              createFoundationRecordRepository(
+              factories.machine(
                 operation,
-                { ...request, principalId },
+                { ...request, principalId, clientId: row.id },
+                createFoundationRecordRepository(
+                  operation,
+                  { ...request, principalId },
+                  now,
+                  () => {
+                    replayed = true;
+                  },
+                ),
                 now,
-                () => {
-                  replayed = true;
-                },
               ),
             );
             requireFoundationGrant(client, { ...request, now: now() });
@@ -297,7 +354,7 @@ function createAccessRepository<Records extends FoundationRecordPort>(
               now(),
             );
             const result = await action(
-              ownerRecords(
+              factories.owner(
                 operation,
                 request,
                 createFoundationRecordRepository(
