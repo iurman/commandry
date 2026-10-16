@@ -12,6 +12,7 @@ import {
 } from "@commandry/contracts";
 import {
   FoundationError,
+  foundationInstantMilliseconds,
   foundationDigest,
   requireFoundationGrant,
   type FoundationEnvironment,
@@ -67,7 +68,7 @@ function requireOwner(
   if (
     !parsed.success ||
     !Number.isFinite(now.getTime()) ||
-    Date.parse(identity.expiresAt) <= now.getTime()
+    foundationInstantMilliseconds(identity.expiresAt) <= now.getTime()
   ) {
     throw new FoundationError("EXPIRED", "Owner session unavailable");
   }
@@ -400,7 +401,10 @@ export function createFoundationAccessRepository(
             and(
               eq(foundationClient.projectId, input.projectId),
               eq(foundationClient.environment, environment),
-              lte(foundationClient.createdAt, new Date(asOf)),
+              lte(
+                foundationClient.createdAt,
+                new Date(foundationInstantMilliseconds(asOf)),
+              ),
               input.after ? gt(foundationClient.id, input.after) : undefined,
             ),
           )

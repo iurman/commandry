@@ -34,6 +34,7 @@ import {
 import {
   FOUNDATION_OPERATIONS,
   FoundationError,
+  foundationInstantMilliseconds,
   foundationDigest,
   foundationTokenDigest,
   requireFoundationGrant,
@@ -698,7 +699,7 @@ export function createFoundationOwnerService(
         .success ||
       !foundationActorSchema.shape.expiresAt.safeParse(trusted.expiresAt)
         .success ||
-      Date.parse(trusted.expiresAt) <= server.now().getTime()
+      foundationInstantMilliseconds(trusted.expiresAt) <= server.now().getTime()
     ) {
       throw new FoundationError(
         "FORBIDDEN",
@@ -1026,7 +1027,8 @@ export function createFoundationOwnerService(
           // must still be live at this final authorized callback boundary.
           if (
             !result.replayed &&
-            Date.parse(result.record.expiresAt) <= server.now().getTime()
+            foundationInstantMilliseconds(result.record.expiresAt) <=
+              server.now().getTime()
           ) {
             throw new FoundationError(
               "APPROVAL_REQUIRED",

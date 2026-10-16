@@ -18,7 +18,13 @@ const humanIdentity = z
 
 // Preserve ordering below millisecond precision after comparing UTC instants.
 const compareDatetimes = (left: string, right: string): number => {
-  const milliseconds = Date.parse(left) - Date.parse(right);
+  const millisecondPrefix = (value: string) =>
+    value.replace(
+      /\.(\d+)(?=Z|[+-]\d{2}:\d{2}$)/,
+      (_, digits: string) => `.${digits.slice(0, 3).padEnd(3, "0")}`,
+    );
+  const milliseconds =
+    Date.parse(millisecondPrefix(left)) - Date.parse(millisecondPrefix(right));
   if (milliseconds !== 0) return milliseconds;
   const remainder = (value: string) =>
     (value.match(/\.(\d+)/)?.[1] ?? "").slice(3);

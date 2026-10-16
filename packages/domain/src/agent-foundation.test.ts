@@ -774,3 +774,30 @@ test("valid leap days, offset ISO strings and Date objects retain exact expiry b
     );
   }
 });
+
+test("long fractional timestamps cannot extend an expired grant or instruction approval", () => {
+  const at = new Date("2026-10-15T12:00:00.100Z");
+  const expired = "2026-10-15T12:00:00.099999999999999999Z";
+  denies(
+    () =>
+      requireFoundationGrant(
+        grant({ expiresAt: expired }),
+        request({ now: at }),
+      ),
+    "EXPIRED",
+  );
+  denies(
+    () =>
+      requireFoundationReview(
+        memory({ verification: "source_matched" }),
+        approval({ expiresAt: expired }),
+        projectId,
+        at,
+      ),
+    "APPROVAL_REQUIRED",
+  );
+  requireFoundationGrant(
+    grant({ expiresAt: "2026-10-15T13:00:00.101000000000000001+01:00" }),
+    request({ now: at }),
+  );
+});

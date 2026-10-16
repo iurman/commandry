@@ -205,3 +205,46 @@ sequence and function grants for tables created by `commandry_migrate` to
 those production defaults or a live deployment have been verified. The
 constrained release, backup/restore, actual role privileges, owner authentication
 and real MCP client checks remain separate release gates.
+
+
+## Evaluation persistence checkpoint
+
+The local application services now record immutable definitions, trials and
+append-only assessments in the same project scope. Trial rows preserve every
+outcome, explicit model/runtime, exact input/configuration/artifact bindings and
+observed usage. Recording an external observation does not prove that Commandry
+ran a model or verified artifact bytes. Machine assessments remain unreviewed.
+A separately authenticated owner review appends the next immutable assessment
+version with the same semantic checks and evidence. This is a sensitive
+owner-only use of `evaluation.record`, distinguished by human principal and
+assessment target in audit. It does not install, promote or expand authority.
+
+Reports retain every declared cell and attempt, include failed/unsupported and
+unassessed outcomes, partition model/runtime snapshots and require exact fixture,
+rubric, judge and subject configuration identities. A valid requested judge can
+be resolved before any assessment exists. Empty and incomplete reports remain
+blocked with explicit reasons. Review eligibility is not promotion approval.
+
+Additive migration `0059_powerful_wendigo.sql` stores complete JSONB observations
+and ordered same-project configuration membership, with immutable history,
+nonforgeable creation transactions and deferred completeness checks. Membership
+cannot be appended in a later transaction or redirected to temporary tables.
+The migration fixes the function search path for new and existing foundation
+history guards without rewriting migration 0058. Runtime transactions hold the
+current grant and project serialization lock through callback, receipt and audit.
+
+Authorization timestamps are parsed through a validated, truncated millisecond
+prefix so unusually long fractional fields cannot be rounded into a later
+instant by the JavaScript runtime. SQL authority instants use millisecond Date
+values conservatively. Exact fractional ordering in contract comparisons and
+the pure context selector preserves remaining decimal digits; original source
+and JSONB observation strings remain intact. Context selection does not grant
+permission to execute retrieved text.
+
+The disposable foundation harness additionally covers evaluation write/retry,
+complete report denominators, separate owner review, concurrent retries and
+assessment versions, audit rollback, revocation, immutable membership across
+savepoints, and temporary-table shadowing negatives. These local executions and
+independent source reviews do not prove deployment privileges or a production
+release. Evaluation transport, owner controls and a real client rehearsal for
+these additional tools remain follow-ups before claiming agent access.

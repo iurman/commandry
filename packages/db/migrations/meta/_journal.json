@@ -414,6 +414,13 @@
       "when": 1792126398940,
       "tag": "0058_fat_dorian_gray",
       "breakpoints": true
+    },
+    {
+      "idx": 59,
+      "version": "7",
+      "when": 1792130297737,
+      "tag": "0059_powerful_wendigo",
+      "breakpoints": true
     }
   ]
 }

@@ -58,3 +58,5 @@ export * from "./foundation-authentication";
 export * from "./mnemosyne-import-preview";
 export * from "./foundation-evaluation-report";
 export * from "./foundation-evaluation";
+export * from "./foundation-working-context";
+export * from "./foundation-inventory";

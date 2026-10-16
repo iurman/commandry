@@ -10,7 +10,11 @@ import {
   foundationClientSchema,
   type FoundationClient,
 } from "@commandry/contracts";
-import { FoundationError, requireFoundationGrant } from "@commandry/domain";
+import {
+  FoundationError,
+  foundationInstantMilliseconds,
+  requireFoundationGrant,
+} from "@commandry/domain";
 import type { CommandryDatabase } from "./client";
 import { project } from "./schema";
 import { foundationAudit, foundationClient } from "./foundation-schema";
@@ -93,7 +97,7 @@ function requireOwner(
     !parsed.success ||
     !(at instanceof Date) ||
     !Number.isFinite(at.getTime()) ||
-    Date.parse(identity.expiresAt) <= at.getTime()
+    foundationInstantMilliseconds(identity.expiresAt) <= at.getTime()
   )
     throw new FoundationError("EXPIRED", "Owner session unavailable");
   if (

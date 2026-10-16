@@ -675,3 +675,40 @@ test("instruction approval timestamps enforce strict instants and lifecycle orde
     revokedAt: "2026-10-15T10:00:00.000001Z",
   });
 });
+
+test("exact temporal ordering normalizes long fractions before millisecond parsing", () => {
+  const earlier = "2026-10-15T12:00:00.099999999999999999Z";
+  const later = "2026-10-15T12:00:00.100Z";
+  reject(foundationClientSchema, {
+    ...client(),
+    createdAt: later,
+    expiresAt: earlier,
+  });
+  assert.equal(
+    foundationClientSchema.safeParse({
+      ...client(),
+      createdAt: earlier,
+      expiresAt: later,
+    }).success,
+    true,
+  );
+  reject(foundationInstructionApprovalSchema, {
+    ...approval(),
+    approvedAt: later,
+    expiresAt: earlier,
+  });
+  assert.equal(
+    foundationInstructionApprovalSchema.safeParse({
+      ...approval(),
+      approvedAt: earlier,
+      expiresAt: later,
+    }).success,
+    true,
+  );
+  reject(foundationClientSchema, {
+    ...client(),
+    createdAt: later,
+    expiresAt,
+    revokedAt: earlier,
+  });
+});

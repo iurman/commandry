@@ -1017,3 +1017,46 @@ describe("immutable evaluation application service", () => {
     ).rejects.toThrow();
   });
 });
+
+describe("requested judges without assessment references", () => {
+  it.each(["empty", "non_completed"])(
+    "reports %s populations with an independently selected valid judge",
+    async (kind) => {
+      const store = new Storage();
+      await store.service.recordDefinition(token, definition(), "definition");
+      if (kind === "non_completed")
+        await store.service.recordTrial(
+          token,
+          { ...trial(), outcome: "unsupported", artifactDigests: [] },
+          "unsupported",
+        );
+      store.populationTransform = (value) => ({
+        ...value,
+        configurations: value.configurations.filter((row) => row.id !== id(4)),
+      });
+      const report = await store.service.report(
+        token,
+        project,
+        id(10),
+        [
+          { condition: "with", configurationIds: [id(3)] },
+          { condition: "without", configurationIds: [id(3)] },
+        ],
+        [id(4)],
+      );
+      expect(report.eligibleForReview).toBe(false);
+      expect(report.judgeConfigurations).toEqual([
+        { id: id(4), contentDigest: config(4).contentDigest },
+      ]);
+      if (kind === "empty")
+        expect(report.blockers).toContain("no_observations");
+      else
+        expect(report.comparisons[0]!.counts).toMatchObject({
+          expectedCells: 4,
+          attemptCount: 1,
+          missingCells: 3,
+          passedCells: 0,
+        });
+    },
+  );
+});

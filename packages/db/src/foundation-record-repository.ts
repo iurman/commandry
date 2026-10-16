@@ -15,6 +15,7 @@ import {
 } from "@commandry/contracts";
 import {
   FoundationError,
+  foundationInstantMilliseconds,
   foundationDigest,
   requireFoundationVersion,
 } from "@commandry/domain";
@@ -711,7 +712,7 @@ export function createFoundationRecordRepository(
           "APPROVAL_REQUIRED",
           "Instruction context is not eligible",
         );
-      if (new Date(parsed.expiresAt).getTime() <= now().getTime())
+      if (foundationInstantMilliseconds(parsed.expiresAt) <= now().getTime())
         throw new FoundationError("EXPIRED", "Approval has expired");
       await tx.insert(foundationInstructionApproval).values({
         id: parsed.id,
@@ -721,7 +722,7 @@ export function createFoundationRecordRepository(
         contentDigest: parsed.contentDigest,
         disclosureProjectId: parsed.disclosureProjectId,
         approvedAt: new Date(parsed.approvedAt),
-        expiresAt: new Date(parsed.expiresAt),
+        expiresAt: new Date(foundationInstantMilliseconds(parsed.expiresAt)),
         approvedBy: parsed.approvedBy,
         revokedAt: null,
       });

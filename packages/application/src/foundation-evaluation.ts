@@ -17,6 +17,7 @@ import {
 } from "@commandry/contracts";
 import {
   FoundationError,
+  foundationInstantMilliseconds,
   foundationDigest,
   foundationTokenDigest,
   requireFoundationGrant,
@@ -689,10 +690,28 @@ export function createFoundationEvaluationService(
         async (context) => {
           const def = await loadDefinition(context, input.id);
           const records = await loadPopulation(context, def);
+          // A selected judge can have no assessments yet. Resolve its exact
+          // snapshot directly instead of requiring an existing judge reference.
+          const snapshots = new Map(
+            records.configurations.map((record) => [record.id, record]),
+          );
+          for (const id of judges) {
+            const selected = configuration(
+              await context.records.getConfiguration(id),
+              input.projectId,
+              id,
+            );
+            context.guard();
+            const prior = snapshots.get(id);
+            if (prior && foundationDigest(prior) !== foundationDigest(selected))
+              invalid();
+            snapshots.set(id, selected);
+          }
           return buildFoundationEvaluationReport({
             projectId: input.projectId,
             definition: def,
             ...records,
+            configurations: [...snapshots.values()],
             conditionConfigurations: mappings,
             judgeConfigurationIds: judges,
           });
@@ -717,7 +736,7 @@ export function createFoundationEvaluationOwnerService(
     expiresAt: identity.expiresAt,
   };
   const session = () => {
-    const expiry = Date.parse(trusted.expiresAt);
+    const expiry = foundationInstantMilliseconds(trusted.expiresAt);
     if (
       !foundationActorSchema.shape.principalId.safeParse(trusted.principalId)
         .success ||

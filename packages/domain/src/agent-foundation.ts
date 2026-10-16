@@ -35,7 +35,7 @@ export class FoundationError extends Error {
   }
 }
 
-type FoundationInstant = string | Date;
+export type FoundationInstant = string | Date;
 
 export type FoundationGrant = {
   id: string;
@@ -230,7 +230,9 @@ export function foundationDigest(value: unknown): string {
     .digest("hex");
 }
 
-function instantMilliseconds(value: FoundationInstant): number {
+export function foundationInstantMilliseconds(
+  value: FoundationInstant,
+): number {
   if (value instanceof Date) return value.getTime();
   if (typeof value !== "string") return Number.NaN;
   const parts =
@@ -252,7 +254,13 @@ function instantMilliseconds(value: FoundationInstant): number {
         : 31;
   // Date.parse normalizes impossible calendar days, so validate before conversion.
   if (day > daysInMonth) return Number.NaN;
-  return Date.parse(value);
+  // Parse an exact millisecond prefix. V8 can misread long fractional fields;
+  // authorization must never round an already expired instant into the future.
+  const milliseconds = value.replace(
+    /\.(\d+)(?=Z|[+-]\d{2}:\d{2}$)/,
+    (_, digits: string) => `.${digits.slice(0, 3).padEnd(3, "0")}`,
+  );
+  return Date.parse(milliseconds);
 }
 
 export function requireFoundationGrant(
@@ -260,9 +268,11 @@ export function requireFoundationGrant(
   request: FoundationAuthorizationRequest,
 ): void {
   const now = request.now instanceof Date ? request.now.getTime() : Number.NaN;
-  const expiry = instantMilliseconds(grant.expiresAt);
+  const expiry = foundationInstantMilliseconds(grant.expiresAt);
   const revoked =
-    grant.revokedAt === null ? null : instantMilliseconds(grant.revokedAt);
+    grant.revokedAt === null
+      ? null
+      : foundationInstantMilliseconds(grant.revokedAt);
   if (
     !Number.isFinite(now) ||
     !Number.isFinite(expiry) ||
@@ -381,7 +391,7 @@ export function requireFoundationReview(
       "APPROVAL_REQUIRED",
       "Instruction requires owner approval",
     );
-  const expiry = instantMilliseconds(approval.expiresAt);
+  const expiry = foundationInstantMilliseconds(approval.expiresAt);
   if (
     !Number.isSafeInteger(approval.version) ||
     approval.version < 1 ||

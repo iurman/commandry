@@ -60,3 +60,5 @@ export * from "./infrastructure-overview-repository";
 export { createFoundationAccessRepository } from "./foundation-access-repository";
 export * as foundationSchema from "./foundation-schema";
 export { createFoundationAuthenticationRepository } from "./foundation-authentication-repository";
+export { createFoundationEvaluationAccessRepository } from "./foundation-evaluation-access-repository";
+export * as foundationEvaluationSchema from "./foundation-evaluation-schema";
