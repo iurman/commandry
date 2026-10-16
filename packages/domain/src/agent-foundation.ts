@@ -17,6 +17,16 @@ export const FOUNDATION_OPERATIONS = Object.freeze([
   "instruction.approve",
   "configuration.record",
   "evaluation.record",
+  "improvement.read",
+  "improvement.propose",
+  "improvement.review",
+  "finding.read",
+  "finding.propose",
+  "finding.review",
+  "onboarding.read",
+  "onboarding.propose",
+  "onboarding.review",
+  "onboarding.apply",
 ] as const);
 
 export type FoundationOperation = (typeof FOUNDATION_OPERATIONS)[number];
@@ -186,6 +196,66 @@ export const FOUNDATION_OPERATION_POLICIES = Object.freeze({
     "reversible",
     "automatic_with_grant",
     "immutable_create",
+  ),
+  "improvement.read": operationPolicy(
+    "improvement.read",
+    "read_only",
+    "automatic_with_grant",
+    "read_snapshot",
+  ),
+  "improvement.propose": operationPolicy(
+    "improvement.propose",
+    "reversible",
+    "automatic_with_grant",
+    "immutable_create",
+  ),
+  "improvement.review": operationPolicy(
+    "improvement.review",
+    "sensitive",
+    "owner_only",
+    "expected_version",
+  ),
+  "finding.read": operationPolicy(
+    "finding.read",
+    "read_only",
+    "automatic_with_grant",
+    "read_snapshot",
+  ),
+  "finding.propose": operationPolicy(
+    "finding.propose",
+    "reversible",
+    "automatic_with_grant",
+    "immutable_create",
+  ),
+  "finding.review": operationPolicy(
+    "finding.review",
+    "sensitive",
+    "owner_only",
+    "expected_version",
+  ),
+  "onboarding.read": operationPolicy(
+    "onboarding.read",
+    "read_only",
+    "automatic_with_grant",
+    "read_snapshot",
+  ),
+  "onboarding.propose": operationPolicy(
+    "onboarding.propose",
+    "reversible",
+    "automatic_with_grant",
+    "immutable_create",
+  ),
+  "onboarding.review": operationPolicy(
+    "onboarding.review",
+    "sensitive",
+    "owner_only",
+    "expected_version",
+  ),
+  "onboarding.apply": operationPolicy(
+    "onboarding.apply",
+    "sensitive",
+    "owner_only",
+    "expected_version",
   ),
 } satisfies Record<FoundationOperation, FoundationOperationPolicy>);
 

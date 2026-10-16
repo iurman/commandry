@@ -49,6 +49,12 @@ export const foundationMachineOperationSchema =
     "memory.revise",
     "configuration.record",
     "evaluation.record",
+    "improvement.read",
+    "improvement.propose",
+    "finding.read",
+    "finding.propose",
+    "onboarding.read",
+    "onboarding.propose",
   ]);
 export type FoundationMachineOperation = z.infer<
   typeof foundationMachineOperationSchema
