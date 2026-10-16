@@ -3512,3 +3512,5 @@ export * from "./agent-foundation";
 
 export * from "./foundation-access";
 export * from "./foundation-import";
+
+export * from "./foundation-work";
