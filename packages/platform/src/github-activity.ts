@@ -93,11 +93,44 @@ export function createGitHubActivityReader(fetcher: typeof fetch = fetch) {
     const nextLink = links.split(",").find((link) => /rel="next"/.test(link));
     if (nextLink) {
       const target = /<([^>]+)>/.exec(nextLink)?.[1];
-      const next = target ? new URL(target) : null;
+      let next: URL | null = null;
+      try {
+        next = target ? new URL(target) : null;
+      } catch {
+        throw new RealProviderError("GITHUB_INVALID_PAGINATION");
+      }
+      const repositoryIds = events.map((event) => {
+        const repo =
+          event && typeof event === "object" && "repo" in event
+            ? event.repo
+            : null;
+        if (
+          !repo ||
+          typeof repo !== "object" ||
+          !("id" in repo) ||
+          !("name" in repo) ||
+          typeof repo.id !== "number" ||
+          !Number.isSafeInteger(repo.id) ||
+          repo.id < 1 ||
+          typeof repo.name !== "string" ||
+          repo.name.toLowerCase() !== claim.identifier.toLowerCase()
+        )
+          return null;
+        return repo.id;
+      });
+      const repositoryId =
+        repositoryIds.length > 0 &&
+        repositoryIds.every((id) => id !== null && id === repositoryIds[0])
+          ? repositoryIds[0]
+          : null;
+      const scopedPath =
+        next?.pathname.toLowerCase() === path.toLowerCase() ||
+        (repositoryId !== null &&
+          next?.pathname === `/repositories/${repositoryId}/events`);
       if (
         !next ||
         next.origin !== "https://api.github.com" ||
-        next.pathname.toLowerCase() !== path.toLowerCase() ||
+        !scopedPath ||
         next.searchParams.get("page") !== String(claim.page + 1) ||
         claim.page >= 3
       )
