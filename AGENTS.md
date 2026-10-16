@@ -125,6 +125,8 @@ planned behavior as though it already exists.
 
 ## Implementation guardrails
 
+- MUST keep the authorized Observatory A-F workflow and all 58 acceptance scenarios in tracked completion records; preserve the owner preview and separate runtime ownership, and do not call the operational scope complete while required behavior remains blocked.
+
 - MUST include discoverable MCP access and agent-facing workflow documentation
   alongside every new or materially changed product feature. Reuse the same
   application services, validation and canonical records as the UI/API. Record
