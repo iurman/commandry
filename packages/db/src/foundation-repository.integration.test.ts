@@ -144,6 +144,244 @@ async function fixture(clockNow: () => Date = () => new Date()) {
   };
 }
 
+async function ownerReadFixture() {
+  const f = await fixture();
+  const evidence = await f.machine.recordEvidence(
+    f.issued.token,
+    f.evidenceInput,
+    "owner-read-evidence",
+  );
+  const memory = await f.machine.proposeMemory(
+    f.issued.token,
+    {
+      projectId: f.projectId,
+      knowledgeItemId: f.knowledgeId,
+      content: f.content(evidence.record.id),
+      alias: null,
+    },
+    "owner-read-memory",
+  );
+  return { ...f, memory: memory.record, evidence: evidence.record };
+}
+
+test("owner exact memory reads preserve records, current review and historical source freshness", async () => {
+  const f = await ownerReadFixture();
+  try {
+    const selector = { projectId: f.projectId, id: f.memory.id };
+    const read = await f.owner.getMemory(selector);
+    assert.deepEqual(read.memory, f.memory);
+    assert.equal(read.anchor.knowledgeItemId, f.knowledgeId);
+    assert.equal(read.anchor.evidenceId, f.evidence.id);
+    assert.equal(read.anchor.knowledgeVersion, 1);
+    assert.equal(read.anchor.freshness, "fresh");
+    const [audit] = await f.runtime.db
+      .select()
+      .from(foundationAudit)
+      .where(
+        and(
+          eq(foundationAudit.projectId, f.projectId),
+          eq(foundationAudit.operation, "memory.read"),
+        ),
+      );
+    assert.equal(audit!.decision, "allowed");
+    assert.equal(audit!.targetId, f.memory.id);
+    await f.owner.reviewMemory(
+      {
+        projectId: f.projectId,
+        memoryId: f.memory.id,
+        expectedVersion: 1,
+        decision: "accepted",
+        reason: "Owner explicitly reviewed this assertion",
+      },
+      "owner-read-review",
+    );
+    const reviewed = await f.owner.getMemory(selector);
+    assert.equal(reviewed.memory.version, 1);
+    assert.equal(reviewed.memory.lifecycle, "accepted");
+    assert.equal(reviewed.memory.verification, "unverified");
+    assert.equal(reviewed.memory.contentDigest, f.memory.contentDigest);
+    await createKnowledgeRevisionRepository(f.admin.db).revise(f.knowledgeId, {
+      expectedVersion: 1,
+      title: "Changed source",
+      content: "New source content",
+    });
+    const stale = await f.owner.getMemory(selector);
+    assert.equal(stale.anchor.freshness, "stale");
+    assert.equal(stale.anchor.knowledgeVersion, 1);
+    assert.equal(stale.anchor.contentDigest, foundationByteDigest(f.text));
+    await assert.rejects(
+      f.owner.getMemory({ projectId: f.otherId, id: f.memory.id }),
+      denied("NOT_FOUND"),
+    );
+    await assert.rejects(
+      f.owner.getMemory({ projectId: f.projectId, id: crypto.randomUUID() }),
+      denied("NOT_FOUND"),
+    );
+    await assert.rejects(
+      f.owner.createClient(
+        {
+          name: "No owner read grant",
+          projectId: f.projectId,
+          environment: "test",
+          ttlSeconds: 3600,
+          operations: ["memory.read"],
+        },
+        "owner-read-grant",
+      ),
+      (error: unknown) => error instanceof Error && error.name === "ZodError",
+    );
+    assert.equal(
+      (
+        await f.runtime.db
+          .select()
+          .from(foundationMemoryRevision)
+          .where(eq(foundationMemoryRevision.memoryId, f.memory.id))
+      ).length,
+      1,
+    );
+    assert.equal(
+      (
+        await f.runtime.db
+          .select()
+          .from(foundationInstructionApproval)
+          .where(eq(foundationInstructionApproval.memoryId, f.memory.id))
+      ).length,
+      0,
+    );
+  } finally {
+    await f.close();
+  }
+});
+
+test("owner memory read withholds output when the real PostgreSQL audit fails", async () => {
+  const f = await ownerReadFixture();
+  try {
+    await f.admin.db.execute(
+      sql`create function commandry_test_memory_read_audit_fail() returns trigger language plpgsql as $$ begin if new.operation = 'memory.read' then raise exception 'Injected memory read audit failure'; end if; return new; end $$`,
+    );
+    await f.admin.db.execute(
+      sql`create trigger commandry_test_memory_read_audit_fail before insert on foundation_audit for each row execute function commandry_test_memory_read_audit_fail()`,
+    );
+    try {
+      await assert.rejects(
+        f.owner.getMemory({ projectId: f.projectId, id: f.memory.id }),
+        causedBy(/Injected memory read audit failure/),
+      );
+      assert.equal(
+        (
+          await f.runtime.db
+            .select()
+            .from(foundationAudit)
+            .where(
+              and(
+                eq(foundationAudit.projectId, f.projectId),
+                eq(foundationAudit.operation, "memory.read"),
+              ),
+            )
+        ).length,
+        0,
+      );
+    } finally {
+      await f.admin.db.execute(
+        sql`drop trigger if exists commandry_test_memory_read_audit_fail on foundation_audit`,
+      );
+      await f.admin.db.execute(
+        sql`drop function commandry_test_memory_read_audit_fail()`,
+      );
+    }
+    assert.deepEqual(
+      (await f.owner.getMemory({ projectId: f.projectId, id: f.memory.id }))
+        .memory,
+      f.memory,
+    );
+  } finally {
+    await f.close();
+  }
+});
+
+test(
+  "owner memory read expires while waiting on the actual project advisory lock",
+  { timeout: 30000 },
+  async () => {
+    const f = await ownerReadFixture();
+    let release: (() => void) | undefined;
+    let blocker: Promise<unknown> | undefined;
+    try {
+      let entered: (() => void) | undefined;
+      const started = new Promise<void>((resolve) => {
+        entered = resolve;
+      });
+      const barrier = new Promise<void>((resolve) => {
+        release = resolve;
+      });
+      blocker = f.port.withOwner(
+        {
+          operation: "memory.review",
+          projectId: f.projectId,
+          environment: "test",
+          principalId: "user:read-blocker",
+          expiresAt: expiresAt(),
+          correlationId: crypto.randomUUID(),
+          targetId: null,
+        },
+        async () => {
+          entered!();
+          await barrier;
+        },
+      );
+      await started;
+      const initial = Date.now();
+      let clock = initial;
+      const now = () => new Date(clock);
+      const owner = createFoundationOwnerService(
+        createFoundationAccessRepository(f.runtime.db, { now }),
+        {
+          principalId: "user:expiring-reader",
+          expiresAt: new Date(initial + 1000).toISOString(),
+        },
+        { environment: "test", now },
+      );
+      const rejection = assert.rejects(
+        owner.getMemory({ projectId: f.projectId, id: f.memory.id }),
+        denied("EXPIRED"),
+      );
+      let waiting = false;
+      for (let attempt = 0; attempt < 50; attempt++) {
+        const result = await f.admin.db.execute(
+          sql`select 1 from pg_stat_activity where datname = current_database() and wait_event_type = 'Lock' and wait_event = 'advisory'`,
+        );
+        if (result.rows.length) {
+          waiting = true;
+          break;
+        }
+        await delay(20);
+      }
+      assert.equal(waiting, true);
+      clock = initial + 2000;
+      release!();
+      await blocker;
+      await rejection;
+      const reads = await f.runtime.db
+        .select()
+        .from(foundationAudit)
+        .where(
+          and(
+            eq(foundationAudit.projectId, f.projectId),
+            eq(foundationAudit.operation, "memory.read"),
+          ),
+        );
+      assert.equal(
+        reads.some((row) => row.decision === "allowed"),
+        false,
+      );
+    } finally {
+      release?.();
+      await blocker;
+      await f.close();
+    }
+  },
+);
+
 test(
   "foundation persists real scoped evidence, exact retries, separate authority and stale-source history with runtime privileges",
   { timeout: 30000 },

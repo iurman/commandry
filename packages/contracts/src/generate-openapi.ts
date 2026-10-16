@@ -20,6 +20,7 @@ import {
   foundationVerifyMemorySchema,
   foundationApproveInstructionSchema,
   foundationMemorySchema,
+  foundationOwnerMemoryReadSchema,
   foundationInstructionApprovalSchema,
   foundationAssessmentSchema,
   foundationTaskProposalDetailSchema,
@@ -4761,6 +4762,49 @@ export function generateOpenApi(): string {
           },
         },
       },
+      "/api/v1/foundation/memory/{id}": {
+        get: {
+          operationId: "getOwnerFoundationMemory",
+          summary:
+            "Owner-only exact assertion and source anchor; review is separate from verification and instruction approval",
+          parameters: [
+            idParameter,
+            {
+              in: "query",
+              name: "projectId",
+              required: true,
+              schema: { type: "string", format: "uuid" },
+            },
+          ],
+          responses: {
+            "200": {
+              description:
+                "Current canonical assertion with historical source anchor and freshness",
+              content: jsonContent("FoundationOwnerMemoryRead"),
+            },
+            "400": {
+              description: "Strict singleton project selector required",
+              content: jsonContent("FoundationFailure"),
+            },
+            "401": {
+              description: "Live owner sign-in required",
+              content: jsonContent("FoundationFailure"),
+            },
+            "403": {
+              description: "Owner or origin denied",
+              content: jsonContent("FoundationFailure"),
+            },
+            "404": {
+              description: "Scoped assertion unavailable",
+              content: jsonContent("FoundationFailure"),
+            },
+            "503": {
+              description: "Read unavailable; no assertion delivered",
+              content: jsonContent("FoundationFailure"),
+            },
+          },
+        },
+      },
       "/api/v1/foundation/memory/{id}/review": {
         post: {
           operationId: "reviewFoundationMemory",
@@ -5763,6 +5807,10 @@ export function generateOpenApi(): string {
         ),
         FoundationApproveInstructionBody: component(
           foundationApproveInstructionSchema.omit({ memoryId: true }),
+          "input",
+        ),
+        FoundationOwnerMemoryRead: component(
+          foundationOwnerMemoryReadSchema,
           "input",
         ),
         FoundationMemoryMutation: component(

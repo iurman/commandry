@@ -1899,3 +1899,95 @@ test("owner memory read rejects callback omission, repetition and postcallback m
     (e) => e instanceof Error && !(e instanceof FoundationError),
   );
 });
+
+test("owner memory read maps adapter corruption to internal failure and rejects unknown anchor keys", async () => {
+  for (const method of ["getMemory", "getMemoryAnchor"] as const) {
+    const f = fixture();
+    f.records[method] = async () => {
+      throw new FoundationError("INVALID_REFERENCE", "Corrupt persisted row");
+    };
+    await assert.rejects(
+      f.owner.getMemory({ projectId, id: memoryId }),
+      (e) =>
+        e instanceof Error &&
+        !(e instanceof FoundationError) &&
+        e.message === "Foundation memory output unavailable",
+    );
+  }
+  const g = fixture();
+  g.records.getMemoryAnchor = async () => ({ ...g.state.anchor, owner: true });
+  await assert.rejects(
+    g.owner.getMemory({ projectId, id: memoryId }),
+    (e) => e instanceof Error && !(e instanceof FoundationError),
+  );
+});
+
+test("owner read never invokes selector accessors or canonical object get traps", async () => {
+  const f = fixture();
+  let calls = 0;
+  const input = {
+    id: memoryId,
+    get projectId() {
+      calls++;
+      return projectId;
+    },
+  };
+  await assert.rejects(f.owner.getMemory(input));
+  assert.equal(calls, 0);
+  assert.equal(f.state.ownerRequests.length, 0);
+  const g = fixture();
+  g.records.getMemory = async () =>
+    new Proxy(memory(), {
+      get(target, key, receiver) {
+        if (key !== "then") calls++;
+        return Reflect.get(target, key, receiver);
+      },
+    });
+  await g.owner.getMemory({ projectId, id: memoryId });
+  assert.equal(calls, 0);
+});
+
+test("owner read rejects raw record mutation after snapshot and a swallowed late session failure", async () => {
+  const f = fixture();
+  f.records.getMemory = async () => f.state.memory;
+  f.port.withOwner = async (_request, action) => {
+    const first = await action(f.records);
+    f.state.memory!.content.statement = "Changed after callback";
+    return first;
+  };
+  await assert.rejects(
+    f.owner.getMemory({ projectId, id: memoryId }),
+    (e) => e instanceof Error && !(e instanceof FoundationError),
+  );
+  const g = fixture();
+  const initial = g.state.nowMilliseconds;
+  g.records.getMemoryAnchor = async () => {
+    g.state.nowMilliseconds = Date.parse(expiry);
+    return g.state.anchor;
+  };
+  g.port.withOwner = async (_request, action) => {
+    try {
+      await action(g.records);
+    } catch {}
+    g.state.nowMilliseconds = initial;
+    return { memory: memory(), anchor: g.state.anchor } as never;
+  };
+  await assert.rejects(
+    g.owner.getMemory({ projectId, id: memoryId }),
+    (e) => e instanceof Error && !(e instanceof FoundationError),
+  );
+});
+
+test("owner read binds producer bytes before awaiting the source anchor", async () => {
+  const f = fixture();
+  const record = memory();
+  f.records.getMemory = async () => record;
+  f.records.getMemoryAnchor = async () => {
+    record.content.statement = "Changed while reading anchor";
+    return f.state.anchor;
+  };
+  await assert.rejects(
+    f.owner.getMemory({ projectId, id: memoryId }),
+    (e) => e instanceof Error && !(e instanceof FoundationError),
+  );
+});
