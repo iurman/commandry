@@ -16,6 +16,7 @@ import {
   createFoundationMachineService,
   createFoundationOwnerService,
   createFoundationWorkService,
+  createFoundationTaskProposalService,
   createKnowledgeAccessService,
 } from "@commandry/application";
 import { knowledgeTokenDigest } from "@commandry/domain";
@@ -23,6 +24,7 @@ import { createDatabase } from "./client";
 import { migrateDatabase } from "./migrate";
 import { createFoundationWorkReadAccessRepository } from "./foundation-work-repository";
 import { createFoundationAccessRepository } from "./foundation-access-repository";
+import { createFoundationTaskProposalAccessRepository } from "./foundation-task-proposal-repository";
 import { createKnowledgeAccessRepository } from "./knowledge-access-repository";
 import { foundationByteDigest } from "./foundation-record-repository";
 import { capture, knowledgeClient, knowledgeItem, project } from "./schema";
@@ -35,7 +37,7 @@ if (!ownerUrl || !runtimePassword)
   throw new Error("Use scripts/test-integration.mjs --foundation-only");
 
 test(
-  "populated 0057, 0059 and 0060 upgrades preserve canonical memory and exact grants, rerun safely and explicitly admit Work",
+  "populated 0057 through 0061 upgrades preserve canonical memory, triage and exact grants, rerun safely and explicitly admit Work and proposals",
   { timeout: 60000 },
   async () => {
     const databaseName = `foundation_upgrade_${randomUUID().replaceAll("-", "")}`;
@@ -306,8 +308,106 @@ test(
           return false;
         },
       );
+      const workPrefix = {
+        ...journal,
+        entries: journal.entries.filter((entry) => entry.idx <= 61),
+      };
+      await writeFile(
+        join(fixtureDir, "meta/_journal.json"),
+        JSON.stringify(workPrefix),
+      );
+      for (const entry of workPrefix.entries.filter((entry) => entry.idx > 60))
+        await copyFile(
+          join(migrations, `${entry.tag}.sql`),
+          join(fixtureDir, `${entry.tag}.sql`),
+        );
+      await migrateDatabase({
+        connectionString: upgradeUrl.toString(),
+        migrationsDir: fixtureDir,
+      });
+      const legacyTaskCaptureId = randomUUID();
+      const legacyTaskId = randomUUID();
+      const legacySuggestionId = randomUUID();
+      const legacyDecisionId = randomUUID();
+      await upgrade.pool.query(
+        "insert into capture(id,input_type,original_content,state,project_id,filed_record_kind,filed_record_id,filed_at) values($1,'text',$2,'filed',$3,'task',$4,now())",
+        [
+          legacyTaskCaptureId,
+          "Retained local triage original before 0062.\r\n",
+          projectId,
+          legacyTaskId,
+        ],
+      );
+      await upgrade.pool.query(
+        "insert into work_item(id,project_id,source_capture_id,title,description) values($1,$2,$3,$4,$5)",
+        [
+          legacyTaskId,
+          projectId,
+          legacyTaskCaptureId,
+          "Retained local task",
+          "Retained selected body",
+        ],
+      );
+      await upgrade.pool.query(
+        "insert into capture_triage_suggestion(id,capture_id,kind,proposed_project_id,title,confidence,rationale,rule_version,source_label) values($1,$2,'task',$3,$4,80,'Retained local rationale','capture-triage/v1','Local deterministic rule')",
+        [
+          legacySuggestionId,
+          legacyTaskCaptureId,
+          projectId,
+          "Retained local task",
+        ],
+      );
+      await upgrade.pool.query(
+        "insert into capture_triage_decision(id,capture_id,suggestion_id,decision,selected_project_id,selected_kind,selected_title,selected_body,filed_record_id,actor) values($1,$2,$3,'approve',$4,'task',$5,$6,$7,'local-user:unattributed')",
+        [
+          legacyDecisionId,
+          legacyTaskCaptureId,
+          legacySuggestionId,
+          projectId,
+          "Retained local task",
+          "Retained selected body",
+          legacyTaskId,
+        ],
+      );
+      const legacySnapshots = await upgrade.pool.query(
+        "select jsonb_build_object('capture',(select to_jsonb(r) from capture r where id=$1),'work',(select to_jsonb(r) from work_item r where id=$2),'suggestion',(select to_jsonb(r) from capture_triage_suggestion r where id=$3),'decision',(select to_jsonb(r) from capture_triage_decision r where id=$4)) as records",
+        [
+          legacyTaskCaptureId,
+          legacyTaskId,
+          legacySuggestionId,
+          legacyDecisionId,
+        ],
+      );
+      await assert.rejects(
+        priorOwner.createClient(
+          {
+            name: "Proposal unavailable before 0062",
+            projectId,
+            environment: "test",
+            operations: ["work.propose"],
+            ttlSeconds: 3600,
+          },
+          "before-proposal-migration",
+        ),
+      );
       await migrateDatabase({ connectionString: upgradeUrl.toString() });
       await migrateDatabase({ connectionString: upgradeUrl.toString() });
+      const retainedLocal = await upgrade.pool.query(
+        "select jsonb_build_object('capture',(select to_jsonb(r) from capture r where id=$1),'work',(select to_jsonb(r) from work_item r where id=$2),'suggestion',(select to_jsonb(r)-'body'-'proposal' from capture_triage_suggestion r where id=$3),'decision',(select to_jsonb(r)-'provenance'-'creation_transaction' from capture_triage_decision r where id=$4)) as records",
+        [
+          legacyTaskCaptureId,
+          legacyTaskId,
+          legacySuggestionId,
+          legacyDecisionId,
+        ],
+      );
+      assert.deepEqual(retainedLocal.rows, legacySnapshots.rows);
+      const migratedDecision = await upgrade.pool.query(
+        "select provenance,creation_transaction from capture_triage_decision where id=$1",
+        [legacyDecisionId],
+      );
+      assert.equal(migratedDecision.rows[0]!.provenance, null);
+      assert.match(migratedDecision.rows[0]!.creation_transaction, /^\d+$/);
       runtime = createDatabase({
         connectionString: runtimeUrl.toString(),
         max: 1,
@@ -433,6 +533,65 @@ test(
       assert.deepEqual(
         afterWork.rows[0]!.operations,
         priorClient.client.operations,
+      );
+      const proposalClient = await owner.createClient(
+        {
+          name: "Explicit post-upgrade proposal grant",
+          projectId,
+          environment: "test",
+          operations: ["work.propose"],
+          ttlSeconds: 3600,
+        },
+        "upgrade-proposal-issue",
+      );
+      const proposals = createFoundationTaskProposalService(
+        createFoundationTaskProposalAccessRepository(runtime.db),
+        { environment: "test" },
+      );
+      const proposed = await proposals.submitTaskProposal(
+        proposalClient.token,
+        "upgrade-proposal-submit",
+        {
+          projectId,
+          originalContent: "\ufeffExact post-upgrade proposal\r\n",
+          proposedTitle: "Review after populated upgrade",
+          proposedBody: "Unverified proposal body",
+          rationale: "Actual populated upgrade acceptance",
+        },
+      );
+      const reviewed = await proposals.reviewTaskProposal(
+        {
+          principalId: "user:upgrade-owner",
+          expiresAt: new Date(Date.now() + 3600000).toISOString(),
+        },
+        "upgrade-proposal-review",
+        {
+          projectId,
+          proposalId: proposed.record.proposalId,
+          expectedVersion: 1,
+          expectedProposalDigest: proposed.record.proposalDigest,
+          expectedSourceDigest: proposed.record.sourceDigest,
+          decision: "approve",
+          selectedTitle: "Owner selected after upgrade",
+          selectedBody: "Canonical selected body",
+        },
+      );
+      assert.equal(
+        reviewed.record.work!.sourceCaptureId,
+        proposed.record.captureId,
+      );
+      assert.equal(reviewed.record.work!.title, "Owner selected after upgrade");
+      assert.equal(
+        (
+          await proposals.getTaskProposal(
+            {
+              principalId: "user:upgrade-owner",
+              expiresAt: new Date(Date.now() + 3600000).toISOString(),
+            },
+            { projectId, captureId: proposed.record.captureId },
+          )
+        ).capture.originalContent,
+        "\ufeffExact post-upgrade proposal\r\n",
       );
       const evidence = await machine.recordEvidence(
         issued.token,

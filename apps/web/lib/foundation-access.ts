@@ -8,6 +8,7 @@ import {
   createFoundationInventoryService,
   createFoundationGeneralContextService,
   createFoundationWorkService,
+  createFoundationTaskProposalService,
   createMnemosyneSelectedImportService,
   FoundationImportUnavailableError,
 } from "@commandry/application";
@@ -17,6 +18,7 @@ import {
   createFoundationEvaluationAccessRepository,
   createFoundationReadAccessRepository,
   createFoundationWorkReadAccessRepository,
+  createFoundationTaskProposalAccessRepository,
   createFoundationSelectedImportRepository,
 } from "@commandry/db";
 import { FoundationError } from "@commandry/domain";
@@ -58,6 +60,10 @@ export function getFoundationServices() {
     ),
     context: createFoundationGeneralContextService(
       createFoundationReadAccessRepository(db),
+      options,
+    ),
+    proposals: createFoundationTaskProposalService(
+      createFoundationTaskProposalAccessRepository(db),
       options,
     ),
     work: createFoundationWorkService(
@@ -127,6 +133,20 @@ export async function foundationImportOwner(request: Request) {
     identity,
     options,
   );
+}
+
+export async function foundationTaskProposalOwner(request: Request) {
+  const { identity, options } = await foundationOwnerIdentity(request);
+  const service = createFoundationTaskProposalService(
+    createFoundationTaskProposalAccessRepository(getDatabase().db),
+    options,
+  );
+  return {
+    getTaskProposal: (input: unknown) =>
+      service.getTaskProposal(identity, input),
+    reviewTaskProposal: (input: unknown, key: unknown) =>
+      service.reviewTaskProposal(identity, key, input),
+  };
 }
 
 /** Invalid persisted output is a server failure, never a caller-input error. */

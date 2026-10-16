@@ -3,6 +3,7 @@ import { createHash, randomUUID } from "node:crypto";
 import { foundationSkillRegistrySmoke } from "./foundation-skill-registry-smoke.mjs";
 import { foundationImportSmoke } from "./foundation-import-smoke.mjs";
 import { foundationWorkSmoke } from "./foundation-work-smoke.mjs";
+import { foundationTaskProposalSmoke } from "./foundation-task-proposal-smoke.mjs";
 import {
   Client,
   StreamableHTTPClientTransport,
@@ -605,6 +606,19 @@ export async function foundationAccessSmoke(
     await foundationWorkSmoke({
       origin,
       cookie,
+      project,
+      other,
+      issue,
+      connect,
+      call,
+      write,
+      existingClient: client,
+    });
+    await foundationTaskProposalSmoke({
+      origin,
+      cookie,
+      trustedOrigin,
+      environment,
       project,
       other,
       issue,

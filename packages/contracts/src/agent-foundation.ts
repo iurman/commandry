@@ -1,7 +1,7 @@
 import { z } from "zod";
 
 const schemaVersion = z.literal(1);
-const identity = z.uuid().transform((value) => value.toLowerCase());
+const identity = z.uuid().toLowerCase();
 const datetime = z.iso.datetime({ offset: true });
 const digest = z.string().regex(/^[a-f0-9]{64}$/);
 const positiveInteger = z.number().int().positive();

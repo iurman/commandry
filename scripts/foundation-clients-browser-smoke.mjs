@@ -4,6 +4,7 @@ import { mkdir } from "node:fs/promises";
 import { join } from "node:path";
 import { chromium, expect } from "@playwright/test";
 import { foundationImportBrowserSmoke } from "./foundation-import-browser-smoke.mjs";
+import { foundationTaskProposalBrowserSmoke } from "./foundation-task-proposal-browser-smoke.mjs";
 import {
   Client,
   StreamableHTTPClientTransport,
@@ -22,7 +23,7 @@ export async function foundationClientsBrowserSmoke(
     origin: trustedOrigin,
     "content-type": "application/json",
   };
-  async function create(path, body) {
+  async function create(path, body, expectedStatus = 201) {
     const response = await fetch(origin + path, {
       method: "POST",
       headers: { ...headers, "idempotency-key": randomUUID() },
@@ -30,7 +31,7 @@ export async function foundationClientsBrowserSmoke(
     });
     assert.equal(
       response.status,
-      201,
+      expectedStatus,
       "Disposable browser fixture must be created",
     );
     return response.json();
@@ -181,6 +182,7 @@ export async function foundationClientsBrowserSmoke(
     ).toBeChecked();
     for (const operation of [
       "work.read",
+      "work.propose",
       "evidence.record",
       "memory.propose",
       "memory.revise",
@@ -262,6 +264,38 @@ export async function foundationClientsBrowserSmoke(
         screenshots,
         client: mcp,
       });
+      await foundationTaskProposalBrowserSmoke({
+        page,
+        create,
+        origin,
+        trustedOrigin,
+        project,
+        environment,
+        screenshots,
+      });
+      await expect(panel.getByLabel("Project", { exact: true })).toBeEnabled();
+      while (
+        (await panel
+          .getByLabel("Project", { exact: true })
+          .locator(`option[value="${project.id}"]`)
+          .count()) === 0
+      ) {
+        await panel
+          .getByRole("button", { name: "Load more projects", exact: true })
+          .click();
+        await expect
+          .poll(async () => {
+            const more = panel.getByRole("button", {
+              name: "Load more projects",
+              exact: true,
+            });
+            return (await more.count()) === 0 || (await more.isEnabled());
+          })
+          .toBe(true);
+      }
+      await panel
+        .getByLabel("Project", { exact: true })
+        .selectOption(project.id);
       await panel
         .getByRole("button", { name: "Refresh clients", exact: true })
         .click();

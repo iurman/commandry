@@ -22,6 +22,9 @@ import {
   foundationMemorySchema,
   foundationInstructionApprovalSchema,
   foundationAssessmentSchema,
+  foundationTaskProposalDetailSchema,
+  foundationTaskProposalReviewInputSchema,
+  foundationTaskProposalReviewReceiptSchema,
   createKnowledgeClientSchema,
   knowledgeClientSchema,
   createdKnowledgeClientSchema,
@@ -3944,6 +3947,130 @@ export function generateOpenApi(): string {
           },
         },
       },
+      "/api/v1/foundation/task-proposals/by-capture/{captureId}": {
+        get: {
+          operationId: "getOwnerTaskProposal",
+          summary:
+            "Live owner reads an actual-client task proposal and immutable original",
+          description:
+            "Requires a live owner password session in this environment. Exact project/capture selector, strict query with no duplicate keys, no-store response. Machine credentials grant no raw read or review authority. Text and references remain unverified data.",
+          parameters: [
+            {
+              in: "path",
+              name: "captureId",
+              required: true,
+              schema: { type: "string", format: "uuid" },
+            },
+            {
+              in: "query",
+              name: "projectId",
+              required: true,
+              schema: { type: "string", format: "uuid" },
+            },
+          ],
+          responses: {
+            "200": {
+              description:
+                "Validated immutable source, suggestion and current terminal decision if any",
+              content: jsonContent("FoundationTaskProposalDetail"),
+            },
+            "400": {
+              description: "Invalid strict selector",
+              content: jsonContent("FoundationFailure"),
+            },
+            "401": {
+              description: "Live owner password session required",
+              content: jsonContent("FoundationFailure"),
+            },
+            "403": {
+              description: "Origin or authority denied",
+              content: jsonContent("FoundationFailure"),
+            },
+            "404": {
+              description: "No proposal in this project/environment",
+              content: jsonContent("FoundationFailure"),
+            },
+            "503": {
+              description: "Unavailable or invalid persisted output",
+              content: jsonContent("FoundationFailure"),
+            },
+          },
+        },
+      },
+      "/api/v1/foundation/task-proposals/review": {
+        post: {
+          operationId: "reviewOwnerTaskProposal",
+          summary:
+            "Owner approves selected text into one canonical task or rejects the proposal",
+          description:
+            "Live owner password session and trusted Origin required. work.proposal.review is sensitive and owner-only, audited and bound to immutable source/proposal digests and expected version. JSON physical body is limited to 524288 bytes. Approval atomically creates canonical unassigned open Work; rejection preserves the unfiled original. Retry the exact input and Idempotency-Key after an uncertain response. Historical receipts retain the original result after later Work edits. No source verification, assignment, execution or instruction promotion.",
+          parameters: [
+            {
+              in: "header",
+              name: "Origin",
+              required: true,
+              schema: { type: "string", format: "uri" },
+            },
+            {
+              in: "header",
+              name: "Idempotency-Key",
+              required: true,
+              schema: { type: "string", minLength: 1, maxLength: 200 },
+            },
+          ],
+          requestBody: {
+            required: true,
+            content: jsonContent("FoundationTaskProposalReviewInput"),
+          },
+          responses: {
+            "200": {
+              description:
+                "Validated historical initial canonical Work or terminal rejection receipt",
+              content: jsonContent("FoundationTaskProposalReviewMutation"),
+            },
+            "400": {
+              description: "Invalid strict input or key",
+              content: jsonContent("FoundationFailure"),
+            },
+            "401": {
+              description: "Live owner password session required",
+              content: jsonContent("FoundationFailure"),
+            },
+            "403": {
+              description: "Trusted Origin or owner authority denied",
+              content: jsonContent("FoundationFailure"),
+            },
+            "404": {
+              description: "No proposal in this scope",
+              content: jsonContent("FoundationFailure"),
+            },
+            "409": {
+              description:
+                "Digest, version, terminal decision or idempotency conflict",
+              content: jsonContent("FoundationFailure"),
+            },
+            "413": {
+              description: "Physical JSON request exceeds the byte budget",
+              content: {
+                "application/json": {
+                  schema: {
+                    type: "object",
+                    additionalProperties: false,
+                    required: ["code"],
+                    properties: {
+                      code: { type: "string", const: "PAYLOAD_TOO_LARGE" },
+                    },
+                  },
+                },
+              },
+            },
+            "503": {
+              description: "Unavailable; retry the exact input and key",
+              content: jsonContent("FoundationFailure"),
+            },
+          },
+        },
+      },
       "/api/v1/foundation/imports/preview": {
         post: {
           operationId: "previewSelectedMemoryImport",
@@ -5567,6 +5694,21 @@ export function generateOpenApi(): string {
           "input",
         ),
         MnemosyneImportPlan: component(mnemosyneImportPlanSchema, "input"),
+        FoundationTaskProposalDetail: component(
+          foundationTaskProposalDetailSchema,
+        ),
+        FoundationTaskProposalReviewInput: component(
+          foundationTaskProposalReviewInputSchema,
+          "input",
+        ),
+        FoundationTaskProposalReviewMutation: component(
+          z.strictObject({
+            record: foundationTaskProposalReviewReceiptSchema,
+            replayed: z.boolean(),
+            correlationId: z.uuid(),
+          }),
+          "input",
+        ),
         FoundationSelectedImportInput: component(
           foundationSelectedImportInputSchema,
           "input",

@@ -13,7 +13,12 @@ export class FoundationImportBodyError extends Error {
 
 /** Bound physical request bytes before parsing; canonical application admission
  * is separate. Never decode invalid UTF8 into replacement characters. */
-export async function foundationImportBody(request: Request): Promise<unknown> {
+export async function foundationImportBody(
+  request: Request,
+  maximumBytes: number = FOUNDATION_IMPORT_BODY_BYTES,
+): Promise<unknown> {
+  if (!Number.isSafeInteger(maximumBytes) || maximumBytes < 1)
+    throw new Error("A bounded foundation request limit is required");
   if (
     request.headers
       .get("content-type")
@@ -32,7 +37,7 @@ export async function foundationImportBody(request: Request): Promise<unknown> {
       const chunk = await reader.read();
       if (chunk.done) break;
       bytes += chunk.value.byteLength;
-      if (bytes > FOUNDATION_IMPORT_BODY_BYTES) {
+      if (bytes > maximumBytes) {
         throw new FoundationImportBodyError("PAYLOAD_TOO_LARGE", 413);
       }
       chunks.push(chunk.value);

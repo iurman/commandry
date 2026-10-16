@@ -64,6 +64,28 @@ light/dark 1440/390/320 checks. Full check/build, 1117 workspace and 33 lab test
 This is local evidence; production activation and canonical proposals remain
 separate work.
 
+## Governed task proposal integration checkpoint
+
+The integrated local surface has twenty-one opt-in tools with explicit
+`work.propose`. A proposal-only client has one tool and no raw Capture read or
+owner authority. Existing six/seven-grant clients retain their scope. Immutable
+actual-client Capture/suggestion bindings preserve exact originals, source and
+proposal digests and server identity. Sensitive owner-only approval/rejection
+uses one canonical task filing transaction, immutable decisions and historical
+idempotency receipts. Original text is never an execution instruction.
+
+Migration 0062 closes generic filing/local triage/legacy review and concurrent
+writer bypasses, while preserving later ordinary Work edits. Actual populated
+0061 upgrade tests preserve existing triage/Work and all old grants, then approve
+one explicitly granted new proposal through the real application/adapter.
+Independent reviews and integrated 79/79 foundation PostgreSQL checks passed.
+Full PostgreSQL passed 161 tests with one explicitly skipped unavailable live
+input. Workspace1229, lab33 and Node130 passed; built check/build and actual
+SDK/HTTP/owner browser flows passed in both disposable authentication modes.
+Six production-mode appearance states were visually inspected. This is local
+rehearsal evidence. Production activation, verified citation/finding proposals,
+actual adoption/invocation, candidate promotion and onboarding remain separate.
+
 ## Actual interfaces
 
 The public `@commandry/contracts` barrel exports the strict schemas and types

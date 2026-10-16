@@ -77,7 +77,19 @@ default Work grant in both disposable authentication modes. Full check/build,
 (139 passed, one explicit unavailable live-input skip) passed. The focused
 foundation population passed 57 of 57 with no skips. Production is unchanged.
 
-Canonical finding/task proposals, broader product MCP coverage, actual
+The task-only governed proposal slice now adds an explicitly granted twenty-first
+MCP tool, immutable actual-client Capture/suggestion provenance, owner Inbox
+review and atomic canonical Work filing through migration 0062. Existing grants
+remain unchanged. Independent policy/DTO/application/SQL/adapter/UI/transport
+reviews passed after recorded corrections. Integrated checks/build passed with
+1229 workspace tests, 33 lab tests, 130 Node checks and PostgreSQL 161 passes
+with one explicit unavailable live-input skip. Focused foundation PostgreSQL
+passed 79 of 79, including a populated 0061 upgrade preserving existing local
+triage/Work and exact grants. Built SDK/HTTP and owner browser approval/rejection,
+withheld-receipt retry and light/dark at 1440/390/320 passed in both disposable
+authentication modes. These are local rehearsals; production is unchanged.
+
+Verified finding/citation proposals, broader product MCP coverage, actual
 installation/adoption evidence, candidate promotion and reviewed host onboarding
 remain campaign work. Local preflight/report calculators are not
 evidence those remaining workflows shipped. The command center retains exact

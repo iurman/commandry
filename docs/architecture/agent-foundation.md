@@ -3,13 +3,13 @@
 **Status: Operational local implementation. Not production activation.**
 
 This document describes the shared application and PostgreSQL foundation on the
-agent-memory campaign branch. Twenty opt-in MCP tools and authenticated owner
+agent-memory campaign branch. Twenty-one opt-in MCP tools and authenticated owner
 HTTP operations use the shared records and application services. This is local
 implementation evidence, not production activation, private memory import or
 evaluation execution. The existing [knowledge MCP](knowledge-mcp.md) retains its
 four read tools and existing scope. The approved
 [campaign plan](../plans/agent-memory-mcp-foundation/PLAN.md) tracks the remaining
-canonical Work/finding coverage, adoption, candidate and release work.
+broader finding coverage, adoption, candidate and release work.
 
 ## Records and source ownership
 
@@ -57,6 +57,35 @@ Configuration versions preserve exact prompt, skill, hook, loop, runtime, model
 or settings bytes and their SHA-256 digest. Ordered parent links retain lineage.
 Registration is evidence of content, not installation, invocation, enforcement
 or permission to execute that content.
+
+## Canonical task proposal boundary
+
+`createFoundationTaskProposalService` uses the shared authorization, transaction,
+idempotency and audit core through a trusted machine/owner records factory.
+`work.propose` is an explicit reversible machine grant. It persists exact
+actual-client Capture text and immutable task suggestion provenance, with no
+canonical Work or queued job. Runtime, model and run remain null unless actual
+provenance exists; a caller cannot fabricate them. Textual references remain
+unverified data.
+
+Owner reads require read-only `work.proposal.read`; decisions require sensitive
+owner-only `work.proposal.review`. These operations are never machine grant
+choices. The authenticated adapter derives actual session identity. Approval
+binds exact source/proposal digests and version, locks/reloads the Capture, and
+uses the same canonical task-filing primitive as other Work creation. Rejection
+retains the original with no Work. Decisions and initial canonical receipts are
+immutable; subsequent ordinary Work edits remain valid and do not rewrite the
+historical receipt.
+
+Migration 0062 changes existing Capture/triage provenance and the machine grant
+whitelist without expanding any stored credential. Database membership, writer
+locks and deferred constraints close generic filing, deterministic-rule and
+legacy-review bypasses, including early constraint evaluation and concurrent
+writers. The creation transaction is database-owned. Source and canonical
+metadata are checked on persistence and delivery; malformed persisted output
+is unavailable, not a caller validation error. The owner Inbox and two versioned
+HTTP endpoints share these services. See [the task proposal workflow](../workflows/agent-foundation.md#propose-a-canonical-task-for-owner-review)
+for discoverable input, retry, scope and deferred-coverage details.
 
 ## Shared services and authority
 
@@ -137,7 +166,7 @@ Only the known pre-mutation `413 PAYLOAD_TOO_LARGE` releases that frozen decisio
 for replacement. Success clears the component's raw file and originals.
 
 Import and original-text disclosure intentionally remain owner-only, absent from
-machine tool discovery and all seven machine grant choices. This prevents a general read
+machine tool discovery and all eight machine grant choices. This prevents a general read
 credential from disclosing a selected private export. Agents can discover the
 workflow and versioned contract, prepare a closed export under separate source
 selection authority, and use the existing scoped memory reads after owner import.
@@ -219,7 +248,7 @@ credential in the exact project/environment, and audits
 `foundation.client.authenticated`. Every tool still rechecks its current grant
 inside the database transaction.
 
-Discovery filters twenty implemented tools by the credential's capabilities.
+Discovery filters twenty-one implemented tools by the credential's capabilities.
 Write-only clients can authenticate without receiving `foundation.read`.
 Three paginated metadata inventories and a distinct general-context request now
 use the real read adapter. Scope filtering precedes UUID pagination and the
@@ -231,7 +260,7 @@ as writers and canonical Knowledge row locks through audit. Candidate approval
 deadlines are retained conservatively through commit and delivery. A deadline
 crossing rejects delivery; an audit already committed before a delivery-time
 deadline remains historical read evidence. No snapshot grants lasting authority.
-Actual installation/adoption evidence, canonical finding/task proposals,
+Actual installation/adoption evidence, verified finding/citation proposals,
 candidate promotion and task execution packet integration remain campaign
 follow-ups. A versioned closed-bundle skill registry and three-way digest drift
 comparison are implemented without installing anything.

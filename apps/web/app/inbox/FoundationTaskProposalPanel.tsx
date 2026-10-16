@@ -22,6 +22,7 @@ type Props = {
   captureId: string;
   projectId: string;
   onReviewed: () => void;
+  active?: boolean;
 };
 type Loaded = {
   scope: string;
@@ -100,19 +101,22 @@ export function FoundationTaskProposalPanel({
   captureId,
   projectId,
   onReviewed,
+  active = true,
 }: Props) {
   const scope = JSON.stringify([captureId, projectId]);
   const labelId = useId();
   const [reload, setReload] = useState(0);
-  const [visit, setVisit] = useState({ scope, epoch: 0 });
-  if (visit.scope !== scope) {
-    setVisit({ scope, epoch: visit.epoch + 1 });
+  const viewScope = JSON.stringify([scope, active]);
+  const [visit, setVisit] = useState({ scope: viewScope, epoch: 0 });
+  if (visit.scope !== viewScope) {
+    setVisit({ scope: viewScope, epoch: visit.epoch + 1 });
   }
   const requestKey = JSON.stringify([
     captureId,
     projectId,
     reload,
     visit.epoch,
+    active,
   ]);
   const [loaded, setLoaded] = useState<Loaded>({
     scope: requestKey,
@@ -148,6 +152,7 @@ export function FoundationTaskProposalPanel({
   }, []);
 
   useEffect(() => {
+    if (!active) return;
     const controller = new AbortController();
     let current = true;
     void (async () => {
@@ -233,7 +238,7 @@ export function FoundationTaskProposalPanel({
       current = false;
       controller.abort();
     };
-  }, [captureId, projectId, scope, requestKey]);
+  }, [captureId, projectId, scope, requestKey, active]);
 
   const detail = loaded.scope === requestKey ? loaded.detail : null;
   const state = loaded.scope === requestKey ? loaded.state : "loading";
@@ -246,6 +251,7 @@ export function FoundationTaskProposalPanel({
 
   async function send(snapshot: Attempt) {
     if (
+      !active ||
       sendingRef.current ||
       attemptRef.current !== snapshot ||
       selection.current.scope !== snapshot.scope
@@ -308,6 +314,7 @@ export function FoundationTaskProposalPanel({
 
   function submit(choice: "approve" | "reject") {
     if (
+      !active ||
       !pending ||
       !detail ||
       selection.current.requestKey !== requestKey ||
@@ -375,6 +382,7 @@ export function FoundationTaskProposalPanel({
   }
 
   const frozen = attempt !== null || sending;
+  if (!active) return null;
   return (
     <section
       className={styles.panel}

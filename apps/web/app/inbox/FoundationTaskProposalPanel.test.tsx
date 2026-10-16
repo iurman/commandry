@@ -1237,3 +1237,58 @@ describe("owner task proposal review", () => {
     expect(onReviewed).not.toHaveBeenCalled();
   });
 });
+
+it("suspends a retained panel without fetching or allowing its stale form", async () => {
+  const d = detail();
+  const fresh = deferred<Response>();
+  let gets = 0;
+  const fetchMock = vi.fn(async () => (++gets === 1 ? json(d) : fresh.promise));
+  vi.stubGlobal("fetch", fetchMock);
+  const props = { captureId, projectId, onReviewed: vi.fn() };
+  const view = render(<FoundationTaskProposalPanel {...props} />);
+  await ready();
+  view.rerender(<FoundationTaskProposalPanel {...props} active={false} />);
+  expect(screen.queryByRole("heading")).toBeNull();
+  expect(fetchMock).toHaveBeenCalledTimes(1);
+  view.rerender(<FoundationTaskProposalPanel {...props} active />);
+  expect(screen.queryByLabelText("Task title")).toBeNull();
+  expect(screen.getByText("Loading proposal review...")).toBeTruthy();
+  await act(async () => fresh.resolve(json(d)));
+  await ready();
+  expect(posts(fetchMock)).toHaveLength(0);
+});
+it("retains an uncertain decision exactly while the parent displays another capture", async () => {
+  const d = detail();
+  let attempts = 0;
+  const fetchMock = vi.fn(async (_path: string, init?: RequestInit) => {
+    if (init?.method !== "POST") return json(d);
+    attempts++;
+    if (attempts === 1) throw new Error("wire lost");
+    return json(
+      receipt(
+        d,
+        foundationTaskProposalReviewInputSchema.parse(
+          JSON.parse(String(init.body)),
+        ),
+      ),
+    );
+  });
+  vi.stubGlobal("fetch", fetchMock);
+  const props = { captureId, projectId, onReviewed: vi.fn() };
+  const view = render(<FoundationTaskProposalPanel {...props} />);
+  await ready();
+  approve();
+  await screen.findByText(
+    "This decision may have been saved. Retry the same decision to confirm its outcome.",
+  );
+  const first = submitted(fetchMock).init;
+  view.rerender(<FoundationTaskProposalPanel {...props} active={false} />);
+  view.rerender(<FoundationTaskProposalPanel {...props} active />);
+  await screen.findByRole("button", { name: "Retry same decision" });
+  fireEvent.click(screen.getByRole("button", { name: "Retry same decision" }));
+  await screen.findByText("Approved");
+  const second = submitted(fetchMock, 1).init;
+  expect(second.body).toEqual(first.body);
+  expect(second.headers).toEqual(first.headers);
+  expect(props.onReviewed).toHaveBeenCalledTimes(1);
+});

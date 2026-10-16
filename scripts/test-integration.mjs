@@ -1356,6 +1356,16 @@ try {
     await runTests(
       connectionString,
       runtimePassword,
+      "packages/db/src/foundation-record-factory.integration.test.ts",
+    );
+    await runTests(
+      connectionString,
+      runtimePassword,
+      "packages/db/src/foundation-task-proposal.integration.test.ts",
+    );
+    await runTests(
+      connectionString,
+      runtimePassword,
       "packages/db/src/foundation-upgrade.integration.test.ts",
     );
   } else {

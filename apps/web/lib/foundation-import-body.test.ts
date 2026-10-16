@@ -162,3 +162,15 @@ describe("selected import request stream", () => {
     expect(await foundationImportBody(request)).toEqual({ accepted: true });
   });
 });
+
+it("uses an explicit smaller foundation operation limit on actual streamed bytes", async () => {
+  const bytes = Buffer.from('{"text":"exact"}');
+  expect(
+    await foundationImportBody(streamed([bytes]).request, bytes.length),
+  ).toEqual({ text: "exact" });
+  const excess = streamed([bytes, Buffer.from(" ")], "1");
+  await expect(
+    foundationImportBody(excess.request, bytes.length),
+  ).rejects.toMatchObject({ code: "PAYLOAD_TOO_LARGE", status: 413 });
+  expect(excess.consumed()).toBe(2);
+});
