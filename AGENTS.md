@@ -4,6 +4,12 @@ This file is the routing layer for agents working in this repository. Do not
 load every document by default. Start with the smallest reading path that fits
 the task, then follow links only when needed.
 
+## Planning and dispatch
+
+- MUST honor an owner's planning-only hold: save the requested Markdown plan
+  before launching implementation chats, workers or scheduled follow-ups, and
+  resume implementation only after the owner releases the hold.
+
 ## Mandatory orientation
 
 Before changing product behavior, data structures, architecture, or UX, read:
