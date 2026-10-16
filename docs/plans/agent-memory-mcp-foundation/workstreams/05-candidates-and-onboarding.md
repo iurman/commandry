@@ -1,10 +1,19 @@
 # Workstream 5: workflow improvement and operational onboarding
 
-**Status: Active research and prerequisite delivery. Canonical resource reads are the current infrastructure prerequisite. Candidate association/promotion, resumable onboarding and authorized inventory changesets remain unimplemented.**
+**Status: Partial delivery. Canonical resource reads and versioned operational
+runbooks are deployed. Candidate association/promotion, resumable onboarding and
+authorized inventory changesets remain unimplemented.**
 
 **Model:** GPT-6.1 Sol, ultra. Independent review: GPT-6 Astra, ultra.
 Depends on 2, 3 and 4 for the complete improvement loop. Isolated definition and
 policy preparation can follow workstream 1's checkpoint.
+
+The [server-onboarding procedure](../../../workflows/server-onboarding.md) and
+[agent-improvement procedure](../../../workflows/agent-improvement-cycle.md)
+document the current tools and their limits. A runbook does not implement the
+resumable changeset engine or grant infrastructure execution. The
+[owner-review activation record](../../../architecture/agent-foundation.md#owner-review-activation-2026-10-16)
+records actual release and verification evidence.
 
 ## Goal
 

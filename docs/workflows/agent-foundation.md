@@ -1,6 +1,9 @@
 # Agent foundation workflow
 
-Status: Operational. The [October 16 foundation release](../architecture/agent-foundation.md#production-activation-2026-10-16) is deployed. Foundation clients remain explicitly opt-in; no standing credential was issued by the release.
+Status: Operational. The foundation, canonical resource reads and
+[owner assertion review release](../architecture/agent-foundation.md#owner-review-activation-2026-10-16)
+are deployed. Foundation clients remain explicitly opt-in; no standing credential
+was issued by these releases.
 
 ## Connect and discover
 

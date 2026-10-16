@@ -84,9 +84,10 @@ Gravity shares the reviewed renderer with the lab while keeping all simulation
 outside production. The signed-in production browser verified real host metrics,
 nested services, focus, cameras, appearance, list/topology and the wallboard.
 The owner requirement for discoverable MCP coverage alongside future features is
-recorded in the agent guide and source-linked project knowledge. Broader MCP
-inventory/source/presentation access remains explicitly deferred to the separate
-comprehensive MCP planning work; the live MCP still has four knowledge read tools.
+recorded in the agent guide and source-linked project knowledge. Canonical
+project-resource reads are now available through a separately granted foundation
+tool. Source editing and presentation controls through MCP remain
+deferred. The existing knowledge endpoint retains its four read tools.
 
 ## Established direction
 
@@ -96,7 +97,11 @@ application and PostgreSQL foundation in PR 11 at revision
 [activation record](../architecture/agent-foundation.md#production-activation-2026-10-16)
 records exact release, backup/restore and live verification boundaries. The
 separate [PR 12 resource release](../architecture/agent-foundation.md#resource-read-activation-2026-10-16)
-is live at `07c8bfdb159728dd2d09899ee7245e28eb4c3def`. Twenty-two opt-in MCP tools cover
+was deployed at `07c8bfdb159728dd2d09899ee7245e28eb4c3def`. The later
+[PR 13 owner-review release](../architecture/agent-foundation.md#owner-review-activation-2026-10-16)
+is live at `5ffca1dee591051625f60c780fccb20f5f58f600`, preserving that resource
+capability and adding import-to-assertion review controls plus versioned
+onboarding/improvement procedures. Twenty-two opt-in MCP tools cover
 source-anchored evidence/memory/configurations, complete paginated inventories,
 approved working context and immutable evaluation observations with separate
 owner assessment review. Separately granted `work.read` lists the same canonical primary/related Work
@@ -117,9 +122,11 @@ production. Selected import has real owner Account/HTTP review and immutable
 source revisions. Explicit `work.propose` now records actual-client task proposals
 for owner Inbox approval or rejection and atomic canonical Work filing. Exact
 originals and historical retries survive review; existing grants do not expand.
-Integrated check/build, 1229 workspace tests, 33 lab tests, 130 Node checks,
-161 PostgreSQL passes (one explicit unavailable live-input skip), and both-mode
-built SDK/HTTP/browser rehearsals passed. Verified finding/citation proposals,
+The PR 13 integration passed check/build, 1437 workspace tests, 33 lab tests,
+130 Node checks and 172 PostgreSQL tests with one explicit unavailable live-input
+skip. Focused foundation tests passed 90/90; both-mode built SDK/HTTP/browser
+rehearsals passed. Exact main CI passed 195 browser cases with three existing
+skips before constrained deployment. Verified finding/citation proposals,
 broader product MCP coverage, installation/adoption evidence, candidate promotion,
 reviewed onboarding remain campaign work. Production owner client reads and
 existing native knowledge MCP passed after release. No foundation credential was

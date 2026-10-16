@@ -123,8 +123,11 @@ checks. The [activation record](../../architecture/agent-foundation.md#resource-
 separates actual production reads from disposable permission/write rehearsals.
 All 91 resources, 15 projects and five sources were preserved, with no standing
 foundation clients issued. Owner assertion review and two versioned operational
-runbooks are implemented and independently reviewed on the campaign branch;
-their separate PR 13 release gates still apply.
+runbooks were normally merged in PR 13 as
+`5ffca1dee591051625f60c780fccb20f5f58f600` and deployed after exact CI and the
+constrained backup/restore/recovery gates. The
+[owner-review activation record](../../architecture/agent-foundation.md#owner-review-activation-2026-10-16)
+separates the live owner reads from disposable write/visual rehearsals.
 Verified finding/citation proposals, actual adoption/native invocation, candidate
 association/promotion and reviewed onboarding remain unfinished campaign scope.
 
