@@ -629,3 +629,148 @@ test("review and instruction approval never imply factual verification or mutate
     "FORBIDDEN",
   );
 });
+
+test("impossible February expiry cannot authorize a grant", () => {
+  const observedAt = new Date("2027-03-01T12:00:00Z");
+  const expiresAt = "2027-02-30T00:00:00Z";
+  denies(
+    () =>
+      requireFoundationGrant(
+        grant({ expiresAt }),
+        request({ now: observedAt }),
+      ),
+    "FORBIDDEN",
+  );
+});
+
+test("impossible February expiry cannot authorize an instruction approval", () => {
+  const observedAt = new Date("2027-03-01T12:00:00Z");
+  const expiresAt = "2027-02-30T00:00:00Z";
+  denies(
+    () =>
+      requireFoundationReview(
+        memory(),
+        approval({ expiresAt }),
+        projectId,
+        observedAt,
+      ),
+    "APPROVAL_REQUIRED",
+  );
+});
+
+test("both expiry consumers reject impossible calendars and ambiguous ISO timezones", () => {
+  const observedAt = new Date("1800-01-01T00:00:00Z");
+  const invalidExpiries = [
+    "2027-02-29T00:00:00Z",
+    "1900-02-29T00:00:00Z",
+    "2027-02-30T00:00:00Z",
+    "2028-02-30T00:00:00Z",
+    "2027-04-31T00:00:00Z",
+    "2027-01-00T00:00:00Z",
+    "2027-01-32T00:00:00Z",
+    "2027-00-01T00:00:00Z",
+    "2027-13-01T00:00:00Z",
+    "2027-01-01T24:00:00Z",
+    "2027-01-01T00:60:00Z",
+    "2027-01-01T00:00:60Z",
+    "2027-01-01",
+    "2027-01-01T00:00:00",
+    "2027-01-01 00:00:00Z",
+    "2027-01-01t00:00:00z",
+    "2027-01-01T00:00:00+02",
+    "2027-01-01T00:00:00+0200",
+    "2027-01-01T00:00:00+2:00",
+    "2027-01-01T00:00:00+24:00",
+    "2027-01-01T00:00:00+01:60",
+    "2027-01-01T00:00:00Z\n",
+    " 2027-01-01T00:00:00Z",
+  ];
+  for (const expiresAt of invalidExpiries) {
+    denies(
+      () =>
+        requireFoundationGrant(
+          grant({ expiresAt }),
+          request({ now: observedAt }),
+        ),
+      "FORBIDDEN",
+    );
+    denies(
+      () =>
+        requireFoundationReview(
+          memory(),
+          approval({ expiresAt }),
+          projectId,
+          observedAt,
+        ),
+      "APPROVAL_REQUIRED",
+    );
+  }
+});
+
+test("revocation timestamps use the same strict calendar and timezone validation", () => {
+  for (const revokedAt of [
+    "2027-02-30T00:00:00Z",
+    "2027-02-29T00:00:00Z",
+    "2027-01-01T00:00:00",
+    "2027-01-01T00:00:00+0200",
+  ]) {
+    denies(
+      () => requireFoundationGrant(grant({ revokedAt }), request()),
+      "FORBIDDEN",
+    );
+  }
+});
+
+test("valid leap days, offset ISO strings and Date objects retain exact expiry boundaries", () => {
+  const expiries = [
+    "2000-02-29T00:00:00Z",
+    "2028-02-29T00:00Z",
+    "2028-02-29T00:00:00Z",
+    "2028-02-29T00:00:00.123Z",
+    "2028-02-29T00:00:00.123456Z",
+    "2028-02-29T00:00:00+00:00",
+    "2028-02-29T00:00:00+05:30",
+    "2028-02-29T23:59:59-07:00",
+    "2028-03-01T00:00:00+14:00",
+    "2028-02-29T00:00:00-12:00",
+    new Date("2028-02-29T12:00:00Z"),
+  ];
+  for (const expiresAt of expiries) {
+    const instant =
+      expiresAt instanceof Date ? expiresAt.getTime() : Date.parse(expiresAt);
+    const justBefore = new Date(instant - 1);
+    const exactlyAt = new Date(instant);
+    assert.doesNotThrow(() =>
+      requireFoundationGrant(
+        grant({ expiresAt }),
+        request({ now: justBefore }),
+      ),
+    );
+    assert.doesNotThrow(() =>
+      requireFoundationReview(
+        memory(),
+        approval({ expiresAt }),
+        projectId,
+        justBefore,
+      ),
+    );
+    denies(
+      () =>
+        requireFoundationGrant(
+          grant({ expiresAt }),
+          request({ now: exactlyAt }),
+        ),
+      "EXPIRED",
+    );
+    denies(
+      () =>
+        requireFoundationReview(
+          memory(),
+          approval({ expiresAt }),
+          projectId,
+          exactlyAt,
+        ),
+      "APPROVAL_REQUIRED",
+    );
+  }
+});

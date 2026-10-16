@@ -232,7 +232,26 @@ export function foundationDigest(value: unknown): string {
 
 function instantMilliseconds(value: FoundationInstant): number {
   if (value instanceof Date) return value.getTime();
-  if (typeof value !== "string" || value.trim().length === 0) return Number.NaN;
+  if (typeof value !== "string") return Number.NaN;
+  const parts =
+    /^(\d{4})-(0[1-9]|1[0-2])-(0[1-9]|[12]\d|3[01])T(?:[01]\d|2[0-3]):[0-5]\d(?::[0-5]\d(?:\.\d+)?)?(?:Z|[+-](?:[01]\d|2[0-3]):[0-5]\d)$/.exec(
+      value,
+    );
+  if (!parts || parts[0] !== value) return Number.NaN;
+  const year = Number(parts[1]);
+  const month = Number(parts[2]);
+  const day = Number(parts[3]);
+  const leapYear = year % 4 === 0 && (year % 100 !== 0 || year % 400 === 0);
+  const daysInMonth =
+    month === 2
+      ? leapYear
+        ? 29
+        : 28
+      : [4, 6, 9, 11].includes(month)
+        ? 30
+        : 31;
+  // Date.parse normalizes impossible calendar days, so validate before conversion.
+  if (day > daysInMonth) return Number.NaN;
   return Date.parse(value);
 }
 
