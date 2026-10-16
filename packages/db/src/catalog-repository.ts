@@ -11,6 +11,10 @@ import {
 } from "@commandry/domain";
 import type { CommandryDatabase } from "./client";
 import {
+  canonicalResourceSummary as resourceSummary,
+  listCanonicalProjectResources,
+} from "./project-resource-query";
+import {
   domain,
   project,
   projectDomainLink,
@@ -95,18 +99,7 @@ function projectPresentationEventRecord(
   };
 }
 
-export function resourceSummary(row: typeof resource.$inferSelect) {
-  return {
-    id: row.id,
-    kind: row.kind,
-    name: row.name,
-    subtype: row.subtype,
-    parentResourceId: row.parentResourceId,
-    state: row.state,
-    externalUrl: row.externalUrl,
-    lastObservedAt: row.lastObservedAt?.toISOString() ?? null,
-  };
-}
+export { resourceSummary };
 
 type PageQuery = { limit: number; cursor?: string };
 
@@ -439,30 +432,7 @@ export function createCatalogRepository(db: CommandryDatabase) {
       return rows.length === 1;
     },
     async listProjectResourceLinks(projectId: string, input: PageQuery) {
-      const rows = await db
-        .select({ link: projectResourceLink, resource })
-        .from(projectResourceLink)
-        .innerJoin(resource, eq(projectResourceLink.resourceId, resource.id))
-        .where(
-          and(
-            eq(projectResourceLink.projectId, projectId),
-            eq(projectResourceLink.lifecycle, "active"),
-            input.cursor ? gt(projectResourceLink.id, input.cursor) : undefined,
-          ),
-        )
-        .orderBy(projectResourceLink.id)
-        .limit(input.limit + 1);
-      const page = rows.slice(0, input.limit);
-      return {
-        items: page.map(({ link, resource: linkedResource }) => ({
-          id: link.id,
-          type: link.type,
-          inverseType: projectResourceRelationship(link.type).inverseType,
-          resource: resourceSummary(linkedResource),
-        })),
-        nextCursor:
-          rows.length > input.limit ? (page.at(-1)?.link.id ?? null) : null,
-      };
+      return listCanonicalProjectResources(db, projectId, input);
     },
   };
 }
