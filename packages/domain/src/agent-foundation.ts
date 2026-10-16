@@ -3,6 +3,8 @@ import { createHash } from "node:crypto";
 export const FOUNDATION_OPERATIONS = Object.freeze([
   "foundation.read",
   "work.read",
+  "work.propose",
+  "work.proposal.review",
   "evidence.record",
   "memory.propose",
   "memory.revise",
@@ -95,6 +97,20 @@ export const FOUNDATION_OPERATION_POLICIES = Object.freeze({
     "read_only",
     "automatic_with_grant",
     "read_snapshot",
+  ),
+  // Task-only pending submission. No task creation, filing or execution grant.
+  "work.propose": operationPolicy(
+    "work.propose",
+    "reversible",
+    "automatic_with_grant",
+    "immutable_create",
+  ),
+  // Owner review binds an exact version; this declaration does not execute it.
+  "work.proposal.review": operationPolicy(
+    "work.proposal.review",
+    "sensitive",
+    "owner_only",
+    "expected_version",
   ),
   "evidence.record": operationPolicy(
     "evidence.record",

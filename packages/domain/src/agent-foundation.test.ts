@@ -82,6 +82,7 @@ function approval(
 }
 
 const ownerOnly: readonly FoundationOperation[] = [
+  "work.proposal.review",
   "memory.import",
   "memory.review",
   "memory.verify",
@@ -92,6 +93,8 @@ test("operation policies enumerate every operation without expanding owner autho
   assert.deepEqual(FOUNDATION_OPERATIONS, [
     "foundation.read",
     "work.read",
+    "work.propose",
+    "work.proposal.review",
     "evidence.record",
     "memory.propose",
     "memory.revise",
@@ -136,6 +139,186 @@ test("operation policies enumerate every operation without expanding owner autho
   }
   assert.ok(Object.isFrozen(FOUNDATION_OPERATION_POLICIES));
   assert.ok(Object.isFrozen(FOUNDATION_OPERATIONS));
+});
+
+test("task proposal submission and owner review have separate exact frozen policies", () => {
+  assert.deepEqual(FOUNDATION_OPERATION_POLICIES["work.propose"], {
+    scope: "project",
+    risk: "reversible",
+    requiredCapability: "work.propose",
+    approval: "automatic_with_grant",
+    auditEvent: "work.propose",
+    concurrency: "immutable_create",
+    idempotency: "principal_operation_key",
+  });
+  assert.deepEqual(FOUNDATION_OPERATION_POLICIES["work.proposal.review"], {
+    scope: "project",
+    risk: "sensitive",
+    requiredCapability: "work.proposal.review",
+    approval: "owner_only",
+    auditEvent: "work.proposal.review",
+    concurrency: "expected_version",
+    idempotency: "principal_operation_key",
+  });
+  for (const operation of ["work.propose", "work.proposal.review"] as const) {
+    const policy = FOUNDATION_OPERATION_POLICIES[operation];
+    assert.ok(Object.isFrozen(policy));
+    assert.equal(
+      Reflect.set(policy, "approval", "automatic_with_grant"),
+      false,
+    );
+    assert.equal(Reflect.set(policy, "risk", "read_only"), false);
+  }
+});
+
+test("existing read grants gain neither task submission nor owner review authority", () => {
+  for (const operation of ["foundation.read", "work.read"] as const) {
+    const operations = Object.freeze([operation]);
+    const existingGrant = Object.freeze(grant({ operations }));
+    assert.equal(
+      requireFoundationGrant(existingGrant, request({ operation })),
+      undefined,
+    );
+    for (const requested of ["work.propose", "work.proposal.review"] as const) {
+      denies(
+        () =>
+          requireFoundationGrant(
+            existingGrant,
+            request({ operation: requested }),
+          ),
+        "FORBIDDEN",
+      );
+    }
+    assert.deepEqual(existingGrant.operations, [operation]);
+  }
+});
+
+test("task proposal grants allow only their exact project and environment", () => {
+  const environments = ["local", "test", "preview", "production"] as const;
+  const operations = Object.freeze(["work.propose"] as const);
+  for (const environment of environments) {
+    const proposalGrant = Object.freeze(grant({ operations, environment }));
+    const proposalRequest = request({ operation: "work.propose", environment });
+    assert.equal(
+      requireFoundationGrant(proposalGrant, proposalRequest),
+      undefined,
+    );
+    denies(
+      () =>
+        requireFoundationGrant(proposalGrant, {
+          ...proposalRequest,
+          projectId: otherProjectId,
+        }),
+      "FORBIDDEN",
+    );
+    for (const mismatch of environments.filter(
+      (value) => value !== environment,
+    )) {
+      denies(
+        () =>
+          requireFoundationGrant(proposalGrant, {
+            ...proposalRequest,
+            environment: mismatch,
+          }),
+        "FORBIDDEN",
+      );
+    }
+    for (const requested of FOUNDATION_OPERATIONS.filter(
+      (value) => value !== "work.propose",
+    )) {
+      denies(
+        () =>
+          requireFoundationGrant(
+            proposalGrant,
+            request({ operation: requested, environment }),
+          ),
+        "FORBIDDEN",
+      );
+    }
+    assert.deepEqual(proposalGrant.operations, ["work.propose"]);
+  }
+});
+
+test("task proposal submission requires live expiry, no revocation and valid time", () => {
+  const proposalRequest = request({ operation: "work.propose" });
+  const proposalGrant = grant({ operations: ["work.propose"] });
+  assert.equal(
+    requireFoundationGrant(
+      { ...proposalGrant, expiresAt: new Date(now.getTime() + 1) },
+      proposalRequest,
+    ),
+    undefined,
+  );
+  for (const expiresAt of [
+    now,
+    new Date(now.getTime() - 1),
+    "2026-10-15T14:00:00+02:00",
+  ]) {
+    denies(
+      () =>
+        requireFoundationGrant(
+          { ...proposalGrant, expiresAt },
+          proposalRequest,
+        ),
+      "EXPIRED",
+    );
+  }
+  denies(
+    () =>
+      requireFoundationGrant(
+        {
+          ...proposalGrant,
+          expiresAt: "2026-10-15T12:00:00.099999999999999999Z",
+        },
+        { ...proposalRequest, now: new Date(now.getTime() + 100) },
+      ),
+    "EXPIRED",
+  );
+  for (const revokedAt of [now, "2026-10-15T13:00:00Z"]) {
+    denies(
+      () =>
+        requireFoundationGrant(
+          { ...proposalGrant, revokedAt },
+          proposalRequest,
+        ),
+      "REVOKED",
+    );
+  }
+  for (const expiresAt of ["invalid", "2026-02-30T12:00:00Z"]) {
+    denies(
+      () =>
+        requireFoundationGrant(
+          { ...proposalGrant, expiresAt },
+          proposalRequest,
+        ),
+      "FORBIDDEN",
+    );
+  }
+  denies(
+    () =>
+      requireFoundationGrant(proposalGrant, {
+        ...proposalRequest,
+        now: new Date(NaN),
+      }),
+    "FORBIDDEN",
+  );
+});
+
+test("a forged proposal review capability still cannot authorize a machine", () => {
+  for (const operations of [
+    ["work.proposal.review"],
+    ["work.propose", "work.proposal.review"],
+    ["foundation.read", "work.read", "work.proposal.review"],
+  ] as const) {
+    denies(
+      () =>
+        requireFoundationGrant(
+          grant({ operations }),
+          request({ operation: "work.proposal.review" }),
+        ),
+      "FORBIDDEN",
+    );
+  }
 });
 
 test("foundation credentials hash exact validated af_ bytes without exposing them in errors", () => {
