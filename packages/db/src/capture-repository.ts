@@ -9,6 +9,10 @@ import {
 } from "@commandry/domain";
 import type { CommandryDatabase } from "./client";
 import {
+  canonicalWorkRecord as workRecord,
+  listCanonicalProjectWork,
+} from "./project-work-query";
+import {
   capture,
   captureFile,
   knowledgeItem,
@@ -54,40 +58,6 @@ export function captureRecord(
         : null,
     createdAt: row.createdAt.toISOString(),
     filedAt: row.filedAt?.toISOString() ?? null,
-  };
-}
-
-function workRecord(
-  row: typeof workItem.$inferSelect,
-  context?: typeof workProjectLink.$inferSelect | null,
-) {
-  return {
-    id: row.id,
-    projectId: row.projectId,
-    sourceCaptureId: row.sourceCaptureId,
-    title: row.title,
-    description: row.description,
-    workType: row.workType,
-    generatedFromWorkItemId: row.generatedFromWorkItemId,
-    assigneeKind: row.assigneeKind,
-    assigneeAgentId: row.assigneeAgentId,
-    assigneeLabel: row.assigneeLabel,
-    status: row.status,
-    priority: row.priority,
-    dueOn: row.dueOn,
-    ...(context !== undefined
-      ? {
-          contextLink: context
-            ? {
-                id: context.id,
-                projectId: context.projectId,
-                createdAt: context.createdAt.toISOString(),
-              }
-            : null,
-        }
-      : {}),
-    createdAt: row.createdAt.toISOString(),
-    updatedAt: row.updatedAt.toISOString(),
   };
 }
 
@@ -444,52 +414,7 @@ export function createCaptureRepository(db: CommandryDatabase) {
       });
     },
     async listProjectWork(projectId: string, input: PageQuery) {
-      const [anchor] = input.cursor
-        ? await db
-            .select({ createdAt: workItem.createdAt })
-            .from(workItem)
-            .where(
-              and(
-                eq(workItem.id, input.cursor),
-                or(
-                  eq(workItem.projectId, projectId),
-                  sql`exists (select 1 from work_project_link context where context.work_item_id = ${workItem.id} and context.project_id = ${projectId}::uuid and context.lifecycle = 'active')`,
-                ),
-              ),
-            )
-            .limit(1)
-        : [];
-      if (input.cursor && !anchor) return { items: [], nextCursor: null };
-      const rows = await db
-        .select({ item: workItem, context: workProjectLink })
-        .from(workItem)
-        .leftJoin(
-          workProjectLink,
-          and(
-            eq(workProjectLink.workItemId, workItem.id),
-            eq(workProjectLink.projectId, projectId),
-            eq(workProjectLink.lifecycle, "active"),
-          ),
-        )
-        .where(
-          and(
-            or(
-              eq(workItem.projectId, projectId),
-              isNotNull(workProjectLink.id),
-            ),
-            anchor
-              ? sql`(${workItem.createdAt}, ${workItem.id}) < (${anchor.createdAt}, ${input.cursor}::uuid)`
-              : undefined,
-          ),
-        )
-        .orderBy(desc(workItem.createdAt), desc(workItem.id))
-        .limit(input.limit + 1);
-      const page = rows.slice(0, input.limit);
-      return {
-        items: page.map(({ item, context }) => workRecord(item, context)),
-        nextCursor:
-          rows.length > input.limit ? (page.at(-1)?.item.id ?? null) : null,
-      };
+      return listCanonicalProjectWork(db, projectId, input);
     },
     async listProjectKnowledge(projectId: string, input: PageQuery) {
       const [anchor] = input.cursor
