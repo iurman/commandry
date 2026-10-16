@@ -386,19 +386,50 @@ test("Gravity uses canonical resources, persisted appearance, focus and truthful
     gravity.getByRole("button", { name: "Close focus lens", exact: true }),
   ).toBeVisible();
   await gravity.locator("canvas").scrollIntoViewIfNeeded();
-  await expect
-    .poll(async () =>
-      gravity.locator(".cmd-gravity-lens").evaluate((element) => {
-        const stage = element.parentElement!.getBoundingClientRect();
-        return (
-          Math.abs(
-            element.getBoundingClientRect().width -
-              Math.min(stage.height * 0.72, stage.width * 0.62),
-          ) < 1
-        );
-      }),
-    )
-    .toBe(true);
+  let lastLensGeometry: unknown;
+  try {
+    await expect
+      .poll(async () => {
+        const geometry = await gravity
+          .locator(".cmd-gravity-lens")
+          .evaluate((element) => {
+            const parent = element.parentElement!;
+            const stage = parent.getBoundingClientRect();
+            const container = parent.querySelector(".cmd-gravity-canvas");
+            const renderedWidth = element.getBoundingClientRect().width;
+            const expectedWidth = Math.min(
+              stage.height * 0.72,
+              stage.width * 0.62,
+            );
+            const delta = Math.abs(renderedWidth - expectedWidth);
+            const style = getComputedStyle(element);
+            return {
+              settled: delta < 1,
+              renderedWidth,
+              expectedWidth,
+              delta,
+              stageWidth: stage.width,
+              stageHeight: stage.height,
+              containerWidth: container?.clientWidth ?? null,
+              containerHeight: container?.clientHeight ?? null,
+              inlineWidth: (element as HTMLElement).style.width,
+              computedWidth: style.width,
+              transform: style.transform,
+              opacity: style.opacity,
+              documentHidden: document.hidden,
+            };
+          });
+        lastLensGeometry = geometry;
+        return geometry.settled;
+      })
+      .toBe(true);
+  } catch (error) {
+    console.error(
+      "Focus lens geometry at failure:",
+      JSON.stringify(lastLensGeometry),
+    );
+    throw error;
+  }
   await gravity
     .getByRole("button", { name: "Close focus lens", exact: true })
     .click();
