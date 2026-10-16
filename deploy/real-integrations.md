@@ -2,7 +2,7 @@
 
 **Status: Operational**
 
-**Updated:** 2026-10-15
+**Updated:** 2026-10-16
 
 Production now uses public GitHub repository activity and an unprivileged
 Linux host receiver at `https://commandry.site`. Initial activation used reviewed
@@ -47,6 +47,19 @@ only continuation pages for the configured repository. The provider exposes
 up to 300 events from the last 30 days and may delay activity. It is an
 activity feed, not a complete repository mirror or an immediate merge hook.
 See [GitHub's Events API](https://docs.github.com/en/rest/activity/events).
+
+GitHub may identify the configured repository by its numeric ID in a
+continuation link. The reader accepts that form only when every event on the
+page carries the same numeric repository ID and the configured repository
+name. Requests still use the configured owner/name path; a returned link never
+changes the requested host or repository. Invalid or conflicting continuation
+identity remains a source error, with prior evidence retained. Agents can read
+imported activity and provenance through the existing project brief and resource
+evidence. Detailed poll-error inspection and source configuration remain owner
+operations in Integrations and the ordinary owner API. Direct scoped MCP reads
+of source health remain a follow-up; this ingestion repair does not implicitly
+expand existing machine grants. Source freshness still does not establish
+service availability, and this repair adds no external action.
 
 The Linux collector reads `/proc/meminfo`, `/proc/uptime`, `/proc/loadavg` and
 filesystem counters for `/`. It needs no root access, Docker socket, SSH key
