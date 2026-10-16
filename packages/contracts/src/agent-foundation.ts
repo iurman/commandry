@@ -35,6 +35,7 @@ const verification = z.enum([
 export const foundationOperationSchema = z.enum([
   "foundation.read",
   "work.read",
+  "resources.read",
   "work.propose",
   "work.proposal.read",
   "work.proposal.review",
