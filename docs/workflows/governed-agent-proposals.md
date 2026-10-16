@@ -1,22 +1,22 @@
 # Governed agent proposals
 
-**Status: Operational source contract. Production activation of these three
-workflows has not been verified.**
+**Status: Operational. Production activation verified 2026-10-16.**
 
 This is the workflow home for evaluation-backed improvement proposals, cited
-finding proposals and reviewed host-onboarding changesets. The source implements
+finding proposals and reviewed host-onboarding changesets. The release deploys
 their shared application services, owner routes and eight opt-in MCP tools.
-Full integration, upgrade, built HTTP/browser and release verification remain
-separate delivery gates. A merge or a successful local rehearsal does not
-establish live availability.
+The [activation record](../architecture/agent-foundation.md#governed-proposal-activation-2026-10-16)
+records exact integration, upgrade, built SDK/HTTP/browser, release and
+constrained production evidence. It distinguishes disposable write rehearsals
+from live owner reads; no production proposal or decision was created for QA.
 
-The verified production baseline is PR 13 at
-`5ffca1dee591051625f60c780fccb20f5f58f600`, with 22 foundation tools and nine
-explicit machine capability choices. The expanded source defines 30 tools and
-15 choices. Discover the actual server before using the additions. The four
-native `ck_` knowledge tools retain their existing scope. The
-[foundation architecture](../architecture/agent-foundation.md) records release
-evidence and shared transaction boundaries.
+The current application is PR 16 at
+`1859d261d3e86e9dfa29e89ac846f06d7d90d1ff`, with 30 optional foundation tools
+and 15 explicit machine capability choices. Discover the actual server and exact
+grants before using them. Existing clients gain no additional operations.
+The four native `ck_` knowledge tools retain their existing scope. The
+[foundation architecture](../architecture/agent-foundation.md) records shared
+transaction boundaries and historical releases.
 
 For existing evidence, configuration, evaluation, assertion and task workflows,
 start with the [agent foundation workflow](agent-foundation.md). The
@@ -63,7 +63,7 @@ authority from these workflows.
 
 ## Owner entry points and HTTP contract
 
-In the source UI, Account links to `/foundation/workflows`. Select the exact
+Account links to `/foundation/workflows`. Select the exact
 project, following project and proposal continuations, to inspect improvements
 and onboarding proposals. Finding submissions open the owner Inbox at
 `/inbox?captureId=...` and use strict canonical proposal routing alongside

@@ -3,12 +3,13 @@
 **Status: Operational implementation. Production release verified 2026-10-16.**
 
 This document describes the shared application and PostgreSQL foundation.
-Thirty opt-in MCP tools and authenticated owner HTTP operations are defined in
-the source through shared records and application services. The verified
-production baseline exposes twenty-two tools; the eight governed proposal tools
-await their separate activation evidence. The reviewed prior foundation release is
-deployed; [activation evidence](#production-activation-2026-10-16) distinguishes
-production checks from disposable tool/write rehearsals. No private memory import
+Thirty opt-in MCP tools and authenticated owner HTTP operations are deployed
+through shared records and application services. The
+[governed proposal activation](#governed-proposal-activation-2026-10-16) records
+the current release and fifteen explicit machine capability choices. Existing
+clients receive no additional grants. Historical
+[activation evidence](#production-activation-2026-10-16) and the current release
+record distinguish production reads from disposable tool/write rehearsals. No private memory import
 or evaluation execution was performed. The existing [knowledge MCP](knowledge-mcp.md) retains its
 four read tools and existing scope. The approved
 [campaign plan](../plans/agent-memory-mcp-foundation/PLAN.md) tracks the remaining
@@ -458,7 +459,7 @@ MCP still returned the authorized project and its source-cited brief.
 No foundation credential was issued, no private corpus imported, no standing
 grant expanded and no inference or installation performed during this release.
 The 21-tool/write/retry and owner decision acceptance remains attributed to the
-exact-image disposable SDK/HTTP/browser rehearsals, not a production write test.
+exact-release-source disposable SDK/HTTP/browser rehearsals, not a production write test.
 Reviewed source and full regression evidence preceded release. Broader product
 MCP coverage and candidate installation/adoption remain separate follow-ups.
 Cited finding and reviewed inventory source workflows now have a
@@ -580,3 +581,63 @@ adoption and wider product MCP coverage remain unfinished. No standing foundatio
 private import, skill installation or inference run was introduced. First
 external-client adoption and private-memory selection remain explicit owner
 choices; they do not block independent engineering.
+
+## Governed proposal activation, 2026-10-16
+
+[PR 16](https://github.com/iurman/commandry/pull/16) was normally merged as
+`1859d261d3e86e9dfa29e89ac846f06d7d90d1ff`, preserving both the prior target
+and reviewed source as ancestors. Attempt 1 of the exact
+[release workflow](https://github.com/iurman/commandry/actions/runs/38947694401)
+passed, including 195 browser cases with three existing skips, both disposable
+authentication-mode governed SDK/HTTP/owner-browser rehearsals, production
+service rehearsal, image security gates and clean provenance. The workflow
+published and read back the tested immutable image:
+`ghcr.io/iurman/commandry@sha256:a37abd2e4ad8a6880db7410767ebd47116fa43e92fc59111c578e890117baa1c`.
+
+The constrained deployment completed its application smoke at
+`2026-10-16T18:47:42.144Z`. Fresh encrypted offsite backup, isolated restore and
+host recovery passed before candidate startup. Actual owner sign-in,
+authenticated read, worker completion and probe-session revocation passed
+before ingress reopened. The original PostgreSQL volume, bootstrap and cluster
+identity and existing deployment controls were preserved; the unrelated
+Ephemera database remained running. Code rollback retains the prior image;
+it does not reverse migrations.
+
+Migrations 0064 through 0067 add the proposal and identity records, same-project
+constraints, immutable histories and an expanded explicit operation whitelist.
+They assign no additional operations to existing clients. The real PostgreSQL
+audit ran all 68 migrations twice from clean state and upgraded a populated
+0063 database twice, preserving complete snapshots of 21 existing tables,
+old grants and historical receipts. Thirteen new tables mirrored named runtime
+DML grants without PUBLIC or DDL expansion. Actual cited filing and reviewed
+inventory reuse/apply passed in that disposable audit.
+
+Live reads preserved all 91 resources, 15 projects, five sources and canonical
+names, parents and memberships. Four hosts continued reporting four real
+capacity metrics each; service health remained unknown. All fifteen owner
+client inventories were empty. Improvement and onboarding lists succeeded
+for every project with `no-store`; missing workflow records returned
+`404 NOT_FOUND` with `no-store`. Credentialless foundation MCP returned
+`401 INVALID_CREDENTIAL`, and native legacy project/brief reads passed.
+The signed-in browser loaded Account's fifteen explicit choices, with only
+`foundation.read` selected by default, empty Commandry improvement/onboarding
+views and the existing Gravity wallboard. No production proposal, decision or
+inventory record was created for QA, and no foundation credential was issued.
+
+Independent source reviews passed after retained corrections. Local check and
+build passed with 61 nonfatal lint warnings and no lint errors. Tests passed:
+1,818 workspace, 33 lab, 130 Node and 234 PostgreSQL, with one explicit unavailable
+live-input skip. Actual built SDK/HTTP/browser flows passed both disposable
+authentication modes, including lost committed receipts, exact retry,
+stale report refusal and separate onboarding review/apply. Light/dark desktop
+and phone captures were visually inspected. These are fixture rehearsals, not
+measured model execution or production write acceptance. The earlier
+intermittent 320-pixel Gravity focus-lens failure remains unresolved; this
+release's passing matrix preserves its strict assertion and diagnostics.
+
+The [governed proposal workflow](../workflows/governed-agent-proposals.md)
+is now available with exact optional grants. Broader product MCP coverage,
+external operational adapters and selected-runtime installation/invocation or
+adoption remain separate work. First-client scope/runtime and private Mnemosyne
+cohort/disclosure remain explicit owner choices. No private corpus, external
+skill installation or model inference was introduced by this release.
