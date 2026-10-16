@@ -181,6 +181,7 @@ export async function foundationClientsBrowserSmoke(
       panel.getByRole("checkbox", { name: "foundation.read", exact: true }),
     ).toBeChecked();
     for (const operation of [
+      "resources.read",
       "work.read",
       "work.propose",
       "evidence.record",
@@ -195,6 +196,9 @@ export async function foundationClientsBrowserSmoke(
     }
     await panel
       .getByRole("checkbox", { name: "work.read", exact: true })
+      .check();
+    await panel
+      .getByRole("checkbox", { name: "resources.read", exact: true })
       .check();
     const name = "Browser owner-issued scoped client";
     await panel.getByLabel("Client name", { exact: true }).fill(name);
@@ -235,6 +239,18 @@ export async function foundationClientsBrowserSmoke(
       );
       assert.ok(tools.length > 0);
       assert.ok(tools.some((tool) => tool.name === "list_project_work"));
+      assert.ok(tools.some((tool) => tool.name === "list_project_resources"));
+      const resourceResult = await mcp.callTool({
+        name: "list_project_resources",
+        arguments: {},
+      });
+      assert.notEqual(resourceResult.isError, true);
+      assert.equal(
+        resourceResult.structuredContent.requestedProjectId,
+        project.id,
+      );
+      assert.equal(resourceResult.structuredContent.consistency, "live");
+      assert.deepEqual(resourceResult.structuredContent.items, []);
       assert.equal(
         tools.some((tool) => /^(record_|propose_|revise_)/.test(tool.name)),
         false,

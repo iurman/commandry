@@ -34,6 +34,7 @@ export async function POST(
       evaluation,
       inventory,
       work,
+      resources,
       proposals,
       context: workingContext,
     } = getFoundationServices();
@@ -44,6 +45,7 @@ export async function POST(
           evaluation,
           inventory,
           work,
+          resources,
           proposals,
           context: workingContext,
         }),

@@ -315,12 +315,12 @@ function records(
 
 /** One connection and transaction through grant, memory/source locks, selection
  * and audit. The caller supplies only a credential digest, never an actor grant. */
-/** Trusted server composition only. Both read surfaces retain the same grant
+/** Trusted server composition only. All separately granted read surfaces retain the same grant
  * locks, expiry checks, rollback and audit transaction. JSON input cannot supply
  * a factory or choose an operation outside its separately issued grant. */
 export function createFoundationProjectReadAccessRepository<Records>(
   db: CommandryDatabase,
-  requiredOperation: "foundation.read" | "work.read",
+  requiredOperation: "foundation.read" | "work.read" | "resources.read",
   makeRecords: (
     tx: FoundationTransaction,
     request: FoundationMachineRequest,
@@ -332,7 +332,8 @@ export function createFoundationProjectReadAccessRepository<Records>(
 ) {
   if (
     requiredOperation !== "foundation.read" &&
-    requiredOperation !== "work.read"
+    requiredOperation !== "work.read" &&
+    requiredOperation !== "resources.read"
   )
     throw new FoundationError("FORBIDDEN");
   const now = options.now ?? (() => new Date());

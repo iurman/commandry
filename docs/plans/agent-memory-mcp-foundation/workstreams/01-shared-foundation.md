@@ -1,7 +1,6 @@
 # Workstream 1: shared contracts and evidence foundation
 
-**Status: Active workstream. The first contract/domain slice is locally verified
-and independently reviewed; application services and persistence remain in progress.**
+**Status: Reviewed shared application, authorization and PostgreSQL foundation released in PR 11. Remaining broader product scope is tracked in the master plan.**
 
 **Model:** GPT-6.1 Sol, ultra. Independent checkpoint review: GPT-6 Astra, ultra.
 

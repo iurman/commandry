@@ -1,12 +1,13 @@
 # Agent foundation
 
-**Status: Operational local implementation. Not production activation.**
+**Status: Operational implementation. Production release verified 2026-10-16.**
 
-This document describes the shared application and PostgreSQL foundation on the
-agent-memory campaign branch. Twenty-one opt-in MCP tools and authenticated owner
-HTTP operations use the shared records and application services. This is local
-implementation evidence, not production activation, private memory import or
-evaluation execution. The existing [knowledge MCP](knowledge-mcp.md) retains its
+This document describes the shared application and PostgreSQL foundation.
+Twenty-one opt-in MCP tools and authenticated owner HTTP operations use the
+shared records and application services. The reviewed foundation release is
+deployed; [activation evidence](#production-activation-2026-10-16) distinguishes
+production checks from disposable tool/write rehearsals. No private memory import
+or evaluation execution was performed. The existing [knowledge MCP](knowledge-mcp.md) retains its
 four read tools and existing scope. The approved
 [campaign plan](../plans/agent-memory-mcp-foundation/PLAN.md) tracks the remaining
 broader finding coverage, adoption, candidate and release work.
@@ -402,3 +403,75 @@ storage and exact-key retry. Its default source is self-contained synthetic data
 selection for a real-source disposable pilot. No skill is installed or invoked.
 CLI corruption/retry tests run with `pnpm test:foundation-registry` and are also
 part of `pnpm test`.
+
+## Production activation, 2026-10-16
+
+The owner-authorized release completed at 2026-10-16T13:33:13Z from main
+`e472f843c5f20961d03af7d15b540f9ba791649b`, merged in
+[PR 11](https://github.com/iurman/commandry/pull/11). The successful
+[release workflow](https://github.com/iurman/commandry/actions/runs/38905434354)
+published and read back the exact tested image
+`ghcr.io/iurman/commandry@sha256:e45f8d000cfeeab54b916d2dfa0eb3c1bcd346a6af3c402b411aaf81dbdd7476`.
+
+The existing constrained deployment identity verified fresh encrypted offsite
+backup, isolated restore and host recovery drill before migration and candidate
+startup. Exact-version owner sign-in, authenticated application read, worker job
+completion and probe-session revocation passed before ingress reopened. The
+release required no new owner bootstrap and no rollback. These checks do not
+prove recovery after complete loss of VPS access.
+
+Post-release authenticated API reads preserved all 91 resource IDs, names,
+parents and project memberships, all 15 projects and five integration sources.
+Four hosts continued reporting four real capacity metrics each; service health
+remained unknown. The existing signed-in browser loaded Gravity, Account scoped
+client controls and selected import. Owner client reads succeeded for all 15
+projects, with zero standing foundation clients. Credentialless foundation MCP
+returned `401 INVALID_CREDENTIAL` with `no-store`. The existing native knowledge
+MCP still returned the authorized project and its source-cited brief.
+
+No foundation credential was issued, no private corpus imported, no standing
+grant expanded and no inference or installation performed during this release.
+The 21-tool/write/retry and owner decision acceptance remains attributed to the
+exact-image disposable SDK/HTTP/browser rehearsals, not a production write test.
+Reviewed source and full regression evidence preceded release. Broader product
+MCP coverage, finding/citation proposals, candidate promotion and reviewed host
+onboarding remain separate follow-ups.
+
+## Canonical project resource reads
+
+The follow-up `resources.read` capability is separate from `foundation.read`
+and `work.read`. The shared application service and locked read adapter use the
+same transaction-local canonical project-resource query as the UI. The eligible
+population is every active connection in the requested project, across all
+resource kinds and recorded states. Connections, not unique resources, are the
+records: two different relationships to one resource remain two records. No
+primary project is assigned to a resource by this view.
+
+`list_project_resources` requires both the current explicit grant and the actual
+supplied application service. The operation is read-only, automatic with that
+grant, and audits `resources.read`. Machine clients cannot select actor,
+environment, credential scope or an alternative operation. Migration 0063 only
+adds the ninth permitted grant choice; it does not update any existing client.
+Account leaves the new choice unchecked by default.
+
+The strict response includes canonical connection/resource metadata, a SHA-256
+content digest for each complete connection, actual `selectedAt`, `consistency:
+"live"`, and structured project-bound continuation. Follow every `nextCursor`
+until null. Ordering uses active connection UUID ascending; the adapter validates
+the actual active anchor in that project. An absent, foreign or archived anchor
+returns `INVALID_REFERENCE` and requires restart. This live traversal has no
+snapshot cutoff and can change between pages.
+
+`parentResourceId` remains an opaque relationship reference. It does not grant
+parent or child reads. This projection performs no hierarchy traversal, source
+content disclosure, telemetry lookup, external URL fetch, health interpretation
+or resource mutation. Canonical recorded states are preserved, including null
+and archived resource states when their project connection remains active.
+Malformed internal producer output is unavailable, not a caller validation
+error. Grant, audit and deadline checks remain active through transaction commit
+and application delivery.
+
+The [resource workflow](../workflows/agent-foundation.md#read-canonical-project-resource-connections)
+records how an agent discovers and continues this population. This follow-up is
+not part of the production activation revision recorded above; separate release
+evidence is required before describing it as deployed.

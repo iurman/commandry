@@ -104,6 +104,24 @@ in dependency order, parallelizing independent work after shared contracts are
 pinned. Aim for useful, tested vertical slices rather than claiming the entire
 product can be finished in one night.
 
+## Verified foundation release, October 16
+
+The reviewed foundation was normally merged in PR 11 and deployed at
+2026-10-16T13:33:13Z from `e472f843c5f20961d03af7d15b540f9ba791649b`.
+The [activation record](../../architecture/agent-foundation.md#production-activation-2026-10-16)
+records exact image/workflow, fresh backup/restore gates and live verification.
+All 91 resources, 15 projects and five sources were preserved. Owner Account
+and scoped client reads work; zero standing foundation clients were issued.
+Existing native knowledge MCP still works. No private corpus, installation or
+inference was performed. Earlier local checkpoints above remain historical.
+
+Canonical resource reads are a separate explicit `resources.read` follow-up.
+They reuse the UI population and preserve distinct relationships to one resource.
+Independent application and real PostgreSQL checks passed; build/full regression
+and both-mode transport evidence must be recorded separately before release.
+Verified finding/citation proposals, actual adoption/native invocation, candidate
+association/promotion and reviewed onboarding remain unfinished campaign scope.
+
 ## Non-goals
 
 - Replacing Codex, Claude Code, GitHub, Workstream or infrastructure platforms.

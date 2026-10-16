@@ -8,6 +8,7 @@ import {
   createFoundationInventoryService,
   createFoundationGeneralContextService,
   createFoundationWorkService,
+  createFoundationResourceService,
   createFoundationTaskProposalService,
   createMnemosyneSelectedImportService,
   FoundationImportUnavailableError,
@@ -18,6 +19,7 @@ import {
   createFoundationEvaluationAccessRepository,
   createFoundationReadAccessRepository,
   createFoundationWorkReadAccessRepository,
+  createFoundationResourceReadAccessRepository,
   createFoundationTaskProposalAccessRepository,
   createFoundationSelectedImportRepository,
 } from "@commandry/db";
@@ -64,6 +66,10 @@ export function getFoundationServices() {
     ),
     proposals: createFoundationTaskProposalService(
       createFoundationTaskProposalAccessRepository(db),
+      options,
+    ),
+    resources: createFoundationResourceService(
+      createFoundationResourceReadAccessRepository(db),
       options,
     ),
     work: createFoundationWorkService(
