@@ -443,6 +443,7 @@ export default function AutomationsPage() {
             <select
               id="automation-project"
               onChange={(event) => {
+                if (event.target.value === projectId) return;
                 setProjectId(event.target.value);
                 setConditionResourceId("");
                 setConditionResources([]);
