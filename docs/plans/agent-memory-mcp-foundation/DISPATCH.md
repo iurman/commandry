@@ -153,6 +153,28 @@ heartbeat using the app's automation tool and record its lifecycle. No heartbeat
 or background monitor was created during the earlier planning hold. Record any
 subsequently created watcher in the private campaign ledger.
 
+### Verified execution adaptation
+
+The first native chat repeatedly received workspace-only runtime permissions,
+even after a fresh session with Full Access selected in the app. Its stale
+approval was canceled without approving the command. Its worktree, branch and
+task artifacts were preserved, and the chat is now idle as a handoff record.
+
+The command center independently checked a bounded internal-worker probe. The
+worker received `danger-full-access` and model-visible approval policy `never`,
+ran its scratch command without escalation, and produced a passing review packet.
+The first two implementation workers separately verified the same runtime.
+
+Actual implementation now uses these scoped internal workers under the command
+center, keeping the planned models, exact manifests, isolated task worktrees,
+independent review and dependency order. Do not resume command execution in the
+native chat or launch more native implementation chats through the unverified
+path. This change does not fix the app's launcher or broaden action authority.
+Later wakeups must verify their own runtime before dispatch and consult the
+private ledger and live-agent inventory to avoid duplicate work. A completed
+worker's saved artifacts can be reviewed or resumed without relying on a
+user-facing chat remaining active.
+
 The heartbeat, if authorized, should inspect only this campaign, release ready
 dependencies, integrate/review tested slices and preserve the human-only queue.
 It should remain quiet while state is unchanged and notify only for meaningful

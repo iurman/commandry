@@ -3530,3 +3530,5 @@ export * from "./real-integrations";
 export * from "./knowledge-access";
 
 export * from "./infrastructure-overview";
+
+export * from "./agent-foundation";

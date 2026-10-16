@@ -1,6 +1,7 @@
 # Workstream 1: shared contracts and evidence foundation
 
-**Status: Proposed dispatch brief. Not launched.**
+**Status: Active workstream. The first contract/domain slice is locally verified
+and independently reviewed; application services and persistence remain in progress.**
 
 **Model:** GPT-6.1 Sol, ultra. Independent checkpoint review: GPT-6 Astra, ultra.
 

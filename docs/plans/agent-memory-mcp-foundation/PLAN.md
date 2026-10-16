@@ -11,6 +11,24 @@ overnight follow-up. Implementation should proceed under the recorded scope;
 exact production action and disclosure gates still apply. Launch evidence belongs
 in the command center's private campaign ledger.
 
+**Execution adaptation:** Native chat creation delivered interactive workspace
+permissions despite the intended Full Access mode. After preserving and idling
+that chat, the command center verified internal workers with actual Full Access
+and approval policy `never`. Implementation uses that verified worker path under
+this command center; the workstream scope, models, isolation, dependencies and
+verification gates are unchanged. See [DISPATCH.md](DISPATCH.md#verified-execution-adaptation).
+
+## First local checkpoint
+
+The first contract/domain slice is implemented on the campaign branch. Seventy
+focused tests and both package TypeScript checks passed. Independent source
+review found and verified corrections for UUID identity spelling and invalid
+calendar expiry inputs. This checkpoint contains declarations and domain policy;
+it does not provide persisted memory, new MCP tools or production capability.
+Application services, PostgreSQL persistence and their adversarial integration
+checks are the next workstream 1 tasks. Detailed local evidence is retained in
+the command center's private campaign ledger.
+
 ## Goal
 
 Make Commandry a useful, source-backed second brain that separately authorized

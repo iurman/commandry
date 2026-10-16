@@ -44,3 +44,5 @@ export * from "./project-presentation";
 export * from "./real-integrations";
 
 export * from "./knowledge-access";
+
+export * from "./agent-foundation";
