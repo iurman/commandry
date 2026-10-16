@@ -44,6 +44,26 @@ file-input overflow was corrected; invalid test anchors, fixture population
 assumptions and an MCP argument typo were fixed without weakening product guards.
 No private corpus, model inference or production change is part of this proof.
 
+## Canonical Work integration checkpoint
+
+The local foundation now has twenty opt-in MCP tools. `list_project_work`
+requires an explicit `work.read` grant and the actual supplied service; no old
+credential expands. Migration 0061 changes only the client operation whitelist.
+The UI and MCP share the canonical primary-or-active-related Work query, with
+full PostgreSQL timestamp precision and live structured continuation. Original
+capture bytes remain excluded and related primary ownership is preserved.
+
+Independent DTO, application and shared database/transport reviews passed.
+Actual PostgreSQL reached all 137 eligible Work items across six pages and
+verified grant/audit lock waits, expiry, strict cursor restart and populated
+0060 upgrade preservation. Actual built SDK tests compared all 32 fixture Work
+records with the UI in both disposable authentication modes. Account explicitly
+selected the new grant, then completed credential dismissal/revocation and
+light/dark 1440/390/320 checks. Full check/build, 1117 workspace and 33 lab tests,
+130 Node checks, and PostgreSQL 139 pass/one explicit live-input skip passed.
+This is local evidence; production activation and canonical proposals remain
+separate work.
+
 ## Actual interfaces
 
 The public `@commandry/contracts` barrel exports the strict schemas and types

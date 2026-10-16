@@ -66,10 +66,20 @@ Separate HTTP tests recovered all 68 ordered originals and exercised exact
 historical retry, source revision and owner correction protection. No private
 corpus was selected or production import performed.
 
+The separately granted Work read now reuses the canonical project population
+through the UI's transaction-local query. The complete local surface has twenty
+opt-in tools; old six-choice credentials retain their nineteen-tool population.
+Actual disposable SDK/HTTP tests compared 32 canonical Work records across three
+pages with the UI, including related primary ownership, exact digests, cursor
+invalidation and revocation. Account explicitly exercised the new unchecked-by-
+default Work grant in both disposable authentication modes. Full check/build,
+1117 workspace tests, 33 lab tests, 130 Node checks and 140 PostgreSQL tests
+(139 passed, one explicit unavailable live-input skip) passed. The focused
+foundation population passed 57 of 57 with no skips. Production is unchanged.
+
 Canonical finding/task proposals, broader product MCP coverage, actual
 installation/adoption evidence, candidate promotion and reviewed host onboarding
-remain campaign work. Work access is the next separately granted slice, reusing
-the canonical project population. Local preflight/report calculators are not
+remain campaign work. Local preflight/report calculators are not
 evidence those remaining workflows shipped. The command center retains exact
 commits, review reports and executed checks in its private campaign ledger.
 

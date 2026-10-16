@@ -63,3 +63,5 @@ export * from "./foundation-inventory";
 export * from "./foundation-general-context";
 export * from "./foundation-skill-registry";
 export * from "./mnemosyne-selected-import";
+
+export * from "./foundation-work";

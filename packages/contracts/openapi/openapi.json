@@ -13941,12 +13941,13 @@
           },
           "operations": {
             "minItems": 1,
-            "maxItems": 6,
+            "maxItems": 7,
             "type": "array",
             "items": {
               "type": "string",
               "enum": [
                 "foundation.read",
+                "work.read",
                 "evidence.record",
                 "memory.propose",
                 "memory.revise",
@@ -14003,12 +14004,13 @@
           },
           "operations": {
             "minItems": 1,
-            "maxItems": 6,
+            "maxItems": 7,
             "type": "array",
             "items": {
               "type": "string",
               "enum": [
                 "foundation.read",
+                "work.read",
                 "evidence.record",
                 "memory.propose",
                 "memory.revise",
@@ -14095,12 +14097,13 @@
               },
               "operations": {
                 "minItems": 1,
-                "maxItems": 6,
+                "maxItems": 7,
                 "type": "array",
                 "items": {
                   "type": "string",
                   "enum": [
                     "foundation.read",
+                    "work.read",
                     "evidence.record",
                     "memory.propose",
                     "memory.revise",
@@ -14207,12 +14210,13 @@
                 },
                 "operations": {
                   "minItems": 1,
-                  "maxItems": 6,
+                  "maxItems": 7,
                   "type": "array",
                   "items": {
                     "type": "string",
                     "enum": [
                       "foundation.read",
+                      "work.read",
                       "evidence.record",
                       "memory.propose",
                       "memory.revise",

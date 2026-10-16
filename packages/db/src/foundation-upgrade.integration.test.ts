@@ -15,11 +15,13 @@ import { eq, sql } from "drizzle-orm";
 import {
   createFoundationMachineService,
   createFoundationOwnerService,
+  createFoundationWorkService,
   createKnowledgeAccessService,
 } from "@commandry/application";
 import { knowledgeTokenDigest } from "@commandry/domain";
 import { createDatabase } from "./client";
 import { migrateDatabase } from "./migrate";
+import { createFoundationWorkReadAccessRepository } from "./foundation-work-repository";
 import { createFoundationAccessRepository } from "./foundation-access-repository";
 import { createKnowledgeAccessRepository } from "./knowledge-access-repository";
 import { foundationByteDigest } from "./foundation-record-repository";
@@ -33,7 +35,7 @@ if (!ownerUrl || !runtimePassword)
   throw new Error("Use scripts/test-integration.mjs --foundation-only");
 
 test(
-  "populated 0057 and 0059 upgrades preserve canonical memory and legacy grants, rerun safely and explicitly regrant new tables",
+  "populated 0057, 0059 and 0060 upgrades preserve canonical memory and exact grants, rerun safely and explicitly admit Work",
   { timeout: 60000 },
   async () => {
     const databaseName = `foundation_upgrade_${randomUUID().replaceAll("-", "")}`;
@@ -159,7 +161,9 @@ test(
             "foundation.read",
             "evidence.record",
             "memory.propose",
+            "memory.revise",
             "configuration.record",
+            "evaluation.record",
           ],
           ttlSeconds: 3600,
         },
@@ -245,6 +249,62 @@ test(
       const frozenRows = await upgrade.pool.query(
         "select to_jsonb(r) as record from public.foundation_instruction_approval r where id = $1",
         [priorApproval.record.id],
+      );
+      // Exercise the populated 0060 boundary before the constraint-only 0061.
+      const importPrefix = {
+        ...journal,
+        entries: journal.entries.filter((entry) => entry.idx <= 60),
+      };
+      await writeFile(
+        join(fixtureDir, "meta/_journal.json"),
+        JSON.stringify(importPrefix),
+      );
+      for (const entry of importPrefix.entries.filter(
+        (entry) => entry.idx > 59,
+      ))
+        await copyFile(
+          join(migrations, `${entry.tag}.sql`),
+          join(fixtureDir, `${entry.tag}.sql`),
+        );
+      await migrateDatabase({
+        connectionString: upgradeUrl.toString(),
+        migrationsDir: fixtureDir,
+      });
+      const beforeWork = await upgrade.pool.query(
+        "select operations from foundation_client where id = $1",
+        [priorClient.client.id],
+      );
+      assert.deepEqual(
+        beforeWork.rows[0]!.operations,
+        priorClient.client.operations,
+      );
+      await assert.rejects(
+        priorOwner.createClient(
+          {
+            name: "Work unavailable before 0061",
+            projectId,
+            environment: "test",
+            operations: ["work.read"],
+            ttlSeconds: 3600,
+          },
+          "before-work-migration",
+        ),
+        (error: unknown) => {
+          let current = error;
+          for (let depth = 0; depth < 8 && current instanceof Error; depth++) {
+            const databaseError = current as Error & {
+              code?: string;
+              constraint?: string;
+            };
+            if (
+              databaseError.code === "23514" &&
+              databaseError.constraint === "foundation_client_operations_valid"
+            )
+              return true;
+            current = current.cause;
+          }
+          return false;
+        },
       );
       await migrateDatabase({ connectionString: upgradeUrl.toString() });
       await migrateDatabase({ connectionString: upgradeUrl.toString() });
@@ -343,6 +403,36 @@ test(
           ttlSeconds: 3600,
         },
         "upgrade-issue",
+      );
+      const workClient = await owner.createClient(
+        {
+          name: "Explicit post-upgrade Work grant",
+          projectId,
+          environment: "test",
+          operations: ["work.read"],
+          ttlSeconds: 3600,
+        },
+        "upgrade-work-issue",
+      );
+      const work = createFoundationWorkService(
+        createFoundationWorkReadAccessRepository(runtime.db),
+        { environment: "test" },
+      );
+      assert.equal(
+        (await work.listProjectWork(workClient.token, { projectId }))
+          .consistency,
+        "live",
+      );
+      await assert.rejects(
+        work.listProjectWork(priorClient.token, { projectId }),
+      );
+      const afterWork = await upgrade.pool.query(
+        "select operations from foundation_client where id = $1",
+        [priorClient.client.id],
+      );
+      assert.deepEqual(
+        afterWork.rows[0]!.operations,
+        priorClient.client.operations,
       );
       const evidence = await machine.recordEvidence(
         issued.token,

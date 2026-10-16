@@ -2,6 +2,7 @@ import assert from "node:assert/strict";
 import { createHash, randomUUID } from "node:crypto";
 import { foundationSkillRegistrySmoke } from "./foundation-skill-registry-smoke.mjs";
 import { foundationImportSmoke } from "./foundation-import-smoke.mjs";
+import { foundationWorkSmoke } from "./foundation-work-smoke.mjs";
 import {
   Client,
   StreamableHTTPClientTransport,
@@ -19,9 +20,15 @@ export async function foundationAccessSmoke(
     origin: trustedOrigin,
     "content-type": "application/json",
   };
-  async function write(path, body, status = 201, key = randomUUID()) {
+  async function write(
+    path,
+    body,
+    status = 201,
+    key = randomUUID(),
+    method = "POST",
+  ) {
     const response = await fetch(`${origin}${path}`, {
-      method: "POST",
+      method,
       headers: { ...ownerHeaders, "idempotency-key": key },
       body: JSON.stringify(body),
     });
@@ -594,6 +601,17 @@ export async function foundationAccessSmoke(
       machineToken: issued.token,
       client,
       call,
+    });
+    await foundationWorkSmoke({
+      origin,
+      cookie,
+      project,
+      other,
+      issue,
+      connect,
+      call,
+      write,
+      existingClient: client,
     });
     await write(
       `/api/v1/foundation/clients/${issued.client.id}/revoke`,

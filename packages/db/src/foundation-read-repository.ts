@@ -315,18 +315,31 @@ function records(
 
 /** One connection and transaction through grant, memory/source locks, selection
  * and audit. The caller supplies only a credential digest, never an actor grant. */
-export function createFoundationReadAccessRepository(
+/** Trusted server composition only. Both read surfaces retain the same grant
+ * locks, expiry checks, rollback and audit transaction. JSON input cannot supply
+ * a factory or choose an operation outside its separately issued grant. */
+export function createFoundationProjectReadAccessRepository<Records>(
   db: CommandryDatabase,
+  requiredOperation: "foundation.read" | "work.read",
+  makeRecords: (
+    tx: FoundationTransaction,
+    request: FoundationMachineRequest,
+    principalId: string,
+    now: () => Date,
+    retainApprovalDeadline: (expiry: Date) => void,
+  ) => Records,
   options: { now?: () => Date } = {},
 ) {
+  if (
+    requiredOperation !== "foundation.read" &&
+    requiredOperation !== "work.read"
+  )
+    throw new FoundationError("FORBIDDEN");
   const now = options.now ?? (() => new Date());
   return {
     async withClient<T>(
       request: FoundationMachineRequest,
-      callback: (
-        client: FoundationClient,
-        records: FoundationReadRecords,
-      ) => Promise<T>,
+      callback: (client: FoundationClient, records: Records) => Promise<T>,
     ): Promise<T> {
       const parsed = foundationActorSchema.safeParse({
         schemaVersion: 1,
@@ -344,7 +357,7 @@ export function createFoundationReadAccessRepository(
         !parsed.success ||
         parsed.data.projectId !== request.projectId ||
         parsed.data.correlationId !== request.correlationId ||
-        request.operation !== "foundation.read" ||
+        request.operation !== requiredOperation ||
         request.targetId !== null
       )
         throw new FoundationError("FORBIDDEN");
@@ -372,7 +385,7 @@ export function createFoundationReadAccessRepository(
             environment: client.environment,
             principalId,
             clientId: client.id,
-            operation: "foundation.read",
+            operation: requiredOperation,
             targetId: null,
             correlationId: request.correlationId,
             decision,
@@ -403,7 +416,7 @@ export function createFoundationReadAccessRepository(
             authorize();
             const result = await callback(
               client,
-              records(operation, request, principalId, now, (expiry) => {
+              makeRecords(operation, request, principalId, now, (expiry) => {
                 contextExpiry = Math.min(contextExpiry, expiry.getTime());
               }),
             );
@@ -434,4 +447,16 @@ export function createFoundationReadAccessRepository(
       return outcome.value as T;
     },
   };
+}
+
+export function createFoundationReadAccessRepository(
+  db: CommandryDatabase,
+  options: { now?: () => Date } = {},
+) {
+  return createFoundationProjectReadAccessRepository(
+    db,
+    "foundation.read",
+    records,
+    options,
+  );
 }

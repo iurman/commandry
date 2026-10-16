@@ -7,6 +7,7 @@ import {
   createFoundationEvaluationOwnerService,
   createFoundationInventoryService,
   createFoundationGeneralContextService,
+  createFoundationWorkService,
   createMnemosyneSelectedImportService,
   FoundationImportUnavailableError,
 } from "@commandry/application";
@@ -15,6 +16,7 @@ import {
   createFoundationAuthenticationRepository,
   createFoundationEvaluationAccessRepository,
   createFoundationReadAccessRepository,
+  createFoundationWorkReadAccessRepository,
   createFoundationSelectedImportRepository,
 } from "@commandry/db";
 import { FoundationError } from "@commandry/domain";
@@ -56,6 +58,10 @@ export function getFoundationServices() {
     ),
     context: createFoundationGeneralContextService(
       createFoundationReadAccessRepository(db),
+      options,
+    ),
+    work: createFoundationWorkService(
+      createFoundationWorkReadAccessRepository(db),
       options,
     ),
   };

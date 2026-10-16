@@ -91,10 +91,12 @@ comprehensive MCP planning work; the live MCP still has four knowledge read tool
 ## Established direction
 
 The owner-authorized agent-memory campaign now has a local shared application
-and PostgreSQL foundation on its campaign branch. Nineteen opt-in MCP tools cover
+and PostgreSQL foundation on its campaign branch. Twenty opt-in MCP tools cover
 source-anchored evidence/memory/configurations, complete paginated inventories,
 approved working context and immutable evaluation observations with separate
-owner assessment review. Account includes explicit scoped credential creation,
+owner assessment review. Separately granted `work.read` lists the same canonical primary/related Work
+as the UI with complete live pagination, exact digests and unchanged existing
+grants. Account includes explicit scoped credential creation,
 one-time copy/dismiss and revocation. A closed-bundle skill registry preserves
 exact library components and reports three-way digest drift without installation.
 Independent review and real disposable PostgreSQL tests cover authorization,

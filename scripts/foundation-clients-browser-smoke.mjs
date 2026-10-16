@@ -180,6 +180,7 @@ export async function foundationClientsBrowserSmoke(
       panel.getByRole("checkbox", { name: "foundation.read", exact: true }),
     ).toBeChecked();
     for (const operation of [
+      "work.read",
       "evidence.record",
       "memory.propose",
       "memory.revise",
@@ -190,6 +191,9 @@ export async function foundationClientsBrowserSmoke(
         panel.getByRole("checkbox", { name: operation, exact: true }),
       ).not.toBeChecked();
     }
+    await panel
+      .getByRole("checkbox", { name: "work.read", exact: true })
+      .check();
     const name = "Browser owner-issued scoped client";
     await panel.getByLabel("Client name", { exact: true }).fill(name);
     await panel.getByLabel("Lifetime", { exact: true }).selectOption("3600");
@@ -228,6 +232,7 @@ export async function foundationClientsBrowserSmoke(
         `Foundation Account scoped client connected (${environment}).`,
       );
       assert.ok(tools.length > 0);
+      assert.ok(tools.some((tool) => tool.name === "list_project_work"));
       assert.equal(
         tools.some((tool) => /^(record_|propose_|revise_)/.test(tool.name)),
         false,

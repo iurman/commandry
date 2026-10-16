@@ -1,4 +1,5 @@
 export { createDatabase } from "./client";
+export * from "./foundation-work-repository";
 export type { CommandryDatabase } from "./client";
 export { createAuth } from "./auth";
 export * from "./owner-password-recovery-repository";

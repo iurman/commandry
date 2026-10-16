@@ -3,7 +3,7 @@
 **Status: Operational local implementation. Not production activation.**
 
 This document describes the shared application and PostgreSQL foundation on the
-agent-memory campaign branch. Nineteen opt-in MCP tools and authenticated owner
+agent-memory campaign branch. Twenty opt-in MCP tools and authenticated owner
 HTTP operations use the shared records and application services. This is local
 implementation evidence, not production activation, private memory import or
 evaluation execution. The existing [knowledge MCP](knowledge-mcp.md) retains its
@@ -137,7 +137,7 @@ Only the known pre-mutation `413 PAYLOAD_TOO_LARGE` releases that frozen decisio
 for replacement. Success clears the component's raw file and originals.
 
 Import and original-text disclosure intentionally remain owner-only, absent from
-machine tool discovery and all six machine grants. This prevents a general read
+machine tool discovery and all seven machine grant choices. This prevents a general read
 credential from disclosing a selected private export. Agents can discover the
 workflow and versioned contract, prepare a closed export under separate source
 selection authority, and use the existing scoped memory reads after owner import.
@@ -219,7 +219,7 @@ credential in the exact project/environment, and audits
 `foundation.client.authenticated`. Every tool still rechecks its current grant
 inside the database transaction.
 
-Discovery filters nineteen implemented tools by the credential's capabilities.
+Discovery filters twenty implemented tools by the credential's capabilities.
 Write-only clients can authenticate without receiving `foundation.read`.
 Three paginated metadata inventories and a distinct general-context request now
 use the real read adapter. Scope filtering precedes UUID pagination and the
@@ -231,7 +231,7 @@ as writers and canonical Knowledge row locks through audit. Candidate approval
 deadlines are retained conservatively through commit and delivery. A deadline
 crossing rejects delivery; an audit already committed before a delivery-time
 deadline remains historical read evidence. No snapshot grants lasting authority.
-Transactional selected memory import, actual installation/adoption evidence,
+Actual installation/adoption evidence, canonical finding/task proposals,
 candidate promotion and task execution packet integration remain campaign
 follow-ups. A versioned closed-bundle skill registry and three-way digest drift
 comparison are implemented without installing anything.
@@ -247,6 +247,40 @@ identities cannot perform owner actions. No new owner-only operation is exposed
 through MCP. The [agent workflow](../workflows/agent-foundation.md) describes
 actual methods, scope, risk, idempotency and continuation behavior. Deployment
 still requires the constrained release and production verification gates.
+
+## Canonical project Work reads
+
+`list_project_work` is read-only, requires the separately issued `work.read`
+capability and audits `work.read`. Discovery requires both that grant and the
+actual Work service. A Work-only client receives this tool without gaining
+`foundation.read`. Existing client arrays are unchanged; migration 0061 changes
+only the client operation CHECK whitelist and never backfills grants.
+
+The application uses the same canonical query and records as the project Work
+UI: primary membership OR an active related-project link, across all types,
+statuses, assignments and due dates. A linked item retains its true primary
+project. Only the requested project's context link is returned. Exact title,
+description and declared Work metadata are disclosed under this grant; the
+source capture ID is a reference and grants no original capture content access.
+Each record has a server-computed digest of its disclosed canonical fields.
+
+Pagination uses `created_at DESC, id DESC` with full PostgreSQL timestamp
+precision, filters membership before limit-plus-one selection, and returns a
+structured project-bound cursor. The page explicitly reports `consistency:
+"live"`; `selectedAt` is a read time, not a creation cutoff or retained snapshot.
+Changes to membership can alter later pages. If a cursor no longer belongs to
+the requested population, `INVALID_REFERENCE` requires restarting traversal;
+it never silently reports a terminal empty page. The UI's existing missing-cursor
+behavior remains compatible.
+
+The transaction-local adapter shares the existing grant lock, expiry checks,
+rollback and audit boundary. Disposable PostgreSQL checks reached all 137
+eligible mixed primary/related items across six pages, matched canonical UI
+records, excluded originals and retained old grants. Real lock waits verified
+revocation serialization and expiry during audit. A populated 0060 database
+rejected Work with the exact old PostgreSQL CHECK before migration 0061, then
+admitted a new explicit Work grant while retaining the prior six-choice array.
+These local checks do not establish production activation.
 
 ## Database and verification
 

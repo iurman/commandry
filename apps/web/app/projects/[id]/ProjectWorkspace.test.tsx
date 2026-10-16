@@ -253,9 +253,12 @@ describe("Project workspace", () => {
     fireEvent.click(
       screen.getByRole("button", { name: "Choose an existing resource" }),
     );
-    await screen.findByRole("option", {
-      name: new RegExp(existingResource.name),
-    });
+    await within(await screen.findByLabelText("Resource")).findByRole(
+      "option",
+      {
+        name: new RegExp(existingResource.name),
+      },
+    );
     fireEvent.change(screen.getByLabelText("Resource"), {
       target: { value: existingResource.id },
     });

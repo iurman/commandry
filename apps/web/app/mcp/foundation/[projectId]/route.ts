@@ -33,6 +33,7 @@ export async function POST(
       authentication,
       evaluation,
       inventory,
+      work,
       context: workingContext,
     } = getFoundationServices();
     const actor = await authentication.authenticate(token, projectId);
@@ -41,6 +42,7 @@ export async function POST(
         createFoundationMcpServer(machine, token, actor, {
           evaluation,
           inventory,
+          work,
           context: workingContext,
         }),
       { responseMode: "json" },
