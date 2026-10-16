@@ -82,6 +82,7 @@ function approval(
 }
 
 const ownerOnly: readonly FoundationOperation[] = [
+  "memory.import",
   "memory.review",
   "memory.verify",
   "instruction.approve",
@@ -93,6 +94,7 @@ test("operation policies enumerate every operation without expanding owner autho
     "evidence.record",
     "memory.propose",
     "memory.revise",
+    "memory.import",
     "memory.review",
     "memory.verify",
     "instruction.approve",

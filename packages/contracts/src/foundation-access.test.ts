@@ -54,6 +54,7 @@ const machineOperations = [
 ];
 const ownerOperations = [
   "memory.review",
+  "memory.import",
   "memory.verify",
   "instruction.approve",
 ];

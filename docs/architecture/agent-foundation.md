@@ -95,6 +95,12 @@ Evaluation reads require `foundation.read` and audit `foundation.read`.
 Neither recording nor review invokes inference or promotes a configuration.
 Discovery distinguishes granted capabilities from actual supplied services.
 
+The reserved `memory.import` operation is sensitive, owner-only, project-scoped,
+expected-version concurrent and audited as `memory.import`. Its declaration is
+preparation for the reviewed selected-import service; it exposes no callable
+import route or MCP write tool yet. All six machine operations remain unchanged.
+Actual source selection/disclosure review is required for every source tier.
+
 Client issuance stores only a token digest. The random credential appears in its
 first successful response. An issuance retry with the same key cannot re-expose
 the secret or mint another client. If the response was lost, the owner lists and

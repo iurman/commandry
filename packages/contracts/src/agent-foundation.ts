@@ -37,6 +37,7 @@ export const foundationOperationSchema = z.enum([
   "evidence.record",
   "memory.propose",
   "memory.revise",
+  "memory.import",
   "memory.review",
   "memory.verify",
   "instruction.approve",
