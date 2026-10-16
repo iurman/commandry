@@ -46,6 +46,7 @@ const notice = "Credential shown once; store it outside Commandry knowledge.";
 const token = "af_" + "A".repeat(43);
 const machineOperations = [
   "foundation.read",
+  "work.read",
   "evidence.record",
   "memory.propose",
   "memory.revise",
@@ -119,7 +120,7 @@ const invalidDatetimes = [
   new Date(createdAt),
 ];
 
-test("machine operations include exactly six opt-in capabilities", () => {
+test("machine operations include exactly seven opt-in capabilities", () => {
   assert.deepEqual(foundationMachineOperationSchema.options, machineOperations);
   for (const operation of machineOperations) {
     assert.equal(foundationMachineOperationSchema.parse(operation), operation);
@@ -170,7 +171,7 @@ test("operation lists are nonempty, unique and limited to the complete populatio
     assert.equal(
       schema.parse({ ...value, operations: machineOperations }).operations
         .length,
-      6,
+      machineOperations.length,
     );
     for (const operations of [
       [],
@@ -734,4 +735,46 @@ test("exact temporal ordering normalizes long fractions before millisecond parsi
     expiresAt,
     revokedAt: earlier,
   });
+});
+
+test("Work content read remains an explicit separate issuance choice", () => {
+  const common = {
+    name: "Work reader",
+    projectId,
+    environment: "test",
+    ttlSeconds: 3600,
+  };
+  assert.deepEqual(
+    foundationCreateClientSchema.parse({ ...common, operations: ["work.read"] })
+      .operations,
+    ["work.read"],
+  );
+  assert.deepEqual(
+    foundationCreateClientSchema.parse({
+      ...common,
+      operations: ["foundation.read"],
+    }).operations,
+    ["foundation.read"],
+  );
+  const oldOperations = [
+    "foundation.read",
+    "evidence.record",
+    "memory.propose",
+    "memory.revise",
+    "configuration.record",
+    "evaluation.record",
+  ];
+  assert.deepEqual(
+    foundationCreateClientSchema.parse({ ...common, operations: oldOperations })
+      .operations,
+    oldOperations,
+  );
+  assert.equal(foundationCreateClientSchema.safeParse(common).success, false);
+  assert.equal(
+    foundationCreateClientSchema.safeParse({
+      ...common,
+      operations: ["work.read", "work.read"],
+    }).success,
+    false,
+  );
 });
