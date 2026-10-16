@@ -139,6 +139,16 @@ export const foundationScopedPageSchema = foundationPageSchema.extend({
 });
 export type FoundationScopedPage = z.infer<typeof foundationScopedPageSchema>;
 
+// A general request does not manufacture a task execution packet or grant.
+export const foundationGeneralContextRequestSchema =
+  foundationScopedPageSchema.extend({
+    maxCharacters: z.number().int().min(1).max(100000).default(12000),
+    taskDirection: z.string().max(32000).default(""),
+  });
+export type FoundationGeneralContextRequest = z.infer<
+  typeof foundationGeneralContextRequestSchema
+>;
+
 export const foundationReadRecordSchema = z.strictObject({
   projectId: identity,
   id: identity,

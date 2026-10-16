@@ -6,6 +6,7 @@ import {
   foundationCreateClientSchema,
   foundationCreateConfigurationSchema,
   foundationIdempotencyKeySchema,
+  foundationGeneralContextRequestSchema,
   foundationInstructionApprovalSchema,
   foundationIssuedClientSchema,
   foundationMachineOperationSchema,
@@ -15,6 +16,27 @@ import {
 } from "./foundation-access.js";
 
 const projectId = "AAAAAAAA-AAAA-4AAA-8AAA-AAAAAAAAAAAA";
+
+test("general context is strict, bounded and distinct from task authority", () => {
+  const request = foundationGeneralContextRequestSchema.parse({ projectId });
+  assert.equal(request.projectId, projectId.toLowerCase());
+  assert.equal(request.maxCharacters, 12000);
+  assert.equal(request.taskDirection, "");
+  for (const extra of [
+    { maxCharacters: 0 },
+    { maxCharacters: 100001 },
+    { maxCharacters: 1.5 },
+    { taskDirection: "x".repeat(32001) },
+    { ownerApproved: true },
+    { taskId: projectId },
+  ]) {
+    assert.equal(
+      foundationGeneralContextRequestSchema.safeParse({ projectId, ...extra })
+        .success,
+      false,
+    );
+  }
+});
 const clientId = "BBBBBBBB-BBBB-4BBB-8BBB-BBBBBBBBBBBB";
 const memoryId = "CCCCCCCC-CCCC-4CCC-8CCC-CCCCCCCCCCCC";
 const createdAt = "2026-10-15T10:00:00Z";
