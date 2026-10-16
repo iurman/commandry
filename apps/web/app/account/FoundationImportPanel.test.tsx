@@ -641,4 +641,302 @@ describe("Selected memory import", () => {
     expect(screen.queryByRole("link", { name: /Import revision/ })).toBeNull();
     expect(applyCalls(fetchMock)).toHaveLength(1);
   });
+
+  it("blocks an oversized reviewed UTF-8 wrapper even when the complete export is under 8 MiB", async () => {
+    const maximum = 8 * 1024 * 1024;
+    const e = envelope();
+    const source = e.records[0]!.sources[0]!;
+    source.originalContent = "";
+    const baseBytes = new TextEncoder().encode(JSON.stringify(e)).byteLength;
+    const fillerBytes = maximum - 32 - baseBytes;
+    source.originalContent =
+      "é".repeat(Math.floor(fillerBytes / 2)) + (fillerBytes % 2 ? "x" : "");
+    source.evidence.contentDigest = createHash("sha256")
+      .update(source.originalContent)
+      .digest("hex");
+    expect(new TextEncoder().encode(JSON.stringify(e)).byteLength).toBe(
+      maximum - 32,
+    );
+    const rows = plan(e).records;
+    const wrapped = JSON.stringify({
+      envelope: e,
+      decision: "apply_proposed_unverified",
+      reviewedSelections: rows.map((row) => ({
+        externalId: row.alias.externalId,
+        selectionFingerprint: row.selectionFingerprint,
+        expectedExistingMemory: row.expectedExistingMemory,
+      })),
+    });
+    expect(wrapped.length).toBeLessThan(maximum);
+    expect(new TextEncoder().encode(wrapped).byteLength).toBeGreaterThan(
+      maximum,
+    );
+    const fetchMock = mockServer();
+    render(<FoundationImportPanel enabled environment="test" />);
+    await preview(e);
+    review();
+    expect(
+      screen
+        .getByRole("button", { name: "Confirm reviewed selection" })
+        .matches(":disabled"),
+    ).toBe(true);
+    expect(
+      screen.queryByRole("button", { name: "Import as proposals" }),
+    ).toBeNull();
+    expect(screen.getByRole("alert").textContent).toContain("whole records");
+    expect(screen.getByRole("alert").textContent).toContain(
+      "Keep every original complete",
+    );
+    expect(
+      screen.queryByRole("button", { name: "Retry exact reviewed import" }),
+    ).toBeNull();
+    expect(applyCalls(fetchMock)).toHaveLength(0);
+    expect(crypto.randomUUID).not.toHaveBeenCalled();
+    expect(
+      screen.getByLabelText("Closed export JSON file").matches(":disabled"),
+    ).toBe(false);
+    await preview(envelope());
+    review();
+    confirm();
+    fireEvent.click(
+      screen.getByRole("button", { name: "Import as proposals" }),
+    );
+    await screen.findByRole("heading", { name: "Import confirmed" });
+    expect(applyCalls(fetchMock)).toHaveLength(1);
+  }, 15000);
+
+  it("recovers from a known pre-mutation payload rejection by replacing and previewing the export", async () => {
+    let attempts = 0;
+    const fetchMock = mockServer({
+      apply: async (init) =>
+        ++attempts === 1
+          ? json({ code: "PAYLOAD_TOO_LARGE" }, 413)
+          : json(receipt(JSON.parse(String(init.body)).envelope)),
+    });
+    render(<FoundationImportPanel enabled environment="test" />);
+    await preview();
+    review();
+    confirm();
+    fireEvent.click(
+      screen.getByRole("button", { name: "Import as proposals" }),
+    );
+    await screen.findByText(/reviewed import request exceeds/);
+    expect(applyCalls(fetchMock)).toHaveLength(1);
+    expect(
+      screen.queryByRole("button", { name: "Retry exact reviewed import" }),
+    ).toBeNull();
+    expect(screen.queryByRole("checkbox")).toBeNull();
+    expect(
+      screen.getByLabelText("Closed export JSON file").matches(":disabled"),
+    ).toBe(false);
+    const smaller = envelope();
+    smaller.namespace = "smaller-selection";
+    await preview(smaller);
+    review();
+    confirm();
+    fireEvent.click(
+      screen.getByRole("button", { name: "Import as proposals" }),
+    );
+    await screen.findByRole("heading", { name: "Import confirmed" });
+    expect(applyCalls(fetchMock)).toHaveLength(2);
+    expect(
+      JSON.parse(String(applyCalls(fetchMock)[1]![1]!.body)).envelope.namespace,
+    ).toBe("smaller-selection");
+  });
+
+  it.each(["EXPIRED", "UNAUTHORIZED"])(
+    "preserves the frozen input and key on 401 %s for same-owner reauthentication and replay",
+    async (code) => {
+      let attempts = 0;
+      const e = envelope();
+      const fetchMock = mockServer({
+        apply: async () =>
+          ++attempts === 1 ? json({ code }, 401) : json(receipt(e, true)),
+      });
+      render(<FoundationImportPanel enabled environment="test" />);
+      await preview(e);
+      review();
+      confirm();
+      fireEvent.click(
+        screen.getByRole("button", { name: "Import as proposals" }),
+      );
+      await screen.findByText(
+        /Owner sign-in may have expired after the import committed/,
+      );
+      expect(screen.getByRole("alert").textContent).toContain(
+        "another tab while keeping this review page open",
+      );
+      expect((screen.getByRole("checkbox") as HTMLInputElement).checked).toBe(
+        true,
+      );
+      expect(
+        screen.getByLabelText("Closed export JSON file").matches(":disabled"),
+      ).toBe(true);
+      expect(applyCalls(fetchMock)).toHaveLength(1);
+      expect(crypto.randomUUID).toHaveBeenCalledTimes(1);
+      fireEvent.click(
+        screen.getByRole("button", { name: "Retry exact reviewed import" }),
+      );
+      await screen.findByText(/Original receipt replayed/);
+      expect(applyCalls(fetchMock)).toHaveLength(2);
+      expect(applyCalls(fetchMock)[1]![1]!.body).toBe(
+        applyCalls(fetchMock)[0]![1]!.body,
+      );
+      expect(applyCalls(fetchMock)[1]![1]!.headers).toEqual(
+        applyCalls(fetchMock)[0]![1]!.headers,
+      );
+      expect(crypto.randomUUID).toHaveBeenCalledTimes(1);
+    },
+  );
+
+  it("keeps an unrecognized 413 outcome uncertain instead of assuming no effects", async () => {
+    const fetchMock = mockServer({
+      apply: async () => json({ code: "OTHER_FAILURE" }, 413),
+    });
+    render(<FoundationImportPanel enabled environment="test" />);
+    await preview();
+    review();
+    confirm();
+    fireEvent.click(
+      screen.getByRole("button", { name: "Import as proposals" }),
+    );
+    await screen.findByText(/Import outcome is uncertain/);
+    expect(
+      screen.getByRole("button", { name: "Retry exact reviewed import" }),
+    ).toBeTruthy();
+    expect(
+      screen.getByLabelText("Closed export JSON file").matches(":disabled"),
+    ).toBe(true);
+    expect(applyCalls(fetchMock)).toHaveLength(1);
+  });
+
+  it.each(["unchanged", "import_changed", "private", "client", "unknown"])(
+    "visibly blocks a contradictory existing Knowledge destination in %s previews",
+    async (state) => {
+      const e = envelope();
+      if (state === "private" || state === "client" || state === "unknown")
+        e.records[0]!.sourceTier = state;
+      const fetchMock = mockServer({
+        preview: (value) => {
+          const p = plan(value);
+          const row = p.records[0]!;
+          p.existingCount = 1;
+          row.expectedExistingMemory = {
+            id: id(700),
+            version: 2,
+            contentDigest: "b".repeat(64),
+            knowledgeItemId: id(999),
+          };
+          if (state === "unchanged") {
+            row.action = "unchanged";
+            row.reason = "same_import_and_owner_baseline";
+          } else if (state === "import_changed") {
+            row.action = "revision_requires_review";
+            row.reason = "import_changed";
+          }
+          return p;
+        },
+      });
+      render(<FoundationImportPanel enabled environment="test" />);
+      await preview(e);
+      expect(
+        screen.getByText(/Knowledge destination mismatch/).textContent,
+      ).toContain("importing cannot retarget the alias");
+      expect(screen.getByRole("checkbox").matches(":disabled")).toBe(true);
+      expect((screen.getByRole("checkbox") as HTMLInputElement).checked).toBe(
+        false,
+      );
+      expect(
+        screen
+          .getByRole("button", { name: "Confirm reviewed selection" })
+          .matches(":disabled"),
+      ).toBe(true);
+      expect(
+        screen.queryByRole("button", { name: "Import as proposals" }),
+      ).toBeNull();
+      expect(applyCalls(fetchMock)).toHaveLength(0);
+    },
+  );
+
+  it.each(["private", "client", "unknown"] as const)(
+    "retains valid %s disclosure previews with a consistent existing destination",
+    async (tier) => {
+      const e = envelope();
+      e.records[0]!.sourceTier = tier;
+      mockServer({
+        preview: (value) => {
+          const p = plan(value);
+          p.existingCount = 1;
+          p.records[0]!.expectedExistingMemory = {
+            id: id(700),
+            version: 2,
+            contentDigest: "b".repeat(64),
+            knowledgeItemId: value.records[0]!.knowledgeItemId,
+          };
+          return p;
+        },
+      });
+      render(<FoundationImportPanel enabled environment="test" />);
+      await preview(e);
+      expect(screen.getByRole("checkbox").matches(":disabled")).toBe(false);
+      expect((screen.getByRole("checkbox") as HTMLInputElement).checked).toBe(
+        false,
+      );
+      review();
+      expect(
+        screen
+          .getByRole("button", { name: "Confirm reviewed selection" })
+          .matches(":disabled"),
+      ).toBe(false);
+    },
+  );
+
+  it.each(["unchanged", "revised"] as const)(
+    "binds %s receipts after explicit review of an existing private disclosure preview",
+    async (action) => {
+      const e = envelope();
+      e.records[0]!.sourceTier = "private";
+      const fetchMock = mockServer({
+        preview: (value) => {
+          const p = plan(value);
+          p.existingCount = 1;
+          p.records[0]!.expectedExistingMemory = {
+            id: id(700),
+            version: 2,
+            contentDigest: "b".repeat(64),
+            knowledgeItemId: value.records[0]!.knowledgeItemId,
+          };
+          return p;
+        },
+        apply: async () => {
+          const result = receipt(e);
+          const summary = result.record.records[0]!;
+          summary.action = action;
+          summary.memoryId = id(700);
+          summary.version = action === "unchanged" ? 2 : 3;
+          summary.contentDigest =
+            action === "unchanged" ? "b".repeat(64) : "c".repeat(64);
+          return json(result);
+        },
+      });
+      render(<FoundationImportPanel enabled environment="test" />);
+      await preview(e);
+      review();
+      confirm();
+      fireEvent.click(
+        screen.getByRole("button", { name: "Import as proposals" }),
+      );
+      await screen.findByRole("heading", { name: "Import confirmed" });
+      expect(applyCalls(fetchMock)).toHaveLength(1);
+      expect(
+        screen.getByText(
+          action +
+            ": memory " +
+            id(700) +
+            ", version " +
+            (action === "unchanged" ? 2 : 3),
+        ),
+      ).toBeTruthy();
+    },
+  );
 });

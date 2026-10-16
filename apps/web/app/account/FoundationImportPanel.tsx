@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import {
   entityIdSchema,
   foundationAliasSchema,
@@ -38,6 +38,8 @@ type SafeReceipt = {
   >[];
 };
 const maximumBytes = 8 * 1024 * 1024;
+const applyBudgetMessage =
+  "The reviewed import request exceeds the 8 MiB request budget. Split the export into smaller files containing whole records, then replace the file and preview again. Keep every original complete.";
 const recordPageSize = 20;
 const sourcePageSize = 10;
 const digestPattern = /^[a-f0-9]{64}$/;
@@ -245,22 +247,23 @@ async function bindPreview(
     }
     const validClassification = !r.selected
       ? row.action === "unselected" && row.reason === "not_selected"
-      : row.action === "preserve_owner_changes"
-        ? prior !== null && row.reason === "owner_content_changed"
-        : !available
-          ? row.action === "unavailable_source" &&
-            row.reason === "original_unavailable"
-          : prior === null
-            ? row.action === "disclosure_review_required" &&
-              row.reason === "exact_selection_review_missing"
-            : (row.action === "unchanged" &&
+      : row.action === "disclosure_review_required"
+        ? row.reason === "exact_selection_review_missing" &&
+          (prior === null || r.sourceTier !== "public")
+        : row.action === "preserve_owner_changes"
+          ? prior !== null && row.reason === "owner_content_changed"
+          : !available
+            ? row.action === "unavailable_source" &&
+              row.reason === "original_unavailable"
+            : prior !== null &&
+              ((row.action === "unchanged" &&
                 row.reason === "same_import_and_owner_baseline") ||
-              (row.action === "revision_requires_review" &&
-                [
-                  "baseline_unavailable",
-                  "knowledge_item_changed",
-                  "import_changed",
-                ].includes(String(row.reason)));
+                (row.action === "revision_requires_review" &&
+                  [
+                    "baseline_unavailable",
+                    "knowledge_item_changed",
+                    "import_changed",
+                  ].includes(String(row.reason))));
     if (!validClassification) throw new Error("Invalid action");
     records.push(row as Row);
   }
@@ -273,10 +276,17 @@ async function bindPreview(
     records,
   };
 }
+function knowledgeDestinationMismatch(row: Row) {
+  return (
+    row.expectedExistingMemory !== null &&
+    row.expectedExistingMemory.knowledgeItemId !== row.knowledgeItemId
+  );
+}
 function canReview(row: Row) {
   return (
     row.selected &&
     row.originalsAvailable &&
+    !knowledgeDestinationMismatch(row) &&
     (row.action === "disclosure_review_required" ||
       row.action === "unchanged" ||
       (row.action === "revision_requires_review" &&
@@ -284,6 +294,8 @@ function canReview(row: Row) {
   );
 }
 function reasonText(row: Row) {
+  if (knowledgeDestinationMismatch(row))
+    return "Knowledge destination mismatch: this alias already belongs to a different Knowledge item. Reconcile the destination before preparing a new export and previewing again; importing cannot retarget the alias.";
   switch (row.reason) {
     case "not_selected":
       return "Not selected in this export.";
@@ -351,7 +363,9 @@ function safeReceipt(raw: unknown, snapshot: Snapshot): SafeReceipt {
     const expectedAction: FoundationImportReceipt["records"][number]["action"] =
       prior === null
         ? "created"
-        : row.action === "unchanged"
+        : row.action === "unchanged" ||
+            (row.action === "disclosure_review_required" &&
+              summary.action === "unchanged")
           ? "unchanged"
           : "revised";
     const expectedVersion =
@@ -439,6 +453,27 @@ function OwnerImport({ environment }: Pick<Props, "environment">) {
   const controller = useRef<AbortController | null>(null);
   const busy = useRef(false);
   const snapshot = useRef<Snapshot | null>(null);
+  const prepared = useMemo(() => {
+    if (!preview || !envelope) return null;
+    const rows = preview.plan.records.filter((row) => row.selected);
+    const input: MnemosyneSelectedImportInput = {
+      envelope,
+      decision: "apply_proposed_unverified",
+      reviewedSelections: rows.map((row) => ({
+        externalId: row.alias.externalId,
+        selectionFingerprint: row.selectionFingerprint,
+        expectedExistingMemory: row.expectedExistingMemory,
+      })),
+    };
+    const body = JSON.stringify(input);
+    return {
+      envelope,
+      rows,
+      body,
+      byteLength: new TextEncoder().encode(body).byteLength,
+    };
+  }, [envelope, preview]);
+  const overBudget = prepared !== null && prepared.byteLength > maximumBytes;
   useEffect(() => {
     alive.current = true;
     return () => {
@@ -540,13 +575,14 @@ function OwnerImport({ environment }: Pick<Props, "environment">) {
     }
   }
   async function applyImport(retry = false) {
-    if (busy.current || !preview || !envelope) return;
+    if (busy.current || !preview || !envelope || !prepared) return;
     let decision = snapshot.current;
     const selectedRows = preview.plan.records.filter((row) => row.selected);
     if (!retry) {
       if (
         !confirmation ||
         uncertain ||
+        overBudget ||
         selectedRows.length === 0 ||
         selectedRows.some(
           (row) => !canReview(row) || !reviews.has(row.alias.externalId),
@@ -554,20 +590,11 @@ function OwnerImport({ environment }: Pick<Props, "environment">) {
       )
         return;
       try {
-        const input: MnemosyneSelectedImportInput = {
-          envelope,
-          decision: "apply_proposed_unverified",
-          reviewedSelections: selectedRows.map((row) => ({
-            externalId: row.alias.externalId,
-            selectionFingerprint: row.selectionFingerprint,
-            expectedExistingMemory: row.expectedExistingMemory,
-          })),
-        };
         decision = {
           key: crypto.randomUUID(),
-          body: JSON.stringify(input),
-          envelope,
-          rows: selectedRows,
+          body: prepared.body,
+          envelope: prepared.envelope,
+          rows: prepared.rows,
         };
         snapshot.current = decision;
       } catch {
@@ -577,6 +604,13 @@ function OwnerImport({ environment }: Pick<Props, "environment">) {
     } else if (!uncertain || !decision) return;
     if (!decision) return;
     const exactDecision = decision;
+    if (
+      new TextEncoder().encode(exactDecision.body).byteLength > maximumBytes
+    ) {
+      resetReview();
+      setError(applyBudgetMessage);
+      return;
+    }
     busy.current = true;
     setPending("apply");
     setError("");
@@ -597,7 +631,28 @@ function OwnerImport({ environment }: Pick<Props, "environment">) {
         },
         body: exactDecision.body,
       });
-      if ([400, 401, 403, 404, 409, 422].includes(response.status)) {
+      if (response.status === 413) {
+        const failure = object(await response.json());
+        if (failure.code === "PAYLOAD_TOO_LARGE") {
+          if (current()) {
+            resetReview();
+            setError(applyBudgetMessage);
+          }
+          return;
+        }
+        throw new Error("Unconfirmed rejection");
+      }
+      if (response.status === 401) {
+        if (current()) {
+          setUncertain(true);
+          setConfirmation(false);
+          setError(
+            "Import outcome is uncertain. Owner sign-in may have expired after the import committed. Sign in again in another tab while keeping this review page open, then retry this exact reviewed request with the same key. No automatic retry has occurred.",
+          );
+        }
+        return;
+      }
+      if ([400, 403, 404, 409, 422].includes(response.status)) {
         if (current()) {
           resetReview();
           setError(
@@ -630,6 +685,7 @@ function OwnerImport({ environment }: Pick<Props, "environment">) {
   const selected = preview?.plan.records.filter((row) => row.selected) ?? [];
   const ready =
     selected.length > 0 &&
+    !overBudget &&
     selected.every(
       (row) => canReview(row) && reviews.has(row.alias.externalId),
     );
@@ -688,6 +744,7 @@ function OwnerImport({ environment }: Pick<Props, "environment">) {
         </p>
       )}
       {error && <p role="alert">{error}</p>}
+      {overBudget && <p role="alert">{applyBudgetMessage}</p>}
       {preview && envelope && (
         <>
           <h3>Review destination: {preview.projectName}</h3>
