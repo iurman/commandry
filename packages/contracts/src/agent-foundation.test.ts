@@ -377,6 +377,8 @@ test("operations are the exact foundation family", () => {
   assert.deepEqual(foundation.foundationOperationSchema.options, [
     "foundation.read",
     "work.read",
+    "work.propose",
+    "work.proposal.review",
     "evidence.record",
     "memory.propose",
     "memory.revise",
@@ -466,6 +468,98 @@ test("Work read is explicit in actor capabilities without expanding existing cli
     }).operations,
     operations,
   );
+});
+
+test("task proposal declarations preserve explicit capabilities and machine issuance boundaries", () => {
+  const existingOperations = [
+    "foundation.read",
+    "work.read",
+    "evidence.record",
+    "memory.propose",
+    "memory.revise",
+    "configuration.record",
+    "evaluation.record",
+  ];
+  const clientInput = {
+    name: "Existing explicit client",
+    projectId,
+    operations: existingOperations,
+    environment: "test",
+    ttlSeconds: 3600,
+  };
+  assert.deepEqual(
+    foundationMachineOperationSchema.options,
+    existingOperations,
+  );
+  assert.deepEqual(
+    foundationCreateClientSchema.parse(clientInput).operations,
+    existingOperations,
+  );
+  const client = {
+    schemaVersion: 1,
+    id: uuid(21),
+    projectId,
+    name: clientInput.name,
+    operations: existingOperations,
+    environment: "test",
+    createdAt: timestamp,
+    expiresAt: "2026-10-15T13:30:00+02:00",
+    revokedAt: null,
+    createdBy: actor.principalId,
+  };
+  assert.deepEqual(
+    foundationClientSchema.parse(client).operations,
+    existingOperations,
+  );
+  for (const operation of ["work.propose", "work.proposal.review"]) {
+    assert.equal(
+      foundation.foundationOperationSchema.parse(operation),
+      operation,
+    );
+    assert.deepEqual(
+      foundation.foundationActorSchema.parse({
+        ...actor,
+        capabilities: [operation],
+      }).capabilities,
+      [operation],
+    );
+    assert.equal(
+      foundation.foundationActorSchema.safeParse({
+        ...actor,
+        capabilities: [operation, operation],
+      }).success,
+      false,
+    );
+    // Issuance changes are separate from these canonical policy declarations.
+    assert.equal(
+      foundationMachineOperationSchema.safeParse(operation).success,
+      false,
+    );
+    assert.equal(
+      foundationCreateClientSchema.safeParse({
+        ...clientInput,
+        operations: [operation],
+      }).success,
+      false,
+    );
+    assert.equal(
+      foundationClientSchema.safeParse({ ...client, operations: [operation] })
+        .success,
+      false,
+    );
+  }
+  for (const capabilities of [
+    [],
+    ["foundation.read"],
+    ["work.read"],
+    existingOperations,
+  ]) {
+    assert.deepEqual(
+      foundation.foundationActorSchema.parse({ ...actor, capabilities })
+        .capabilities,
+      capabilities,
+    );
+  }
 });
 
 test("persisted and snapshot records require schemaVersion exactly 1", () => {
