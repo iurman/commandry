@@ -6,6 +6,8 @@ test("one master scene renders and inspects the complete multi-page inventory", 
   request,
 }, testInfo) => {
   test.setTimeout(180000);
+  if (testInfo.project.name === "desktop")
+    await page.setViewportSize({ width: 1920, height: 1080 });
   const name = `Gravity fleet ${randomUUID().slice(0, 8)}`;
   const projectResponse = await request.post("/api/v1/projects", {
     data: { name },
@@ -86,6 +88,14 @@ test("one master scene renders and inspects the complete multi-page inventory", 
       exact: true,
     });
     const canvas = gravity.locator("canvas");
+    await gravity.getByText("Appearance", { exact: true }).click();
+    const surface = colorScheme === "light" ? "porcelain" : "midnight";
+    await gravity.getByLabel("Gravity surface").selectOption(surface);
+    await gravity.getByText("Appearance", { exact: true }).click();
+    await expect(gravity.locator(".cmd-gravity")).toHaveAttribute(
+      "data-theme",
+      surface,
+    );
     await canvas.scrollIntoViewIfNeeded();
     await expect(canvas).toBeVisible();
     await expect(canvas).toHaveAttribute(
@@ -101,10 +111,9 @@ test("one master scene renders and inspects the complete multi-page inventory", 
     await gravity
       .getByText("Resources in this scene (103)", { exact: true })
       .click();
-    const chooser = gravity.locator("details").filter({
-      has: gravity.getByText("Resources in this scene (103)", {
-        exact: true,
-      }),
+    const chooser = gravity.getByRole("group", {
+      name: "Select a Gravity resource",
+      exact: true,
     });
     await expect(chooser.getByRole("button", { name: /^Select / })).toHaveCount(
       103,
@@ -124,6 +133,17 @@ test("one master scene renders and inspects the complete multi-page inventory", 
         exact: true,
       }),
     ).toContainText("Service health: unknown");
+    const parent = resources[0]!;
+    await chooser
+      .getByRole("button", {
+        name: `Select ${parent.name}, host, No observation`,
+        exact: true,
+      })
+      .click();
+    // Return the canvas its space after inspecting the complete resource picker.
+    await gravity
+      .getByText("Resources in this scene (103)", { exact: true })
+      .click();
     await gravity
       .getByRole("button", { name: "Open focus lens", exact: true })
       .click();
@@ -135,6 +155,62 @@ test("one master scene renders and inspects the complete multi-page inventory", 
         Number(await canvas.getAttribute("data-gravity-focus-vertices")),
       )
       .toBeGreaterThan(0);
+    let labelDiagnostics: unknown;
+    try {
+      await expect
+        .poll(async () =>
+          gravity.locator(".cmd-gravity-anchor").evaluateAll((elements) => {
+            const labels = elements
+              .filter(
+                (element) =>
+                  Number(getComputedStyle(element).opacity) > 0.5 &&
+                  getComputedStyle(element).visibility !== "hidden",
+              )
+              .map((element) => element.getBoundingClientRect());
+            return (
+              labels.length > 0 &&
+              labels.every((a, index) =>
+                labels
+                  .slice(index + 1)
+                  .every(
+                    (b) =>
+                      a.right <= b.left + 0.5 ||
+                      b.right <= a.left + 0.5 ||
+                      a.bottom <= b.top + 0.5 ||
+                      b.bottom <= a.top + 0.5,
+                  ),
+              )
+            );
+          }),
+        )
+        .toBe(true);
+    } catch (error) {
+      labelDiagnostics = await gravity
+        .locator(".cmd-gravity-stage")
+        .evaluate((stage) => ({
+          stage: stage.getBoundingClientRect().toJSON(),
+          canvas: { ...stage.querySelector("canvas")?.dataset },
+          labels: [...stage.querySelectorAll(".cmd-gravity-anchor")].map(
+            (element) => ({
+              text: element.textContent,
+              opacity: getComputedStyle(element).opacity,
+              visibility: getComputedStyle(element).visibility,
+              rect: element.getBoundingClientRect().toJSON(),
+              width: (element as HTMLElement).offsetWidth,
+              height: (element as HTMLElement).offsetHeight,
+            }),
+          ),
+        }));
+      console.error(
+        "Focus label diagnostics:",
+        JSON.stringify(labelDiagnostics),
+      );
+      throw error;
+    }
+    await page.screenshot({
+      path: testInfo.outputPath(`complete-fleet-focus-${surface}.png`),
+      fullPage: true,
+    });
     await gravity
       .getByRole("button", { name: "Close focus lens", exact: true })
       .click();
@@ -176,6 +252,9 @@ test("one master scene renders and inspects the complete multi-page inventory", 
         exact: true,
       }),
     ).toBeVisible();
+    await gravity
+      .getByText("Resources in this scene (103)", { exact: true })
+      .click();
     await expect(chooser.getByRole("button", { name: /^Select / })).toHaveCount(
       103,
     );
@@ -215,6 +294,9 @@ test("one master scene renders and inspects the complete multi-page inventory", 
   await expect(fallback.getByRole("status")).toContainText(
     "Resource controls remain available",
   );
+  const fallbackLast = [...resources]
+    .sort((a, b) => a.id.localeCompare(b.id))
+    .at(-1)!;
   await fallback
     .getByText("Resources in this scene (103)", { exact: true })
     .click();
@@ -225,12 +307,15 @@ test("one master scene renders and inspects the complete multi-page inventory", 
   ).toHaveCount(103);
   await fallback
     .getByRole("group", { name: "Select a Gravity resource" })
-    .getByRole("button")
-    .last()
+    .getByRole("button", {
+      name: `Select ${fallbackLast.name}, ${fallbackLast.kind}, No observation`,
+      exact: true,
+    })
     .click();
   await expect(
-    page.getByRole("complementary", {
-      name: "Resource inspector and recent events",
+    page.getByRole("region", {
+      name: `Selected resource ${fallbackLast.name}`,
+      exact: true,
     }),
   ).toContainText("Service health: unknown");
   expect(errors).toEqual([]);

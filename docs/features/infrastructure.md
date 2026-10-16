@@ -154,6 +154,9 @@ adapt while every resource remains represented and selectable. Actual device
 graphics limits can still prevent rendering. Complete resource selection and
 the list alternative remain available in that case. Grouping, colors, camera
 and sector assignments remain device-local presentation preferences.
+Screen labels adapt to their measured available space, prioritizing selected
+resources and attention. Suppressing a crowded label never removes its well or
+its entry in the complete resource picker.
 
 Canonical inventory is already available through project-scoped MCP resource
 continuation. The UI and agents read the same canonical identities; a scene does

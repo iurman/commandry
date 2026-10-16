@@ -366,6 +366,51 @@ test("Gravity uses canonical resources, persisted appearance, focus and truthful
   const errors: string[] = [];
   page.on("pageerror", (error) => errors.push(error.message));
   // Geometry assertions measure the settled view independently of GPU cadence.
+  await page.addInitScript(() => {
+    const original = window.IntersectionObserver;
+    const history: unknown[] = [];
+    Object.assign(window, { gravityIntersectionHistory: history });
+    window.IntersectionObserver = class extends original {
+      constructor(
+        callback: IntersectionObserverCallback,
+        options?: IntersectionObserverInit,
+      ) {
+        let delivered = false;
+        super((entries, observer) => {
+          const latest = entries.at(-1);
+          if (!latest?.target.classList.contains("cmd-gravity-canvas")) {
+            callback(entries, observer);
+            return;
+          }
+          history.push(
+            entries.map((entry) => ({
+              time: entry.time,
+              intersecting: entry.isIntersecting,
+              bounds: entry.boundingClientRect.toJSON(),
+            })),
+          );
+          // Reproduce a paused observer: deliver initial false, then withhold
+          // subsequent notifications. Real scrolling must wake the scene.
+          if (delivered) return;
+          delivered = true;
+          callback(
+            [
+              {
+                time: latest.time,
+                target: latest.target,
+                rootBounds: latest.rootBounds,
+                boundingClientRect: latest.boundingClientRect,
+                intersectionRect: new DOMRect(),
+                intersectionRatio: 0,
+                isIntersecting: false,
+              },
+            ],
+            observer,
+          );
+        }, options);
+      }
+    };
+  });
   await page.emulateMedia({ reducedMotion: "reduce" });
   await page.goto(`/infrastructure?projectId=${f.project.id}`);
   const gravity = page.getByRole("region", {
@@ -407,6 +452,7 @@ test("Gravity uses canonical resources, persisted appearance, focus and truthful
             const parent = element.parentElement!;
             const stage = parent.getBoundingClientRect();
             const container = parent.querySelector(".cmd-gravity-canvas");
+            const canvas = container?.querySelector("canvas");
             const renderedWidth = element.getBoundingClientRect().width;
             const expectedWidth = Math.min(
               stage.height * 0.72,
@@ -428,6 +474,12 @@ test("Gravity uses canonical resources, persisted appearance, focus and truthful
               transform: style.transform,
               opacity: style.opacity,
               documentHidden: document.hidden,
+              viewportHeight: innerHeight,
+              containerTop: container?.getBoundingClientRect().top ?? null,
+              canvasDiagnostics: canvas ? { ...canvas.dataset } : null,
+              intersections: (
+                window as unknown as { gravityIntersectionHistory: unknown[] }
+              ).gravityIntersectionHistory,
             };
           });
         lastLensGeometry = geometry;
@@ -441,6 +493,42 @@ test("Gravity uses canonical resources, persisted appearance, focus and truthful
     );
     throw error;
   }
+  // A clipped ancestor must still pause GPU work, even with stale IO delivery.
+  const previousStyle = await gravity
+    .locator(".cmd-gravity")
+    .evaluate((element) => {
+      const previous = element.getAttribute("style");
+      Object.assign((element as HTMLElement).style, {
+        height: "0px",
+        maxHeight: "0px",
+        minHeight: "0px",
+        overflow: "hidden",
+      });
+      document.dispatchEvent(new Event("scroll"));
+      return previous;
+    });
+  await expect(gravity.locator("canvas")).toHaveAttribute(
+    "data-gravity-visible",
+    "false",
+  );
+  const pausedFrames = await gravity
+    .locator("canvas")
+    .getAttribute("data-gravity-rendered-frames");
+  await page.waitForTimeout(150);
+  await expect(gravity.locator("canvas")).toHaveAttribute(
+    "data-gravity-rendered-frames",
+    pausedFrames!,
+  );
+  await gravity.locator(".cmd-gravity").evaluate((element, previous) => {
+    if (previous === null) element.removeAttribute("style");
+    else element.setAttribute("style", previous);
+    document.dispatchEvent(new Event("scroll"));
+  }, previousStyle);
+  await gravity.locator("canvas").scrollIntoViewIfNeeded();
+  await expect(gravity.locator("canvas")).toHaveAttribute(
+    "data-gravity-visible",
+    "true",
+  );
   await gravity
     .getByRole("button", { name: "Close focus lens", exact: true })
     .click();

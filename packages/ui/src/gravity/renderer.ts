@@ -140,6 +140,7 @@ export class ObservatoryRenderer {
   private presentationInterrupted = false;
   private featuredId: string | null = null;
   private nextStats = 0;
+  private renderedFrames = 0;
   private frames: number[] = [];
   private labelLayout = new LabelLayout();
   private lensAmount = 0;
@@ -250,14 +251,24 @@ export class ObservatoryRenderer {
       );
     });
     this.listen(document, "visibilitychange", () => {
+      this.reconcileViewport();
       cancelAnimationFrame(this.frame);
       this.hooks.visibility?.(this.visible && !document.hidden);
-      if (!document.hidden) {
+      if (!document.hidden && this.visible && !this.lost) {
         this.previous = 0;
         this.needsDraw = true;
         this.frame = requestAnimationFrame(this.animate);
       }
     });
+    const wakeViewport = () => this.reconcileViewport();
+    document.addEventListener("scroll", wakeViewport, {
+      capture: true,
+      passive: true,
+    });
+    this.listeners.push(() =>
+      document.removeEventListener("scroll", wakeViewport, true),
+    );
+    this.listen(window, "resize", wakeViewport);
     this.observer = new ResizeObserver(() => this.resize());
     this.observer.observe(container);
     const toolbar = container.parentElement?.querySelector<HTMLElement>(
@@ -272,15 +283,9 @@ export class ObservatoryRenderer {
     this.labelObserver = new ResizeObserver(measureToolbar);
     if (toolbar) this.labelObserver.observe(toolbar);
     measureToolbar();
-    this.intersection = new IntersectionObserver(([entry]) => {
-      this.visible = entry?.isIntersecting ?? false;
-      this.hooks.visibility?.(this.visible && !document.hidden);
-      cancelAnimationFrame(this.frame);
-      if (this.visible && !document.hidden) {
-        this.previous = 0;
-        this.needsDraw = true;
-        this.frame = requestAnimationFrame(this.animate);
-      }
+    this.intersection = new IntersectionObserver((entries) => {
+      if (entries.some((entry) => entry.target === container))
+        this.reconcileViewport();
     });
     this.intersection.observe(container);
     this.resize();
@@ -391,6 +396,11 @@ export class ObservatoryRenderer {
 
   private publishFieldDiagnostics() {
     const canvas = this.renderer.domElement;
+    canvas.dataset.gravityRenderedFrames = String(++this.renderedFrames);
+    canvas.dataset.gravityLensAmount = String(this.lensAmount);
+    canvas.dataset.gravitySelectedPresent = String(
+      this.wells.some((well) => well.id === this.settings.selected),
+    );
     canvas.dataset.gravityContributions = String(this.uniforms.uCount.value);
     canvas.dataset.gravityLastContribution =
       this.wells[this.uniforms.uCount.value - 1]?.id ?? "";
@@ -413,7 +423,48 @@ export class ObservatoryRenderer {
     this.listeners.push(() => target.removeEventListener(event, handler));
   }
 
+  private reconcileViewport() {
+    if (this.lost) return;
+    const bounds = this.container.getBoundingClientRect();
+    let left = Math.max(0, bounds.left);
+    let right = Math.min(innerWidth, bounds.right);
+    let top = Math.max(0, bounds.top);
+    let bottom = Math.min(innerHeight, bounds.bottom);
+    for (
+      let parent = this.container.parentElement;
+      parent && right > left && bottom > top;
+      parent = parent.parentElement
+    ) {
+      const style = getComputedStyle(parent);
+      const clip = parent.getBoundingClientRect();
+      if (/auto|scroll|hidden|clip/.test(style.overflowX)) {
+        left = Math.max(left, clip.left);
+        right = Math.min(right, clip.right);
+      }
+      if (/auto|scroll|hidden|clip/.test(style.overflowY)) {
+        top = Math.max(top, clip.top);
+        bottom = Math.min(bottom, clip.bottom);
+      }
+    }
+    const visible = right > left && bottom > top;
+    if (this.visible === visible) return;
+    // Reconcile current geometry instead of trusting an older queued notification.
+    this.visible = visible;
+    this.renderer.domElement.dataset.gravityVisible = String(visible);
+    this.hooks.visibility?.(visible && !document.hidden);
+    cancelAnimationFrame(this.frame);
+    if (visible && !document.hidden) {
+      this.previous = 0;
+      this.needsDraw = true;
+      this.frame = requestAnimationFrame(this.animate);
+    }
+  }
+
   update(wells: Well[], settings: RendererSettings) {
+    this.renderer.domElement.dataset.gravityFocusRequested = String(
+      settings.focus,
+    );
+    this.renderer.domElement.dataset.gravitySelected = settings.selected ?? "";
     const layoutChanged =
       wells.length !== this.targets.length ||
       wells.some((well, index) => {
@@ -472,6 +523,7 @@ export class ObservatoryRenderer {
     this.uniforms.uReporting.value.set(settings.palette.reporting);
     this.uniforms.uFailure.value.set(settings.palette.unhealthy);
     this.needsDraw = true;
+    this.reconcileViewport();
   }
 
   preset(preset: "overview" | "top" | "angle") {
@@ -517,6 +569,7 @@ export class ObservatoryRenderer {
     this.overlayCamera.updateProjectionMatrix();
     if (this.settings.cameraMode === "composed") this.preset("overview");
     this.needsDraw = true;
+    this.reconcileViewport();
   }
 
   private pick(e: PointerEvent) {
@@ -828,7 +881,7 @@ export class ObservatoryRenderer {
           id: `lens-${well.id}`,
           label: well.label,
           kind: "service",
-          attention: false,
+          attention: well.attention,
           sector: well.sector,
           opacity: 0,
           x: this.width * 0.43 + p.x * radius,
@@ -845,6 +898,7 @@ export class ObservatoryRenderer {
         dt,
         this.settings.motion,
         this.labelTop,
+        this.settings.selected,
       ),
     );
   }
