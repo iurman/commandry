@@ -84,6 +84,7 @@ function approval(
 const ownerOnly: readonly FoundationOperation[] = [
   "work.proposal.read",
   "work.proposal.review",
+  "memory.read",
   "memory.import",
   "memory.review",
   "memory.verify",
@@ -101,6 +102,7 @@ test("operation policies enumerate every operation without expanding owner autho
     "evidence.record",
     "memory.propose",
     "memory.revise",
+    "memory.read",
     "memory.import",
     "memory.review",
     "memory.verify",
@@ -124,11 +126,14 @@ test("operation policies enumerate every operation without expanding owner autho
     );
     assert.equal(
       policy.risk,
-      ownerOnly.includes(operation) && operation !== "work.proposal.read"
+      ownerOnly.includes(operation) &&
+        operation !== "work.proposal.read" &&
+        operation !== "memory.read"
         ? "sensitive"
         : operation === "foundation.read" ||
             operation === "work.read" ||
             operation === "resources.read" ||
+            operation === "memory.read" ||
             operation === "work.proposal.read"
           ? "read_only"
           : "reversible",
@@ -138,6 +143,7 @@ test("operation policies enumerate every operation without expanding owner autho
       operation === "foundation.read" ||
         operation === "work.read" ||
         operation === "resources.read" ||
+        operation === "memory.read" ||
         operation === "work.proposal.read"
         ? "read_snapshot"
         : operation === "memory.revise" || ownerOnly.includes(operation)

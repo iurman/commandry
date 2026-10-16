@@ -21,6 +21,7 @@ import {
   foundationInstructionApprovalSchema,
   foundationIssuedClientSchema,
   foundationMemorySchema,
+  foundationOwnerMemoryReadSchema,
   foundationProposeMemorySchema,
   foundationReadRecordSchema,
   foundationReviewMemorySchema,
@@ -704,6 +705,82 @@ export function createFoundationOwnerService(
           "Invalid foundation result",
         );
       return client;
+    },
+    async getMemory(raw: unknown) {
+      const input = foundationReadRecordSchema.parse(raw);
+      let callbackCount = 0;
+      let expectedDigest: string | undefined;
+      let selected: unknown;
+      const value = await run(
+        "memory.read",
+        input.projectId,
+        input.id,
+        async (r) => {
+          callbackCount++;
+          if (callbackCount !== 1)
+            throw new Error("Foundation memory output unavailable");
+          const stored = await r.getMemory(input.id, false);
+          if (stored === null) notFound();
+          const parse = (rawValue: unknown) => {
+            try {
+              foundationDigest(rawValue);
+              const result = foundationMemorySchema.parse(rawValue);
+              if (
+                foundationDigest(result) !== foundationDigest(rawValue) ||
+                result.contentDigest !== foundationDigest(result.content)
+              )
+                throw new Error();
+              return result;
+            } catch {
+              throw new Error("Foundation memory output unavailable");
+            }
+          };
+          const memory = parse(stored);
+          if (memory.projectId !== input.projectId || memory.id !== input.id)
+            notFound();
+          const rawAnchor = await r.getMemoryAnchor(memory.id);
+          try {
+            foundationDigest(rawAnchor);
+            const anchor = anchorFor(
+              rawAnchor,
+              memory.knowledgeItemId,
+              memory.content.evidenceIds,
+            );
+            const result = foundationOwnerMemoryReadSchema.parse({
+              memory,
+              anchor,
+            });
+            if (
+              foundationDigest(result) !== foundationDigest({ memory, anchor })
+            )
+              throw new Error();
+            selected = result;
+            expectedDigest = foundationDigest(result);
+            return result;
+          } catch {
+            throw new Error("Foundation memory output unavailable");
+          }
+        },
+      );
+      session();
+      const delivered = (() => {
+        try {
+          if (
+            callbackCount !== 1 ||
+            expectedDigest === undefined ||
+            foundationDigest(value) !== expectedDigest ||
+            foundationDigest(selected) !== expectedDigest
+          )
+            throw new Error();
+          const result = foundationOwnerMemoryReadSchema.parse(value);
+          if (foundationDigest(result) !== expectedDigest) throw new Error();
+          return result;
+        } catch {
+          throw new Error("Foundation memory output unavailable");
+        }
+      })();
+      session();
+      return delivered;
     },
     reviewMemory(raw: unknown, rawKey: unknown) {
       const input = foundationReviewMemorySchema.parse(raw);

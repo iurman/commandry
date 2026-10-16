@@ -10,6 +10,7 @@ export const FOUNDATION_OPERATIONS = Object.freeze([
   "evidence.record",
   "memory.propose",
   "memory.revise",
+  "memory.read",
   "memory.import",
   "memory.review",
   "memory.verify",
@@ -143,6 +144,12 @@ export const FOUNDATION_OPERATION_POLICIES = Object.freeze({
     "reversible",
     "automatic_with_grant",
     "expected_version",
+  ),
+  "memory.read": operationPolicy(
+    "memory.read",
+    "read_only",
+    "owner_only",
+    "read_snapshot",
   ),
   "memory.import": operationPolicy(
     "memory.import",
