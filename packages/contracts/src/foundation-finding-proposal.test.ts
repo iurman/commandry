@@ -26,6 +26,12 @@ import {
   type FoundationFindingProposalToolInput,
 } from "./foundation-finding-proposal";
 
+import {
+  captureSchema as inboxCaptureSchema,
+  captureTriageSuggestionSchema as inboxSuggestionSchema,
+  captureTriageDecisionSchema as inboxDecisionSchema,
+} from "./index";
+
 const id = (value: number) =>
   `abcdefab-cdef-4abc-8def-${value.toString(16).padStart(12, "0")}`;
 const projectId = id(1);
@@ -729,4 +735,58 @@ test("rejection receipts contain neither Knowledge nor memory", () => {
     ...rejected,
     memory: receipt().memory,
   });
+});
+
+test("canonical Inbox unions retain finding provenance and reject legacy stripping", () => {
+  assert.deepEqual(inboxCaptureSchema.parse(capture()), capture());
+  assert.deepEqual(inboxSuggestionSchema.parse(suggestion()), suggestion());
+  assert.deepEqual(inboxDecisionSchema.parse(decision()), decision());
+  assert.deepEqual(inboxDecisionSchema.parse(decision(false)), decision(false));
+  const localSuggestion = {
+    id: proposalId,
+    captureId,
+    kind: "note",
+    proposedProjectId: projectId,
+    title: "Local",
+    confidence: 50,
+    rationale: "Rule",
+    ruleVersion: "capture-triage/v1",
+    sourceLabel: "Local deterministic rule",
+    createdAt: submittedAt,
+  };
+  assert.equal(inboxSuggestionSchema.safeParse(localSuggestion).success, true);
+  assert.equal(
+    inboxSuggestionSchema.safeParse({
+      ...localSuggestion,
+      proposal: suggestion().proposal,
+    }).success,
+    false,
+  );
+  assert.equal(
+    inboxSuggestionSchema.safeParse({
+      ...localSuggestion,
+      body: "Untrusted derived body",
+    }).success,
+    false,
+  );
+  const localDecision = {
+    ...decision(false),
+    actor: "local-user:unattributed",
+  };
+  delete (localDecision as Partial<typeof localDecision>).provenance;
+  assert.equal(inboxDecisionSchema.safeParse(localDecision).success, true);
+  assert.equal(
+    inboxDecisionSchema.safeParse({
+      ...localDecision,
+      provenance: decision(false).provenance,
+    }).success,
+    false,
+  );
+  assert.equal(
+    inboxSuggestionSchema.safeParse({
+      ...suggestion(),
+      sourceLabel: "Agent task proposal",
+    }).success,
+    false,
+  );
 });

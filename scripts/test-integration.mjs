@@ -15,6 +15,25 @@ import { knowledgeAccessSmoke } from "./knowledge-access-smoke.mjs";
 import { sendLinuxHost } from "./linux-host-collector.mjs";
 
 const root = resolve(fileURLToPath(new URL("..", import.meta.url)));
+// Select a real repository integration file while retaining the same disposable
+// PostgreSQL bootstrap, runtime role and teardown as the full suite.
+const selectedDatabaseFiles = process.argv
+  .filter((argument) => argument.startsWith("--db-test="))
+  .map((argument) => argument.slice("--db-test=".length));
+if (selectedDatabaseFiles.length > 0) {
+  const available = new Set(await readdir(resolve(root, "packages/db/src")));
+  for (const file of selectedDatabaseFiles) {
+    if (
+      !/^[a-z0-9][a-z0-9-]*\.integration\.test\.ts$/.test(file) ||
+      !available.has(file)
+    )
+      throw new Error(
+        "Select an existing repository integration test filename",
+      );
+  }
+  if (new Set(selectedDatabaseFiles).size !== selectedDatabaseFiles.length)
+    throw new Error("Duplicate integration test selection");
+}
 
 async function freeLoopbackPort() {
   const server = createServer();
@@ -1322,7 +1341,14 @@ try {
     runtimePassword,
     "packages/platform/src/foundation.integration.test.ts",
   );
-  if (process.argv.includes("--foundation-workflows-only")) {
+  if (selectedDatabaseFiles.length > 0) {
+    for (const file of selectedDatabaseFiles)
+      await runTests(
+        connectionString,
+        runtimePassword,
+        `packages/db/src/${file}`,
+      );
+  } else if (process.argv.includes("--foundation-workflows-only")) {
     await runTests(
       connectionString,
       runtimePassword,
