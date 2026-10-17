@@ -1250,7 +1250,7 @@ function OperationalObservatoryView({
                     ],
                     new Set(scene.membershipIndex.resourceIds),
                   );
-                  changePreferences({ sectors });
+                  changePreferences({ grouping: "custom", sectors });
                   emit({ ...query, grouping: "custom", sectors });
                 }}
               >

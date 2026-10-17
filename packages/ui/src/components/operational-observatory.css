@@ -593,7 +593,7 @@
     grid-template-columns: repeat(2, minmax(0, 1fr));
   }
   .cmd-op-lens {
-    max-width: 42%;
+    max-width: 48%;
   }
   .cmd-op-work-dock {
     padding-bottom: max(15px, env(safe-area-inset-bottom, 0px));
@@ -636,4 +636,78 @@
   padding: 12px 20px;
   cursor: pointer;
   border-top: 1px solid var(--op-line);
+}
+
+/* Wide Gravity wallboards allocate the viewport around their real control rows. */
+.cmd-network-wallboard .cmd-network-workspace[data-view="gravity"] {
+  grid-template-columns: minmax(0, 1fr);
+}
+@media (min-width: 1100px) and (min-height: 900px) {
+  .cmd-network-wallboard:has(> .cmd-network-workspace[data-view="gravity"]) {
+    box-sizing: border-box;
+    height: 100svh;
+    display: flex;
+    flex-direction: column;
+  }
+  .cmd-network-wallboard > .cmd-network-workspace[data-view="gravity"] {
+    flex: 1 1 0;
+    min-height: 0;
+  }
+  .cmd-network-wallboard
+    .cmd-network-workspace[data-view="gravity"]
+    > .cmd-network-main {
+    display: grid;
+    grid-template-rows: minmax(0, 1fr) auto;
+    min-height: 0;
+  }
+  .cmd-network-wallboard
+    .cmd-network-workspace[data-view="gravity"]
+    .cmd-operational-observatory.cmd-op-compact {
+    display: flex;
+    flex-direction: column;
+    min-height: 0;
+  }
+  .cmd-network-wallboard
+    .cmd-network-workspace[data-view="gravity"]
+    .cmd-operational-observatory
+    > :not(.cmd-op-workspace) {
+    flex: 0 0 auto;
+    max-height: 25%;
+    overflow: auto;
+  }
+  .cmd-network-wallboard
+    .cmd-network-workspace[data-view="gravity"]
+    .cmd-op-workspace {
+    flex: 1 1 0;
+    min-height: 0;
+    align-items: stretch;
+  }
+  .cmd-network-wallboard
+    .cmd-network-workspace[data-view="gravity"]
+    .cmd-op-landscape {
+    display: flex;
+    flex-direction: column;
+    min-height: 0;
+    overflow: auto;
+  }
+  .cmd-network-wallboard
+    .cmd-network-workspace[data-view="gravity"]
+    .cmd-op-stage {
+    flex: 1 0 160px;
+    min-height: 160px;
+    height: auto;
+  }
+  .cmd-network-wallboard
+    .cmd-network-workspace[data-view="gravity"]
+    :is(.cmd-op-outline, .cmd-op-search-results) {
+    flex: 0 1 auto;
+    max-height: 35%;
+    overflow: auto;
+  }
+  .cmd-network-wallboard
+    .cmd-network-workspace[data-view="gravity"]
+    .cmd-op-inspector {
+    min-height: 0;
+    overflow: auto;
+  }
 }
