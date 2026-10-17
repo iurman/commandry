@@ -1,4 +1,7 @@
 import { z } from "zod";
+export * from "./observatory";
+export * from "./observatory-management";
+export * from "./observatory-queries";
 import {
   resourceSummarySchema,
   projectResourceRelationshipTypeSchema,
@@ -3500,3 +3503,13 @@ export * from "./foundation-improvement";
 export * from "./foundation-workflow";
 export * from "./foundation-finding-proposal";
 export * from "./foundation-onboarding";
+
+export * from "./observatory-views";
+
+export * from "./observatory-repository";
+
+export * from "./observatory-operational";
+
+export * from "./observatory-provider-feed";
+
+export * from "./observatory-catalogue";

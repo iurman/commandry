@@ -1,0 +1,434 @@
+{
+  "sourceSha": "53827d6a610a591e4b2afd8cb570e72a73d53895",
+  "observedAt": "2026-10-17T13:05:47.196838+00:00",
+  "method": "Authored synthetic F2 read port -> actual application service and strict contracts -> intercepted transport -> actual production-built UI/GPU/DOM, read-only renderer observation. No database-ingestion or production-activation claim.",
+  "results": {
+    "label-trace": {
+      "total": 2,
+      "passed": 2,
+      "failed": 0,
+      "checks": [
+        {
+          "title": "D02 exact retained label identities/sizes/anchors diagnose admission change on identical refresh",
+          "pass": true,
+          "result": {
+            "anchors": 31,
+            "sizes": 31
+          }
+        },
+        {
+          "title": "E03 breadcrumb returns to prior host camera and expansion after child inspection",
+          "pass": true,
+          "result": {
+            "before": [
+              6.276396303819716,
+              6.708952074084723,
+              33.9375107107916
+            ],
+            "after": [
+              6.276396303819716,
+              6.708952074084723,
+              33.9375107107916
+            ]
+          }
+        }
+      ],
+      "contexts": [
+        {
+          "label": "label-trace-desktop-light",
+          "width": 1440,
+          "height": 1000,
+          "theme": "light",
+          "sourceSha": "53827d6a610a591e4b2afd8cb570e72a73d53895",
+          "browser": "153.0.8010.12",
+          "errors": [],
+          "blocked": [
+            {
+              "url": "http://127.0.0.1:39519/api/v1/infrastructure/observatory/work/page",
+              "reason": "auxiliary excluded"
+            },
+            {
+              "url": "http://127.0.0.1:39519/api/v1/infrastructure/observatory/work/page",
+              "reason": "auxiliary excluded"
+            },
+            {
+              "url": "http://127.0.0.1:39519/api/v1/infrastructure/observatory/work/page",
+              "reason": "auxiliary excluded"
+            },
+            {
+              "url": "http://127.0.0.1:39519/api/v1/infrastructure/observatory/views/page",
+              "reason": "auxiliary excluded"
+            }
+          ],
+          "gpu": {
+            "dpr": 1,
+            "userAgent": "Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) HeadlessChrome/153.0.8010.12 Safari/537.36",
+            "renderer": "ANGLE (AMD, AMD Radeon 890M Graphics (radeonsi strix1 ACO DRM 3.64 7.2.9-ogc3.1.fc44.x86_64), OpenGL ES 3.2)"
+          }
+        }
+      ]
+    },
+    "label-pixels": {
+      "total": 3,
+      "passed": 3,
+      "failed": 0,
+      "checks": [
+        {
+          "title": "D04 actual expanded dense label pixels exact canonical association and meaningful selected/attention priority",
+          "pass": true,
+          "result": {
+            "baselineEligible": 31,
+            "baselineVisible": 11,
+            "baselineOverlaps": [],
+            "selectedVisible": 11,
+            "selectedOverlaps": [],
+            "attentionEligible": 5,
+            "ordinaryEligible": 26,
+            "priorityViolations": [],
+            "settlingFrames": 12
+          }
+        },
+        {
+          "title": "G07 actual same fully expanded dense no-motion no-ambient scene reaches settled 120-rAF no-draw window",
+          "pass": true,
+          "result": {
+            "rafSamples": 120,
+            "draws": 0,
+            "noTransportRead": true,
+            "identicalAnchorsSizesStatesCameraTarget": true,
+            "fullyExpanded": true,
+            "settlingFrames": 12
+          }
+        },
+        {
+          "title": "Dense label controls preserve zero runtime errors and exact 18 canonical identity conservation",
+          "pass": true,
+          "result": {
+            "canonical": 18,
+            "errors": [],
+            "blockedAuxiliary": 5,
+            "receiptCount": 34,
+            "settlingFrames": 12
+          }
+        }
+      ],
+      "contexts": [
+        {
+          "label": "label-pixels-desktop-light",
+          "width": 1440,
+          "height": 1000,
+          "theme": "light",
+          "sourceSha": "53827d6a610a591e4b2afd8cb570e72a73d53895",
+          "browser": "153.0.8010.12",
+          "errors": [],
+          "blocked": [
+            {
+              "url": "http://127.0.0.1:39519/api/v1/infrastructure/observatory/work/page",
+              "reason": "auxiliary excluded"
+            },
+            {
+              "url": "http://127.0.0.1:39519/api/v1/infrastructure/observatory/work/page",
+              "reason": "auxiliary excluded"
+            },
+            {
+              "url": "http://127.0.0.1:39519/api/v1/infrastructure/observatory/work/page",
+              "reason": "auxiliary excluded"
+            },
+            {
+              "url": "http://127.0.0.1:39519/api/v1/infrastructure/observatory/views/page",
+              "reason": "auxiliary excluded"
+            },
+            {
+              "url": "http://127.0.0.1:39519/api/v1/infrastructure/observatory/views/page",
+              "reason": "auxiliary excluded"
+            }
+          ],
+          "gpu": {
+            "dpr": 1,
+            "userAgent": "Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) HeadlessChrome/153.0.8010.12 Safari/537.36",
+            "renderer": "ANGLE (AMD, AMD Radeon 890M Graphics (radeonsi strix1 ACO DRM 3.64 7.2.9-ogc3.1.fc44.x86_64), OpenGL ES 3.2)"
+          }
+        }
+      ]
+    },
+    "idle-fallback": {
+      "total": 3,
+      "passed": 3,
+      "failed": 0,
+      "checks": [
+        {
+          "title": "G07 actual visible settled no-motion no-ambient scene stops drawing",
+          "pass": true,
+          "result": {
+            "rafSamples": 120,
+            "draws": 0,
+            "visible": true,
+            "motion": false,
+            "ambient": false
+          }
+        },
+        {
+          "title": "G07 current built WebGL loss retains complete outline search and inspector",
+          "pass": true,
+          "result": {
+            "canonical": 18,
+            "graphicsLost": true
+          }
+        },
+        {
+          "title": "Idle and fallback checks produce no unexpected browser runtime errors",
+          "pass": true,
+          "result": {
+            "errors": []
+          }
+        }
+      ],
+      "contexts": [
+        {
+          "label": "idle-fallback-desktop-light",
+          "width": 1440,
+          "height": 1000,
+          "theme": "light",
+          "sourceSha": "53827d6a610a591e4b2afd8cb570e72a73d53895",
+          "browser": "153.0.8010.12",
+          "errors": [],
+          "blocked": [
+            {
+              "url": "http://127.0.0.1:39519/api/v1/infrastructure/observatory/work/page",
+              "reason": "auxiliary excluded"
+            },
+            {
+              "url": "http://127.0.0.1:39519/api/v1/infrastructure/observatory/work/page",
+              "reason": "auxiliary excluded"
+            },
+            {
+              "url": "http://127.0.0.1:39519/api/v1/infrastructure/observatory/work/page",
+              "reason": "auxiliary excluded"
+            },
+            {
+              "url": "http://127.0.0.1:39519/api/v1/infrastructure/observatory/views/page",
+              "reason": "auxiliary excluded"
+            },
+            {
+              "url": "http://127.0.0.1:39519/api/v1/infrastructure/observatory/views/page",
+              "reason": "auxiliary excluded"
+            }
+          ],
+          "gpu": {
+            "dpr": 1,
+            "userAgent": "Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) HeadlessChrome/153.0.8010.12 Safari/537.36",
+            "renderer": "ANGLE (AMD, AMD Radeon 890M Graphics (radeonsi strix1 ACO DRM 3.64 7.2.9-ogc3.1.fc44.x86_64), OpenGL ES 3.2)"
+          }
+        }
+      ]
+    }
+  },
+  "ownerSurfaceTechnicalChecks": [
+    {
+      "width": 1440,
+      "theme": "light",
+      "passed": 5,
+      "checks": [
+        "actual built project100 initial load exposes all three fixture projects",
+        "actual scoped wallboard link and hydrated source banner",
+        "native fullscreen preserves visible synthetic identity",
+        "native fullscreen banner bounds preserve every header control hit target",
+        "native fullscreen exit control and exact body-banner restoration"
+      ],
+      "errors": [],
+      "cookieAssertion": "empty",
+      "sourceSha": "53827d6a610a591e4b2afd8cb570e72a73d53895"
+    },
+    {
+      "width": 390,
+      "theme": "dark",
+      "passed": 5,
+      "checks": [
+        "actual built project100 initial load exposes all three fixture projects",
+        "actual scoped wallboard link and hydrated source banner",
+        "native fullscreen preserves visible synthetic identity",
+        "native fullscreen banner bounds preserve every header control hit target",
+        "native fullscreen exit control and exact body-banner restoration"
+      ],
+      "errors": [],
+      "cookieAssertion": "empty",
+      "sourceSha": "53827d6a610a591e4b2afd8cb570e72a73d53895"
+    }
+  ],
+  "ownerF06": "Requested in the verified source53827d6 read-only review surface; actual owner feedback still pending.",
+  "sourceReview": "Independent Astra PASS; exact capture oldwarm600fail both modes, correctedwarm2/56/cold2/74,101source controls and types; originaltests unchanged, complete invalidation/fresh metadata/bounded retention.",
+  "additiveHarnessCorrectionReview": "Independent Astra PASS; only distinct-camera setup block differs; full stationary G07 suffix byte-identical, original<.001 pose/.5pixel/600/120 controls unchanged.",
+  "firstAddedControlFailure": "Retained first D04 run2PASS/1FAIL. New cross-Overview bit-equality setup comparison failed only at1.14e-13 projected pixels with exact world geometry/identity/sizes. Corrected setup uses the existing <.001 cross-camera pose tolerance and a fresh restored baseline. OriginalD02, .5both-axis overlaps,600settlingcap,120idleframes and strict stationary-window equality remain unchanged.",
+  "fullChecks": {
+    "formatLintTypesBoundariesOpenAPILab": "PASS",
+    "lintWarnings": 72,
+    "unitFiles": 168,
+    "unitTests": 2917,
+    "labTests": 33,
+    "scriptTests": 111,
+    "registryTests": 11,
+    "LANTests": 4,
+    "phoneTests": 4,
+    "productionWebWorkerBuild": "PASS",
+    "productionDependencyAudit": "PASS high threshold; one moderate advisory",
+    "exampleProductionComposeConfig": "PASS"
+  },
+  "sourceImpact": {
+    "sourceSha": "53827d6a610a591e4b2afd8cb570e72a73d53895",
+    "baselineActualSourceSha": "b305bf8f74b1a36a8bd7aba5f1e3bc136b50c1e7",
+    "changedCodePaths": [
+      "packages/ui/src/gravity/labels.test.ts",
+      "packages/ui/src/gravity/labels.ts"
+    ],
+    "inputs": [
+      {
+        "path": "packages/ui/src/components/OperationalObservatory.tsx",
+        "sha256": "7408b0145309387744951bd9e48d81f267768c7bd97e3e81996e54df8859d8eb"
+      },
+      {
+        "path": "packages/ui/src/gravity/renderer.ts",
+        "sha256": "687108fc1f0f89efa52653a0955ad9115e6241c23d4ed6fef17161016bcfcaaf"
+      },
+      {
+        "path": "packages/ui/src/gravity/labels.ts",
+        "sha256": "30a621f8c8e1d996ec8f14bbb490aff89605d1bc369bec63ffe1698dc5024133"
+      },
+      {
+        "path": "packages/ui/src/gravity/labels.test.ts",
+        "sha256": "5e51ca8e9cb21e086dbbad1eaa4a1963ecc2328cdaac2587cd8d8f63e58be7dd"
+      },
+      {
+        "path": "packages/ui/src/gravity/model.ts",
+        "sha256": "0644c04e31c3febd81c6ce87a9fa4a2cabca6a713b761bd117c62448ed686d43"
+      },
+      {
+        "path": "packages/ui/src/gravity/operational-layout.ts",
+        "sha256": "4ddb7c3dfdbc29a8e49526259405d0dcba42a2cca5fb553354350b02ad39d072"
+      },
+      {
+        "path": "packages/ui/src/gravity/operational-layout.test.ts",
+        "sha256": "3371dfeadcda8053739eb464878b220242f5a6ce66ac72ca63913ceacb28205c"
+      },
+      {
+        "path": "packages/ui/src/gravity/presentation.ts",
+        "sha256": "0480803d49741bf265930e44d2ab654f9f787a6e23aefd5131557e472bb17557"
+      },
+      {
+        "path": "packages/ui/src/gravity/infrastructure.ts",
+        "sha256": "45d8533ff0cfdc03b9de9b3b618199deca84a39b81192a42a19bba54418e65c3"
+      },
+      {
+        "path": "packages/ui/src/gravity/activity-types.ts",
+        "sha256": "7f5a17fb8c060916eb94c9535ca199a9a0b233559664d9977d554f968af69b50"
+      },
+      {
+        "path": "packages/test-support/src/observatory.ts",
+        "sha256": "6eeb28f85953bc9e4cb5c734e66d0ff53b83dcb2e6d36fa8d753279365182657"
+      },
+      {
+        "path": "apps/web/app/infrastructure/InfrastructureOverviewScreen.tsx",
+        "sha256": "e4a2a8c0a88e6fd4240103a15ea61ac5c315e0f52fa0d188d3af2de094038060"
+      },
+      {
+        "path": "apps/web/lib/load-infrastructure-scene.ts",
+        "sha256": "48db5920f9f4b3acdae057f46d7988983e22645a2d631a82be4e7a2ef415b2be"
+      },
+      {
+        "path": "apps/web/lib/load-infrastructure-scene.test.ts",
+        "sha256": "8c900f9f0686f3a896d0dbccdff7b9d18e0dfc95308d373701fbd3f0b62eb83b"
+      },
+      {
+        "path": "packages/application/src/observatory.ts",
+        "sha256": "cf28dda53661e1b830c95f730d75a020d1f6581c9e270739141c05978a2d9df1"
+      },
+      {
+        "path": "packages/contracts/src/index.ts",
+        "sha256": "b54146086a569651e11db5e57576da379dd02c6d1510eb03d1ec5a45e4620eca"
+      },
+      {
+        "path": "packages/contracts/src/observatory.ts",
+        "sha256": "c101c587089447755468a1a9cd67ef600cbb9096d4d294f86cf0e98cf68739df"
+      },
+      {
+        "path": "packages/contracts/src/observatory-operational.ts",
+        "sha256": "0c487c4a1dd0b88851a5ef1eb6a05469bd51f236a0e82ea91986945e359c26b7"
+      },
+      {
+        "path": "packages/contracts/src/observatory-repository.ts",
+        "sha256": "9d3da09391984bef71d5a4f7c28f91b3686528716e005f903d4d44df3ef65307"
+      },
+      {
+        "path": "packages/ui/src/components/ObservatoryOperationalEvidence.tsx",
+        "sha256": "0fc800c57479ecb5f1c1adda657b5d62cf43b5ea1b7a1c0703fe7589d234bc21"
+      }
+    ],
+    "unaffectedEvidence": "Actual b305 compatible HTTP/SDK/CI/security/aging/transient-error, activity and camera controls are retained with original source. No services/contracts/component/renderer/activity/dependency/deployment changes since those actual reads. New actual label/pixel/idle checks required."
+  },
+  "screenshots": [
+    "2026-10-17-final-dense-baseline.png",
+    "2026-10-17-final-selected-label.png",
+    "2026-10-17-final-dense-idle.png",
+    "2026-10-17-final-owner-preview.png",
+    "2026-10-17-final-native91.png"
+  ],
+  "remainingLimits": [
+    "B05 supported incident snooze contract unavailable",
+    "E07 genuine document-hidden precondition unverified",
+    "F04 physical mobile software keyboard/safe area unverified",
+    "F06 actual owner interpretation pending",
+    "G06 lower-powered physical device unverified; original expanded-stress/long-frame costs retained"
+  ],
+  "productionRelease": "Not merged to main or deployed. Protected operator backup/restore/recovery/approved-image/constrained-dispatcher controls and exact live verification pending.",
+  "stationaryRefreshGeometry": {
+    "cameraTargetsWellsExact": true,
+    "terrainVerticesBeforeAfter": [
+      33326,
+      33326
+    ],
+    "geometryBytesBeforeAfter": [
+      1198944,
+      1198944
+    ],
+    "detailScaleBeforeAfter": [
+      4,
+      4
+    ],
+    "geometriesBeforeAfter": [
+      2,
+      2
+    ],
+    "contributionsBeforeAfter": [
+      42,
+      42
+    ]
+  },
+  "crossCameraQualification": "Distinct selection/Overview changes admitted labels and transient mesh telemetry; cross-command equality is required only for exact physical targets/wells/identity/measurements plus existing pose bound. Original unchanged-refresh geometry is exact, and dense idle exact/no-draw is separately proven.",
+  "coverage": {
+    "PASS": 53,
+    "NOT_RUN_OR_PARTIAL": 5,
+    "FAIL": 0
+  },
+  "native91": {
+    "method": "Actual disposablePG18 F1fixture -> actual owner HTTP/client -> actual production-built UI/GPU. No read-port interception or database mutation.",
+    "checks": [
+      {
+        "title": "Actual native91 canonical identity and visible label geometry",
+        "pass": true,
+        "canonical": 91,
+        "visible": 7
+      },
+      {
+        "title": "Native91 natural identical refresh and exact120rAF idle",
+        "pass": true,
+        "draws": 0,
+        "raf": 120,
+        "settlingFrames": 0
+      }
+    ],
+    "errors": [],
+    "denied": [],
+    "sourceSha": "53827d6a610a591e4b2afd8cb570e72a73d53895",
+    "rootViewedActualScreenshot": true,
+    "setupFailures": "Both preserved before rerun: unconditional extra Escape left wallboard; then a read-only guard omitted exact supported work/page and views/page reads. Corrected only setup/read allowlist, retaining URL/mutation-denial and all canonical/pixel/geometry/refresh/idle assertions."
+  }
+}

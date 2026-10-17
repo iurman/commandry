@@ -2,6 +2,8 @@ import { randomUUID } from "node:crypto";
 import {
   createAgentContextService,
   createRealIntegrationPoller,
+  createProviderStatusPoller,
+  createOperationalObservationPoller,
   createCaptureTriageProcessor,
   createLocalAgentRunProcessor,
   createLocalAttentionService,
@@ -34,6 +36,8 @@ import {
 import {
   createBriefRepository,
   createRealIntegrationRepository,
+  createObservatoryProviderRepository,
+  createObservatorySourceRepository,
   createCaptureTriageRepository,
   createDatabase,
   createLocalAgentRunRepository,
@@ -54,6 +58,9 @@ import {
 import {
   CAPTURE_TRIAGE_QUEUE,
   createGitHubActivityReader,
+  createCloudflareStatusReader,
+  createOperationalSourceReaders,
+  createOperationalPayloadCipher,
   createPgBossProducer,
   createLocalAgentRunSubmission,
   createSyntheticEventImportSubmission,
@@ -605,6 +612,75 @@ async function pollRealSources() {
 await pollRealSources();
 const realSourceTimer = setInterval(() => void pollRealSources(), 5_000);
 realSourceTimer.unref();
+const providerStatusPoller = createProviderStatusPoller(
+  createObservatoryProviderRepository(database.db),
+  createCloudflareStatusReader(),
+);
+let pollingProviderStatus = false;
+async function pollProviderStatus() {
+  if (!config.providerStatusPolling || pollingProviderStatus) return;
+  pollingProviderStatus = true;
+  try {
+    await providerStatusPoller.pollNext();
+  } catch {
+    log("error", "observatory.provider_reconciliation_failed", {});
+  } finally {
+    pollingProviderStatus = false;
+  }
+}
+await pollProviderStatus();
+const providerStatusTimer = setInterval(() => void pollProviderStatus(), 5_000);
+providerStatusTimer.unref();
+const operationalReaders = config.operationalSourcePolling
+  ? await createOperationalSourceReaders({
+      appOrigin: config.appOrigin,
+      allowLoopbackForTests:
+        config.appEnv === "local" || config.appEnv === "test",
+      ...(config.observatoryGitHubTokenFile
+        ? { githubTokenFile: config.observatoryGitHubTokenFile }
+        : {}),
+      ...(config.observatoryInfraAgentOrigin
+        ? { infraAgentOrigin: config.observatoryInfraAgentOrigin }
+        : {}),
+      ...(config.observatoryInfraAgentKeyFile
+        ? { infraAgentKeyFile: config.observatoryInfraAgentKeyFile }
+        : {}),
+    })
+  : { readers: [], errors: [] };
+for (const error of operationalReaders.errors)
+  log("error", "observatory.source_configuration_unavailable", error);
+const operationalCipher = createOperationalPayloadCipher(
+  config.appEncryptionKey,
+);
+const operationalPollers = operationalReaders.readers.map(({ kind, read }) =>
+  createOperationalObservationPoller(
+    createObservatorySourceRepository(database.db, {
+      kinds: [kind],
+      sealOriginal: operationalCipher.seal,
+    }),
+    read,
+  ),
+);
+let pollingOperationalSources = false;
+async function pollOperationalSources() {
+  if (pollingOperationalSources || !config.operationalSourcePolling) return;
+  pollingOperationalSources = true;
+  try {
+    const results = await Promise.allSettled(
+      operationalPollers.map((poller) => poller.pollNext()),
+    );
+    if (results.some((result) => result.status === "rejected"))
+      log("error", "observatory.source_reconciliation_failed", {});
+  } finally {
+    pollingOperationalSources = false;
+  }
+}
+await pollOperationalSources();
+const operationalSourceTimer = setInterval(
+  () => void pollOperationalSources(),
+  5000,
+);
+operationalSourceTimer.unref();
 log("info", "worker.started", { workerId });
 
 let stopping = false;
@@ -613,6 +689,8 @@ async function shutdown(signal: string) {
   stopping = true;
   clearInterval(timer);
   clearInterval(realSourceTimer);
+  clearInterval(providerStatusTimer);
+  clearInterval(operationalSourceTimer);
   clearInterval(approvalExpiryTimer);
   clearInterval(recurringTimer);
   clearInterval(workRecurrenceTimer);

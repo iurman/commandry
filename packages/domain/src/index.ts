@@ -46,3 +46,6 @@ export * from "./real-integrations";
 export * from "./knowledge-access";
 
 export * from "./agent-foundation";
+export * from "./observatory";
+
+export * from "./observatory-source-access";

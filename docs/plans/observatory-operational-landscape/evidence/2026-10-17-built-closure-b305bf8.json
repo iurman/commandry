@@ -1,0 +1,294 @@
+{
+  "sourceSha": "b305bf8f74b1a36a8bd7aba5f1e3bc136b50c1e7",
+  "method": "Authored synthetic F2 read port through actual application and strict contracts, intercepted transport, actual built UI/renderer observed read-only. Not database ingestion or production.",
+  "results": {
+    "label-trace": {
+      "total": 2,
+      "passed": 1,
+      "failed": 1,
+      "checks": [
+        {
+          "title": "D02 exact retained label identities/sizes/anchors diagnose admission change on identical refresh",
+          "pass": false,
+          "result": null,
+          "error": "AssertionError [ERR_ASSERTION]: Expected values to be strictly equal:"
+        },
+        {
+          "title": "E03 breadcrumb returns to prior host camera and expansion after child inspection",
+          "pass": true,
+          "result": {
+            "before": [
+              6.276396303819716,
+              6.708952074084723,
+              33.9375107107916
+            ],
+            "after": [
+              6.276396303819716,
+              6.708952074084723,
+              33.9375107107916
+            ]
+          },
+          "error": null
+        }
+      ]
+    },
+    "tour-camera": {
+      "total": 5,
+      "passed": 5,
+      "failed": 0,
+      "checks": [
+        {
+          "title": "E05 retained original natural first-feature tour stays automatic without human input",
+          "pass": true,
+          "result": {
+            "samples": 16
+          },
+          "error": null
+        },
+        {
+          "title": "E03 natural current host breadcrumb retains reading pose through child then ancestor",
+          "pass": true,
+          "result": {
+            "host": "resource:00000000-0000-4000-8000-000000040003",
+            "child": "resource:00000000-0000-4000-8000-000000040012",
+            "before": {
+              "camera": [
+                -4.83459792075389,
+                19.822834160011794,
+                46.44585998548603
+              ],
+              "target": [
+                -21.40851241186669,
+                0.16341948103459544,
+                19.26887998447088
+              ]
+            },
+            "after": {
+              "camera": [
+                -4.83459792075389,
+                19.822834160011794,
+                46.44585998548603
+              ],
+              "target": [
+                -21.40851241186669,
+                0.16341948103459544,
+                19.26887998447088
+              ]
+            }
+          },
+          "error": null
+        },
+        {
+          "title": "E05 retained original slow orbit stays automatic and real canvas drag stops it",
+          "pass": true,
+          "result": {
+            "before": [
+              -4.834227788170416,
+              19.82286809182754,
+              46.44620360391192
+            ],
+            "moving": [
+              50.78170070096261,
+              25.016922863758197,
+              92.74897364303455
+            ],
+            "after": [
+              97.7394440481938,
+              19.37299079709439,
+              3.1902345135341843
+            ]
+          },
+          "error": null
+        },
+        {
+          "title": "E03 composed mode return restores the exact prior composed host pose",
+          "pass": true,
+          "result": {
+            "mode": "composed",
+            "before": {
+              "camera": [
+                -19.386272897346668,
+                25.18003424480802,
+                45.44530725000021
+              ],
+              "target": [
+                -26.420453885077208,
+                0,
+                20.983213106292794
+              ]
+            },
+            "after": {
+              "camera": [
+                -19.386272897346668,
+                25.18003424480802,
+                45.44530725000021
+              ],
+              "target": [
+                -26.420453885077208,
+                0,
+                20.983213106292794
+              ]
+            }
+          },
+          "error": null
+        },
+        {
+          "title": "No unexpected runtime failures in actual built tour and reading interactions",
+          "pass": true,
+          "result": {
+            "errors": []
+          },
+          "error": null
+        }
+      ]
+    },
+    "pulse-frame": {
+      "total": 6,
+      "passed": 6,
+      "failed": 0,
+      "checks": [
+        {
+          "title": "C06 original natural 15-second refresh produces actual positive pulse",
+          "pass": true,
+          "result": {
+            "samples": 1200,
+            "pulseSamples": 84,
+            "reads": 1
+          },
+          "error": null
+        },
+        {
+          "title": "C06 duplicate expired and future events do not replay",
+          "pass": true,
+          "result": {
+            "samples": 180,
+            "retained": "00000000-0000-4000-8000-000000088021",
+            "expired": "00000000-0000-4000-8000-000000088022",
+            "future": "00000000-0000-4000-8000-000000088023"
+          },
+          "error": null
+        },
+        {
+          "title": "C06 fresh out-of-order update of the same observation identity does not duplicate its pulse",
+          "pass": true,
+          "result": {
+            "id": "00000000-0000-4000-8000-000000088021",
+            "olderByMs": 1000,
+            "age": 26133,
+            "samples": 180
+          },
+          "error": null
+        },
+        {
+          "title": "C06 later genuinely new event still produces pulse",
+          "pass": true,
+          "result": {
+            "id": "00000000-0000-4000-8000-000000088024",
+            "pulseSamples": 84
+          },
+          "error": null
+        },
+        {
+          "title": "C06 pause resume scene-first retains silent overview baseline then permits fresh activity",
+          "pass": true,
+          "result": {
+            "backlogSuppressed": "00000000-0000-4000-8000-000000088025",
+            "fresh": "00000000-0000-4000-8000-000000088026"
+          },
+          "error": null
+        },
+        {
+          "title": "C06 actual page restart baselines retained fresh IDs and permits only a later new pulse",
+          "pass": true,
+          "result": {
+            "retained": [
+              "00000000-0000-4000-8000-000000088026",
+              "00000000-0000-4000-8000-000000088025"
+            ],
+            "restartNoReplay": true,
+            "newId": "00000000-0000-4000-8000-000000088027"
+          },
+          "error": null
+        }
+      ]
+    },
+    "mixed-ci": {
+      "total": 3,
+      "passed": 3,
+      "failed": 0,
+      "checks": [
+        {
+          "title": "B06 actual built CI failure coexists with capacity availability security and canonical waiting work",
+          "pass": true,
+          "result": {
+            "failedCI": true,
+            "pendingCI": true,
+            "security": "findings",
+            "capacity": "pressure",
+            "availability": "failing",
+            "work": "waiting approval",
+            "method": "Explicit authored F2 fixture plus actual current application projection and actual built UI; no new DB ingestion claim."
+          },
+          "error": null
+        },
+        {
+          "title": "T30 actual built same-revision manual refresh recovers a transient PR error",
+          "pass": true,
+          "result": {
+            "sameRequest": true,
+            "sameSceneRevision": true,
+            "recovered": true
+          },
+          "error": null
+        },
+        {
+          "title": "Actual mixed evidence interactions produce no browser runtime errors",
+          "pass": true,
+          "result": {
+            "errors": []
+          },
+          "error": null
+        }
+      ]
+    },
+    "idle-fallback": {
+      "total": 3,
+      "passed": 3,
+      "failed": 0,
+      "checks": [
+        {
+          "title": "G07 actual visible settled no-motion no-ambient scene stops drawing",
+          "pass": true,
+          "result": {
+            "rafSamples": 120,
+            "draws": 0,
+            "visible": true,
+            "motion": false,
+            "ambient": false
+          },
+          "error": null
+        },
+        {
+          "title": "G07 current built WebGL loss retains complete outline search and inspector",
+          "pass": true,
+          "result": {
+            "canonical": 18,
+            "searchInspected": "00000000-0000-4000-8000-000000040012",
+            "graphicsLost": true
+          },
+          "error": null
+        },
+        {
+          "title": "Idle and fallback checks produce no unexpected browser runtime errors",
+          "pass": true,
+          "result": {
+            "errors": []
+          },
+          "error": null
+        }
+      ]
+    }
+  },
+  "originalD02Preserved": true,
+  "remaining": "D02 stationary31-anchor solver continues changing/drawing for identical inputs; T32 pure label correction pending. No whole upgrade completion."
+}

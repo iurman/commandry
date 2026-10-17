@@ -1,7 +1,11 @@
 import { describe, expect, it } from "vitest";
 import { PerspectiveCamera, Vector3 } from "three";
 import type { Well } from "./model";
-import { fittedLandscapePose, landscapeBounds } from "./presentation";
+import {
+  fittedLandscapePose,
+  focusedLandscapePose,
+  landscapeBounds,
+} from "./presentation";
 
 const well = (id: string, kind: Well["kind"], x: number, z: number): Well => ({
   id,
@@ -21,6 +25,31 @@ const well = (id: string, kind: Well["kind"], x: number, z: number): Well => ({
 });
 
 describe("complete landscape composition", () => {
+  it("focuses an exact subject and nested descendants while excluding unrelated fields", () => {
+    const parent = well("selected", "host", 10, 12);
+    const child = { ...well("child", "service", 14, 12), hostId: parent.id };
+    const nested = { ...well("nested", "service", 16, 13), hostId: child.id };
+    const unrelated = well("unrelated", "host", 600, -400);
+    const scene = [parent, child, nested, unrelated];
+    const focused = focusedLandscapePose(scene, parent.id, 16 / 9)!;
+    const expected = fittedLandscapePose(
+      [parent, child, nested],
+      16 / 9,
+      0.28,
+      0.78,
+    );
+    expect(focused).toEqual({ ...expected, featured: parent.id });
+    expect(focusedLandscapePose(scene, "missing", 1)).toBeNull();
+    expect(
+      focusedLandscapePose([...scene].reverse(), parent.id, 16 / 9),
+    ).toEqual(focused);
+    expect(
+      Math.hypot(
+        focused.position.x - focused.target.x,
+        focused.position.z - focused.target.z,
+      ),
+    ).toBeLessThan(100);
+  });
   const wells = [
     well("host", "host", 0, 0),
     well("distant-child", "service", 72, -40),

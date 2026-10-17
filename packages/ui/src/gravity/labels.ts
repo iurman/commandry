@@ -26,6 +26,8 @@ export class LabelLayout {
   private states = new Map<string, State>();
   private separations = new Map<string, Separation>();
   private sizes = new Map<string, { width: number; height: number }>();
+  private targetInput: string | null = null;
+  private targets = new Map<string, { x: number; y: number }>();
   changing = false;
 
   measure(id: string, width: number, height: number) {
@@ -84,51 +86,87 @@ export class LabelLayout {
         ),
       );
     };
-    const contacts = new Set<string>();
-    for (let pass = 0; pass < 8; pass++) {
-      for (const box of boxes) clamp(box);
-      for (let i = 0; i < boxes.length; i++) {
-        const a = boxes[i]!;
-        if (!a.anchor.visible) continue;
-        for (let j = i + 1; j < boxes.length; j++) {
-          const b = boxes[j]!;
-          if (
-            !b.anchor.visible ||
-            a.anchor.id.startsWith("lens-") !== b.anchor.id.startsWith("lens-")
-          )
-            continue;
-          const key = `${a.anchor.id}|${b.anchor.id}`;
-          const gapX = (a.width + b.width) / 2 + 10;
-          const gapY = (a.height + b.height) / 2 + 10;
-          // Remember which side each label chose until the resources separate.
-          if (
-            Math.abs(a.anchor.x - b.anchor.x) < gapX + 24 &&
-            Math.abs(a.anchor.y - b.anchor.y) < gapY + 24
-          ) {
-            contacts.add(key);
-            a.engaged = true;
-            b.engaged = true;
+    const targetInput = JSON.stringify([
+      width,
+      height,
+      top,
+      selected,
+      boxes.map(({ anchor, width, height }) => [
+        anchor.id,
+        anchor.x,
+        anchor.y,
+        anchor.visible,
+        !!anchor.attention,
+        width,
+        height,
+      ]),
+    ]);
+    // Retain the target for unchanged real inputs, not another solve from the
+    // animated offsets. Clamped collision feedback can otherwise keep cycling.
+    if (this.targetInput !== targetInput) {
+      const contacts = new Set<string>();
+      for (let pass = 0; pass < 8; pass++) {
+        for (const box of boxes) clamp(box);
+        for (let i = 0; i < boxes.length; i++) {
+          const a = boxes[i]!;
+          if (!a.anchor.visible) continue;
+          for (let j = i + 1; j < boxes.length; j++) {
+            const b = boxes[j]!;
+            if (
+              !b.anchor.visible ||
+              a.anchor.id.startsWith("lens-") !==
+                b.anchor.id.startsWith("lens-")
+            )
+              continue;
+            const key = `${a.anchor.id}|${b.anchor.id}`;
+            const gapX = (a.width + b.width) / 2 + 10;
+            const gapY = (a.height + b.height) / 2 + 10;
+            // Remember which side each label chose until the resources separate.
+            if (
+              Math.abs(a.anchor.x - b.anchor.x) < gapX + 24 &&
+              Math.abs(a.anchor.y - b.anchor.y) < gapY + 24
+            ) {
+              contacts.add(key);
+              a.engaged = true;
+              b.engaged = true;
+            }
+            const overlapX = gapX - Math.abs(a.x - b.x);
+            const overlapY = gapY - Math.abs(a.y - b.y);
+            if (overlapX <= 0 || overlapY <= 0) continue;
+            let separation = this.separations.get(key);
+            if (!separation) {
+              const axis = overlapX < overlapY * 0.65 ? "x" : "y";
+              separation = { axis, direction: a[axis] <= b[axis] ? -1 : 1 };
+              this.separations.set(key, separation);
+            }
+            const { axis, direction } = separation;
+            const gap = axis === "x" ? gapX : gapY;
+            const correction =
+              Math.max(0, gap - direction * (a[axis] - b[axis])) / 2;
+            a[axis] += correction * direction;
+            b[axis] -= correction * direction;
           }
-          const overlapX = gapX - Math.abs(a.x - b.x);
-          const overlapY = gapY - Math.abs(a.y - b.y);
-          if (overlapX <= 0 || overlapY <= 0) continue;
-          let separation = this.separations.get(key);
-          if (!separation) {
-            const axis = overlapX < overlapY * 0.65 ? "x" : "y";
-            separation = { axis, direction: a[axis] <= b[axis] ? -1 : 1 };
-            this.separations.set(key, separation);
-          }
-          const { axis, direction } = separation;
-          const gap = axis === "x" ? gapX : gapY;
-          const correction =
-            Math.max(0, gap - direction * (a[axis] - b[axis])) / 2;
-          a[axis] += correction * direction;
-          b[axis] -= correction * direction;
         }
       }
+      for (const key of this.separations.keys())
+        if (!contacts.has(key)) this.separations.delete(key);
+      for (const box of boxes) {
+        if (!box.engaged) {
+          box.x = box.anchor.x;
+          box.y = box.anchor.y - box.height / 2;
+        }
+        clamp(box);
+      }
+      this.targets = new Map(
+        boxes.map((box) => [box.anchor.id, { x: box.x, y: box.y }]),
+      );
+      this.targetInput = targetInput;
     }
-    for (const key of this.separations.keys())
-      if (!contacts.has(key)) this.separations.delete(key);
+    for (const box of boxes) {
+      const target = this.targets.get(box.anchor.id)!;
+      box.x = target.x;
+      box.y = target.y;
+    }
     this.changing = false;
     const smoothing = motion ? 1 - Math.exp(-dt * 8) : 1;
     const occupied: { x: number; y: number; width: number; height: number }[] =
@@ -145,14 +183,12 @@ export class LabelLayout {
           priority(b) - priority(a) || a.anchor.id.localeCompare(b.anchor.id),
       )
       .map((box) => {
-        if (!box.engaged) {
-          box.x = box.anchor.x;
-          box.y = box.anchor.y - box.height / 2;
-        }
-        clamp(box);
         const { anchor, state } = box;
         const x = box.x - anchor.x;
         const y = box.y + box.height / 2 - anchor.y;
+        // Measure actual convergence, including reduced-motion snaps to the target.
+        const moving = Math.abs(x - state.x) + Math.abs(y - state.y) > 0.05;
+        const wasAdmitted = state.admitted;
         state.x += (x - state.x) * smoothing;
         state.y += (y - state.y) * smoothing;
         const rendered = {
@@ -180,7 +216,8 @@ export class LabelLayout {
         else state.opacity = Math.min(state.opacity, 0.04);
         state.opacity += (opacity - state.opacity) * smoothing;
         this.changing ||=
-          Math.abs(x - state.x) + Math.abs(y - state.y) > 0.05 ||
+          moving ||
+          wasAdmitted !== state.admitted ||
           Math.abs(opacity - state.opacity) > 0.002;
         return {
           ...anchor,

@@ -75,3 +75,17 @@ export * from "./foundation-improvement";
 export * from "./foundation-workflow-pagination";
 export * from "./foundation-finding-proposal";
 export * from "./foundation-onboarding";
+
+export * from "./provider-status";
+
+export * from "./observatory-management";
+
+export * from "./observatory";
+
+export * from "./observatory-observations";
+
+export * from "./observatory-views";
+
+export * from "./observatory-provider-projection";
+
+export * from "./observatory-work";

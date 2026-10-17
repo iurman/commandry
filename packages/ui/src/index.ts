@@ -1,4 +1,6 @@
 export { AppShell } from "./components/AppShell";
+export { FloatingSurface } from "./components/FloatingSurface";
+export type { FloatingSurfaceProps } from "./components/FloatingSurface";
 export { ConnectionStatus } from "./components/ConnectionStatus";
 export type { ConnectionState } from "./components/ConnectionStatus";
 export { LocalBackupCard } from "./components/LocalBackupCard";
@@ -151,3 +153,23 @@ export type {
   InfrastructureMapResource,
   InfrastructureMapEdge,
 } from "./components/InfrastructureMap";
+
+export { OperationalObservatory } from "./components/OperationalObservatory";
+export type { OperationalObservatoryProps } from "./components/OperationalObservatory";
+export type { ObservatoryQuery } from "./gravity/observatory-preferences";
+
+export type { ObservatoryViewsClient } from "./components/ObservatoryCanonicalViews";
+
+export {
+  ObservatoryOperationalEvidence,
+  type ObservatoryEvidenceClient,
+} from "./components/ObservatoryOperationalEvidence";
+
+export {
+  ObservatoryWorkDock,
+  type ObservatoryWorkDockProps,
+} from "./components/ObservatoryWorkDock";
+
+export * from "./components/ObservatoryProviderFeed";
+
+export * from "./components/ObservatoryReviewControls";

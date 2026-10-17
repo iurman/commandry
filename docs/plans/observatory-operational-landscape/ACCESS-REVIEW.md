@@ -1,0 +1,13 @@
+# Observatory authorization and record review
+
+Status: Operational. Independent review findings resolved locally; end-to-end acceptance remains pending.
+
+Independent GPT-6 Astra review confirmed four defects despite the then-passing application and PostgreSQL tests. A shared resource could expose another project's source/metrics/raw-derived RAM; multiple reviewed monitors created duplicate facet-access keys and invalidated the scene; blank review citations could poison subsequent reads; and expiry during awaited allowed audit could commit a denied canonical write.
+
+The fixes apply project ownership before source/latest-event/metric/raw-envelope selection, retain one deliberately reduced access state per resource/facet while preserving all signals, reject whitespace citations without rewriting valid originals, and recheck the actual session after the audit while rollback remains possible. New operational sources require explicit reviewed project/environment bindings. Existing unbound sources remain owner-visible as unavailable and cannot contribute project-client evidence or be polled until bound. Actual host RAM parses the validated original JSON held in the canonical storage envelope.
+
+Independent correction probes,25 unit tests and23 PostgreSQL results (7 foundation,7 access including parent,9 canonical including parent) passed. Real cases cover shared A/B sources where a hidden newer sample must not displace an authorized sample, two monitors retaining a current failure, citation read-after-write, denied write/audit rollback and actual machine-adapter expiry/revocation. The reviewer also verified the new owner post-audit control independently. Its initial database clock regression expired before audit; the coordinator adjusted it to the fourth clock call so it exercises the post-audit check. The corrected combined database run is recorded in EXECUTION.md when completed.
+
+Named-view persistence had a separate checked packet:18 contract/application tests and14 PostgreSQL subscenarios plus parent and foundational prerequisites. It verifies actual owner/session separation, version races, atomic audit failure, session-row locking through an actual audit wait,137 private views with complete continuation, exact retry receipts and tombstone non-resurrection. Canonical views intentionally remain owner-private because they can include cross-project presentation labels. Machine read grants cannot load them.
+
+These reviews do not verify operational ingestion, browser routes, signed-in production, physical devices, frame quality or deployment. Raw source payloads remain private and are never UI/MCP DTOs. All test databases and network endpoints were disposable; no production SQL was used.

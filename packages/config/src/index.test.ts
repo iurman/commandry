@@ -15,6 +15,33 @@ describe("runtime configuration", () => {
     const config = loadRuntimeConfig({ ...valid, DB_POOL_MAX: "3" });
     expect(config.dbPoolMax).toBe(3);
     expect(config.bossPoolMax).toBe(5);
+    expect(config.providerStatusPolling).toBe(false);
+    expect(config.operationalSourcePolling).toBe(false);
+    expect(config.observatoryGitHubTokenFile).toBeUndefined();
+    expect(
+      loadRuntimeConfig({
+        ...valid,
+        OPERATIONAL_SOURCE_POLLING: "true",
+        OBSERVATORY_GITHUB_TOKEN_FILE: "/run/secrets/observatory-github",
+        OBSERVATORY_INFRAAGENT_ORIGIN: "https://monitor.example.test",
+        OBSERVATORY_INFRAAGENT_KEY_FILE: "/run/secrets/observatory-monitor",
+      }),
+    ).toMatchObject({
+      operationalSourcePolling: true,
+      observatoryGitHubTokenFile: "/run/secrets/observatory-github",
+      observatoryInfraAgentOrigin: "https://monitor.example.test",
+      observatoryInfraAgentKeyFile: "/run/secrets/observatory-monitor",
+    });
+    expect(() =>
+      loadRuntimeConfig({ ...valid, OPERATIONAL_SOURCE_POLLING: "sometimes" }),
+    ).toThrow(ConfigurationError);
+    expect(
+      loadRuntimeConfig({ ...valid, PROVIDER_STATUS_POLLING: "true" })
+        .providerStatusPolling,
+    ).toBe(true);
+    expect(() =>
+      loadRuntimeConfig({ ...valid, PROVIDER_STATUS_POLLING: "sometimes" }),
+    ).toThrow(ConfigurationError);
     expect(config.localApprovalAutoCeiling).toBe("reversible");
     expect(config.localWorkAcceptanceRequired).toBe(true);
     expect(
@@ -92,6 +119,16 @@ describe("runtime configuration", () => {
     const config = loadRuntimeConfig(production);
     expect(config.humanAuthMode).toBe("password");
     expect(config.productionAuthMode).toBe("password");
+    expect(config.providerStatusPolling).toBe(true);
+    expect(config.operationalSourcePolling).toBe(true);
+    expect(
+      loadRuntimeConfig({ ...production, OPERATIONAL_SOURCE_POLLING: "false" })
+        .operationalSourcePolling,
+    ).toBe(false);
+    expect(
+      loadRuntimeConfig({ ...production, PROVIDER_STATUS_POLLING: "false" })
+        .providerStatusPolling,
+    ).toBe(false);
     for (const override of [
       { APP_ORIGIN: "http://commandry.site" },
       { APP_ORIGIN: "https://commandry.site:444" },

@@ -12,5 +12,8 @@
   "dependencies": {
     "@commandry/contracts": "workspace:*",
     "@commandry/domain": "workspace:*"
+  },
+  "devDependencies": {
+    "@commandry/test-support": "workspace:*"
   }
 }

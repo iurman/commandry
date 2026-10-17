@@ -73,7 +73,7 @@ function guardedDigest(value: unknown): string {
   }
 }
 
-function validatePage(
+export function serializeFoundationProjectWorkPage(
   value: unknown,
   input: FoundationProjectWorkQuery,
   selectedAt: string,
@@ -207,7 +207,11 @@ export function createFoundationWorkService(
           ...(input.cursor === null ? {} : { cursor: input.cursor.afterId }),
         });
         authorize();
-        const page = validatePage(rawPage, input, selectedAt);
+        const page = serializeFoundationProjectWorkPage(
+          rawPage,
+          input,
+          selectedAt,
+        );
         expectedDigest = foundationDigest(page);
         return page;
       });

@@ -2,15 +2,23 @@
 
 import { useRouter } from "next/navigation";
 import dynamic from "next/dynamic";
-const GravityInfrastructure = dynamic(
-  () => import("@commandry/ui/gravity-infrastructure"),
+const OperationalObservatory = dynamic(
+  () => import("@commandry/ui").then((module) => module.OperationalObservatory),
   { ssr: false, loading: () => <p role="status">Loading Gravity view...</p> },
 );
 
-import { useEffect, useRef, useState, type FormEvent } from "react";
+import {
+  useCallback,
+  useEffect,
+  useMemo,
+  useRef,
+  useState,
+  type FormEvent,
+} from "react";
 import type {
   InfrastructureOverview,
   InfrastructureResource,
+  ObservatorySceneReadResult,
 } from "@commandry/contracts";
 import {
   AppShell,
@@ -18,12 +26,20 @@ import {
   InfrastructureMap,
   infrastructureTelemetryLabels,
   isInfrastructureHost,
+  type ObservatoryQuery,
 } from "@commandry/ui";
 import {
   apiJson,
   type PageResponse,
   type ProjectRecord,
 } from "../projects/api";
+import { observatoryViewsClient } from "./observatory-views-client";
+import { createObservatoryProviderFeedClient } from "./observatory-provider-client";
+import { createObservatoryReviewClient } from "./observatory-review-client";
+import {
+  loadObservatoryWorkPage,
+  loadCompleteObservatoryWorkProjects,
+} from "./observatory-work-client";
 import { loadInfrastructureScene } from "../../lib/load-infrastructure-scene";
 
 const needsAttention = (item: InfrastructureResource) =>
@@ -78,7 +94,23 @@ export default function InfrastructureOverviewScreen({
   const [search, setSearch] = useState(initialQuery);
   const [projects, setProjects] = useState<ProjectRecord[]>([]);
   const [projectError, setProjectError] = useState(false);
+  const [projectReadEpoch, setProjectReadEpoch] = useState<number | null>(null);
+  const [projectErrorEpoch, setProjectErrorEpoch] = useState<number | null>(
+    null,
+  );
   const [data, setData] = useState<InfrastructureOverview | null>(null);
+  const [observatory, setObservatory] =
+    useState<ObservatorySceneReadResult | null>(null);
+  const [sceneError, setSceneError] = useState<string | null>(null);
+  const [sceneQuery, setSceneQuery] = useState<ObservatoryQuery>({
+    grouping: "operational",
+    environment: null,
+    expandedRepresentationIds: [],
+    search: initialQuery,
+    sectors: [],
+    viewRevision: "1",
+  });
+  const sceneReadScope = useRef("");
   const [error, setError] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
   const [progress, setProgress] = useState<{
@@ -86,14 +118,71 @@ export default function InfrastructureOverviewScreen({
     total: number;
   } | null>(null);
   const [epoch, setEpoch] = useState(0);
+  const projectsReady = projectReadEpoch === epoch && !projectError;
+  const projectsLoading =
+    projectReadEpoch !== epoch && projectErrorEpoch !== epoch;
   const [paused, setPaused] = useState(false);
+  // A resumed scene must not consume its baseline using an older overview.
+  const activityReadGeneration = useRef(0);
+  const [activityBaselinePending, setActivityBaselinePending] = useState(false);
+  const startActivityBaseline = useCallback(() => {
+    activityReadGeneration.current += 1;
+    setActivityBaselinePending(true);
+  }, []);
+  const wasDocumentHidden = useRef(false);
+  const documentHidden = useCallback(() => {
+    const hidden = document.hidden;
+    if (hidden && !wasDocumentHidden.current) startActivityBaseline();
+    wasDocumentHidden.current = hidden;
+    return hidden;
+  }, [startActivityBaseline]);
   const [view, setView] = useState<"gravity" | "map" | "list">("gravity");
   const [selectedId, setSelectedId] = useState<string | null>(null);
+  const [selectionRevision, setSelectionRevision] = useState(0);
   const [follow, setFollow] = useState(false);
   const [tv, setTv] = useState(wallboard);
   const [rotatePages, setRotatePages] = useState(false);
   const [arrivals, setArrivals] = useState<string[]>([]);
   const previousEvents = useRef<Set<string> | null>(null);
+  const evidenceClient = useCallback(
+    async (
+      resourceId: string,
+      facet: "availability" | "pull_requests" | "security",
+    ) =>
+      apiJson<unknown>("/api/v1/infrastructure/observatory/operational", {
+        method: "POST",
+        headers: { "content-type": "application/json" },
+        body: JSON.stringify({
+          ...sceneQuery,
+          ...(scope.projectId ? { projectId: scope.projectId } : {}),
+          resourceId,
+          facet,
+          ...(facet === "pull_requests"
+            ? { includePullRequestChecks: true }
+            : {}),
+        }),
+      }),
+    [sceneQuery, scope.projectId, epoch],
+  );
+  const providerFeedClient = useMemo(
+    () =>
+      createObservatoryProviderFeedClient({
+        schemaVersion: 1,
+        ...sceneQuery,
+        ...(scope.projectId ? { projectId: scope.projectId } : {}),
+      }),
+    [sceneQuery, scope.projectId],
+  );
+  const reviewClient = useMemo(
+    () =>
+      createObservatoryReviewClient({
+        schemaVersion: 1,
+        ...sceneQuery,
+        ...(scope.projectId ? { projectId: scope.projectId } : {}),
+      }),
+    [sceneQuery, scope.projectId],
+  );
+  const onReviewed = useCallback(() => setEpoch((value) => value + 1), []);
   const [fullscreenError, setFullscreenError] = useState<string | null>(null);
   const container = useRef<HTMLDivElement>(null);
 
@@ -117,43 +206,54 @@ export default function InfrastructureOverviewScreen({
     const controller = new AbortController();
     void (async () => {
       try {
-        let cursor: string | null = null;
-        const items: ProjectRecord[] = [];
-        do {
-          const params = new URLSearchParams({ limit: "100" });
-          if (cursor) params.set("cursor", cursor);
-          const page = await apiJson<PageResponse<ProjectRecord>>(
-            `/api/v1/projects?${params}`,
-            { signal: controller.signal },
-          );
-          items.push(...page.items);
-          cursor = page.nextCursor;
-        } while (cursor && !controller.signal.aborted);
+        const items = await loadCompleteObservatoryWorkProjects(
+          async (cursor) => {
+            const params = new URLSearchParams({ limit: "100" });
+            if (cursor) params.set("cursor", cursor);
+            return apiJson<PageResponse<ProjectRecord>>(
+              `/api/v1/projects?${params}`,
+              { signal: controller.signal },
+            );
+          },
+        );
         if (!controller.signal.aborted) {
           setProjects(items);
           setProjectError(false);
+          setProjectReadEpoch(epoch);
         }
       } catch {
-        if (!controller.signal.aborted) setProjectError(true);
+        if (!controller.signal.aborted) {
+          setProjectError(true);
+          setProjectErrorEpoch(epoch);
+        }
       }
     })();
     return () => controller.abort();
   }, [epoch]);
 
   useEffect(() => {
+    const onVisibility = () => {
+      documentHidden();
+    };
+    document.addEventListener("visibilitychange", onVisibility);
+    return () => document.removeEventListener("visibilitychange", onVisibility);
+  }, [documentHidden]);
+
+  useEffect(() => {
     if (paused) return;
     const controller = new AbortController();
     let inFlight = false;
     async function refresh() {
-      if (inFlight || document.hidden) return;
+      if (documentHidden() || inFlight) return;
       inFlight = true;
+      const readGeneration = activityReadGeneration.current;
       try {
         const fetchPage = (cursor: string | null, signal: AbortSignal) => {
           const params = new URLSearchParams({
             limit: view === "gravity" ? "50" : wallboard ? "6" : "12",
           });
           if (scope.projectId) params.set("projectId", scope.projectId);
-          if (scope.q) params.set("q", scope.q);
+          if (scope.q && view !== "gravity") params.set("q", scope.q);
           if (cursor) params.set("cursor", cursor);
           return apiJson<InfrastructureOverview>(
             `/api/v1/infrastructure/overview?${params}`,
@@ -188,6 +288,8 @@ export default function InfrastructureOverviewScreen({
           snapshot.events.map((event) => event.id),
         );
         setData(snapshot);
+        if (readGeneration === activityReadGeneration.current)
+          setActivityBaselinePending(false);
         setError(null);
         if (follow) {
           const attention = snapshot.items.filter(needsAttention);
@@ -201,8 +303,10 @@ export default function InfrastructureOverviewScreen({
             );
         }
       } catch (cause) {
-        if (!controller.signal.aborted)
+        if (!controller.signal.aborted) {
+          startActivityBaseline();
           setError(cause instanceof Error ? cause.message : "Refresh failed");
+        }
       } finally {
         inFlight = false;
         if (!controller.signal.aborted) setLoading(false);
@@ -211,7 +315,7 @@ export default function InfrastructureOverviewScreen({
     void refresh();
     const timer = window.setInterval(() => void refresh(), 15_000);
     const onVisible = () => {
-      if (!document.hidden) void refresh();
+      if (!documentHidden()) void refresh();
     };
     document.addEventListener("visibilitychange", onVisible);
     return () => {
@@ -219,13 +323,83 @@ export default function InfrastructureOverviewScreen({
       clearInterval(timer);
       document.removeEventListener("visibilitychange", onVisible);
     };
-  }, [scope, epoch, paused, follow, wallboard, view]);
+  }, [
+    scope,
+    epoch,
+    paused,
+    follow,
+    wallboard,
+    view,
+    documentHidden,
+    startActivityBaseline,
+  ]);
+
+  useEffect(() => {
+    if (view !== "gravity" || paused) return;
+    const controller = new AbortController();
+    const readScope = JSON.stringify([scope.projectId, sceneQuery.environment]);
+    let inFlight = false;
+    async function refreshScene() {
+      if (documentHidden() || inFlight) return;
+      inFlight = true;
+      if (sceneReadScope.current !== readScope) {
+        sceneReadScope.current = readScope;
+        setObservatory(null);
+      }
+      try {
+        const result = await apiJson<ObservatorySceneReadResult>(
+          "/api/v1/infrastructure/observatory/scene",
+          {
+            method: "POST",
+            body: JSON.stringify({
+              ...sceneQuery,
+              ...(scope.projectId ? { projectId: scope.projectId } : {}),
+            }),
+            signal: controller.signal,
+          },
+        );
+        if (!controller.signal.aborted) {
+          setObservatory(result);
+          setSceneError(null);
+        }
+      } catch {
+        if (!controller.signal.aborted) {
+          startActivityBaseline();
+          setSceneError(
+            "Operational projection is unavailable. The last scene is delayed; refresh to retry.",
+          );
+        }
+      } finally {
+        inFlight = false;
+      }
+    }
+    void refreshScene();
+    const timer = setInterval(() => void refreshScene(), 15000);
+    const visible = () => {
+      if (!documentHidden()) void refreshScene();
+    };
+    document.addEventListener("visibilitychange", visible);
+    return () => {
+      controller.abort();
+      clearInterval(timer);
+      document.removeEventListener("visibilitychange", visible);
+    };
+  }, [
+    view,
+    paused,
+    scope.projectId,
+    sceneQuery,
+    epoch,
+    documentHidden,
+    startActivityBaseline,
+  ]);
 
   useEffect(() => {
     if (!wallboard) return;
     const onKey = (event: KeyboardEvent) => {
       if (
         event.key === "Escape" &&
+        !event.defaultPrevented &&
         !(event.target instanceof HTMLInputElement) &&
         !(event.target instanceof HTMLSelectElement)
       )
@@ -272,6 +446,9 @@ export default function InfrastructureOverviewScreen({
     previousEvents.current = null;
     setRotatePages(false);
     setData(null);
+    startActivityBaseline();
+    setObservatory(null);
+    setSceneError(null);
     setProgress(null);
     setError(null);
     setLoading(true);
@@ -289,10 +466,14 @@ export default function InfrastructureOverviewScreen({
     event.preventDefault();
     changeScope(scope.projectId, search.trim());
   }
-  function select(id: string) {
+  function rememberSelection(id: string) {
     setRotatePages(false);
     setFollow(false);
     setSelectedId(id);
+  }
+  function select(id: string) {
+    rememberSelection(id);
+    setSelectionRevision((current) => current + 1);
   }
   function nextPage(cursor: string, previous = false) {
     previousEvents.current = null;
@@ -336,10 +517,7 @@ export default function InfrastructureOverviewScreen({
       );
     }
   }
-  const selected =
-    data?.items.find((item) => item.id === selectedId) ??
-    data?.items[0] ??
-    null;
+  const selected = data?.items.find((item) => item.id === selectedId) ?? null;
   const attention = data?.items.filter(needsAttention) ?? [];
   const scopeParams = new URLSearchParams();
   if (scope.projectId) scopeParams.set("projectId", scope.projectId);
@@ -381,7 +559,10 @@ export default function InfrastructureOverviewScreen({
           </Button>
           <Button
             aria-pressed={paused}
-            onClick={() => setPaused((current) => !current)}
+            onClick={() => {
+              if (!paused) startActivityBaseline();
+              setPaused(!paused);
+            }}
           >
             {paused ? "Resume updates" : "Pause updates"}
           </Button>
@@ -420,6 +601,7 @@ export default function InfrastructureOverviewScreen({
         </div>
       </header>
       {fullscreenError && <p role="status">{fullscreenError}</p>}
+      {sceneError && <p role="alert">{sceneError}</p>}
       <div className="cmd-network-vitals" aria-label="Infrastructure summary">
         <div>
           <span>Resources in scope</span>
@@ -447,19 +629,21 @@ export default function InfrastructureOverviewScreen({
         </div>
       </div>
       <div className="cmd-network-toolbar">
-        <form onSubmit={searchResources} className="cmd-network-search">
-          <label htmlFor="infrastructure-search">Find a resource</label>
-          <div>
-            <input
-              id="infrastructure-search"
-              placeholder="Search names or kinds"
-              maxLength={160}
-              value={search}
-              onChange={(event) => setSearch(event.target.value)}
-            />
-            <Button type="submit">Search</Button>
-          </div>
-        </form>
+        {view !== "gravity" && (
+          <form onSubmit={searchResources} className="cmd-network-search">
+            <label htmlFor="infrastructure-search">Find a resource</label>
+            <div>
+              <input
+                id="infrastructure-search"
+                placeholder="Search names or kinds"
+                maxLength={160}
+                value={search}
+                onChange={(event) => setSearch(event.target.value)}
+              />
+              <Button type="submit">Search</Button>
+            </div>
+          </form>
+        )}
         <label className="cmd-network-project-filter">
           Project
           <select
@@ -504,10 +688,16 @@ export default function InfrastructureOverviewScreen({
           </Button>
         </div>
       </div>
-      {projectError && (
+      {projectsLoading && (
+        <p role="status">
+          Loading complete project catalogue. Canonical Work is unavailable
+          until this read completes.
+        </p>
+      )}
+      {projectError && projectErrorEpoch === epoch && (
         <p role="status">
           Project filters are unavailable. Refresh now to retry. Resource search
-          remains available.
+          remains available. Canonical Work is unavailable.
         </p>
       )}
       {error && (
@@ -582,8 +772,8 @@ export default function InfrastructureOverviewScreen({
           clear the scope.
         </p>
       )}
-      {data && data.items.length > 0 && (
-        <div className="cmd-network-workspace">
+      {data && (view === "gravity" || data.items.length > 0) && (
+        <div className="cmd-network-workspace" data-view={view}>
           <section
             className="cmd-network-main"
             aria-label={
@@ -594,33 +784,59 @@ export default function InfrastructureOverviewScreen({
                   : "Resource list"
             }
           >
-            <div className="cmd-network-section-heading">
-              <h2>
-                {view === "gravity"
-                  ? "Gravity Observatory"
-                  : view === "map"
+            {view !== "gravity" && (
+              <div className="cmd-network-section-heading">
+                <h2>
+                  {view === "map"
                     ? "The infrastructure map"
                     : "All resources in view"}
-              </h2>
-              <Button
-                aria-pressed={follow}
-                onClick={() => setFollow((current) => !current)}
-              >
-                Follow attention
-              </Button>
-            </div>
+                </h2>
+                <Button
+                  aria-pressed={follow}
+                  onClick={() => setFollow((current) => !current)}
+                >
+                  Follow attention
+                </Button>
+              </div>
+            )}
             {view === "gravity" ? (
-              <GravityInfrastructure
-                key={`${scope.projectId}/${scope.q}/${scope.cursor}`}
-                snapshot={data}
-                compact={wallboard}
-                dark={tv}
-                selectedId={selected?.id ?? null}
-                onSelect={select}
-                onProject={(id) => changeScope(id)}
-                paused={paused}
-                delayed={!!error}
-              />
+              observatory ? (
+                <OperationalObservatory
+                  scene={observatory.scene}
+                  snapshot={data}
+                  compact={wallboard}
+                  dark={tv}
+                  selectedId={selectedId}
+                  selectionRevision={selectionRevision}
+                  onSelect={rememberSelection}
+                  onProject={(id) => changeScope(id)}
+                  onQueryChange={setSceneQuery}
+                  onCameraFocus={(renderer, id, options) => {
+                    renderer.focusSubject(id, options);
+                  }}
+                  initialSearch={initialQuery}
+                  initialQuery={sceneQuery}
+                  viewsClient={observatoryViewsClient}
+                  workClient={loadObservatoryWorkPage}
+                  workProjectIds={
+                    projectsReady
+                      ? projects.map((project) => project.id)
+                      : undefined
+                  }
+                  evidenceClient={evidenceClient}
+                  providerFeedClient={providerFeedClient}
+                  reviewClient={reviewClient}
+                  onReviewed={onReviewed}
+                  scopeProjectId={scope.projectId || null}
+                  paused={paused}
+                  delayed={!!error || !!sceneError || activityBaselinePending}
+                />
+              ) : (
+                <div role="status">
+                  {sceneError ??
+                    "Preparing the complete operational landscape..."}
+                </div>
+              )
             ) : view === "map" ? (
               <InfrastructureMap
                 resources={data.items}
@@ -657,182 +873,182 @@ export default function InfrastructureOverviewScreen({
               </ul>
             )}
             <p className="cmd-network-truth">
-              Reporting describes source freshness. Service availability is not
-              yet observed. Lines show recorded relationships, not live network
-              traffic.
+              {view === "gravity"
+                ? "Availability, source freshness, monitoring coverage, security, provider exposure and Work retain independent evidence."
+                : "Reporting describes source freshness. Service availability is not inferred from telemetry."}{" "}
+              Lines show recorded relationships, not live network traffic.
             </p>
           </section>
-          <aside
-            className="cmd-network-inspector"
-            aria-label="Resource inspector and recent events"
-          >
-            {selected && (
-              <section aria-label={`Selected resource ${selected.name}`}>
-                <p className="cmd-eyebrow">
-                  {isInfrastructureHost(selected.kind)
-                    ? "Host / Compute"
-                    : "Resource / Service"}
-                </p>
-                <h2>{selected.name}</h2>
-                <p
-                  className="cmd-network-source-state"
-                  data-telemetry={selected.telemetry}
-                >
-                  {label(selected)}
-                </p>
-                <p>Service health: unknown</p>
-                {selected.childCount !== undefined && (
-                  <p>Child resources: {selected.childCount}</p>
-                )}
-                <Capacity resource={selected} />
-                {selected.metrics
-                  .filter(
-                    (metric) =>
-                      !["host_memory_used", "host_disk_used"].includes(
-                        metric.name,
-                      ),
-                  )
-                  .map((metric) => (
-                    <p key={`${metric.name}:${metric.evidenceHref}`}>
-                      {metric.name === "host_uptime"
-                        ? "Host uptime"
-                        : "Load (1 minute)"}
-                      :{" "}
-                      {metric.unit === "milli_load"
-                        ? metric.value / 1000
-                        : `${metric.value} ${metric.unit}`}
-                    </p>
-                  ))}
-                {selected.sources.length === 0 && (
-                  <p>No real source is connected. Health remains unknown.</p>
-                )}
-                {selected.sources.map((source) => (
-                  <div className="cmd-network-source" key={source.id}>
-                    <strong>{source.name}</strong>
-                    <span>
-                      {source.kind} / {source.enabled ? "Enabled" : "Disabled"}
-                    </span>
-                    <span>
-                      Freshness window: {source.freshnessWindowMinutes} minutes
-                    </span>
-                    <span>
-                      {source.observedAt ? (
-                        <>
-                          Observed{" "}
-                          <time dateTime={source.observedAt}>
-                            {time(source.observedAt)}
-                          </time>
-                        </>
-                      ) : (
-                        "No observation received"
-                      )}
-                    </span>
-                    {source.error && (
-                      <span>
-                        Source reported an error. Inspect the integration for
-                        details.
-                      </span>
-                    )}
-                  </div>
-                ))}
-                {selected.metrics.length > 0 && (
-                  <details>
-                    <summary>Measurement evidence</summary>
-                    {selected.metrics.map((metric) => (
+          {view !== "gravity" && (
+            <aside
+              className="cmd-network-inspector"
+              aria-label="Resource inspector and recent events"
+            >
+              {selected && (
+                <section aria-label={`Selected resource ${selected.name}`}>
+                  <p className="cmd-eyebrow">
+                    {isInfrastructureHost(selected.kind)
+                      ? "Host / Compute"
+                      : "Resource / Service"}
+                  </p>
+                  <h2>{selected.name}</h2>
+                  <p
+                    className="cmd-network-source-state"
+                    data-telemetry={selected.telemetry}
+                  >
+                    {label(selected)}
+                  </p>
+                  <p>Service health: unknown</p>
+                  {selected.childCount !== undefined && (
+                    <p>Child resources: {selected.childCount}</p>
+                  )}
+                  <Capacity resource={selected} />
+                  {selected.metrics
+                    .filter(
+                      (metric) =>
+                        !["host_memory_used", "host_disk_used"].includes(
+                          metric.name,
+                        ),
+                    )
+                    .map((metric) => (
                       <p key={`${metric.name}:${metric.evidenceHref}`}>
-                        <a href={metric.evidenceHref}>
-                          {metric.name}: {metric.value} {metric.unit}
-                        </a>
-                        <br />
-                        <time dateTime={metric.sampledAt}>
-                          {time(metric.sampledAt)}
-                        </time>
+                        {metric.name === "host_uptime"
+                          ? "Host uptime"
+                          : "Load (1 minute)"}
+                        :{" "}
+                        {metric.unit === "milli_load"
+                          ? metric.value / 1000
+                          : `${metric.value} ${metric.unit}`}
                       </p>
                     ))}
-                  </details>
-                )}
-                <div className="cmd-network-inspector-links">
-                  <a href={`/resources/${selected.id}`}>
-                    Open resource and relationships
-                  </a>
-                  <a href={`/resources/${selected.id}#dependency-impact`}>
-                    Inspect dependency impact
-                  </a>
-                  {selected.projects.map((project) => (
-                    <a key={project.id} href={`/projects/${project.id}`}>
-                      {project.name}
-                    </a>
+                  {selected.sources.length === 0 && (
+                    <p>No real source is connected. Health remains unknown.</p>
+                  )}
+                  {selected.sources.map((source) => (
+                    <div className="cmd-network-source" key={source.id}>
+                      <strong>{source.name}</strong>
+                      <span>
+                        {source.kind} /{" "}
+                        {source.enabled ? "Enabled" : "Disabled"}
+                      </span>
+                      <span>
+                        Freshness window: {source.freshnessWindowMinutes}{" "}
+                        minutes
+                      </span>
+                      <span>
+                        {source.observedAt ? (
+                          <>
+                            Observed{" "}
+                            <time dateTime={source.observedAt}>
+                              {time(source.observedAt)}
+                            </time>
+                          </>
+                        ) : (
+                          "No observation received"
+                        )}
+                      </span>
+                      {source.error && (
+                        <span>
+                          Source reported an error. Inspect the integration for
+                          details.
+                        </span>
+                      )}
+                    </div>
                   ))}
-                </div>
-                <details>
-                  <summary>Relationships in this snapshot</summary>
-                  {data.edges
-                    .filter(
-                      (edge) =>
-                        edge.from === selected.id || edge.to === selected.id,
-                    )
-                    .map((edge) => {
-                      const otherId =
-                        edge.from === selected.id ? edge.to : edge.from;
-                      const other = data.items.find(
-                        (item) => item.id === otherId,
-                      );
-                      return (
-                        <p key={edge.id}>
-                          {edge.from === selected.id
-                            ? edge.type
-                            : edge.type === "contains"
-                              ? "contained by"
-                              : "required by"}
-                          :{" "}
-                          <a href={`/resources/${otherId}`}>
-                            {other?.name ??
-                              (view === "gravity"
-                                ? "Resource outside this scope"
-                                : "Resource outside this page")}
+                  {selected.metrics.length > 0 && (
+                    <details>
+                      <summary>Measurement evidence</summary>
+                      {selected.metrics.map((metric) => (
+                        <p key={`${metric.name}:${metric.evidenceHref}`}>
+                          <a href={metric.evidenceHref}>
+                            {metric.name}: {metric.value} {metric.unit}
                           </a>
+                          <br />
+                          <time dateTime={metric.sampledAt}>
+                            {time(metric.sampledAt)}
+                          </time>
                         </p>
-                      );
-                    })}
-                </details>
-              </section>
-            )}
-            <section
-              className="cmd-network-activity"
-              aria-label="Recent infrastructure events"
-            >
-              <div className="cmd-network-section-heading">
-                <h2>Recent events</h2>
-                <span>
-                  Latest 8 / {view === "gravity" ? "this scope" : "this page"}
-                </span>
-              </div>
-              {data.events.length === 0 ? (
-                <p>No real events recorded for resources in this view.</p>
-              ) : (
-                <ol>
-                  {data.events.map((event) => (
-                    <li key={event.id}>
-                      <a href={event.evidenceHref}>{event.summary}</a>
-                      <span>{event.sourceLabel}</span>
-                      <time dateTime={event.occurredAt}>
-                        {time(event.occurredAt)}
-                      </time>
-                    </li>
-                  ))}
-                </ol>
+                      ))}
+                    </details>
+                  )}
+                  <div className="cmd-network-inspector-links">
+                    <a href={`/resources/${selected.id}`}>
+                      Open resource and relationships
+                    </a>
+                    <a href={`/resources/${selected.id}#dependency-impact`}>
+                      Inspect dependency impact
+                    </a>
+                    {selected.projects.map((project) => (
+                      <a key={project.id} href={`/projects/${project.id}`}>
+                        {project.name}
+                      </a>
+                    ))}
+                  </div>
+                  <details>
+                    <summary>Relationships in this snapshot</summary>
+                    {data.edges
+                      .filter(
+                        (edge) =>
+                          edge.from === selected.id || edge.to === selected.id,
+                      )
+                      .map((edge) => {
+                        const otherId =
+                          edge.from === selected.id ? edge.to : edge.from;
+                        const other = data.items.find(
+                          (item) => item.id === otherId,
+                        );
+                        return (
+                          <p key={edge.id}>
+                            {edge.from === selected.id
+                              ? edge.type
+                              : edge.type === "contains"
+                                ? "contained by"
+                                : "required by"}
+                            :{" "}
+                            <a href={`/resources/${otherId}`}>
+                              {other?.name ?? "Resource outside this page"}
+                            </a>
+                          </p>
+                        );
+                      })}
+                  </details>
+                </section>
               )}
-              <a
-                href={
-                  scope.projectId
-                    ? `/activity?projectId=${scope.projectId}`
-                    : "/activity"
-                }
+              <section
+                className="cmd-network-activity"
+                aria-label="Recent infrastructure events"
               >
-                Browse event history
-              </a>
-            </section>
-          </aside>
+                <div className="cmd-network-section-heading">
+                  <h2>Recent events</h2>
+                  <span>Latest 8 / this page</span>
+                </div>
+                {data.events.length === 0 ? (
+                  <p>No real events recorded for resources in this view.</p>
+                ) : (
+                  <ol>
+                    {data.events.map((event) => (
+                      <li key={event.id}>
+                        <a href={event.evidenceHref}>{event.summary}</a>
+                        <span>{event.sourceLabel}</span>
+                        <time dateTime={event.occurredAt}>
+                          {time(event.occurredAt)}
+                        </time>
+                      </li>
+                    ))}
+                  </ol>
+                )}
+                <a
+                  href={
+                    scope.projectId
+                      ? `/activity?projectId=${scope.projectId}`
+                      : "/activity"
+                  }
+                >
+                  Browse event history
+                </a>
+              </section>
+            </aside>
+          )}
         </div>
       )}
       <footer className="cmd-network-footer">

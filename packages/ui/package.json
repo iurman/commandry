@@ -7,7 +7,8 @@
     ".": "./src/index.ts",
     "./tokens.css": "./src/tokens.css",
     "./gravity/*": "./src/gravity/*.ts",
-    "./gravity-infrastructure": "./src/components/GravityInfrastructure.tsx"
+    "./gravity-infrastructure": "./src/components/GravityInfrastructure.tsx",
+    "./operational-observatory": "./src/components/OperationalObservatory.tsx"
   },
   "scripts": {
     "typecheck": "tsc --noEmit -p tsconfig.json"
@@ -17,12 +18,14 @@
   },
   "devDependencies": {
     "@types/react": "19.3.0",
+    "@types/three": "0.186.0",
     "react": "19.3.0",
     "typescript": "5.9.3",
-    "@types/three": "0.186.0"
+    "@commandry/test-support": "workspace:*"
   },
   "dependencies": {
     "@commandry/contracts": "workspace:*",
+    "react-dom": "19.3.0",
     "three": "0.186.1"
   }
 }

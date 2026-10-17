@@ -84,16 +84,31 @@ export function fieldBounds(wells: readonly Well[]) {
     maxX = 34,
     minZ = -29,
     maxZ = 29;
-  let vertical = 1;
+  const heights = new Map<string, number>();
+  const dimensions = new Map<string, { radius: number; aspect: number }>();
+  for (const well of wells) {
+    const previous = dimensions.get(well.id);
+    dimensions.set(well.id, {
+      radius: Math.max(previous?.radius ?? 0, well.radius),
+      aspect: Math.max(previous?.aspect ?? 1, well.aspect),
+    });
+  }
   for (const well of wells) {
     // Conservative through rotation and the 1.3x entry-radius transition.
-    const extent = well.radius * Math.max(1, well.aspect) * 4 * 1.3;
+    const shape = dimensions.get(well.id)!;
+    // Radius and aspect can peak together between unlike endpoint shapes.
+    const extent = shape.radius * Math.max(1, shape.aspect) * 4 * 1.3;
     minX = Math.min(minX, well.x - extent);
     maxX = Math.max(maxX, well.x + extent);
     minZ = Math.min(minZ, well.z - extent);
     maxZ = Math.max(maxZ, well.z + extent);
-    vertical +=
-      Math.abs(well.depth) + Math.abs(well.elevation) + well.radius * 0.13;
+    heights.set(
+      well.id,
+      Math.max(
+        heights.get(well.id) ?? 0,
+        Math.abs(well.depth) + Math.abs(well.elevation) + well.radius * 0.13,
+      ),
+    );
   }
   const width = maxX - minX,
     depth = maxZ - minZ;
@@ -102,7 +117,8 @@ export function fieldBounds(wells: readonly Well[]) {
     z: (minZ + maxZ) / 2,
     width,
     depth,
-    vertical,
+    vertical:
+      1 + [...heights.values()].reduce((sum, height) => sum + height, 0),
     apron: Math.max(90, Math.max(width, depth) * 0.35),
   };
 }
@@ -132,4 +148,83 @@ export function fieldGeometry(
   );
   const z = Math.max(1, Math.floor(vertices / (x + 1)) - 1);
   return { x, z, vertices: (x + 1) * (z + 1), evaluations };
+}
+
+const geometryFields = [
+  "x",
+  "z",
+  "radius",
+  "depth",
+  "aspect",
+  "angle",
+  "elevation",
+  "profile",
+] as const;
+
+// A moving identity can need both footprints, but consumes one contribution budget.
+export function fieldTransition(
+  previous: readonly Well[],
+  next: readonly Well[],
+) {
+  const identities = new Set<string>();
+  const shapes = new Set<string>();
+  const footprints: Well[] = [];
+  for (const well of [...previous, ...next]) {
+    identities.add(well.id);
+    const key = JSON.stringify([
+      well.id,
+      ...geometryFields.map((field) => well[field]),
+    ]);
+    if (!shapes.has(key)) {
+      shapes.add(key);
+      footprints.push(well);
+    }
+  }
+  return {
+    population: identities.size,
+    footprints,
+    bounds: fieldBounds(footprints),
+    key: JSON.stringify([...shapes].sort()),
+  };
+}
+
+export type FieldRefinement = {
+  x: number;
+  z: number;
+  radius: number;
+  step: number;
+};
+
+// Spend pressure detail in a stable world window around the view, independent of
+// selection. Quantized windows and a bounded minimum step keep camera work finite.
+export function fieldRefinement(
+  wells: readonly Well[],
+  center: { x: number; z: number },
+  distance: number,
+  height: number,
+  fov = 40,
+): FieldRefinement | null {
+  if (!Number.isFinite(distance) || distance <= 0 || height <= 0) return null;
+  const halfView = distance * Math.tan((fov * Math.PI) / 360);
+  const radius = Math.max(8, Math.min(16, Math.ceil((halfView * 1.5) / 2) * 2));
+  let minor = Infinity;
+  for (const well of wells) {
+    const axis = well.radius * Math.min(1, well.aspect);
+    if (
+      Math.abs(well.depth) > 0.002 &&
+      (axis * height) / (2 * halfView) > 24 &&
+      Math.hypot(well.x - center.x, well.z - center.z) <=
+        radius + well.radius * Math.max(1, well.aspect) * 1.8
+    )
+      minor = Math.min(minor, axis);
+  }
+  if (!Number.isFinite(minor)) return null;
+  return {
+    x: Math.round(center.x / 2) * 2,
+    z: Math.round(center.z / 2) * 2,
+    radius,
+    // A wider portrait view must not request four times the fine-cell work.
+    // The radius-8 close view keeps its original 1/6 step for radius-2 wells.
+    step: Math.max(minor / 12, radius / 48),
+  };
 }

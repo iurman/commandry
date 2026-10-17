@@ -6,6 +6,14 @@ the task, then follow links only when needed.
 
 ## Planning and dispatch
 
+- MUST treat InfraAgent as Observatory design prior art. InfraAgent, CRM and
+  Arvo repositories remain repository inventory unless the owner explicitly
+  authorizes their operational tracking; their accounts and monitors are not
+  Commandry monitoring prerequisites.
+- MUST keep reusable plans and implementation handoffs in tracked repository
+  documentation and commit them when handing off; do not leave the only copy
+  in an uncommitted worktree or ignored agent folder. Keep credentials, private
+  inventory, runtime data and session state outside committed documentation.
 - MUST honor an owner's planning-only hold: save the requested Markdown plan
   before launching implementation chats, workers or scheduled follow-ups, and
   resume implementation only after the owner releases the hold.
@@ -120,6 +128,10 @@ planned behavior as though it already exists.
 - Keep links relative inside repository Markdown.
 
 ## Implementation guardrails
+
+- MUST discover operational mappings using already authorized connected accounts and SSH before asking the owner to supply resource IDs; record missing connections and continue permitted independent work.
+
+- MUST keep the authorized Observatory A-F workflow and all 58 acceptance scenarios in tracked completion records; preserve the owner preview and separate runtime ownership, and do not call the operational scope complete while required behavior remains blocked.
 
 - MUST include discoverable MCP access and agent-facing workflow documentation
   alongside every new or materially changed product feature. Reuse the same

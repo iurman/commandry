@@ -58,6 +58,7 @@ jobs:
       - name: Build and test the application
         run: |
           node --import tsx scripts/test-foundation-workflow-upgrade.mjs
+          node --import tsx scripts/test-observatory-upgrade.mjs
           pnpm build
           pnpm test:smoke
 

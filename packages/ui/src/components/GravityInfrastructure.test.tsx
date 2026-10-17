@@ -151,6 +151,7 @@ it("uses Midnight for TV style while retaining explicit surface overrides", asyn
   expect(
     view.container.querySelector(".cmd-gravity")?.getAttribute("data-theme"),
   ).toBe("midnight");
+  fireEvent.click(screen.getByRole("button", { name: /^Appearance$/ }));
   fireEvent.change(screen.getByLabelText("Gravity surface"), {
     target: { value: "porcelain" },
   });

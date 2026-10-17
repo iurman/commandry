@@ -4,6 +4,8 @@
 
 **Date:** 2026-10-16
 
+**Amended by:** [ADR 0016](0016-project-the-operational-observatory.md) supersedes only the per-resource GPU-well implication. Complete authorized membership and all other guarantees remain.
+
 ## Context
 
 The owner rejected visible pages in Gravity and approved one continuous master

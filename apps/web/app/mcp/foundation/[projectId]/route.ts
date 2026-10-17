@@ -6,6 +6,8 @@ import {
   getFoundationServices,
   requireFoundationOrigin,
 } from "../../../../lib/foundation-access";
+import { createObservatoryMcpReads } from "../../../../lib/observatory-mcp";
+import { observatoryMachineRead } from "../../../../lib/observatory";
 import { createFoundationMcpServer } from "../../../../lib/foundation-mcp";
 
 export const runtime = "nodejs";
@@ -54,6 +56,11 @@ export async function POST(
           findings,
           onboarding,
           context: workingContext,
+          observatory: createObservatoryMcpReads(
+            observatoryMachineRead,
+            token,
+            actor,
+          ),
         }),
       { responseMode: "json" },
     );

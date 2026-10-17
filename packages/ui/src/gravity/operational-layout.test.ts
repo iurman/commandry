@@ -1,0 +1,1763 @@
+// @vitest-environment jsdom
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
+import {
+  act,
+  cleanup,
+  fireEvent,
+  render,
+  screen,
+  waitFor,
+  within,
+} from "@testing-library/react";
+import { createElement } from "react";
+import { PerspectiveCamera, Vector3 } from "three";
+import type {
+  InfrastructureOverview,
+  FoundationProjectWorkCursor,
+  FoundationProjectWorkPage,
+} from "@commandry/contracts";
+import type { Well } from "./model";
+import type {
+  ObservatoryRenderer,
+  RendererHooks,
+  RendererSettings,
+} from "./renderer";
+import {
+  OperationalObservatory,
+  type OperationalObservatoryProps,
+} from "../components/OperationalObservatory";
+import { projectObservatory } from "@commandry/test-support";
+import {
+  mixedObservatoryFixture,
+  operationalObservatoryFixture,
+  scaleObservatoryFixture,
+  observatoryFixtureResource,
+  observatoryFixtureInput,
+} from "@commandry/test-support";
+import {
+  mapOperationalEvents,
+  observedTotalRam,
+  operationalAttention,
+  OperationalLayout,
+  OperationalRecordedActivity,
+} from "./operational-layout";
+import {
+  defaultObservatoryPreferences,
+  observatoryGroupings,
+  type ObservatoryQuery,
+} from "./observatory-preferences";
+
+const options = defaultObservatoryPreferences();
+const engine = vi.hoisted(() => ({
+  fail: false,
+  hooks: null as RendererHooks | null,
+  created: vi.fn(),
+  update: vi.fn(),
+  dispose: vi.fn(),
+  preset: vi.fn(),
+  refresh: vi.fn(),
+  adopt: vi.fn<(id: string) => boolean>(),
+}));
+vi.mock("./renderer", () => ({
+  ObservatoryRenderer: class {
+    constructor(
+      _element: HTMLElement,
+      _settings: RendererSettings,
+      private hooks: RendererHooks,
+    ) {
+      if (engine.fail) throw Error("GPU unavailable");
+      engine.hooks = hooks;
+      engine.created();
+    }
+    update(wells: Well[], settings: RendererSettings) {
+      engine.update(wells, settings);
+      this.hooks.anchors(
+        wells.map((well, index) => ({
+          id: well.id,
+          label: well.label,
+          kind: well.kind,
+          x: 100 + index * 10,
+          y: 140,
+          visible: true,
+          opacity: 1,
+          attention: well.attention,
+          sector: well.sector,
+        })),
+      );
+    }
+    dispose = engine.dispose;
+    preset = engine.preset;
+    refreshActivity = engine.refresh;
+    adoptSubject = engine.adopt;
+    measureAnchor() {}
+  },
+}));
+beforeEach(() => {
+  vi.clearAllMocks();
+  engine.fail = false;
+  engine.hooks = null;
+  engine.adopt.mockReset();
+  localStorage.clear();
+  vi.stubGlobal(
+    "matchMedia",
+    vi.fn(() => ({
+      matches: false,
+      addEventListener: vi.fn(),
+      removeEventListener: vi.fn(),
+    })),
+  );
+});
+afterEach(() => {
+  cleanup();
+  vi.unstubAllGlobals();
+});
+describe("operational landscape adapter", () => {
+  it.each(observatoryGroupings)(
+    "conserves all 91 canonical identities in %s without repository tour hosts",
+    (grouping) => {
+      const input = mixedObservatoryFixture(),
+        scene = projectObservatory({ ...input, grouping });
+      const result = new OperationalLayout().project(scene, options);
+      expect(result.representedResourceIds).toEqual(
+        input.resources.map((item) => item.id).sort(),
+      );
+      expect(result.wells.map((well) => well.id).sort()).toEqual(
+        [...scene.visibleRepresentationIds].sort(),
+      );
+      expect(result.visibleSubjectForResource.size).toBe(91);
+      for (const [resourceId, node] of result.canonical) {
+        const subject = result.visibleSubjectForResource.get(resourceId)!;
+        expect(result.members.get(subject)?.has(resourceId)).toBe(true);
+        if (node.kind === "repository")
+          expect(result.positions.get(node.id)?.kind).toBe("project");
+      }
+      expect(
+        result.wells
+          .filter((well) => well.kind === "host")
+          .every((well) => result.byId.get(well.id)?.kind === "host"),
+      ).toBe(true);
+      expect(scene.summary.coverage.monitored).toBe(0);
+      expect(result.wells.every((well) => !well.attention)).toBe(true);
+    },
+  );
+  it("preserves unique totals under expansion and retains every active GPU representation", () => {
+    const input = mixedObservatoryFixture(),
+      collapsed = projectObservatory(input),
+      layout = new OperationalLayout();
+    const before = layout.project(collapsed, options);
+    const expanded = projectObservatory({
+      ...input,
+      expandedRepresentationIds: collapsed.representations.map(
+        (node) => node.id,
+      ),
+    });
+    const after = layout.project(expanded, options);
+    expect(after.representedResourceIds).toEqual(before.representedResourceIds);
+    expect(after.wells).toHaveLength(expanded.visibleRepresentationIds.length);
+    for (const well of before.wells)
+      expect(after.positions.get(well.id)).toEqual(well);
+    const repositories = [...after.canonical.values()].filter(
+      (node) => node.kind === "repository",
+    );
+    expect(repositories).toHaveLength(60);
+    expect(
+      repositories.every(
+        (node) =>
+          after.visibleSubjectForResource.get(node.resourceId!) === node.id,
+      ),
+    ).toBe(true);
+  });
+  it("is deterministic under permutation and does not move landmarks on an ordinary observation refresh", () => {
+    const input = mixedObservatoryFixture(),
+      scene = projectObservatory(input),
+      layout = new OperationalLayout();
+    const first = layout.project(scene, options);
+    const reversed = new OperationalLayout().project(
+      {
+        ...scene,
+        representations: [...scene.representations].reverse(),
+        visibleRepresentationIds: [...scene.visibleRepresentationIds].reverse(),
+      },
+      options,
+    );
+    expect(reversed.wells).toEqual(first.wells);
+    const next = layout.project(
+      projectObservatory({
+        ...input,
+        now: "2026-10-16T12:00:18.000Z",
+        resources: input.resources.map((item) => ({
+          ...item,
+          telemetry: "stale" as const,
+        })),
+      }),
+      options,
+    );
+    expect(next.wells).toEqual(first.wells);
+    expect(
+      layout.project(scene, { ...options, palette: "earth" }).wells,
+    ).toEqual(first.wells);
+  });
+  it("inserts a root without repacking unrelated groups and preserves nested host meaning", () => {
+    const input = mixedObservatoryFixture(),
+      layout = new OperationalLayout(),
+      before = layout.project(projectObservatory(input), options);
+    const resources = [
+      ...input.resources,
+      observatoryFixtureResource(9980, "provider"),
+    ];
+    const after = layout.project(
+      projectObservatory({
+        ...input,
+        resources,
+        collection: { complete: true, resourceCount: 92 },
+      }),
+      options,
+    );
+    for (const [id, well] of before.positions)
+      expect([after.positions.get(id)?.x, after.positions.get(id)?.z]).toEqual([
+        well.x,
+        well.z,
+      ]);
+    const nested = [...after.canonical.values()].find(
+      (node) =>
+        node.kind === "host" &&
+        node.parentRepresentationId?.startsWith("resource:"),
+    )!;
+    expect(after.positions.get(nested.id)?.kind).toBe("host");
+    expect(after.positions.get(nested.id)?.hostId).toBe(
+      nested.parentRepresentationId,
+    );
+    expect(after.representedResourceIds).toHaveLength(92);
+  });
+  it("uses total byte RAM only, keeps unknown hosts useful and ignores utilization", () => {
+    const input = mixedObservatoryFixture(),
+      scene = projectObservatory(input);
+    const host = input.resources.find((item) => item.kind === "host")!;
+    expect(observedTotalRam(scene, host.id)).toBe(17179869184);
+    const hostNode = scene.representations.find(
+      (node) => node.resourceId === host.id && !node.referenceTo,
+    )!;
+    const layout = new OperationalLayout(),
+      measured = layout.project(scene, { ...options, size: "total-ram" });
+    const changed = structuredClone(scene);
+    changed.capacityObservations = changed.capacityObservations.map((item) => ({
+      ...item,
+      name: "memory.used_percent",
+      unit: "%",
+      value: 99,
+    }));
+    expect(observedTotalRam(changed, host.id)).toBeNull();
+    const unknown = layout.project(changed, { ...options, size: "total-ram" });
+    expect(unknown.ramUnavailableIds).toContain(hostNode.id);
+    expect(unknown.positions.get(hostNode.id)!.radius).toBeGreaterThan(0);
+    expect([
+      unknown.positions.get(hostNode.id)!.x,
+      unknown.positions.get(hostNode.id)!.z,
+    ]).toEqual([
+      measured.positions.get(hostNode.id)!.x,
+      measured.positions.get(hostNode.id)!.z,
+    ]);
+    const unchanged = layout.project(
+      {
+        ...scene,
+        capacityObservations: [
+          ...scene.capacityObservations,
+          {
+            resourceId: host.id,
+            name: "memory.used_percent",
+            unit: "%",
+            value: 99,
+            observedAt: scene.evaluatedAt,
+            evidenceRef: "fixture:utilization",
+          },
+        ],
+      },
+      { ...options, size: "total-ram" },
+    );
+    expect(unchanged.positions.get(hostNode.id)?.radius).toBe(
+      measured.positions.get(hostNode.id)?.radius,
+    );
+  });
+  it("distinguishes required local impact from exposure, optional failure and missing observations", () => {
+    const scene = projectObservatory(operationalObservatoryFixture());
+    expect(operationalAttention(scene.summary)).toBe("impact");
+    const summary = structuredClone(scene.summary);
+    summary.availability.confirmedImpact = false;
+    summary.security.counts.confirmed_incident = 0;
+    summary.provider.counts.confirmed_local_impact = 0;
+    summary.provider.counts.potential_exposure = 1;
+    expect(operationalAttention(summary)).toBe("exposure");
+    summary.provider.counts.potential_exposure = 0;
+    expect(operationalAttention(summary)).toBe("neutral");
+    expect(summary.availability.optional.failing).toBe(1);
+  });
+  it("handles the complete thousand-resource deep/adversarial fixture and more than 257 active representations", () => {
+    const input = scaleObservatoryFixture(),
+      collapsed = projectObservatory(input);
+    const scene = projectObservatory({
+      ...input,
+      expandedRepresentationIds: collapsed.representations.map(
+        (node) => node.id,
+      ),
+    });
+    const result = new OperationalLayout().project(scene, options);
+    expect(result.representedResourceIds).toHaveLength(1000);
+    expect(result.wells.length).toBeGreaterThan(257);
+    expect(result.wells).toHaveLength(scene.visibleRepresentationIds.length);
+    expect(
+      result.wells.every((well) =>
+        Number.isFinite(well.x + well.z + well.radius),
+      ),
+    ).toBe(true);
+    expect(result.positions.has(scene.visibleRepresentationIds.at(-1)!)).toBe(
+      true,
+    );
+  });
+  it("retains event IDs and evidence while mapping collapsed members and never invents dependency traffic", () => {
+    const scene = projectObservatory(mixedObservatoryFixture()),
+      result = new OperationalLayout().project(scene, options);
+    const resourceId = scene.membershipIndex.resourceIds[0]!;
+    const event = {
+      id: "actual-event",
+      resourceId,
+      summary: "Recorded observation",
+      occurredAt: scene.evaluatedAt,
+      sourceLabel: "Recorded source",
+      evidenceHref: "/api/v1/source-envelopes/observed",
+    };
+    const mapped = mapOperationalEvents(
+      {
+        events: [
+          event,
+          { ...event, id: "denied", resourceId: "not-authorized" },
+        ],
+      },
+      result,
+    );
+    expect(mapped).toEqual([
+      {
+        ...event,
+        resourceId: result.visibleSubjectForResource.get(resourceId),
+        canonicalResourceId: resourceId,
+      },
+    ]);
+    expect(mapOperationalEvents({ events: [] }, result)).toEqual([]);
+  });
+  it("keeps confirmed impact and provider exposure separate in actual renderer attention", () => {
+    const scene = projectObservatory(operationalObservatoryFixture());
+    const projection = new OperationalLayout().project(scene, options);
+    const source = new OperationalRecordedActivity();
+    source.setProjection(projection);
+    for (const [id, node] of projection.byId)
+      expect(source.attention(id)).toBe(
+        operationalAttention(node.summary) === "impact"
+          ? 1
+          : operationalAttention(node.summary) === "exposure"
+            ? 0.5
+            : 0,
+      );
+    source.synchronize({ events: [] }, true);
+    expect(source.snapshot().transfers).toEqual([]);
+    expect(source.snapshot().events).toEqual([]);
+  });
+  it("accepts empty scenes and rejects an incomplete/foreign visible population", () => {
+    const scene = projectObservatory(scaleObservatoryFixture(0));
+    expect(new OperationalLayout().project(scene, options).wells).toEqual([]);
+    const full = projectObservatory(mixedObservatoryFixture());
+    expect(() =>
+      new OperationalLayout().project(
+        { ...full, visibleRepresentationIds: [] },
+        options,
+      ),
+    ).toThrow(/incomplete/);
+    expect(() =>
+      new OperationalLayout().project(
+        { ...full, visibleRepresentationIds: ["foreign"] },
+        options,
+      ),
+    ).toThrow(/Unknown visible/);
+    expect(() =>
+      new OperationalLayout().project(
+        { ...full, completeness: "partial" as "complete" },
+        options,
+      ),
+    ).toThrow(/incomplete/);
+  });
+});
+
+describe("operational component interactions with the real semantic scene", () => {
+  function setup() {
+    const input = mixedObservatoryFixture(),
+      scene = projectObservatory(input);
+    const host = scene.representations.find(
+      (node) =>
+        node.kind === "host" &&
+        scene.visibleRepresentationIds.includes(node.id),
+    )!;
+    const snapshot: InfrastructureOverview = {
+      readAt: scene.readCompletedAt,
+      total: 91,
+      nextCursor: null,
+      items: [],
+      edges: [],
+      events: [],
+    };
+    const props = {
+      scene,
+      snapshot,
+      selectedId: null as string | null,
+      onSelect: vi.fn(),
+      onProject: vi.fn(),
+      onQueryChange: vi.fn(),
+      onCameraFocus: vi.fn(),
+    };
+    return { input, scene, host, props };
+  }
+  function canonicalWorkPage(
+    projectId: string,
+    cursor: FoundationProjectWorkCursor | null,
+  ): FoundationProjectWorkPage {
+    const firstId = "00000000-0000-4000-8000-000000009000";
+    const id =
+      cursor === null ? firstId : "00000000-0000-4000-8000-000000009001";
+    return {
+      schemaVersion: 1,
+      requestedProjectId: projectId,
+      consistency: "live",
+      selectedAt: "2026-10-16T12:00:00Z",
+      items: [
+        {
+          work: {
+            id,
+            projectId,
+            sourceCaptureId: "00000000-0000-4000-8000-000000009002",
+            generatedFromWorkItemId: null,
+            title:
+              "Canonical integration Work " +
+              (cursor === null ? "first" : "last"),
+            description: "Canonical assignment is not execution",
+            workType: cursor === null ? "task" : "initiative",
+            assigneeKind: "agent",
+            assigneeAgentId: "00000000-0000-4000-8000-000000009003",
+            assigneeLabel: "Assigned agent",
+            status: cursor === null ? "open" : "done",
+            priority: null,
+            dueOn: null,
+            contextLink: null,
+            createdAt: "2026-10-01T12:00:00Z",
+            updatedAt: "2026-10-15T12:00:00Z",
+          },
+          contentDigest: "a".repeat(64),
+        },
+      ],
+      nextCursor: cursor === null ? { projectId, afterId: firstId } : null,
+    };
+  }
+  it("retargets operational evidence and review controls without retaining prior panels", async () => {
+    const { input, scene, props } = setup();
+    const snapshot: InfrastructureOverview = {
+      ...props.snapshot,
+      items: input.resources.map((resource) => ({
+        ...resource,
+        health: "unknown" as const,
+        projects: resource.projects.map((project) => ({ ...project })),
+        sources: resource.sources.map((source) => ({
+          ...source,
+          name: "Synthetic source",
+          kind: "linux-host",
+        })),
+        metrics: resource.metrics.map((metric) => ({ ...metric })),
+      })),
+    };
+    const clientProps = {
+      ...props,
+      snapshot,
+      workProjectIds: input.projects.map((project) => project.id),
+      evidenceClient: async (resourceId: string, facet: string) => ({
+        schemaVersion: 1,
+        scopeDigest: scene.scopeDigest,
+        projectionRevision: scene.projectionRevision,
+        completeness: "complete",
+        resourceId,
+        facet,
+        access: "unsupported",
+        items: [],
+      }),
+      reviewClient: {
+        loadCatalogue: vi.fn(async () => ({})),
+        review: vi.fn(async () => ({})),
+      },
+      onReviewed: vi.fn(),
+    };
+    const view = render(createElement(OperationalObservatory, clientProps));
+    const hosts = input.resources.filter(
+      (resource) => resource.kind === "host",
+    );
+    for (const resource of [hosts[0]!, hosts[1]!, hosts[2]!, hosts[0]!]) {
+      view.rerender(
+        createElement(OperationalObservatory, {
+          ...clientProps,
+          selectedId: resource.id,
+        }),
+      );
+      await waitFor(() => {
+        expect(
+          screen.getAllByRole("complementary", {
+            name: "Observatory inspector",
+          }),
+        ).toHaveLength(1);
+        expect(
+          screen.getAllByRole("heading", { name: /^Operational evidence$/ }),
+        ).toHaveLength(1);
+        expect(
+          screen.getAllByRole("region", { name: "Operational source details" }),
+        ).toHaveLength(1);
+      });
+      expect(
+        screen.getByRole("complementary", { name: "Observatory inspector" }),
+      ).toHaveTextContent(resource.id);
+    }
+    fireEvent.click(
+      within(
+        screen.getByRole("navigation", { name: "Observatory breadcrumbs" }),
+      ).getByRole("button", { name: /^Overview$/ }),
+    );
+    await waitFor(() => {
+      expect(
+        screen.queryAllByRole("heading", { name: /^Operational evidence$/ }),
+      ).toHaveLength(0);
+      expect(
+        screen.queryAllByRole("region", { name: "Operational source details" }),
+      ).toHaveLength(0);
+    });
+  });
+  it("keeps canonical Work explicitly unavailable without a client in a collapsed panel below recorded observations", async () => {
+    const { props } = setup();
+    render(createElement(OperationalObservatory, props));
+    const panel = screen
+      .getByText("Canonical project Work")
+      .closest("details")!;
+    expect(panel).not.toHaveAttribute("open");
+    expect(panel.previousElementSibling).toHaveAttribute(
+      "aria-label",
+      "Recorded active work",
+    );
+    expect(
+      within(panel).getByText("Canonical Work unavailable in this view."),
+    ).toBeInTheDocument();
+    expect(
+      screen.getByText(/Missing runtime coverage is not an idle-agent signal/),
+    ).toBeInTheDocument();
+    expect(within(panel).queryByText("0 Work items")).not.toBeInTheDocument();
+  });
+  it("withholds Work reads and totals until a complete canonical project catalogue is supplied", async () => {
+    const { props } = setup();
+    const workClient = vi.fn(
+      async (projectId: string, cursor: FoundationProjectWorkCursor | null) =>
+        canonicalWorkPage(projectId, cursor),
+    );
+    const view = render(
+      createElement(OperationalObservatory, { ...props, workClient }),
+    );
+    expect(
+      screen.getByText("Canonical Work unavailable in this view."),
+    ).toBeInTheDocument();
+    expect(workClient).not.toHaveBeenCalled();
+    view.rerender(
+      createElement(OperationalObservatory, {
+        ...props,
+        workClient,
+        workProjectIds: [],
+      }),
+    );
+    expect(
+      await screen.findByText(
+        "No authorized project context. Work totals unavailable.",
+      ),
+    ).toBeInTheDocument();
+    expect(screen.queryByText("0 Work items")).not.toBeInTheDocument();
+    expect(workClient).not.toHaveBeenCalled();
+  });
+  it("mounts the actual complete Work dock for every authorized canonical project despite absent resource representations and an empty snapshot page", async () => {
+    const { props, scene } = setup();
+    expect(props.snapshot.items).toHaveLength(0);
+    const workProjectIds = [
+      "00000000-0000-4000-8000-000000008001",
+      "00000000-0000-4000-8000-000000008002",
+    ];
+    const target = workProjectIds[0]!;
+    expect(
+      scene.representations.some(
+        (node) => node.resourceId === workProjectIds[1],
+      ),
+    ).toBe(false);
+    const workClient = vi.fn(
+      async (
+        projectId: string,
+        cursor: FoundationProjectWorkCursor | null,
+      ): Promise<FoundationProjectWorkPage> =>
+        projectId === target
+          ? canonicalWorkPage(projectId, cursor)
+          : {
+              schemaVersion: 1,
+              requestedProjectId: projectId,
+              consistency: "live",
+              selectedAt: "2026-10-16T12:00:00Z",
+              items: [],
+              nextCursor: null,
+            },
+    );
+    render(
+      createElement(OperationalObservatory, {
+        ...props,
+        workClient,
+        workProjectIds,
+      }),
+    );
+    expect(await screen.findByText("2 Work items")).toBeInTheDocument();
+    expect(
+      screen.getByText("Canonical integration Work first"),
+    ).toBeInTheDocument();
+    expect(
+      screen.getByText("Canonical integration Work last"),
+    ).toBeInTheDocument();
+    expect(
+      [
+        ...new Set(workClient.mock.calls.map(([projectId]) => projectId)),
+      ].sort(),
+    ).toEqual([...workProjectIds].sort());
+    expect(
+      workClient.mock.calls.filter(([projectId]) => projectId === target),
+    ).toHaveLength(2);
+    const panel = screen
+      .getByText("Canonical project Work")
+      .closest("details")!;
+    expect(panel).not.toHaveAttribute("open");
+    expect(within(panel).getByText("Project Work").tagName).toBe("H2");
+    expect(
+      within(panel).getByText(
+        "Actual runtime unavailable. Assignment is not an active run.",
+      ),
+    ).toBeInTheDocument();
+    expect(
+      screen.getByText(/No qualifying active work observation/),
+    ).toBeInTheDocument();
+    expect(screen.queryByText(/^(running|queued)$/i)).not.toBeInTheDocument();
+  });
+  it("forwards selected canonical project context and pause through the actual dock without reading other projects", async () => {
+    const { props } = setup();
+    const workProjectIds = [
+      "00000000-0000-4000-8000-000000008001",
+      "00000000-0000-4000-8000-000000008002",
+    ];
+    const target = workProjectIds[1]!;
+    const workClient = vi.fn(
+      async (projectId: string, cursor: FoundationProjectWorkCursor | null) =>
+        canonicalWorkPage(projectId, cursor),
+    );
+    const view = render(
+      createElement(OperationalObservatory, {
+        ...props,
+        workClient,
+        workProjectIds,
+        scopeProjectId: target,
+        paused: true,
+        compact: true,
+      }),
+    );
+    expect(
+      await screen.findByText("Work loading paused. Totals unavailable."),
+    ).toBeInTheDocument();
+    expect(workClient).not.toHaveBeenCalled();
+    view.rerender(
+      createElement(OperationalObservatory, {
+        ...props,
+        workClient,
+        workProjectIds,
+        scopeProjectId: target,
+        paused: false,
+        compact: true,
+      }),
+    );
+    expect(await screen.findByText("2 Work items")).toBeInTheDocument();
+    expect(workClient).toHaveBeenCalledTimes(2);
+    expect(
+      workClient.mock.calls.every(([projectId]) => projectId === target),
+    ).toBe(true);
+    view.rerender(
+      createElement(OperationalObservatory, {
+        ...props,
+        workClient,
+        workProjectIds,
+        scopeProjectId: target,
+        paused: true,
+        compact: true,
+      }),
+    );
+    expect(screen.queryByText("2 Work items")).not.toBeInTheDocument();
+    expect(
+      screen.getByText("Work loading paused. Totals unavailable."),
+    ).toBeInTheDocument();
+  });
+  it("retains the authoritative environment after a scope remount and expansion", async () => {
+    const { props } = setup();
+    const fixture = operationalObservatoryFixture();
+    const initial = projectObservatory(fixture);
+    const production = projectObservatory({
+      ...fixture,
+      environment: "production",
+      scopeDigest: "fixture:production-environment",
+    });
+    const query = {
+      grouping: production.grouping,
+      environment: "production",
+      expandedRepresentationIds: [],
+      search: "",
+      sectors: [],
+      viewRevision: production.viewRevision,
+    };
+    const view = render(
+      createElement(OperationalObservatory, { ...props, scene: initial }),
+    );
+    await waitFor(() => expect(engine.update).toHaveBeenCalled());
+    view.rerender(
+      createElement(OperationalObservatory, {
+        ...props,
+        scene: production,
+        initialQuery: query,
+      }),
+    );
+    await waitFor(() =>
+      expect(
+        screen.getByRole("combobox", { name: /^Environment$/ }),
+      ).toHaveValue("production"),
+    );
+    fireEvent.click(screen.getAllByRole("button", { name: /^Expand / })[0]!);
+    expect(props.onQueryChange).toHaveBeenLastCalledWith(
+      expect.objectContaining({ environment: "production" }),
+    );
+  });
+  it("shows and clears a retained environment even when no signal supplies its option", async () => {
+    const { scene, props } = setup();
+    expect(scene.signals.every((signal) => signal.environment === null)).toBe(
+      true,
+    );
+    render(
+      createElement(OperationalObservatory, {
+        ...props,
+        initialQuery: {
+          grouping: scene.grouping,
+          environment: "production",
+          expandedRepresentationIds: [],
+          search: "",
+          sectors: [],
+          viewRevision: scene.viewRevision,
+        },
+      }),
+    );
+    const environment = screen.getByRole("combobox", { name: /^Environment$/ });
+    expect(environment).toHaveValue("production");
+    fireEvent.change(environment, { target: { value: "" } });
+    expect(props.onQueryChange).toHaveBeenLastCalledWith(
+      expect.objectContaining({ environment: null }),
+    );
+  });
+  it("shows a recorded containment cycle even when its parent label is authorized", async () => {
+    const { input, host, props } = setup();
+    const other = input.resources.find(
+      (resource) => resource.kind === "host" && resource.id !== host.resourceId,
+    )!;
+    const scene = projectObservatory({
+      ...input,
+      resources: input.resources.map((resource) => ({
+        ...resource,
+        parentResourceId:
+          resource.id === host.resourceId
+            ? other.id
+            : resource.id === other.id
+              ? host.resourceId!
+              : resource.parentResourceId,
+      })),
+    });
+    render(
+      createElement(OperationalObservatory, {
+        ...props,
+        scene,
+        selectedId: host.resourceId,
+      }),
+    );
+    expect(
+      await screen.findByText("Containment cycle recorded"),
+    ).toBeInTheDocument();
+  });
+  it("inspects a group in one activation and does not refocus on unchanged data refresh", async () => {
+    const { input, scene, host, props } = setup();
+    const view = render(createElement(OperationalObservatory, props));
+    await waitFor(() => expect(engine.update).toHaveBeenCalled());
+    fireEvent.click(
+      screen.getByRole("button", {
+        name: `Inspect ${host.label}, Host, ${host.memberCount} unique resources`,
+      }),
+    );
+    expect(
+      within(
+        screen.getByRole("complementary", { name: "Observatory inspector" }),
+      ).getByRole("heading", { name: host.label }),
+    ).toBeTruthy();
+    expect(props.onSelect).toHaveBeenLastCalledWith(host.resourceId);
+    expect(props.onQueryChange).toHaveBeenCalledWith(
+      expect.objectContaining({
+        expandedRepresentationIds: expect.arrayContaining([host.id]),
+      }),
+    );
+    const calls = props.onCameraFocus.mock.calls.length;
+    view.rerender(
+      createElement(OperationalObservatory, {
+        ...props,
+        scene: {
+          ...scene,
+          evaluatedAt: "2026-10-16T12:00:18.000Z",
+          representations: [...scene.representations],
+        },
+      }),
+    );
+    await act(async () => {});
+    expect(props.onCameraFocus).toHaveBeenCalledTimes(calls);
+    expect(engine.update.mock.lastCall?.[1].focus).toBe(false);
+    expect(engine.update.mock.lastCall?.[1].ambient).toBe(false);
+    const expanded = projectObservatory({
+      ...input,
+      ...props.onQueryChange.mock.lastCall![0],
+    });
+    view.rerender(
+      createElement(OperationalObservatory, { ...props, scene: expanded }),
+    );
+    await waitFor(() =>
+      expect(props.onCameraFocus.mock.lastCall?.[2]).toMatchObject({
+        refit: true,
+        restore: false,
+      }),
+    );
+  });
+  it("restores pre-search canonical selection and query when search clears", async () => {
+    const { input, scene, host, props } = setup();
+    const view = render(
+      createElement(OperationalObservatory, {
+        ...props,
+        selectedId: host.resourceId,
+      }),
+    );
+    await waitFor(() => expect(engine.update).toHaveBeenCalled());
+    const search = screen.getByRole("searchbox", {
+      name: "Search complete Observatory inventory",
+    });
+    fireEvent.change(search, { target: { value: "Synthetic repository 1" } });
+    const request = props.onQueryChange.mock.lastCall![0];
+    const searched = projectObservatory({ ...input, ...request });
+    view.rerender(
+      createElement(OperationalObservatory, {
+        ...props,
+        selectedId: host.resourceId,
+        scene: searched,
+      }),
+    );
+    const result = searched.searchResults[0]!;
+    const node = searched.representations.find(
+      (item) => item.id === result.representationId,
+    )!;
+    fireEvent.click(
+      screen.getByRole("button", {
+        name: `Inspect ${node.label}, Repository, ${node.memberCount} unique resources`,
+      }),
+    );
+    expect(props.onSelect).toHaveBeenLastCalledWith(result.resourceId);
+    fireEvent.click(screen.getByRole("button", { name: "Clear search" }));
+    expect(props.onSelect).toHaveBeenLastCalledWith(host.resourceId);
+    expect(props.onQueryChange).toHaveBeenLastCalledWith(
+      expect.objectContaining({ search: "", grouping: scene.grouping }),
+    );
+    expect(
+      within(
+        screen.getByRole("complementary", { name: "Observatory inspector" }),
+      ).getByRole("heading", { name: host.label }),
+    ).toBeTruthy();
+  });
+  it("dismisses Appearance before unwinding focus and clears removed-scope names", async () => {
+    const { props, host } = setup();
+    const view = render(createElement(OperationalObservatory, props));
+    await waitFor(() => expect(engine.update).toHaveBeenCalled());
+    fireEvent.click(
+      screen.getByRole("button", {
+        name: `Inspect ${host.label}, Host, ${host.memberCount} unique resources`,
+      }),
+    );
+    const trigger = screen.getByRole("button", {
+      name: "Appearance and views",
+    });
+    fireEvent.click(trigger);
+    const form = screen.getByRole("dialog", {
+      name: "Observatory appearance and local views",
+    });
+    expect(form).not.toHaveAttribute("aria-modal");
+    fireEvent.keyDown(form, { key: "Escape" });
+    expect(screen.queryByRole("dialog")).toBeNull();
+    expect(
+      within(
+        screen.getByRole("complementary", { name: "Observatory inspector" }),
+      ).getByRole("heading", { name: host.label }),
+    ).toBeTruthy();
+    fireEvent.keyDown(trigger, { key: "Escape" });
+    expect(
+      within(
+        screen.getByRole("complementary", { name: "Observatory inspector" }),
+      ).getByRole("heading", { name: "Coverage and evidence" }),
+    ).toBeTruthy();
+    const next = projectObservatory({
+      ...scaleObservatoryFixture(0),
+      scopeDigest: "different-authorized-scope",
+    });
+    view.rerender(
+      createElement(OperationalObservatory, { ...props, scene: next }),
+    );
+    await screen.findByText("No authorized resources in this view.");
+    expect(screen.queryByText(host.label)).toBeNull();
+  });
+  it("keeps complete outline, search and honest unsupported work when WebGL fails", async () => {
+    engine.fail = true;
+    const { props, scene } = setup();
+    render(createElement(OperationalObservatory, props));
+    await screen.findByText(/Terrain is unavailable/);
+    expect(screen.getByText(/Complete resource outline/).textContent).toContain(
+      "91",
+    );
+    expect(screen.getByRole("searchbox")).toBeTruthy();
+    expect(
+      screen.getByText(/No qualifying active work observation/),
+    ).toBeTruthy();
+    expect(scene.summary.coverage.monitored).toBe(0);
+    const group = scene.representations.find(
+      (node) => node.kind === "collection" && node.memberCount === 60,
+    )!;
+    fireEvent.click(
+      screen.getByRole("button", { name: `Expand ${group.label}` }),
+    );
+    expect(props.onQueryChange).toHaveBeenLastCalledWith(
+      expect.objectContaining({
+        expandedRepresentationIds: expect.arrayContaining([group.id]),
+      }),
+    );
+  });
+});
+
+describe("provider plane context in the actual inspector", () => {
+  it.each([
+    [
+      "control",
+      "Control plane: a disruption may delay deployment or administration. Service availability is observed independently.",
+    ],
+    [
+      "data",
+      "Data plane: a disruption may affect service traffic. Local availability and impact are observed independently.",
+    ],
+    [
+      null,
+      "Plane unknown: the notice does not identify control or data plane. Local availability and impact are observed independently.",
+    ],
+  ] as const)(
+    "discloses %s plane without converting passing availability to failure",
+    async (plane, explanation) => {
+      const fixture = operationalObservatoryFixture();
+      const service = { ...fixture.services[0]!, parentResourceId: null };
+      const scene = projectObservatory({
+        ...observatoryFixtureInput([service, fixture.providers[0]!]),
+        signals: [fixture.signals[0]!],
+        requirements: [fixture.requirements[0]!],
+        providerDependencies: [
+          { ...fixture.providerDependencies[0]!, plane: plane ?? "control" },
+        ],
+        providerNotices: [{ ...fixture.providerNotices[0]!, plane }],
+      });
+      const snapshot: InfrastructureOverview = {
+        readAt: scene.readCompletedAt,
+        total: 2,
+        nextCursor: null,
+        items: [],
+        edges: [],
+        events: [],
+      };
+      render(
+        createElement(OperationalObservatory, {
+          scene,
+          snapshot,
+          selectedId: service.id,
+          onSelect: vi.fn(),
+          onProject: vi.fn(),
+          onQueryChange: vi.fn(),
+        }),
+      );
+      await waitFor(() => expect(engine.update).toHaveBeenCalled());
+      const inspector = screen.getByRole("complementary", {
+        name: "Observatory inspector",
+      });
+      const summary = within(inspector).getByText(
+        "Provider notices and relevance (1)",
+      );
+      fireEvent.click(summary);
+      const disclosure = summary.closest("details")!;
+      expect(disclosure).toHaveAttribute("open");
+      expect(within(disclosure).getByText(explanation)).toBeVisible();
+      expect(
+        within(inspector).getByText(
+          "1 passing / 0 failing / 0 degraded / 0 unknown / 0 maintenance",
+        ),
+      ).toBeVisible();
+      expect(
+        within(inspector).getByText(
+          "No confirmed required local impact in the available evidence.",
+        ),
+      ).toBeVisible();
+      expect(
+        within(disclosure).getByText(
+          plane === null ? "relevance unknown" : "potential exposure",
+        ),
+      ).toBeVisible();
+      expect(disclosure).toHaveTextContent(
+        "local impact unknown; causation unknown",
+      );
+      for (const other of ["Control plane:", "Data plane:", "Plane unknown:"])
+        if (!explanation.startsWith(other))
+          expect(
+            within(disclosure).queryByText((text) => text.startsWith(other)),
+          ).toBeNull();
+    },
+  );
+});
+
+function guidedTourFixture() {
+  const input = mixedObservatoryFixture(),
+    scene = projectObservatory(input),
+    hosts = scene.representations.filter(
+      (node) =>
+        node.kind === "host" &&
+        scene.visibleRepresentationIds.includes(node.id),
+    );
+  const props = {
+    scene,
+    snapshot: {
+      readAt: scene.readCompletedAt,
+      total: 91,
+      nextCursor: null,
+      items: [],
+      edges: [],
+      events: [],
+    } as InfrastructureOverview,
+    selectedId: null as string | null,
+    onSelect: vi.fn(),
+    onProject: vi.fn(),
+    onQueryChange: vi.fn(),
+    onCameraFocus: vi.fn(),
+  };
+  return { input, scene, hosts, props };
+}
+describe("automatic tour features in the actual operational component", () => {
+  it("keeps the existing inspector and tour without focus, expansion or artificial reading history on automatic features", async () => {
+    const { scene, hosts, props } = guidedTourFixture();
+    const view = render(createElement(OperationalObservatory, props));
+    await waitFor(() => expect(engine.update).toHaveBeenCalled());
+    const inspector = screen.getByRole("complementary", {
+        name: "Observatory inspector",
+      }),
+      start = screen.getByRole("button", { name: "Start presentation" });
+    fireEvent.click(start);
+    expect(engine.update.mock.lastCall?.[1].cameraMode).toBe("tour");
+    const focusCalls = props.onCameraFocus.mock.calls.length,
+      created = engine.created.mock.calls.length;
+    for (const host of hosts.slice(0, 2)) {
+      act(() => engine.hooks?.featured?.(host.id));
+      expect(
+        screen.getByRole("complementary", { name: "Observatory inspector" }),
+      ).toBe(inspector);
+      expect(
+        within(inspector).getByRole("heading", { name: host.label }),
+      ).toBeVisible();
+      expect(inspector).toHaveTextContent(host.resourceId!);
+      expect(engine.update.mock.lastCall?.[1]).toMatchObject({
+        cameraMode: "tour",
+        motion: true,
+        selected: host.id,
+      });
+      expect(props.onCameraFocus).toHaveBeenCalledTimes(focusCalls);
+      expect(props.onQueryChange).not.toHaveBeenCalled();
+      expect(props.onSelect).not.toHaveBeenCalled();
+    }
+    view.rerender(
+      createElement(OperationalObservatory, {
+        ...props,
+        scene: {
+          ...scene,
+          evaluatedAt: "2026-10-16T12:00:18.000Z",
+          representations: [...scene.representations],
+        },
+      }),
+    );
+    await act(async () => {});
+    expect(engine.update.mock.lastCall?.[1].cameraMode).toBe("tour");
+    expect(props.onCameraFocus).toHaveBeenCalledTimes(focusCalls);
+    expect(engine.created).toHaveBeenCalledTimes(created);
+    fireEvent.click(within(inspector).getByRole("button", { name: "Back" }));
+    expect(
+      within(inspector).getByRole("heading", { name: "Coverage and evidence" }),
+    ).toBeVisible();
+    expect(props.onQueryChange).not.toHaveBeenCalled();
+  });
+});
+
+describe("direct operational presentation interruptions", () => {
+  it.each([
+    "selection",
+    "keyboard activation",
+    "search",
+    "drag",
+    "inspector reading",
+  ])(
+    "keeps %s manual after an automatic feature until explicit Start presentation",
+    async (action) => {
+      const { hosts, props } = guidedTourFixture();
+      render(createElement(OperationalObservatory, props));
+      await waitFor(() => expect(engine.update).toHaveBeenCalled());
+      fireEvent.click(
+        screen.getByRole("button", { name: "Start presentation" }),
+      );
+      act(() => engine.hooks?.featured?.(hosts[0]!.id));
+      expect(engine.update.mock.lastCall?.[1]).toMatchObject({
+        cameraMode: "tour",
+        selected: hosts[0]!.id,
+      });
+      const focusCalls = props.onCameraFocus.mock.calls.length;
+      if (action === "selection") act(() => engine.hooks!.select(hosts[0]!.id));
+      if (action === "keyboard activation")
+        fireEvent.click(
+          screen.getByRole("button", {
+            name:
+              "Inspect " +
+              hosts[0]!.label +
+              ", Host, " +
+              hosts[0]!.memberCount +
+              " unique resources",
+          }),
+          { detail: 0 },
+        );
+      if (action === "search") {
+        const input = screen.getByRole("searchbox");
+        fireEvent.focus(input);
+        fireEvent.change(input, { target: { value: "Synthetic" } });
+      }
+      if (action === "drag") {
+        fireEvent.pointerDown(
+          screen.getByLabelText("Projected operational landscape"),
+        );
+        act(() => engine.hooks!.interrupted());
+      }
+      if (action === "inspector reading")
+        fireEvent.focus(
+          within(
+            screen.getByRole("complementary", {
+              name: "Observatory inspector",
+            }),
+          ).getByRole("button", { name: "Back" }),
+        );
+      expect(engine.update.mock.lastCall?.[1].cameraMode).toBe("manual");
+      if (action === "selection" || action === "keyboard activation") {
+        expect(props.onSelect).toHaveBeenLastCalledWith(hosts[0]!.resourceId);
+        expect(props.onCameraFocus).toHaveBeenCalledTimes(focusCalls + 1);
+        expect(props.onCameraFocus.mock.lastCall?.[1]).toBe(hosts[0]!.id);
+      }
+      act(() => engine.hooks?.featured?.(hosts[1]!.id));
+      await act(async () => {});
+      expect(engine.update.mock.lastCall?.[1].cameraMode).toBe("manual");
+      expect(engine.update.mock.lastCall?.[1].selected).toBe(hosts[0]!.id);
+      fireEvent.click(
+        screen.getByRole("button", { name: "Start presentation" }),
+      );
+      expect(engine.update.mock.lastCall?.[1]).toMatchObject({
+        cameraMode: "tour",
+        motion: true,
+      });
+      act(() => engine.hooks?.featured?.(hosts[1]!.id));
+      expect(engine.update.mock.lastCall?.[1]).toMatchObject({
+        cameraMode: "tour",
+        selected: hosts[1]!.id,
+      });
+    },
+  );
+  it("keeps pause and reduced motion static, rejects foreign/non-host features, and resets denied scope state", async () => {
+    const { scene, hosts, props } = guidedTourFixture(),
+      view = render(createElement(OperationalObservatory, props));
+    await waitFor(() => expect(engine.update).toHaveBeenCalled());
+    fireEvent.click(screen.getByRole("button", { name: "Start presentation" }));
+    act(() => engine.hooks?.featured?.(hosts[0]!.id));
+    const nonHost = scene.representations.find((node) => node.kind !== "host")!;
+    act(() => {
+      engine.hooks?.featured?.("foreign");
+      engine.hooks?.featured?.(nonHost.id);
+    });
+    expect(engine.update.mock.lastCall?.[1].selected).toBe(hosts[0]!.id);
+    fireEvent.click(screen.getByRole("button", { name: "Pause scene" }));
+    expect(engine.update.mock.lastCall?.[1]).toMatchObject({
+      cameraMode: "manual",
+      motion: false,
+    });
+    act(() => engine.hooks?.featured?.(hosts[1]!.id));
+    expect(engine.update.mock.lastCall?.[1].selected).toBe(hosts[0]!.id);
+    fireEvent.click(screen.getByRole("button", { name: "Resume scene" }));
+    expect(engine.update.mock.lastCall?.[1].cameraMode).toBe("manual");
+    fireEvent.click(
+      screen.getByRole("button", { name: "Appearance and views" }),
+    );
+    fireEvent.click(screen.getByRole("checkbox", { name: "Reduced motion" }));
+    expect(engine.update.mock.lastCall?.[1]).toMatchObject({
+      cameraMode: "composed",
+      motion: false,
+    });
+    expect(
+      screen.getByRole("button", { name: "Start presentation" }),
+    ).toBeDisabled();
+    const next = projectObservatory({
+      ...scaleObservatoryFixture(0),
+      scopeDigest: "tour-new-empty-scope",
+    });
+    view.rerender(
+      createElement(OperationalObservatory, { ...props, scene: next }),
+    );
+    await screen.findByText("No authorized resources in this view.");
+    expect(screen.queryByText(hosts[0]!.label)).toBeNull();
+    await waitFor(() =>
+      expect(engine.update.mock.lastCall?.[1].selected).toBeNull(),
+    );
+  });
+  it("keeps deliberate orbit moving until a real interaction and resumes only by owner input", async () => {
+    const { props } = guidedTourFixture();
+    render(createElement(OperationalObservatory, props));
+    await waitFor(() => expect(engine.update).toHaveBeenCalled());
+    fireEvent.click(
+      screen.getByRole("button", { name: "Appearance and views" }),
+    );
+    fireEvent.change(screen.getByRole("combobox", { name: "Camera" }), {
+      target: { value: "orbit" },
+    });
+    expect(engine.update.mock.lastCall?.[1].cameraMode).toBe("orbit");
+    act(() => engine.hooks!.interrupted());
+    expect(engine.update.mock.lastCall?.[1].cameraMode).toBe("manual");
+    await act(async () => {});
+    expect(engine.update.mock.lastCall?.[1].cameraMode).toBe("manual");
+    fireEvent.click(screen.getByRole("button", { name: "Start presentation" }));
+    expect(engine.update.mock.lastCall?.[1].cameraMode).toBe("orbit");
+  });
+});
+
+it("treats explicit outline expansion after a tour feature as direct focus and preserves normal refitting", async () => {
+  const { input, hosts, props } = guidedTourFixture(),
+    view = render(createElement(OperationalObservatory, props));
+  await waitFor(() => expect(engine.update).toHaveBeenCalled());
+  fireEvent.click(screen.getByRole("button", { name: "Start presentation" }));
+  act(() => engine.hooks?.featured?.(hosts[0]!.id));
+  const before = props.onCameraFocus.mock.calls.length;
+  fireEvent.click(
+    screen.getByRole("button", { name: "Expand " + hosts[0]!.label }),
+  );
+  expect(engine.update.mock.lastCall?.[1].cameraMode).toBe("manual");
+  expect(props.onQueryChange).toHaveBeenCalledTimes(1);
+  const expanded = projectObservatory({
+    ...input,
+    ...props.onQueryChange.mock.lastCall![0],
+  });
+  view.rerender(
+    createElement(OperationalObservatory, { ...props, scene: expanded }),
+  );
+  await waitFor(() =>
+    expect(props.onCameraFocus).toHaveBeenCalledTimes(before + 1),
+  );
+  expect(props.onCameraFocus.mock.lastCall?.[1]).toBe(hosts[0]!.id);
+  expect(engine.update.mock.lastCall?.[1].cameraMode).toBe("manual");
+});
+
+describe("explicit external selection intent after automatic tour context", () => {
+  it("accepts a repeated canonical ID request after a different automatic host without replaying intent on refresh", async () => {
+    const { scene, hosts, props } = guidedTourFixture();
+    const requested = {
+      ...props,
+      selectedId: hosts[0]!.resourceId,
+      selectionRevision: 1,
+    };
+    const view = render(createElement(OperationalObservatory, requested));
+    await waitFor(() => expect(engine.update).toHaveBeenCalled());
+    fireEvent.click(screen.getByRole("button", { name: "Start presentation" }));
+    act(() => engine.hooks?.featured?.(hosts[1]!.id));
+    expect(engine.update.mock.lastCall?.[1]).toMatchObject({
+      cameraMode: "tour",
+      selected: hosts[1]!.id,
+    });
+    const inspector = screen.getByRole("complementary", {
+        name: "Observatory inspector",
+      }),
+      calls = props.onCameraFocus.mock.calls.length;
+    view.rerender(
+      createElement(OperationalObservatory, {
+        ...requested,
+        selectionRevision: 2,
+      }),
+    );
+    await waitFor(() =>
+      expect(engine.update.mock.lastCall?.[1]).toMatchObject({
+        cameraMode: "manual",
+        selected: hosts[0]!.id,
+      }),
+    );
+    expect(
+      within(inspector).getByRole("heading", { name: hosts[0]!.label }),
+    ).toBeVisible();
+    expect(props.onCameraFocus).toHaveBeenCalledTimes(calls + 1);
+    expect(props.onCameraFocus.mock.lastCall?.[1]).toBe(hosts[0]!.id);
+    expect(props.onSelect).not.toHaveBeenCalled();
+    expect(props.onQueryChange).not.toHaveBeenCalled();
+    const after = props.onCameraFocus.mock.calls.length;
+    view.rerender(
+      createElement(OperationalObservatory, {
+        ...requested,
+        selectionRevision: 2,
+        scene: {
+          ...scene,
+          representations: [...scene.representations],
+          evaluatedAt: "2026-10-16T12:00:25.000Z",
+        },
+      }),
+    );
+    await act(async () => {});
+    expect(props.onCameraFocus).toHaveBeenCalledTimes(after);
+    expect(engine.update.mock.lastCall?.[1].cameraMode).toBe("manual");
+    fireEvent.click(screen.getByRole("button", { name: "Start presentation" }));
+    act(() => engine.hooks?.featured?.(hosts[1]!.id));
+    expect(engine.update.mock.lastCall?.[1].cameraMode).toBe("tour");
+  });
+});
+
+it("treats a new same-ID request as direct before the first tour feature without duplicating it on refresh", async () => {
+  const { hosts, props } = guidedTourFixture(),
+    first = hosts[0]!,
+    requested = {
+      ...props,
+      selectedId: first.resourceId,
+      selectionRevision: 10,
+    };
+  const view = render(createElement(OperationalObservatory, requested));
+  await waitFor(() => expect(engine.update).toHaveBeenCalled());
+  fireEvent.click(screen.getByRole("button", { name: "Start presentation" }));
+  expect(engine.update.mock.lastCall?.[1].cameraMode).toBe("tour");
+  const before = props.onCameraFocus.mock.calls.length;
+  view.rerender(
+    createElement(OperationalObservatory, {
+      ...requested,
+      selectionRevision: 11,
+    }),
+  );
+  await waitFor(() =>
+    expect(engine.update.mock.lastCall?.[1].cameraMode).toBe("manual"),
+  );
+  expect(props.onCameraFocus).toHaveBeenCalledTimes(before + 1);
+  expect(props.onCameraFocus.mock.lastCall?.[1]).toBe(first.id);
+  view.rerender(
+    createElement(OperationalObservatory, {
+      ...requested,
+      selectionRevision: 11,
+      snapshot: { ...props.snapshot },
+    }),
+  );
+  await act(async () => {});
+  expect(props.onCameraFocus).toHaveBeenCalledTimes(before + 1);
+  expect(props.onQueryChange).not.toHaveBeenCalled();
+});
+
+describe("breadcrumb reading-context restoration", () => {
+  async function setupReadingContext(initialChild = false) {
+    const host = observatoryFixtureResource(61001, "host"),
+      child = {
+        ...observatoryFixtureResource(61002),
+        parentResourceId: host.id,
+      },
+      leaf = {
+        ...observatoryFixtureResource(61003),
+        parentResourceId: child.id,
+      },
+      input = observatoryFixtureInput([host, child, leaf]),
+      scene = projectObservatory(input);
+    const { ObservatoryRenderer: ActualRenderer } =
+      await vi.importActual<typeof import("./renderer")>("./renderer");
+    const camera = new PerspectiveCamera(40, 1, 0.1, 500),
+      target = new Vector3(0, -1, 0);
+    camera.position.set(24, 18, 30);
+    // Use the shipped saved-pose method, without constructing a GPU or a second camera store.
+    const main = Object.assign(Object.create(ActualRenderer.prototype), {
+      renderer: { domElement: { dataset: {} } },
+      camera,
+      controls: { target, update() {} },
+      targets: [] as Well[],
+      settings: { motion: false },
+      focusedSubject: null,
+      savedFocusPoses: new Map(),
+      cameraTween: null,
+      reconcileViewport() {},
+    }) as {
+      targets: Well[];
+      focusSubject: ObservatoryRenderer["focusSubject"];
+      adoptSubject: ObservatoryRenderer["adoptSubject"];
+      presentationMoved: boolean;
+      focusedSubject: string | null;
+      savedFocusPoses: Map<
+        string | null,
+        { position: Vector3; target: Vector3 }
+      >;
+    };
+    engine.adopt.mockImplementation((id) => main.adoptSubject(id));
+    const props = {
+      scene,
+      snapshot: {
+        readAt: scene.readCompletedAt,
+        total: 3,
+        nextCursor: null,
+        items: [],
+        edges: [],
+        events: [],
+      } as InfrastructureOverview,
+      selectedId: initialChild ? child.id : null,
+      onSelect: vi.fn(),
+      onProject: vi.fn(),
+      onQueryChange: vi.fn<(query: ObservatoryQuery) => void>(),
+      onCameraFocus: vi.fn<
+        NonNullable<OperationalObservatoryProps["onCameraFocus"]>
+      >((_renderer, id, options) => {
+        main.targets = engine.update.mock.lastCall![0];
+        expect(main.focusSubject(id, { ...options, immediate: true })).toBe(
+          true,
+        );
+      }),
+    };
+    const view = render(createElement(OperationalObservatory, props));
+    await waitFor(() => expect(props.onCameraFocus).toHaveBeenCalled());
+    const node = (resourceId: string) =>
+      scene.representations.find(
+        (item) => item.resourceId === resourceId && !item.referenceTo,
+      )!;
+    const publish = async () => {
+      props.scene = projectObservatory({
+        ...input,
+        ...props.onQueryChange.mock.lastCall?.[0],
+      });
+      props.selectedId = props.onSelect.mock.lastCall?.[0] ?? props.selectedId;
+      view.rerender(createElement(OperationalObservatory, props));
+      await act(async () => {});
+    };
+    const select = async (resourceId: string) => {
+      act(() => engine.hooks!.select(node(resourceId).id));
+      await publish();
+    };
+    const breadcrumb = (resourceId: string) =>
+      within(
+        screen.getByRole("navigation", { name: "Observatory breadcrumbs" }),
+      ).getByRole("button", { name: node(resourceId).label });
+    return {
+      host,
+      child,
+      leaf,
+      props,
+      view,
+      main,
+      camera,
+      target,
+      node,
+      publish,
+      select,
+      breadcrumb,
+    };
+  }
+
+  it.each(["breadcrumb", "Back", "Escape"])(
+    "restores the exact panned ancestor pose and authorized query through %s",
+    async (action) => {
+      const context = await setupReadingContext();
+      const {
+        host,
+        child,
+        props,
+        camera,
+        target,
+        node,
+        publish,
+        select,
+        breadcrumb,
+      } = context;
+      const overview = {
+        position: camera.position.clone(),
+        target: target.clone(),
+      };
+      await select(host.id);
+      const savedQuery = props.onQueryChange.mock.lastCall![0];
+      camera.position.set(13, 19, 27);
+      target.set(3, -2, 7);
+      const reading = {
+        position: camera.position.clone(),
+        target: target.clone(),
+      };
+      await select(child.id);
+      expect(
+        props.onQueryChange.mock.lastCall![0].expandedRepresentationIds,
+      ).toContain(node(child.id).id);
+      expect(camera.position.toArray()).not.toEqual(reading.position.toArray());
+      if (action === "breadcrumb") fireEvent.click(breadcrumb(host.id));
+      else if (action === "Back")
+        fireEvent.click(screen.getByRole("button", { name: "Back" }));
+      else
+        fireEvent.keyDown(
+          screen.getByRole("region", { name: "Operational Observatory" }),
+          { key: "Escape" },
+        );
+      expect(props.onCameraFocus.mock.lastCall).toEqual([
+        expect.anything(),
+        node(host.id).id,
+        expect.objectContaining({ restore: true }),
+      ]);
+      expect(props.onQueryChange.mock.lastCall![0]).toEqual({
+        ...savedQuery,
+        viewRevision: expect.any(String),
+      });
+      expect(props.onSelect).toHaveBeenLastCalledWith(host.id);
+      expect(engine.update.mock.lastCall![1].cameraMode).toBe("manual");
+      expect(camera.position.toArray()).toEqual(reading.position.toArray());
+      expect(target.toArray()).toEqual(reading.target.toArray());
+      await publish();
+      const calls = props.onCameraFocus.mock.calls.length;
+      viewRefresh(context);
+      await act(async () => {});
+      expect(props.onCameraFocus).toHaveBeenCalledTimes(calls);
+      expect(camera.position.toArray()).toEqual(reading.position.toArray());
+      expect(target.toArray()).toEqual(reading.target.toArray());
+      fireEvent.click(breadcrumb(host.id));
+      expect(props.onCameraFocus).toHaveBeenCalledTimes(calls);
+      expect(camera.position.toArray()).toEqual(reading.position.toArray());
+      fireEvent.click(screen.getByRole("button", { name: "Back" }));
+      expect(props.onCameraFocus.mock.lastCall![1]).toBeNull();
+      expect(camera.position.toArray()).toEqual(overview.position.toArray());
+      expect(target.toArray()).toEqual(overview.target.toArray());
+    },
+  );
+
+  function viewRefresh(
+    context: Awaited<ReturnType<typeof setupReadingContext>>,
+  ) {
+    context.view.rerender(
+      createElement(OperationalObservatory, {
+        ...context.props,
+        scene: {
+          ...context.props.scene,
+          representations: [...context.props.scene.representations],
+        },
+      }),
+    );
+  }
+
+  it("unwinds descendants when an earlier ancestor breadcrumb is restored", async () => {
+    const { host, child, leaf, props, camera, target, select, breadcrumb } =
+      await setupReadingContext();
+    await select(host.id);
+    camera.position.set(11, 17, 29);
+    target.set(4, -3, 8);
+    const position = camera.position.toArray(),
+      center = target.toArray();
+    await select(child.id);
+    await select(leaf.id);
+    fireEvent.click(breadcrumb(host.id));
+    expect(props.onCameraFocus.mock.lastCall![2].restore).toBe(true);
+    expect(camera.position.toArray()).toEqual(position);
+    expect(target.toArray()).toEqual(center);
+    fireEvent.keyDown(
+      screen.getByRole("region", { name: "Operational Observatory" }),
+      { key: "Escape" },
+    );
+    expect(props.onCameraFocus.mock.lastCall![1]).toBeNull();
+  });
+
+  it("fits a never-visited ancestor directly and keeps Back to its prior composed child context", async () => {
+    const { host, child, props, node, publish, breadcrumb } =
+      await setupReadingContext(true);
+    fireEvent.click(breadcrumb(host.id));
+    expect(props.onCameraFocus.mock.lastCall![1]).toBe(node(host.id).id);
+    expect(props.onCameraFocus.mock.lastCall![2].restore).toBe(false);
+    await publish();
+    fireEvent.click(screen.getByRole("button", { name: "Back" }));
+    expect(props.onCameraFocus.mock.lastCall![1]).toBe(node(child.id).id);
+    expect(props.onCameraFocus.mock.lastCall![2].restore).toBe(true);
+    expect(engine.update.mock.lastCall![1].cameraMode).toBe("composed");
+  });
+  it("does not turn an automatic ancestor feature into retained direct reading history", async () => {
+    const { host, child, props, node, select } = await setupReadingContext();
+    fireEvent.click(screen.getByRole("button", { name: "Start presentation" }));
+    act(() => engine.hooks?.featured?.(node(host.id).id));
+    expect(engine.update.mock.lastCall![1].cameraMode).toBe("tour");
+    await select(child.id);
+    expect(engine.update.mock.lastCall![1].cameraMode).toBe("manual");
+    fireEvent.click(screen.getByRole("button", { name: "Back" }));
+    expect(props.onCameraFocus.mock.lastCall![1]).toBeNull();
+    expect(props.onCameraFocus.mock.lastCall![2].restore).toBe(true);
+  });
+
+  it("independent: retains a tour host reading pose after current breadcrumb, child, and ancestor", async () => {
+    const {
+      host,
+      child,
+      props,
+      camera,
+      target,
+      node,
+      select,
+      breadcrumb,
+      main,
+    } = await setupReadingContext();
+    fireEvent.click(screen.getByRole("button", { name: "Start presentation" }));
+    act(() => engine.hooks?.featured?.(node(host.id).id));
+    camera.position.set(31, 23, 47);
+    target.set(7, -3, 11);
+    main.presentationMoved = true;
+    const pose = {
+      position: camera.position.toArray(),
+      target: target.toArray(),
+    };
+    const calls = props.onCameraFocus.mock.calls.length;
+    fireEvent.click(breadcrumb(host.id));
+    expect(props.onCameraFocus).toHaveBeenCalledTimes(calls);
+    expect(engine.update.mock.lastCall![1].cameraMode).toBe("manual");
+    expect(camera.position.toArray()).toEqual(pose.position);
+    expect(target.toArray()).toEqual(pose.target);
+    expect(engine.adopt).toHaveBeenLastCalledWith(node(host.id).id);
+    const beforeChildSubject = main.focusedSubject;
+    await select(child.id);
+    const savedKeys = [...main.savedFocusPoses.keys()];
+    fireEvent.click(breadcrumb(host.id));
+    expect(props.onCameraFocus.mock.lastCall![2].restore).toBe(true);
+    console.info(
+      "Independent tour/current-crumb diagnostics",
+      JSON.stringify({
+        expectedSubject: node(host.id).id,
+        beforeChildSubject,
+        savedKeys,
+        expectedPose: pose,
+        actualPose: {
+          position: camera.position.toArray(),
+          target: target.toArray(),
+        },
+      }),
+    );
+    expect(camera.position.toArray()).toEqual(pose.position);
+    expect(target.toArray()).toEqual(pose.target);
+  });
+
+  it.each([false, true])(
+    "discards removed ancestor context after scope change=%s",
+    async (scopeChanged) => {
+      const { host, child, leaf, props, view, select } =
+        await setupReadingContext();
+      await select(host.id);
+      await select(child.id);
+      props.onSelect.mockClear();
+      const next = projectObservatory({
+        ...observatoryFixtureInput([
+          { ...child, parentResourceId: null },
+          leaf,
+        ]),
+        ...(scopeChanged ? { scopeDigest: "fixture:new-reading-scope" } : {}),
+      });
+      view.rerender(
+        createElement(OperationalObservatory, { ...props, scene: next }),
+      );
+      await act(async () => {});
+      expect(screen.queryByText(host.name)).toBeNull();
+      props.onQueryChange.mockClear();
+      fireEvent.click(screen.getByRole("button", { name: "Back" }));
+      expect(props.onSelect).not.toHaveBeenCalled();
+      expect(engine.update.mock.lastCall![1].selected).toBeNull();
+      expect(props.onCameraFocus.mock.lastCall![1]).toBeNull();
+      if (scopeChanged) expect(props.onQueryChange).not.toHaveBeenCalled();
+      else
+        expect(
+          props.onQueryChange.mock.lastCall![0].expandedRepresentationIds,
+        ).not.toContain("resource:" + host.id);
+    },
+  );
+});
+
+it.each([false, true])(
+  "restores only the exact shared alias context while alias removed=%s",
+  async (removed) => {
+    const input = mixedObservatoryFixture(),
+      scene = projectObservatory({ ...input, grouping: "projects" }),
+      alias = scene.representations.find(
+        (node) => node.referenceTo && node.resourceId,
+      )!,
+      canonical = scene.representations.find(
+        (node) => node.id === alias.referenceTo,
+      )!;
+    const props = {
+      scene,
+      snapshot: {
+        readAt: scene.readCompletedAt,
+        total: 91,
+        nextCursor: null,
+        items: [],
+        edges: [],
+        events: [],
+      } as InfrastructureOverview,
+      selectedId: null as string | null,
+      onSelect: vi.fn(),
+      onProject: vi.fn(),
+      onQueryChange: vi.fn<(query: ObservatoryQuery) => void>(),
+      onCameraFocus: vi.fn(),
+    };
+    const view = render(createElement(OperationalObservatory, props));
+    await waitFor(() => expect(engine.update).toHaveBeenCalled());
+    act(() => engine.hooks!.select(alias.id));
+    props.selectedId = alias.resourceId;
+    props.scene = projectObservatory({
+      ...input,
+      ...props.onQueryChange.mock.lastCall![0],
+    });
+    view.rerender(createElement(OperationalObservatory, props));
+    await act(async () => {});
+    expect(engine.update.mock.lastCall![1].selected).toBe(alias.id);
+    fireEvent.click(
+      screen.getByRole("button", { name: "Inspect canonical context" }),
+    );
+    expect(engine.update.mock.lastCall![1].selected).toBe(canonical.id);
+    props.onSelect.mockClear();
+    if (removed) {
+      props.scene = projectObservatory({ ...input, grouping: "hosts" });
+      expect(
+        props.scene.representations.some((node) => node.id === alias.id),
+      ).toBe(false);
+      view.rerender(createElement(OperationalObservatory, props));
+      await act(async () => {});
+    }
+    fireEvent.click(screen.getByRole("button", { name: "Back" }));
+    expect(engine.update.mock.lastCall![1].selected).toBe(
+      removed ? null : alias.id,
+    );
+    expect(props.onCameraFocus.mock.lastCall![2].restore).toBe(true);
+    if (removed) {
+      expect(props.onSelect).not.toHaveBeenCalled();
+      expect(props.onCameraFocus.mock.lastCall![1]).toBeNull();
+    } else {
+      expect(props.onSelect).toHaveBeenLastCalledWith(alias.resourceId);
+      expect(props.onCameraFocus.mock.lastCall![1]).toBe(alias.id);
+      view.rerender(createElement(OperationalObservatory, props));
+      await act(async () => {});
+      expect(engine.update.mock.lastCall![1].selected).toBe(alias.id);
+    }
+  },
+);
