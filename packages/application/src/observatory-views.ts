@@ -7,7 +7,7 @@ import {
   observatoryViewSchema,
   observatoryViewDeletedSchema,
   observatoryViewPageSchema,
-} from "../../contracts/src/observatory-views";
+} from "@commandry/contracts";
 import type {
   ObservatoryView,
   ObservatoryViewCreate,
@@ -17,7 +17,7 @@ import type {
   ObservatoryViewPageQuery,
   ObservatoryViewPage,
   ObservatoryViewDeleted,
-} from "../../contracts/src/observatory-views";
+} from "@commandry/contracts";
 import type { ObservatoryOwnerIdentity } from "./observatory-management";
 
 export const OBSERVATORY_VIEW_POLICIES = Object.freeze({

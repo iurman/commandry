@@ -55,21 +55,17 @@ test(
       serviceId = randomUUID(),
       userId = randomUUID(),
       sessionId = randomUUID();
-    await admin.db
-      .insert(user)
-      .values({
-        id: userId,
-        name: "Access regression",
-        email: userId + "@example.test",
-      });
-    await admin.db
-      .insert(session)
-      .values({
-        id: sessionId,
-        userId,
-        token: randomUUID(),
-        expiresAt: new Date(now.getTime() + 3600000),
-      });
+    await admin.db.insert(user).values({
+      id: userId,
+      name: "Access regression",
+      email: userId + "@example.test",
+    });
+    await admin.db.insert(session).values({
+      id: sessionId,
+      userId,
+      token: randomUUID(),
+      expiresAt: new Date(now.getTime() + 3600000),
+    });
     await admin.db.insert(project).values([
       { id: projectId, name: "Allowed A" },
       { id: otherProjectId, name: "Private B" },
@@ -83,21 +79,19 @@ test(
         parentResourceId: hostId,
       },
     ]);
-    await admin.db
-      .insert(projectResourceLink)
-      .values(
-        [projectId, otherProjectId].flatMap((projectId) =>
-          [hostId, serviceId].map((resourceId) => ({
-            id: randomUUID(),
-            projectId,
-            resourceId,
-            type: "relates_to" as const,
-            sourceKind: "project" as const,
-            targetKind: "resource" as const,
-            lifecycle: "active" as const,
-          })),
-        ),
-      );
+    await admin.db.insert(projectResourceLink).values(
+      [projectId, otherProjectId].flatMap((projectId) =>
+        [hostId, serviceId].map((resourceId) => ({
+          id: randomUUID(),
+          projectId,
+          resourceId,
+          type: "relates_to" as const,
+          sourceKind: "project" as const,
+          targetKind: "resource" as const,
+          lifecycle: "active" as const,
+        })),
+      ),
+    );
     const owner = {
       principalId: "user:" + userId,
       sessionId,
@@ -355,14 +349,12 @@ test(
           await admin.db
             .insert(resource)
             .values({ id: target, name: "Expiry target", kind: "host" });
-          await admin.db
-            .insert(session)
-            .values({
-              id: shortSession,
-              userId,
-              token: randomUUID(),
-              expiresAt: new Date(now.getTime() + 1000),
-            });
+          await admin.db.insert(session).values({
+            id: shortSession,
+            userId,
+            token: randomUUID(),
+            expiresAt: new Date(now.getTime() + 1000),
+          });
           let calls = 0;
           const clock = () =>
             new Date(now.getTime() + (++calls >= 3 ? 2000 : 0));
@@ -463,18 +455,16 @@ test(
         "owner adapter rechecks expiry after its read audit",
         async () => {
           const shortSession = randomUUID();
-          await admin.db
-            .insert(session)
-            .values({
-              id: shortSession,
-              userId,
-              token: randomUUID(),
-              expiresAt: new Date(now.getTime() + 1000),
-            });
+          await admin.db.insert(session).values({
+            id: shortSession,
+            userId,
+            token: randomUUID(),
+            expiresAt: new Date(now.getTime() + 1000),
+          });
           let calls = 0;
           const port = createObservatoryOwnerReadRepository(runtime.db, {
             environment: "test",
-            now: () => new Date(now.getTime() + (++calls >= 3 ? 2000 : 0)),
+            now: () => new Date(now.getTime() + (++calls >= 4 ? 2000 : 0)),
           });
           const before = (
             await runtime.db

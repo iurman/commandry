@@ -8,7 +8,7 @@ import type {
   ObservatoryViewRecords,
   ObservatoryViewsPort,
 } from "./observatory-views";
-import { observatoryViewSchema } from "../../contracts/src/observatory-views";
+import { observatoryViewSchema } from "@commandry/contracts";
 
 const owner = {
   principalId: `user:${randomUUID()}`,

@@ -83,3 +83,5 @@ export * from "./observatory-management";
 export * from "./observatory";
 
 export * from "./observatory-observations";
+
+export * from "./observatory-views";

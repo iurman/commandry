@@ -5,12 +5,12 @@ import type { CommandryDatabase } from "./client";
 import { auditEvent, project, projectResourceLink, resource } from "./schema";
 import { observatoryNamedView } from "./observatory-schema";
 import { requireWorkflowOwnerSession } from "./foundation-workflow-access-repository";
-import { OBSERVATORY_VIEW_POLICIES } from "../../application/src/observatory-views";
+import { OBSERVATORY_VIEW_POLICIES } from "@commandry/application";
 import type {
   ObservatoryViewsPort,
   ObservatoryViewRecords,
-} from "../../application/src/observatory-views";
-import { observatoryViewConfigurationSchema } from "../../contracts/src/observatory-queries";
+} from "@commandry/application";
+import { observatoryViewConfigurationSchema } from "@commandry/contracts";
 import {
   observatoryViewCreateSchema,
   observatoryViewUpdateSchema,
@@ -21,11 +21,11 @@ import {
   observatoryViewPageSchema,
   observatoryViewDeletedSchema,
   observatoryViewStorageSchema as envelopeSchema,
-} from "../../contracts/src/observatory-views";
+} from "@commandry/contracts";
 import type {
   ObservatoryView,
   ObservatoryViewStorage as Envelope,
-} from "../../contracts/src/observatory-views";
+} from "@commandry/contracts";
 
 type ViewRow = typeof observatoryNamedView.$inferSelect;
 function decode(row: ViewRow): { envelope: Envelope; view: ObservatoryView } {

@@ -167,7 +167,18 @@ export const observatoryObservation = pgTable(
       .references(() => observatorySource.id, { onDelete: "restrict" }),
     contentDigest: text("content_digest").notNull(),
     receivedAt: at("received_at").notNull(),
-    observedAt: at("observed_at").notNull(),
+    observedAt: at("observed_at"),
+    projectId: uuid("project_id").references(() => project.id, {
+      onDelete: "restrict",
+    }),
+    resourceId: uuid("resource_id").references(() => resource.id, {
+      onDelete: "restrict",
+    }),
+    sourceVersion: integer("source_version"),
+    details: jsonb("details")
+      .$type<Record<string, unknown>>()
+      .notNull()
+      .default({}),
     rawPayload: jsonb("raw_payload").$type<Record<string, unknown>>().notNull(),
     signals: jsonb("signals").$type<ObservatorySignal[]>().notNull(),
   },

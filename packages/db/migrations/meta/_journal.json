@@ -505,6 +505,13 @@
       "when": 1792194343562,
       "tag": "0071_observatory_source_scope",
       "breakpoints": true
+    },
+    {
+      "idx": 72,
+      "version": "7",
+      "when": 1792195200000,
+      "tag": "0072_observatory_observation_provenance",
+      "breakpoints": true
     }
   ]
 }

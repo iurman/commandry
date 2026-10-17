@@ -5,8 +5,8 @@ import { test } from "node:test";
 import { and, eq, sql } from "drizzle-orm";
 import { FoundationError } from "@commandry/domain";
 import { createDatabase } from "./client";
-import { createObservatoryViewsService } from "../../application/src/observatory-views";
-import { observatoryViewConfigurationSchema } from "../../contracts/src/observatory-queries";
+import { createObservatoryViewsService } from "@commandry/application";
+import { observatoryViewConfigurationSchema } from "@commandry/contracts";
 import { createObservatoryViewsRepository } from "./observatory-views-repository";
 import { observatoryNamedView, observatorySource } from "./observatory-schema";
 import {
