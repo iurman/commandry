@@ -1,0 +1,38 @@
+{
+  "status": "FAIL: actual desktop TV vertical-fit assertion; no final acceptance",
+  "observedAt": "2026-10-17T15:15:32.090Z",
+  "runId": "run-a4c4caa2-eaa6-4285-9ad4-9331e5988d0f",
+  "sourceSha": "7ad54a5d5e65875443950c91063165f4746ce577",
+  "sourceClean": false,
+  "buildId": "rQChcXCBqjsBjdxhjXN26",
+  "testFileSha256": "08475279519f1e2a3285867fc810fd3ccab9842849367f945f7616d78a2e98db",
+  "browser": {
+    "passed": 11,
+    "failed": 1,
+    "projects": [
+      "desktop",
+      "phone-390",
+      "phone-320"
+    ],
+    "failure": "1920x1080 document.documentElement.scrollHeight <= innerHeight + 1 is false",
+    "originalGuaranteeRetained": true
+  },
+  "otherPacketChecks": {
+    "componentPreferences": "78 passed",
+    "uiTypes": "PASS",
+    "fourFileFormat": "PASS",
+    "boundaries": "PASS"
+  },
+  "cleanup": {
+    "accepted": true,
+    "freshMatchingStoppedReceipt": true,
+    "actualPidGroupAndDirectoryAbsenceIndependentlyVerified": true,
+    "errors": []
+  },
+  "limits": [
+    "No complete built acceptance",
+    "No hosted release or publication",
+    "No deployment or source activation",
+    "Previous failures remain retained"
+  ]
+}

@@ -12,6 +12,8 @@ The implementation is normally merged through PR22 at922cc6d. Its product and te
 
 D07/G04 are temporarily reopened pending these corrections:51PASS and seven explicit partial/unrun clauses. Their earlier executed evidence remains retained. The five preexisting source, human and physical-device limits remain unchanged. The neutral F06 owner interpretation request is pending on the verified read-only synthetic preview. Protected exact-image approval, the existing constrained deployment and exact signed-in live verification remain outstanding. No production deployment, source activation, DNS change or production SQL has occurred.
 
+The first four-file T36 packet passes78component/preference controls, types, format and boundaries. Actual built run run-a4c4caa2-eaa6-4285-9ad4-9331e5988d0f at7ad54a5 with candidate changes, BUILD_ID rQChcXCBqjsBjdxhjXN26, reports11PASS/1FAIL: original1920x1080 TV vertical fit. Both phone cases pass; final source acceptance remains held. Cleanup separately passes strict matching receipt plus independently checked actual PID/group/directory absence. F03 is reopened alongside D07/G04 pending accepted final closure:50PASS/3FAIL/5partial-unrun. [Actual TV failure](evidence/2026-10-17-tv-layout-failure.json) is retained; no hosted release, publication, deployment or activation occurred.
+
 ## Authority and baseline
 
 The owner's direct 2026-10-16 request releases the planning-only hold and approves the five recommended defaults in PLAN.md. It authorizes scoped implementation, tests, normal commits/pushes, PR, normal merge and the existing constrained deployment after its actual gates pass. Historical hold language in the preserved packet describes its preparation, not the current authorization. Unrelated holds remain.
