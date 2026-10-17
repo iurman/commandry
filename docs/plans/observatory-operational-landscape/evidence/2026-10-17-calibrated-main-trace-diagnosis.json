@@ -1,0 +1,71 @@
+{
+  "status": "DIAGNOSTIC_ONLY_NOT_RELEASE_ACCEPTANCE",
+  "runId": 39061877665,
+  "sourceRevision": "f30c4aa649ce213c01b39748854fdf50d7f9f2ae",
+  "fullMainOutcome": {
+    "passed": 199,
+    "skipped": 5,
+    "failed": 3,
+    "flaky": 0
+  },
+  "desktopGlobalPopulation": {
+    "canonicalPopulation": 227,
+    "fixtureMembers": 91,
+    "preexistingMembers": 136,
+    "overviewPages": 5,
+    "sceneAndInventoryExactSetsEqual": true,
+    "matchingNonPendingRegionLoggedMsAfterPollStart": 480.11,
+    "pollFailedAfterMs": 5000.762,
+    "populationComparisonCompleted": false,
+    "locatorWaitReturned": false,
+    "finalCustomDomProbeReturned": false,
+    "finalRendererContributionState": "unverified",
+    "interpretation": "Complete response was admitted and current region logged before deadline; locator observation did not return. Browser/transport/instrumentation cause unresolved."
+  },
+  "phone390FieldObservation": {
+    "canonicalMembers": 103,
+    "outlineMembers": 103,
+    "trustedExpansionCommits": 11,
+    "maxLocalCommitMs": 20.5,
+    "priorOffscreenContributionCount": 20,
+    "priorOffscreenFrameCounter": 42,
+    "resumedVisibleContributionCount": 103,
+    "resumedActiveBasins": 103,
+    "resumedFrameCounter": 43,
+    "resumedSnapshotMsAfterPollStart": 1610.223,
+    "resumedSnapshotMsBeforePollFailure": 3390.13,
+    "secondReadCompletedMsAfterPollFailure": 954.391,
+    "pollFailureWindowMs": 5000.353,
+    "submittedRendererKeyRetained": false,
+    "contextStateRetained": false,
+    "interpretation": "Field resumed to103 within the original guard; delayed polling delivery still caused a genuine failed assertion. No continuous five-second shortage or missing inventory is established."
+  },
+  "desktopMasterCumulativeCost": {
+    "reporterDurationMs": 302841,
+    "nominalAggregateBudgetMs": 300000,
+    "outlineExpansionExclusiveNominalWindowMs": 177119,
+    "pointerAwaitReceipts": 43,
+    "fulfilledPointerReceiptsIncludingCancellationTail": 42,
+    "failedPointerReceipts": 1,
+    "intendedOutlineTargets": 48,
+    "retainedTrustedCommitSamples": 37,
+    "maxRetainedLocalCommitMs": 28.6,
+    "completedTheme": "light",
+    "incompleteThemePhase": "dark/hosts outline expansion",
+    "finalShaderFieldState": "unverified after final admitted scene",
+    "interpretation": "Cumulative browser automation awaits dominate recorded elapsed buckets. Actual local commits are short; locator/acknowledgment intervals are not pure ARIA CPU or shader/GPU timing. Later acceptance checks were not reached."
+  },
+  "independentReportSha256": {
+    "T42-overview-failure-diagnosis": "923a5b69da8fc5b7f3ecfaf08f5d6212bc4294355f178cbcf3b8fbd6325db0a9",
+    "T42-phone-field-failure-diagnosis": "0ee2d72dc5c89f5462ff08716c3a4e92ffabe2f8de7aef24e1733c1c9d1bb455",
+    "T42-desktop-cost-diagnosis": "2486d893b368ca34645911d4f7b50801dfb577d093e979befb35a070f558cbc2"
+  },
+  "actualFinalContractsChecked": true,
+  "limits": [
+    "No product, GPU, tracing or worker-overlap cause established",
+    "No failed result reclassified",
+    "No timeout, retry, assertion or population change",
+    "No image publication, protected approval, deployment or source activation"
+  ],
+  "proposedNextBoundary": "Separately reviewed one-worker hosted-CI resource-policy experiment with all207cases and original guards conserved; actual full result remains required."
+}
