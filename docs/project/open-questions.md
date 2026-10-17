@@ -439,3 +439,16 @@ files remain downloadable only. No image text extraction, OCR, metadata
 stripping, or external media service is implied. Decide permitted source
 channels, consent and retention, image preview policy, transcription and OCR
 quality, and any production file store before real integrations are enabled.
+
+### OQ-037: Which supported evidence can express incident snooze?
+
+The operational Observatory preserves maintenance/lifecycle and incident
+acknowledgement independently of actual check status. The currently reviewed
+availability source and strict derived incident contract have no snooze state,
+interval or expiry. Paused monitoring represents disabled coverage, not a
+snoozed incident, and must not imply recovery. The snooze clause in
+[acceptance B05](../plans/observatory-operational-landscape/ACCEPTANCE.md) remains
+unverified. Identify a supported source or canonical alert contract before
+adding that observation; retain original checks, incident identity and source
+time. The generic proposed alert vocabulary does not supply this capability.
+InfraAgent is optional prior art and its activation is outside this upgrade.
