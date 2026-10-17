@@ -73,7 +73,9 @@ export function observedTotalRam(
     .filter(
       (item) =>
         item.resourceId === resourceId &&
-        /^(?:memory|ram)[._ -]total(?:[._ -]bytes)?$/i.test(item.name) &&
+        /^(?:(?:memory|ram)[._ -]total(?:[._ -]bytes)?|host_memory_total(?:_bytes)?)$/i.test(
+          item.name,
+        ) &&
         /^(bytes|byte|B)$/.test(item.unit) &&
         Number.isFinite(item.value) &&
         item.value > 0 &&
@@ -218,6 +220,7 @@ export class OperationalLayout {
         if (total === null) ramUnavailableIds.push(node.id);
         else radius = 1.7 + Math.log2(1 + total / 1073741824) * 0.3;
       }
+      if (options.size === "uniform") radius = 1.65;
       radius = Math.min(5.4, radius);
       if (parent)
         radius = Math.max(0.18, Math.min(radius * 0.42, parent.radius * 0.38));

@@ -278,6 +278,72 @@ test(
           const result = await read.scene(request(), { projectId });
           assert.equal(result.scene.summary.availability.failing, 1);
           assert.ok(!JSON.stringify(result).includes(hidden));
+          // A pending monitor retains its last check, but that check cannot
+          // borrow current coverage from a different monitor on this service.
+          await runtime.db
+            .update(observatorySource)
+            .set({
+              snapshot: {
+                details: { sourceState: "unknown" },
+                signals: input.signals!.filter(
+                  (signal) => signal.sourceId === b,
+                ),
+              },
+            })
+            .where(eq(observatorySource.id, b));
+          const pending = await read.scene(request(), { projectId });
+          assert.equal(pending.scene.summary.availability.failing, 0);
+          assert.equal(pending.scene.summary.availability.passing, 1);
+          const pendingInput = await runtime.db.transaction((tx) =>
+            collectObservatoryRecords(tx, {
+              projectId,
+              resourceIds: null,
+              scopeDigest: "A",
+            }),
+          );
+          assert.equal(
+            pendingInput.signals!.find((signal) => signal.sourceId === b)!
+              .sourceQualification,
+            "last_known",
+          );
+          assert.equal(
+            pendingInput.signals!.find((signal) => signal.sourceId === a)!
+              .sourceQualification,
+            "current",
+          );
+          await runtime.db
+            .update(observatorySource)
+            .set({
+              snapshot: {
+                details: { sourceState: "unknown" },
+                signals: input.signals!.filter(
+                  (signal) => signal.sourceId === a,
+                ),
+              },
+            })
+            .where(eq(observatorySource.id, a));
+          const allPending = await read.scene(request(), { projectId });
+          assert.equal(allPending.scene.summary.availability.passing, 0);
+          assert.equal(allPending.scene.summary.availability.failing, 0);
+          assert.equal(allPending.scene.summary.availability.unknown, 1);
+          assert.equal(allPending.scene.summary.coverage.monitored, 0);
+          assert.equal(
+            allPending.facetAccess.find(
+              (f) => f.resourceId === serviceId && f.facet === "availability",
+            )!.state,
+            "unavailable",
+          );
+          await runtime.db
+            .update(observatorySource)
+            .set({
+              snapshot: {
+                details: { sourceState: "available" },
+                signals: input.signals!.filter(
+                  (signal) => signal.sourceId === b,
+                ),
+              },
+            })
+            .where(eq(observatorySource.id, b));
           await runtime.db
             .update(observatorySource)
             .set({ enabled: false })

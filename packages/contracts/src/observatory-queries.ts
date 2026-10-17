@@ -76,6 +76,13 @@ export const observatoryViewConfigurationSchema = z.strictObject({
   palette: z
     .record(text(100), z.string().regex(/^#[0-9a-fA-F]{6}$/))
     .default({}),
+  palettePreset: z.enum(["semantic", "ocean", "earth"]).default("semantic"),
+  ambient: z.boolean().default(false),
+  textScale: z
+    .union([z.literal(1), z.literal(1.25), z.literal(1.5)])
+    .default(1),
+  paused: z.boolean().default(false),
+  reducedMotion: z.boolean().default(false),
   sizeBasis: z.enum(["services", "ram", "uniform"]).default("services"),
   camera: z.enum(["composed", "manual", "orbit", "tour"]).default("composed"),
   lens: z.boolean().default(false),

@@ -10,7 +10,11 @@ import {
   skyVertex,
   skyFragment,
 } from "./materials";
-import { fittedLandscapePose, presentationPose } from "./presentation";
+import {
+  fittedLandscapePose,
+  focusedLandscapePose,
+  presentationPose,
+} from "./presentation";
 import { LabelLayout, labelHeight } from "./labels";
 import { fieldBounds, fieldTransition, packField } from "./field";
 import {
@@ -165,6 +169,11 @@ export class ObservatoryRenderer {
   private frames: number[] = [];
   private labelLayout = new LabelLayout();
   private lensAmount = 0;
+  private focusedSubject: string | null = null;
+  private savedFocusPoses = new Map<
+    string | null,
+    { position: THREE.Vector3; target: THREE.Vector3 }
+  >();
   private needsDraw = true;
   private lost = false;
   private observer: ResizeObserver;
@@ -483,6 +492,7 @@ export class ObservatoryRenderer {
   }
 
   update(wells: Well[], settings: RendererSettings) {
+    const firstPopulation = this.targets.length === 0 && wells.length > 0;
     this.renderer.domElement.dataset.gravityFocusRequested = String(
       settings.focus,
     );
@@ -512,6 +522,8 @@ export class ObservatoryRenderer {
         );
       });
     const active = new Set(wells.map((well) => well.id));
+    for (const id of this.savedFocusPoses.keys())
+      if (id && !active.has(id)) this.savedFocusPoses.delete(id);
     const complete = [
       ...wells,
       ...this.wells.filter((well) => !active.has(well.id)),
@@ -541,8 +553,14 @@ export class ObservatoryRenderer {
       };
       this.featuredId = null;
     }
-    if (settings.cameraMode === "composed" && (layoutChanged || cameraChanged))
-      this.preset("overview");
+    if (
+      firstPopulation ||
+      (settings.cameraMode === "composed" && (layoutChanged || cameraChanged))
+    ) {
+      if (this.focusedSubject && active.has(this.focusedSubject))
+        this.focusSubject(this.focusedSubject, { refit: true });
+      else this.preset("overview");
+    }
     if (settings.cameraMode === "orbit" || settings.cameraMode === "tour")
       this.cameraTween = null;
     this.uniforms.uWarning.value.set(settings.palette.attention);
@@ -553,6 +571,8 @@ export class ObservatoryRenderer {
   }
 
   preset(preset: "overview" | "top" | "angle") {
+    this.focusedSubject = null;
+    this.renderer.domElement.dataset.gravityMainFocus = "";
     const pose = fittedLandscapePose(
       this.targets,
       this.camera.aspect,
@@ -567,6 +587,62 @@ export class ObservatoryRenderer {
       time: 0,
     };
     this.needsDraw = true;
+  }
+
+  focusSubject(
+    id: string | null,
+    options: { immediate?: boolean; restore?: boolean; refit?: boolean } = {},
+  ): boolean {
+    if (id === this.focusedSubject && !options.refit && !options.restore)
+      return true;
+    const pose = id
+      ? focusedLandscapePose(this.targets, id, this.camera.aspect)
+      : fittedLandscapePose(this.targets, this.camera.aspect);
+    if (!pose) return false;
+    if (!options.restore && !options.refit) {
+      this.savedFocusPoses.set(this.focusedSubject, {
+        position: this.cameraTween?.to.clone() ?? this.camera.position.clone(),
+        target:
+          this.cameraTween?.targetTo.clone() ?? this.controls.target.clone(),
+      });
+    }
+    const saved = options.restore ? this.savedFocusPoses.get(id) : undefined;
+    const position =
+      saved?.position.clone() ??
+      new THREE.Vector3(pose.position.x, pose.position.y, pose.position.z);
+    const target =
+      saved?.target.clone() ??
+      new THREE.Vector3(pose.target.x, pose.target.y, pose.target.z);
+    this.focusedSubject = id;
+    this.presentationInterrupted = true;
+    this.presentationEntry = null;
+    this.featuredId = id;
+    if (options.immediate || !this.settings.motion) {
+      this.cameraTween = null;
+      this.camera.position.copy(position);
+      this.controls.target.copy(target);
+      this.controls.update();
+    } else {
+      this.cameraTween = {
+        from: this.camera.position.clone(),
+        to: position,
+        targetFrom: this.controls.target.clone(),
+        targetTo: target,
+        time: 0,
+      };
+    }
+    this.renderer.domElement.dataset.gravityMainFocus = id ?? "";
+    this.needsDraw = true;
+    this.reconcileViewport();
+    return true;
+  }
+
+  lensViewport() {
+    return {
+      x: this.width * 0.76,
+      y: this.height * 0.3,
+      radius: Math.min(this.height * 0.22, this.width * 0.22, 220),
+    };
   }
 
   refreshActivity() {
@@ -593,7 +669,14 @@ export class ObservatoryRenderer {
     this.overlayCamera.top = this.height / 2;
     this.overlayCamera.bottom = -this.height / 2;
     this.overlayCamera.updateProjectionMatrix();
-    if (this.settings.cameraMode === "composed") this.preset("overview");
+    if (this.settings.cameraMode === "composed") {
+      if (this.focusedSubject)
+        this.focusSubject(this.focusedSubject, {
+          refit: true,
+          immediate: true,
+        });
+      else this.preset("overview");
+    }
     this.needsDraw = true;
     this.reconcileViewport();
   }
@@ -827,6 +910,16 @@ export class ObservatoryRenderer {
       );
       this.sky.position.copy(this.camera.position);
       this.renderer.render(this.scene, this.camera);
+      this.renderer.domElement.dataset.gravityCameraPosition =
+        this.camera.position
+          .toArray()
+          .map((value) => value.toFixed(3))
+          .join(",");
+      this.renderer.domElement.dataset.gravityCameraTarget =
+        this.controls.target
+          .toArray()
+          .map((value) => value.toFixed(3))
+          .join(",");
       if (this.lensAmount > 0.005 && selected) this.renderLens(selected, dt);
       else {
         this.focusReady = false;
@@ -900,8 +993,8 @@ export class ObservatoryRenderer {
       for (const anchor of anchors) {
         if (
           Math.hypot(
-            anchor.x - this.width * 0.43,
-            anchor.y - this.height * 0.48,
+            anchor.x - this.lensViewport().x,
+            anchor.y - this.lensViewport().y,
           ) <
           this.lensRadius() * this.lensAmount + 35
         )
@@ -925,8 +1018,8 @@ export class ObservatoryRenderer {
           attention: well.attention,
           sector: well.sector,
           opacity: 0,
-          x: this.width * 0.43 + p.x * radius,
-          y: this.height * 0.48 - p.y * radius,
+          x: this.lensViewport().x + p.x * radius,
+          y: this.lensViewport().y - p.y * radius,
           visible: this.lensAmount > 0.95 && p.x * p.x + p.y * p.y < 0.79,
         });
       }
@@ -945,7 +1038,7 @@ export class ObservatoryRenderer {
   }
 
   private lensRadius() {
-    return Math.min(this.height * 0.36, this.width * 0.31);
+    return this.lensViewport().radius;
   }
 
   private renderLens(selected: Well, dt: number) {
@@ -1026,8 +1119,8 @@ export class ObservatoryRenderer {
     this.renderer.setRenderTarget(null);
     const radius = this.lensRadius() * this.lensAmount;
     this.lens.scale.set(radius, radius, 1);
-    this.lens.position.x = -this.width * 0.07;
-    this.lens.position.y = this.height * 0.02;
+    this.lens.position.x = this.lensViewport().x - this.width / 2;
+    this.lens.position.y = this.height / 2 - this.lensViewport().y;
     this.renderer.autoClear = false;
     this.renderer.clearDepth();
     this.renderer.render(this.overlayScene, this.overlayCamera);

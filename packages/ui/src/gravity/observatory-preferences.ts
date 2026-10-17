@@ -26,7 +26,7 @@ export type ObservatoryQuery = {
 };
 export type ObservatoryPresentation = {
   grouping: ObservatoryGrouping;
-  size: "structural" | "total-ram";
+  size: "structural" | "total-ram" | "uniform";
   theme: "system" | "porcelain" | "midnight";
   palette: "semantic" | "ocean" | "earth";
   colors: Record<string, string>;
@@ -138,7 +138,12 @@ export function observatoryPresentation(
     )
       ? (saved.grouping as ObservatoryGrouping)
       : defaults.grouping,
-    size: saved.size === "total-ram" ? "total-ram" : "structural",
+    size:
+      saved.size === "total-ram"
+        ? "total-ram"
+        : saved.size === "uniform"
+          ? "uniform"
+          : "structural",
     theme: ["system", "porcelain", "midnight"].includes(String(saved.theme))
       ? (saved.theme as ObservatoryPresentation["theme"])
       : "system",

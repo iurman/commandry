@@ -101,6 +101,38 @@ export function fittedLandscapePose(
   );
 }
 
+/** Fit one visible semantic subject and its nested render fields. */
+export function focusedLandscapePose(
+  wells: Well[],
+  subjectId: string,
+  aspect: number,
+): CameraPose | null {
+  if (!wells.some((well) => well.id === subjectId)) return null;
+  const members = new Set([subjectId]);
+  const children = new Map<string, Well[]>();
+  for (const well of wells) {
+    if (!well.hostId) continue;
+    const siblings = children.get(well.hostId) ?? [];
+    siblings.push(well);
+    children.set(well.hostId, siblings);
+  }
+  const pending = [subjectId];
+  while (pending.length) {
+    for (const child of children.get(pending.pop()!) ?? []) {
+      if (members.has(child.id)) continue;
+      members.add(child.id);
+      pending.push(child.id);
+    }
+  }
+  const pose = fittedLandscapePose(
+    wells.filter((well) => members.has(well.id)),
+    aspect,
+    0.28,
+    0.78,
+  );
+  return { ...pose, featured: subjectId };
+}
+
 export function presentationPose(
   wells: Well[],
   aspect: number,

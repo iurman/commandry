@@ -174,6 +174,21 @@ describe("Cloudflare official structured status adapter", () => {
       );
     },
   );
+  it.each(["headers", "body"])(
+    "fails closed after the actual HTTP %s timeout",
+    async (mode) => {
+      const transport = await boundary((_request, response) => {
+        if (mode === "body") {
+          response.writeHead(200, { "content-type": "application/json" });
+          response.write('{"page":');
+        }
+      });
+      await expect(createCloudflareStatusReader(transport)()).rejects.toThrow(
+        /PROVIDER_(UNAVAILABLE|INVALID_RESPONSE)/,
+      );
+    },
+    15000,
+  );
   it("does not reconcile missing collections or duplicate/out-of-order source identities silently", () => {
     for (const field of ["components", "incidents", "scheduled_maintenances"]) {
       const input: Record<string, unknown> = payload();

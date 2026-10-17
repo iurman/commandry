@@ -16,6 +16,7 @@ import {
 import type { GravityPreferences } from "../gravity/infrastructure";
 import type { CameraMode } from "../gravity/model";
 import { infrastructureTelemetryLabels } from "./InfrastructureMap";
+import { FloatingSurface } from "./FloatingSurface";
 import "../gravity/infrastructure.css";
 
 const storageKey = "commandry.infrastructure.gravity.v1";
@@ -196,7 +197,12 @@ export default function GravityInfrastructure({
                 if (!frame || !container.current) return;
                 frame.style.opacity = String(amount);
                 frame.style.transform = `translate(-50%, -50%) scale(${amount})`;
-                frame.style.width = `${Math.min(container.current.clientHeight * 0.72, container.current.clientWidth * 0.62)}px`;
+                const lens = renderer.current?.lensViewport();
+                if (lens) {
+                  frame.style.left = `${lens.x}px`;
+                  frame.style.top = `${lens.y}px`;
+                  frame.style.width = `${lens.radius * 2}px`;
+                }
               },
               activity() {},
               visibility(visible) {
@@ -325,8 +331,12 @@ export default function GravityInfrastructure({
         >
           {motionPaused ? "Resume scene motion" : "Pause scene motion"}
         </button>
-        <details className="cmd-gravity-settings">
-          <summary>Appearance</summary>
+        <FloatingSurface
+          title="Appearance"
+          trigger={<button type="button">Appearance</button>}
+          className={`cmd-gravity-appearance ${theme}`}
+          width={300}
+        >
           <div>
             <label>
               Surface
@@ -405,7 +415,7 @@ export default function GravityInfrastructure({
               Reset appearance
             </button>
           </div>
-        </details>
+        </FloatingSurface>
       </div>
       <p className="cmd-gravity-note">
         {snapshot.items.length} resources in this scene.{" "}

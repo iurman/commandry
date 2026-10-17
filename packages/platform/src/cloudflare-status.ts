@@ -217,7 +217,11 @@ export function createCloudflareStatusReader(
       if (error instanceof ProviderStatusError) throw error;
       throw invalid();
     } finally {
-      await reader.cancel();
+      try {
+        await reader.cancel();
+      } catch {
+        // Aborted streams must not replace the safe provider failure code.
+      }
     }
   };
 }

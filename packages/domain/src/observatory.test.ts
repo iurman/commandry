@@ -783,6 +783,57 @@ describe("independent operational evidence", () => {
     });
   });
 
+  it("keeps fresh retained checks as evidence without borrowing another source's current coverage", () => {
+    const resource = observatoryFixtureResource(90007, "service");
+    const pass = observatoryFixtureSignal(
+      resource.id,
+      "current-pass",
+      "passing",
+    );
+    const fail: ObservatorySignal = {
+      ...observatoryFixtureSignal(resource.id, "retained-fail", "failing"),
+      sourceQualification: "last_known",
+    };
+    const input = {
+      ...observatoryFixtureInput([resource]),
+      signals: [pass, fail],
+      facetAccess: [
+        {
+          resourceId: resource.id,
+          facet: "availability" as const,
+          state: "available" as const,
+        },
+      ],
+    };
+    const scene = projectObservatory(input);
+    expect(scene.summary.availability).toMatchObject({
+      passing: 1,
+      failing: 0,
+    });
+    expect(scene.signals.map((signal) => signal.id).sort()).toEqual(
+      [pass.id, fail.id].sort(),
+    );
+    const pending = reduceObservatoryFacets({
+      ...input,
+      signals: [{ ...pass, sourceQualification: "last_known" }, fail],
+    });
+    expect(pending.availability).toMatchObject({
+      passing: 0,
+      failing: 0,
+      unknown: 1,
+    });
+    expect(pending.coverage.monitored).toBe(0);
+    expect(
+      reduceObservatoryFacets({
+        ...input,
+        signals: [
+          fail,
+          observatoryFixtureSignal(resource.id, "current-fail", "failing"),
+        ],
+      }).availability.failing,
+    ).toBe(1);
+  });
+
   it("rejects conflicting IDs, malformed evidence, invalid timestamps and unreviewed relation endpoints", () => {
     const fixture = operationalObservatoryFixture();
     expect(() =>

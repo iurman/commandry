@@ -101,7 +101,7 @@ export function getFoundationServices() {
   };
 }
 
-async function foundationOwnerIdentity(request: Request) {
+export async function foundationOwnerIdentity(request: Request) {
   requireFoundationOrigin(request);
   if (
     request.method !== "GET" &&

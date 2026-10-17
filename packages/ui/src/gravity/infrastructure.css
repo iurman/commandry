@@ -66,24 +66,36 @@
   font-size: 12px;
   color: var(--gravity-muted);
 }
-.cmd-gravity-settings {
-  position: relative;
+.cmd-gravity-appearance {
+  --cmd-surface: #f5f4ef;
+  --cmd-text: #233b48;
+  --cmd-border: #bac9ce;
 }
-.cmd-gravity-settings > div {
-  position: absolute;
-  right: 0;
-  top: calc(100% + 8px);
-  z-index: 8;
-  width: min(270px, 75vw);
+.cmd-gravity-appearance.midnight {
+  --cmd-surface: #09121c;
+  --cmd-text: #d4e3e9;
+  --cmd-border: #314754;
+}
+.cmd-gravity-appearance .cmd-floating-surface-content > div {
   display: grid;
   gap: 12px;
-  padding: 16px;
-  background: var(--gravity-bg);
-  border: 1px solid var(--gravity-line);
-  box-shadow: 0 10px 25px #0003;
-  border-radius: 8px;
 }
-.cmd-gravity-settings input[type="color"] {
+.cmd-gravity-appearance label {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+.cmd-gravity-appearance :is(select, button, input) {
+  min-height: 36px;
+  color: inherit;
+  background: var(--cmd-surface);
+  border: 1px solid var(--cmd-border);
+  border-radius: 5px;
+  font: inherit;
+}
+.cmd-gravity-appearance input[type="color"] {
   width: 60px;
   height: 32px;
 }

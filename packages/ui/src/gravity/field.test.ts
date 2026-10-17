@@ -4,6 +4,7 @@ import {
   Mesh,
   PerspectiveCamera,
   PlaneGeometry,
+  Vector3,
   type BufferGeometry,
 } from "three";
 import { ObservatoryRenderer, type RendererSettings } from "./renderer";
@@ -329,7 +330,8 @@ describe("identity-aware renderer terrain planning", () => {
         wells,
         settings,
         fieldColors: new Map(),
-        controls: { maxDistance: 220 },
+        savedFocusPoses: new Map(),
+        controls: { maxDistance: 220, target: new Vector3(0, -0.6, 0) },
         camera: new PerspectiveCamera(40, 1, 0.1, 500),
         uniforms: {
           uWarning: { value: new Color() },
@@ -345,6 +347,7 @@ describe("identity-aware renderer terrain planning", () => {
       geometry: BufferGeometry;
       terrainPlan: string;
       cameraTween?: unknown;
+      targets: Well[];
     };
     try {
       renderer.coverLandscape(wells);
@@ -357,6 +360,16 @@ describe("identity-aware renderer terrain planning", () => {
       expect(renderer.geometry.attributes.position!.count).toBe(vertices);
       expect(renderer.geometry).toBe(initial);
       expect(renderer.cameraTween).toBeUndefined();
+      // A first population must fit even when reduced motion disables orbit.
+      renderer.targets = [];
+      renderer.update(wells, settings);
+      expect(renderer.cameraTween).toBeDefined();
+      const initialFit = renderer.cameraTween;
+      renderer.update(
+        wells.map((subject) => ({ ...subject })),
+        settings,
+      );
+      expect(renderer.cameraTween).toBe(initialFit);
     } finally {
       renderer.geometry.dispose();
     }

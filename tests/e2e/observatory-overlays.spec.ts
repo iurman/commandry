@@ -15,7 +15,9 @@ test("Appearance controls fit and remain hittable across actual wrap boundaries"
   });
   expect(seeded.status()).toBe(201);
   await page.goto("/infrastructure/wallboard");
-  const appearance = page.getByText("Appearance", { exact: true });
+  const appearance = page
+    .locator("button, summary")
+    .filter({ hasText: /^Appearance(?: and views)?$/ });
   await expect(appearance).toBeVisible();
   const failures: unknown[] = [];
   for (const width of [
@@ -25,7 +27,9 @@ test("Appearance controls fit and remain hittable across actual wrap boundaries"
     await page.setViewportSize({ width, height: 900 });
     await appearance.scrollIntoViewIfNeeded();
     await appearance.click();
-    const surface = page.getByLabel("Gravity surface");
+    const surface = page.getByRole("combobox", {
+      name: /^(Gravity surface|Surface theme)$/,
+    });
     await expect(surface).toBeVisible();
     const result = await surface.evaluate((element) => {
       const rect = element.getBoundingClientRect();
@@ -69,7 +73,9 @@ test("Appearance controls fit and remain hittable across actual wrap boundaries"
           fullPage: true,
         });
     }
-    await appearance.click();
+    await page.keyboard.press("Escape");
+    await expect(appearance).toBeFocused();
+    await expect(page).toHaveURL(/\/infrastructure\/wallboard/);
   }
   await testInfo.attach("wrap-boundary-bounds", {
     body: JSON.stringify(failures, null, 2),

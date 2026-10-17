@@ -153,3 +153,9 @@ export type {
   InfrastructureMapResource,
   InfrastructureMapEdge,
 } from "./components/InfrastructureMap";
+
+export { OperationalObservatory } from "./components/OperationalObservatory";
+export type { OperationalObservatoryProps } from "./components/OperationalObservatory";
+export type { ObservatoryQuery } from "./gravity/observatory-preferences";
+
+export type { ObservatoryViewsClient } from "./components/ObservatoryCanonicalViews";

@@ -2,6 +2,7 @@ import { randomUUID } from "node:crypto";
 import {
   createAgentContextService,
   createRealIntegrationPoller,
+  createProviderStatusPoller,
   createCaptureTriageProcessor,
   createLocalAgentRunProcessor,
   createLocalAttentionService,
@@ -34,6 +35,7 @@ import {
 import {
   createBriefRepository,
   createRealIntegrationRepository,
+  createObservatoryProviderRepository,
   createCaptureTriageRepository,
   createDatabase,
   createLocalAgentRunRepository,
@@ -54,6 +56,7 @@ import {
 import {
   CAPTURE_TRIAGE_QUEUE,
   createGitHubActivityReader,
+  createCloudflareStatusReader,
   createPgBossProducer,
   createLocalAgentRunSubmission,
   createSyntheticEventImportSubmission,
@@ -605,6 +608,25 @@ async function pollRealSources() {
 await pollRealSources();
 const realSourceTimer = setInterval(() => void pollRealSources(), 5_000);
 realSourceTimer.unref();
+const providerStatusPoller = createProviderStatusPoller(
+  createObservatoryProviderRepository(database.db),
+  createCloudflareStatusReader(),
+);
+let pollingProviderStatus = false;
+async function pollProviderStatus() {
+  if (!config.providerStatusPolling || pollingProviderStatus) return;
+  pollingProviderStatus = true;
+  try {
+    await providerStatusPoller.pollNext();
+  } catch {
+    log("error", "observatory.provider_reconciliation_failed", {});
+  } finally {
+    pollingProviderStatus = false;
+  }
+}
+await pollProviderStatus();
+const providerStatusTimer = setInterval(() => void pollProviderStatus(), 5_000);
+providerStatusTimer.unref();
 log("info", "worker.started", { workerId });
 
 let stopping = false;
@@ -613,6 +635,7 @@ async function shutdown(signal: string) {
   stopping = true;
   clearInterval(timer);
   clearInterval(realSourceTimer);
+  clearInterval(providerStatusTimer);
   clearInterval(approvalExpiryTimer);
   clearInterval(recurringTimer);
   clearInterval(workRecurrenceTimer);

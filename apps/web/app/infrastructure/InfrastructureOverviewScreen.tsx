@@ -2,8 +2,8 @@
 
 import { useRouter } from "next/navigation";
 import dynamic from "next/dynamic";
-const GravityInfrastructure = dynamic(
-  () => import("@commandry/ui/gravity-infrastructure"),
+const OperationalObservatory = dynamic(
+  () => import("@commandry/ui").then((module) => module.OperationalObservatory),
   { ssr: false, loading: () => <p role="status">Loading Gravity view...</p> },
 );
 
@@ -11,6 +11,7 @@ import { useEffect, useRef, useState, type FormEvent } from "react";
 import type {
   InfrastructureOverview,
   InfrastructureResource,
+  ObservatorySceneReadResult,
 } from "@commandry/contracts";
 import {
   AppShell,
@@ -18,12 +19,14 @@ import {
   InfrastructureMap,
   infrastructureTelemetryLabels,
   isInfrastructureHost,
+  type ObservatoryQuery,
 } from "@commandry/ui";
 import {
   apiJson,
   type PageResponse,
   type ProjectRecord,
 } from "../projects/api";
+import { observatoryViewsClient } from "./observatory-views-client";
 import { loadInfrastructureScene } from "../../lib/load-infrastructure-scene";
 
 const needsAttention = (item: InfrastructureResource) =>
@@ -79,6 +82,19 @@ export default function InfrastructureOverviewScreen({
   const [projects, setProjects] = useState<ProjectRecord[]>([]);
   const [projectError, setProjectError] = useState(false);
   const [data, setData] = useState<InfrastructureOverview | null>(null);
+  const [observatory, setObservatory] =
+    useState<ObservatorySceneReadResult | null>(null);
+  const [sceneError, setSceneError] = useState<string | null>(null);
+  const [scenePending, setScenePending] = useState(false);
+  const [sceneQuery, setSceneQuery] = useState<ObservatoryQuery>({
+    grouping: "operational",
+    environment: null,
+    expandedRepresentationIds: [],
+    search: initialQuery,
+    sectors: [],
+    viewRevision: "1",
+  });
+  const sceneReadScope = useRef("");
   const [error, setError] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
   const [progress, setProgress] = useState<{
@@ -153,7 +169,7 @@ export default function InfrastructureOverviewScreen({
             limit: view === "gravity" ? "50" : wallboard ? "6" : "12",
           });
           if (scope.projectId) params.set("projectId", scope.projectId);
-          if (scope.q) params.set("q", scope.q);
+          if (scope.q && view !== "gravity") params.set("q", scope.q);
           if (cursor) params.set("cursor", cursor);
           return apiJson<InfrastructureOverview>(
             `/api/v1/infrastructure/overview?${params}`,
@@ -222,10 +238,63 @@ export default function InfrastructureOverviewScreen({
   }, [scope, epoch, paused, follow, wallboard, view]);
 
   useEffect(() => {
+    if (view !== "gravity" || paused) return;
+    const controller = new AbortController();
+    const readScope = JSON.stringify([scope.projectId, sceneQuery.environment]);
+    let inFlight = false;
+    async function refreshScene() {
+      if (inFlight || document.hidden) return;
+      inFlight = true;
+      setScenePending(true);
+      if (sceneReadScope.current !== readScope) {
+        sceneReadScope.current = readScope;
+        setObservatory(null);
+      }
+      try {
+        const result = await apiJson<ObservatorySceneReadResult>(
+          "/api/v1/infrastructure/observatory/scene",
+          {
+            method: "POST",
+            body: JSON.stringify({
+              ...sceneQuery,
+              ...(scope.projectId ? { projectId: scope.projectId } : {}),
+            }),
+            signal: controller.signal,
+          },
+        );
+        if (!controller.signal.aborted) {
+          setObservatory(result);
+          setSceneError(null);
+        }
+      } catch {
+        if (!controller.signal.aborted)
+          setSceneError(
+            "Operational projection is unavailable. The last scene is delayed; refresh to retry.",
+          );
+      } finally {
+        if (!controller.signal.aborted) setScenePending(false);
+        inFlight = false;
+      }
+    }
+    void refreshScene();
+    const timer = setInterval(() => void refreshScene(), 15000);
+    const visible = () => {
+      if (!document.hidden) void refreshScene();
+    };
+    document.addEventListener("visibilitychange", visible);
+    return () => {
+      controller.abort();
+      clearInterval(timer);
+      document.removeEventListener("visibilitychange", visible);
+    };
+  }, [view, paused, scope.projectId, sceneQuery, epoch]);
+
+  useEffect(() => {
     if (!wallboard) return;
     const onKey = (event: KeyboardEvent) => {
       if (
         event.key === "Escape" &&
+        !event.defaultPrevented &&
         !(event.target instanceof HTMLInputElement) &&
         !(event.target instanceof HTMLSelectElement)
       )
@@ -272,6 +341,8 @@ export default function InfrastructureOverviewScreen({
     previousEvents.current = null;
     setRotatePages(false);
     setData(null);
+    setObservatory(null);
+    setSceneError(null);
     setProgress(null);
     setError(null);
     setLoading(true);
@@ -336,10 +407,7 @@ export default function InfrastructureOverviewScreen({
       );
     }
   }
-  const selected =
-    data?.items.find((item) => item.id === selectedId) ??
-    data?.items[0] ??
-    null;
+  const selected = data?.items.find((item) => item.id === selectedId) ?? null;
   const attention = data?.items.filter(needsAttention) ?? [];
   const scopeParams = new URLSearchParams();
   if (scope.projectId) scopeParams.set("projectId", scope.projectId);
@@ -420,6 +488,7 @@ export default function InfrastructureOverviewScreen({
         </div>
       </header>
       {fullscreenError && <p role="status">{fullscreenError}</p>}
+      {sceneError && <p role="alert">{sceneError}</p>}
       <div className="cmd-network-vitals" aria-label="Infrastructure summary">
         <div>
           <span>Resources in scope</span>
@@ -447,19 +516,21 @@ export default function InfrastructureOverviewScreen({
         </div>
       </div>
       <div className="cmd-network-toolbar">
-        <form onSubmit={searchResources} className="cmd-network-search">
-          <label htmlFor="infrastructure-search">Find a resource</label>
-          <div>
-            <input
-              id="infrastructure-search"
-              placeholder="Search names or kinds"
-              maxLength={160}
-              value={search}
-              onChange={(event) => setSearch(event.target.value)}
-            />
-            <Button type="submit">Search</Button>
-          </div>
-        </form>
+        {view !== "gravity" && (
+          <form onSubmit={searchResources} className="cmd-network-search">
+            <label htmlFor="infrastructure-search">Find a resource</label>
+            <div>
+              <input
+                id="infrastructure-search"
+                placeholder="Search names or kinds"
+                maxLength={160}
+                value={search}
+                onChange={(event) => setSearch(event.target.value)}
+              />
+              <Button type="submit">Search</Button>
+            </div>
+          </form>
+        )}
         <label className="cmd-network-project-filter">
           Project
           <select
@@ -610,17 +681,31 @@ export default function InfrastructureOverviewScreen({
               </Button>
             </div>
             {view === "gravity" ? (
-              <GravityInfrastructure
-                key={`${scope.projectId}/${scope.q}/${scope.cursor}`}
-                snapshot={data}
-                compact={wallboard}
-                dark={tv}
-                selectedId={selected?.id ?? null}
-                onSelect={select}
-                onProject={(id) => changeScope(id)}
-                paused={paused}
-                delayed={!!error}
-              />
+              observatory ? (
+                <OperationalObservatory
+                  scene={observatory.scene}
+                  snapshot={data}
+                  compact={wallboard}
+                  dark={tv}
+                  selectedId={selectedId}
+                  onSelect={select}
+                  onProject={(id) => changeScope(id)}
+                  onQueryChange={setSceneQuery}
+                  onCameraFocus={(renderer, id, options) => {
+                    renderer.focusSubject(id, options);
+                  }}
+                  initialSearch={initialQuery}
+                  viewsClient={observatoryViewsClient}
+                  scopeProjectId={scope.projectId || null}
+                  paused={paused}
+                  delayed={!!error || !!sceneError || scenePending}
+                />
+              ) : (
+                <div role="status">
+                  {sceneError ??
+                    "Preparing the complete operational landscape..."}
+                </div>
+              )
             ) : view === "map" ? (
               <InfrastructureMap
                 resources={data.items}
@@ -657,9 +742,10 @@ export default function InfrastructureOverviewScreen({
               </ul>
             )}
             <p className="cmd-network-truth">
-              Reporting describes source freshness. Service availability is not
-              yet observed. Lines show recorded relationships, not live network
-              traffic.
+              {view === "gravity"
+                ? "Availability, source freshness, monitoring coverage, security, provider exposure and Work retain independent evidence."
+                : "Reporting describes source freshness. Service availability is not inferred from telemetry."}{" "}
+              Lines show recorded relationships, not live network traffic.
             </p>
           </section>
           <aside

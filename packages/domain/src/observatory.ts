@@ -95,6 +95,8 @@ export type ObservatorySignal = {
     evidenceRefs: readonly string[];
     environment: string | null;
     incidentId: string | null;
+    /** Retained evidence can stay fresh in time after its source loses coverage. */
+    sourceQualification?: "current" | "last_known";
   };
 }[ObservatoryFacet];
 export type ObservatoryFacetAccess = {
@@ -502,7 +504,9 @@ function currentSignals(
 ): ObservatorySignal[] {
   if (accessFor(index, id, facet) !== "available") return [];
   return signalsFor(index, id, facet).filter(
-    (signal) => index.freshness.get(signal) === "fresh",
+    (signal) =>
+      signal.sourceQualification !== "last_known" &&
+      index.freshness.get(signal) === "fresh",
   );
 }
 function sourceState(
@@ -639,7 +643,11 @@ function reduceIndexedFacets(
           count(summary.counts, state);
       } else if (observations.length) {
         for (const state of sort(
-          observations.map((signal) => index.freshness.get(signal)!),
+          observations.map((signal) =>
+            signal.sourceQualification === "last_known"
+              ? "last_known"
+              : index.freshness.get(signal)!,
+          ),
         ))
           count(summary.counts, state);
       } else if (facet === "telemetry") {
@@ -768,6 +776,7 @@ export function evaluateObservatoryProviderExposure(
       signal.resourceId === context.resourceId &&
       signal.facet === "availability" &&
       signal.state === "failing" &&
+      signal.sourceQualification !== "last_known" &&
       dependency !== null &&
       providerScopeMatch(signal.environment, dependency.environment) ===
         "matched" &&

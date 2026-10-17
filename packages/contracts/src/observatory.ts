@@ -71,6 +71,7 @@ const signalFields = {
   evidenceRefs: evidence,
   environment: id.nullable(),
   incidentId: id.nullable(),
+  sourceQualification: z.enum(["current", "last_known"]).optional(),
   freshness: observatoryFreshnessSchema,
 };
 export const observatorySignalSchema = z.discriminatedUnion("facet", [

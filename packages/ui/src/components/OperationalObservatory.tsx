@@ -6,6 +6,10 @@ import type {
   InfrastructureOverview,
   ObservatorySceneDto as ObservatoryScene,
 } from "@commandry/contracts";
+import {
+  ObservatoryCanonicalViews,
+  type ObservatoryViewsClient,
+} from "./ObservatoryCanonicalViews";
 import { FloatingSurface } from "./FloatingSurface";
 import {
   mapOperationalEvents,
@@ -48,6 +52,9 @@ export type OperationalObservatoryProps = {
   onSelect: (resourceId: string) => void;
   onProject: (projectId: string) => void;
   onQueryChange: (query: ObservatoryQuery) => void;
+  initialSearch?: string;
+  viewsClient?: ObservatoryViewsClient;
+  scopeProjectId?: string | null;
   paused?: boolean;
   delayed?: boolean;
   compact?: boolean;
@@ -285,6 +292,9 @@ function OperationalObservatoryView({
   onProject,
   onQueryChange,
   onCameraFocus,
+  initialSearch = "",
+  viewsClient,
+  scopeProjectId = null,
   paused = false,
   delayed = false,
   compact = false,
@@ -310,7 +320,7 @@ function OperationalObservatoryView({
     grouping: scene.grouping,
     environment: null,
     expandedRepresentationIds: initialExpanded,
-    search: "",
+    search: initialSearch,
     sectors: [],
     viewRevision: scene.viewRevision,
   });
@@ -394,7 +404,11 @@ function OperationalObservatoryView({
         reporting: "#4e9d9a",
       },
       motion,
-      cameraMode: reduced || stopped || reading ? "manual" : camera,
+      cameraMode:
+        (reduced || stopped || reading) &&
+        (camera === "orbit" || camera === "tour")
+          ? "manual"
+          : camera,
       ambient: preferences.ambient && motion,
       selected: selected?.id ?? null,
       focus: preferences.lens && !!selected,
@@ -906,8 +920,9 @@ function OperationalObservatoryView({
             onSubmit={(event) => event.preventDefault()}
           >
             <p>
-              Presentation settings and named views are saved on this device.
-              They do not edit inventory, mappings or access.
+              Presentation settings and local named views are saved on this
+              device. Account views below are private and available across your
+              signed-in devices. They do not edit inventory, mappings or access.
             </p>
             <label>
               Surface theme
@@ -952,6 +967,7 @@ function OperationalObservatoryView({
                 }
               >
                 <option value="structural">Structural membership</option>
+                <option value="uniform">Uniform size</option>
                 <option value="total-ram">
                   Observed total RAM, where known
                 </option>
@@ -1198,6 +1214,73 @@ function OperationalObservatoryView({
                 </div>
               ))}
             </fieldset>
+            <ObservatoryCanonicalViews
+              key={scopeProjectId ?? "global"}
+              client={viewsClient}
+              projectId={scopeProjectId}
+              configuration={{
+                schemaVersion: 2,
+                grouping: query.grouping,
+                environment: query.environment,
+                sectors: query.sectors,
+                palette: preferences.colors,
+                palettePreset: preferences.palette,
+                sizeBasis:
+                  preferences.size === "total-ram"
+                    ? "ram"
+                    : preferences.size === "uniform"
+                      ? "uniform"
+                      : "services",
+                camera,
+                lens: preferences.lens,
+                theme: preferences.theme,
+                labels: true,
+                tv: preferences.tv,
+                motion: !preferences.reducedMotion,
+                ambient: preferences.ambient,
+                textScale: preferences.textScale,
+                paused: preferences.paused,
+                reducedMotion: preferences.reducedMotion,
+              }}
+              onApply={(configuration) => {
+                changePreferences({
+                  grouping: configuration.grouping,
+                  sectors: configuration.sectors,
+                  colors: configuration.palette,
+                  palette: configuration.palettePreset,
+                  size:
+                    configuration.sizeBasis === "ram"
+                      ? "total-ram"
+                      : configuration.sizeBasis === "uniform"
+                        ? "uniform"
+                        : "structural",
+                  camera: configuration.camera,
+                  lens: configuration.lens,
+                  theme: configuration.theme,
+                  tv: configuration.tv,
+                  ambient: configuration.ambient,
+                  textScale: configuration.textScale,
+                  paused: configuration.paused,
+                  reducedMotion:
+                    configuration.reducedMotion || !configuration.motion,
+                });
+                emit(
+                  authorizeObservatoryQuery(
+                    {
+                      ...query,
+                      grouping: configuration.grouping,
+                      environment: configuration.environment,
+                      sectors: configuration.sectors,
+                      expandedRepresentationIds: [],
+                      search: "",
+                      viewRevision: String(Date.now()),
+                    },
+                    scene,
+                  ),
+                  configuration.camera,
+                );
+              }}
+            />
             <button
               type="button"
               onClick={() => {

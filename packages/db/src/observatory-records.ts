@@ -203,39 +203,49 @@ export async function collectObservatoryRecords(
       ],
     };
   });
+  const sourceAccess = (source: (typeof sources)[number]) => {
+    const state = (
+      source.snapshot?.details as Record<string, unknown> | undefined
+    )?.sourceState;
+    return !source.enabled || state === "disabled"
+      ? ("disabled" as const)
+      : !source.projectId ||
+          source.lastError ||
+          !source.snapshot ||
+          !["available", "stale"].includes(String(state))
+        ? ("unavailable" as const)
+        : ("available" as const);
+  };
   const signals = sources.flatMap((source) => {
     const value = source.snapshot?.signals;
-    const state = source.snapshot?.details as
-      Record<string, unknown> | undefined;
-    return source.enabled &&
-      source.projectId &&
-      state?.sourceState !== "disabled" &&
-      Array.isArray(value)
-      ? (value as NonNullable<ObservatoryInput["signals"]>[number][])
-      : [];
+    if (!source.projectId || !Array.isArray(value)) return [];
+    return (value as NonNullable<ObservatoryInput["signals"]>[number][]).map(
+      (signal) => {
+        if (
+          signal.sourceId !== source.id ||
+          signal.resourceId !== source.resourceId ||
+          signal.environment !== source.environment
+        )
+          throw new FoundationError(
+            "INVALID_REFERENCE",
+            "Operational source evidence does not match its reviewed binding",
+          );
+        return {
+          ...signal,
+          sourceQualification:
+            sourceAccess(source) === "available"
+              ? ("current" as const)
+              : ("last_known" as const),
+        };
+      },
+    );
   });
   const facetAccess: NonNullable<ObservatoryInput["facetAccess"]>[number][] =
-    [];
-  for (const source of sources) {
-    const facet =
-      source.kind === "infraagent-monitor" ? "availability" : "security";
-    facetAccess.push({
+    sources.map((source) => ({
       resourceId: source.resourceId,
-      facet,
-      state: !source.enabled
-        ? "disabled"
-        : !source.projectId
-          ? "unavailable"
-          : (source.snapshot?.details as Record<string, unknown> | undefined)
-                ?.sourceState === "disabled"
-            ? "disabled"
-            : source.lastError
-              ? "unavailable"
-              : source.snapshot
-                ? "available"
-                : "unavailable",
-    });
-  }
+      facet: source.kind === "infraagent-monitor" ? "availability" : "security",
+      state: sourceAccess(source),
+    }));
   return {
     resources: inputResources,
     collection: { complete: true, resourceCount: inputResources.length },

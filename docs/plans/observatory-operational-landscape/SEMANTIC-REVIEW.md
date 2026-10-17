@@ -137,3 +137,7 @@ Review artifacts:
 - Existing test output: `.agent/scratch/semantic-review/vitest.log`.
 - Permitted source diff: `.agent/scratch/semantic-review/semantic.diff`.
 - Actual runtime evidence: `.agent/scratch/semantic-review/runtime-permissions.json`.
+
+## Final correction verification, 2026-10-17
+
+T07 resolved the six original findings and the later same-resource advisory/stale/future overlap. All original source evidence is retained; resource counts deduplicate by canonical ID. Independent Astra ran 65 targeted tests and separate production-module probes. The 1,000-resource monitored/dense projections measured 195ms/148ms. The exact public input/scene contract was preserved through this correction. This closes those semantic review findings, not the remaining UI/GPU/operational/release acceptance gates.

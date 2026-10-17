@@ -57,6 +57,7 @@ const environmentSchema = z.object({
   ),
   DB_POOL_MAX: z.coerce.number().int().min(1).max(20).default(5),
   BOSS_POOL_MAX: z.coerce.number().int().min(1).max(20).default(5),
+  PROVIDER_STATUS_POLLING: z.enum(["true", "false"]).optional(),
   LOCAL_APPROVAL_AUTO_CEILING: z
     .enum(["read_only", "reversible"])
     .default("reversible"),
@@ -93,6 +94,7 @@ export type RuntimeConfig = {
   releaseBuildTime?: string;
   dbPoolMax: number;
   bossPoolMax: number;
+  providerStatusPolling: boolean;
   localApprovalAutoCeiling: "read_only" | "reversible";
   localApprovalTtlSeconds: number;
   localOvernightMaxDays: number;
@@ -269,6 +271,10 @@ export function loadRuntimeConfig(
     }),
     dbPoolMax: value.DB_POOL_MAX,
     bossPoolMax: value.BOSS_POOL_MAX,
+    providerStatusPolling:
+      value.PROVIDER_STATUS_POLLING === "true" ||
+      (value.PROVIDER_STATUS_POLLING === undefined &&
+        value.APP_ENV === "production"),
     localApprovalAutoCeiling: value.LOCAL_APPROVAL_AUTO_CEILING,
     localApprovalTtlSeconds: value.LOCAL_APPROVAL_TTL_SECONDS,
     localOvernightMaxDays: value.LOCAL_OVERNIGHT_MAX_DAYS,

@@ -76,3 +76,28 @@ T06 supported InfraAgent reader and generic observation orchestration passed 53 
 T07 semantic corrections passed 65 targeted tests and final independent Astra probes. Provider effects retain environment, maintenance and local failures independently; aggregate counts deduplicate by resource while retaining all evidence. At 1,000 resources the reviewer measured 195ms monitored and 148ms dense projection. Original multi-second/cubic behavior is corrected in the reviewed fixtures. This is CPU projection evidence, not a GPU/frame or TV soak result.
 
 T08 owns six new canonical private-view files in an isolated worktree at immutable base 686263549fe0. T09 owns a supported repository reader and strict DTOs, using captured official GitHub contracts and disposable boundaries. Neither may expand client grants or activate credentials. Named-view UI/MCP integration, repository source persistence and actual work overlays remain coordinator work.
+
+## Read access and named-view convergence
+
+Independent access recheck resolved A1-A4 with25 unit checks and23 PostgreSQL results. The post-audit owner-read regression was subsequently corrected to the intended clock boundary. T08 passed independent packet rerun and was normally merged;18 contract/application tests and14 PostgreSQL subscenarios cover private views, exact retry/tombstones, all137 views, session isolation/lock waits, expected-version races and atomic audit/expiry. Root exports use package boundaries.
+
+The actual MCP SDK protocol now passes14 tests including existing foundation tools. Observatory discovery offers only separately granted read tools; JSON cannot assert project/owner/capabilities. Shared application scene preserves all91 fixture identities and complete paginated members. Revoked/denied authority after discovery withholds results. API routes share application services, bounded streamed input and owner-session adapters. Named-view controls pass mixed70 contract/control/layout tests; built route/browser acceptance remains pending.
+
+T09's first packet and78 tests passed, but independent review found two privacy/compatibility defects: token-bearing JSON property names and secretLiteral aliases survived raw capture, and accepted deep raw content could make the generic poller reject unrelated successful components. Both are returned to the same exclusive worker. Independent complete1201-PR/305-alert traversal passed. No live GitHub activation was claimed.
+
+T10 source-persistence/cipher worker is active at050aa89. Its first actual integration attempt correctly escalated a missing platform package instead of installing or adding a dependency cycle. The approved test-only dynamic import of the two exact platform modules preserves production package boundaries. Cipher checks passed; the complete PostgreSQL source/evidence acceptance is still pending.
+
+
+## Operational convergence and account discovery
+
+T09 privacy corrections passed 88 reader/contract tests, independent probes and packet rerun, then were normally merged. Complete 1,201-PR and 305-alert reads remain verified at the disposable HTTP boundary. The combined source reader suite passed 100 tests. No live credential was activated.
+
+T10 persistence passed its packet and real PostgreSQL scenarios, but independent transition probes found snapshot/history ordering defects. The original S1/S2 controls are corrected; S4/S5 equal-time replay and future-source ordering controls are returned to the implementer. T10 remains unmerged. T11 operational detail queries passed 74 tests and coordinator packet rerun; independent authorization/privacy review is active.
+
+The S3 collector regression reproduced a retained, fresh-in-time failing check being counted as current after its monitor became pending. Per-source current/last-known qualification now preserves evidence without borrowing another monitor's coverage. Real PostgreSQL access tests and 52 domain tests pass. Independent recheck remains outstanding.
+
+Canonical private-view controls, versioned routes and MCP scene/member/relation/signal/provider bindings are implemented through shared application services. The actual SDK transport passes 14 tests; account-view controls and strict request transport pass their scoped checks. The built isolated 91-resource preview now composes all seven overview groups inside the landscape after a reduced-motion first-population framing defect was reproduced and corrected. This is partial browser evidence, not completion of the 58-scenario ledger.
+
+The Cloudflare reader now passes both actual 10-second stalled-header and stalled-body controls, with safe errors preserved during stream cancellation. Its 14-test reader suite passes. Public feed joins and mapping interactions remain implementation work.
+
+The owner clarified that Ephemera is expected on Vercel and authorized discovery using existing browser and SSH access. Read-only SSH verified healthy Commandry containers and the separate Ephemera PostgreSQL container on Electra. The Ephemera checkout records the `iurman/ephemera` repository and Vercel project metadata. This supports a deployment lead but does not verify the current Vercel account deployment or DNS. Vercel and Cloudflare account tabs were opened for owner sign-in; discovery does not authorize DNS changes. Ephemera is not a blocker for independent Observatory work. Fresh origin/main and live container revision still match 507303ca1e82b8b15cc8d94864b61db1de86ed7e.
