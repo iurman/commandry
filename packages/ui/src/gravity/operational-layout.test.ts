@@ -10,7 +10,11 @@ import {
   within,
 } from "@testing-library/react";
 import { createElement } from "react";
-import type { InfrastructureOverview } from "@commandry/contracts";
+import type {
+  InfrastructureOverview,
+  FoundationProjectWorkCursor,
+  FoundationProjectWorkPage,
+} from "@commandry/contracts";
 import type { Well } from "./model";
 import type { RendererHooks, RendererSettings } from "./renderer";
 import { OperationalObservatory } from "../components/OperationalObservatory";
@@ -391,6 +395,214 @@ describe("operational component interactions with the real semantic scene", () =
     };
     return { input, scene, host, props };
   }
+  function canonicalWorkPage(
+    projectId: string,
+    cursor: FoundationProjectWorkCursor | null,
+  ): FoundationProjectWorkPage {
+    const firstId = "00000000-0000-4000-8000-000000009000";
+    const id =
+      cursor === null ? firstId : "00000000-0000-4000-8000-000000009001";
+    return {
+      schemaVersion: 1,
+      requestedProjectId: projectId,
+      consistency: "live",
+      selectedAt: "2026-10-16T12:00:00Z",
+      items: [
+        {
+          work: {
+            id,
+            projectId,
+            sourceCaptureId: "00000000-0000-4000-8000-000000009002",
+            generatedFromWorkItemId: null,
+            title:
+              "Canonical integration Work " +
+              (cursor === null ? "first" : "last"),
+            description: "Canonical assignment is not execution",
+            workType: cursor === null ? "task" : "initiative",
+            assigneeKind: "agent",
+            assigneeAgentId: "00000000-0000-4000-8000-000000009003",
+            assigneeLabel: "Assigned agent",
+            status: cursor === null ? "open" : "done",
+            priority: null,
+            dueOn: null,
+            contextLink: null,
+            createdAt: "2026-10-01T12:00:00Z",
+            updatedAt: "2026-10-15T12:00:00Z",
+          },
+          contentDigest: "a".repeat(64),
+        },
+      ],
+      nextCursor: cursor === null ? { projectId, afterId: firstId } : null,
+    };
+  }
+  it("keeps canonical Work explicitly unavailable without a client in a collapsed panel below recorded observations", async () => {
+    const { props } = setup();
+    render(createElement(OperationalObservatory, props));
+    const panel = screen
+      .getByText("Canonical project Work")
+      .closest("details")!;
+    expect(panel).not.toHaveAttribute("open");
+    expect(panel.previousElementSibling).toHaveAttribute(
+      "aria-label",
+      "Recorded active work",
+    );
+    expect(
+      within(panel).getByText("Canonical Work unavailable in this view."),
+    ).toBeInTheDocument();
+    expect(
+      screen.getByText(/Missing runtime coverage is not an idle-agent signal/),
+    ).toBeInTheDocument();
+    expect(within(panel).queryByText("0 Work items")).not.toBeInTheDocument();
+  });
+  it("withholds Work reads and totals until a complete canonical project catalogue is supplied", async () => {
+    const { props } = setup();
+    const workClient = vi.fn(
+      async (projectId: string, cursor: FoundationProjectWorkCursor | null) =>
+        canonicalWorkPage(projectId, cursor),
+    );
+    const view = render(
+      createElement(OperationalObservatory, { ...props, workClient }),
+    );
+    expect(
+      screen.getByText("Canonical Work unavailable in this view."),
+    ).toBeInTheDocument();
+    expect(workClient).not.toHaveBeenCalled();
+    view.rerender(
+      createElement(OperationalObservatory, {
+        ...props,
+        workClient,
+        workProjectIds: [],
+      }),
+    );
+    expect(
+      await screen.findByText(
+        "No authorized project context. Work totals unavailable.",
+      ),
+    ).toBeInTheDocument();
+    expect(screen.queryByText("0 Work items")).not.toBeInTheDocument();
+    expect(workClient).not.toHaveBeenCalled();
+  });
+  it("mounts the actual complete Work dock for every authorized canonical project despite absent resource representations and an empty snapshot page", async () => {
+    const { props, scene } = setup();
+    expect(props.snapshot.items).toHaveLength(0);
+    const workProjectIds = [
+      "00000000-0000-4000-8000-000000008001",
+      "00000000-0000-4000-8000-000000008002",
+    ];
+    const target = workProjectIds[0]!;
+    expect(
+      scene.representations.some(
+        (node) => node.resourceId === workProjectIds[1],
+      ),
+    ).toBe(false);
+    const workClient = vi.fn(
+      async (
+        projectId: string,
+        cursor: FoundationProjectWorkCursor | null,
+      ): Promise<FoundationProjectWorkPage> =>
+        projectId === target
+          ? canonicalWorkPage(projectId, cursor)
+          : {
+              schemaVersion: 1,
+              requestedProjectId: projectId,
+              consistency: "live",
+              selectedAt: "2026-10-16T12:00:00Z",
+              items: [],
+              nextCursor: null,
+            },
+    );
+    render(
+      createElement(OperationalObservatory, {
+        ...props,
+        workClient,
+        workProjectIds,
+      }),
+    );
+    expect(await screen.findByText("2 Work items")).toBeInTheDocument();
+    expect(
+      screen.getByText("Canonical integration Work first"),
+    ).toBeInTheDocument();
+    expect(
+      screen.getByText("Canonical integration Work last"),
+    ).toBeInTheDocument();
+    expect(
+      [
+        ...new Set(workClient.mock.calls.map(([projectId]) => projectId)),
+      ].sort(),
+    ).toEqual([...workProjectIds].sort());
+    expect(
+      workClient.mock.calls.filter(([projectId]) => projectId === target),
+    ).toHaveLength(2);
+    const panel = screen
+      .getByText("Canonical project Work")
+      .closest("details")!;
+    expect(panel).not.toHaveAttribute("open");
+    expect(within(panel).getByText("Project Work").tagName).toBe("H2");
+    expect(
+      within(panel).getByText(
+        "Actual runtime unavailable. Assignment is not an active run.",
+      ),
+    ).toBeInTheDocument();
+    expect(
+      screen.getByText(/No qualifying active work observation/),
+    ).toBeInTheDocument();
+    expect(screen.queryByText(/^(running|queued)$/i)).not.toBeInTheDocument();
+  });
+  it("forwards selected canonical project context and pause through the actual dock without reading other projects", async () => {
+    const { props } = setup();
+    const workProjectIds = [
+      "00000000-0000-4000-8000-000000008001",
+      "00000000-0000-4000-8000-000000008002",
+    ];
+    const target = workProjectIds[1]!;
+    const workClient = vi.fn(
+      async (projectId: string, cursor: FoundationProjectWorkCursor | null) =>
+        canonicalWorkPage(projectId, cursor),
+    );
+    const view = render(
+      createElement(OperationalObservatory, {
+        ...props,
+        workClient,
+        workProjectIds,
+        scopeProjectId: target,
+        paused: true,
+        compact: true,
+      }),
+    );
+    expect(
+      await screen.findByText("Work loading paused. Totals unavailable."),
+    ).toBeInTheDocument();
+    expect(workClient).not.toHaveBeenCalled();
+    view.rerender(
+      createElement(OperationalObservatory, {
+        ...props,
+        workClient,
+        workProjectIds,
+        scopeProjectId: target,
+        paused: false,
+        compact: true,
+      }),
+    );
+    expect(await screen.findByText("2 Work items")).toBeInTheDocument();
+    expect(workClient).toHaveBeenCalledTimes(2);
+    expect(
+      workClient.mock.calls.every(([projectId]) => projectId === target),
+    ).toBe(true);
+    view.rerender(
+      createElement(OperationalObservatory, {
+        ...props,
+        workClient,
+        workProjectIds,
+        scopeProjectId: target,
+        paused: true,
+        compact: true,
+      }),
+    );
+    expect(screen.queryByText("2 Work items")).not.toBeInTheDocument();
+    expect(
+      screen.getByText("Work loading paused. Totals unavailable."),
+    ).toBeInTheDocument();
+  });
   it("inspects a group in one activation and does not refocus on unchanged data refresh", async () => {
     const { input, scene, host, props } = setup();
     const view = render(createElement(OperationalObservatory, props));

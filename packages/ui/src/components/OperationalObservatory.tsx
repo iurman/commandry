@@ -12,6 +12,10 @@ import {
 } from "./ObservatoryCanonicalViews";
 import { FloatingSurface } from "./FloatingSurface";
 import {
+  ObservatoryWorkDock,
+  type ObservatoryWorkDockProps,
+} from "./ObservatoryWorkDock";
+import {
   ObservatoryOperationalEvidence,
   type ObservatoryEvidenceClient,
 } from "./ObservatoryOperationalEvidence";
@@ -59,6 +63,8 @@ export type OperationalObservatoryProps = {
   initialSearch?: string;
   viewsClient?: ObservatoryViewsClient;
   evidenceClient?: ObservatoryEvidenceClient;
+  workClient?: ObservatoryWorkDockProps["loadPage"];
+  workProjectIds?: string[] | undefined;
   scopeProjectId?: string | null;
   paused?: boolean;
   delayed?: boolean;
@@ -300,6 +306,8 @@ function OperationalObservatoryView({
   initialSearch = "",
   viewsClient,
   evidenceClient,
+  workClient,
+  workProjectIds,
   scopeProjectId = null,
   paused = false,
   delayed = false,
@@ -1808,6 +1816,19 @@ function OperationalObservatoryView({
           </span>
         )}
       </footer>
+      <details className="cmd-op-canonical-work">
+        <summary>Canonical project Work</summary>
+        {workClient && workProjectIds !== undefined ? (
+          <ObservatoryWorkDock
+            projectIds={workProjectIds}
+            selectedProjectId={scopeProjectId}
+            loadPage={workClient}
+            paused={paused}
+          />
+        ) : (
+          <p role="status">Canonical Work unavailable in this view.</p>
+        )}
+      </details>
     </section>
   );
 }

@@ -33,6 +33,10 @@ import {
   type ProjectRecord,
 } from "../projects/api";
 import { observatoryViewsClient } from "./observatory-views-client";
+import {
+  loadObservatoryWorkPage,
+  loadCompleteObservatoryWorkProjects,
+} from "./observatory-work-client";
 import { loadInfrastructureScene } from "../../lib/load-infrastructure-scene";
 
 const needsAttention = (item: InfrastructureResource) =>
@@ -87,6 +91,10 @@ export default function InfrastructureOverviewScreen({
   const [search, setSearch] = useState(initialQuery);
   const [projects, setProjects] = useState<ProjectRecord[]>([]);
   const [projectError, setProjectError] = useState(false);
+  const [projectReadEpoch, setProjectReadEpoch] = useState<number | null>(null);
+  const [projectErrorEpoch, setProjectErrorEpoch] = useState<number | null>(
+    null,
+  );
   const [data, setData] = useState<InfrastructureOverview | null>(null);
   const [observatory, setObservatory] =
     useState<ObservatorySceneReadResult | null>(null);
@@ -108,6 +116,9 @@ export default function InfrastructureOverviewScreen({
     total: number;
   } | null>(null);
   const [epoch, setEpoch] = useState(0);
+  const projectsReady = projectReadEpoch === epoch && !projectError;
+  const projectsLoading =
+    projectReadEpoch !== epoch && projectErrorEpoch !== epoch;
   const [paused, setPaused] = useState(false);
   const [view, setView] = useState<"gravity" | "map" | "list">("gravity");
   const [selectedId, setSelectedId] = useState<string | null>(null);
@@ -156,24 +167,26 @@ export default function InfrastructureOverviewScreen({
     const controller = new AbortController();
     void (async () => {
       try {
-        let cursor: string | null = null;
-        const items: ProjectRecord[] = [];
-        do {
-          const params = new URLSearchParams({ limit: "100" });
-          if (cursor) params.set("cursor", cursor);
-          const page = await apiJson<PageResponse<ProjectRecord>>(
-            `/api/v1/projects?${params}`,
-            { signal: controller.signal },
-          );
-          items.push(...page.items);
-          cursor = page.nextCursor;
-        } while (cursor && !controller.signal.aborted);
+        const items = await loadCompleteObservatoryWorkProjects(
+          async (cursor) => {
+            const params = new URLSearchParams({ limit: "100" });
+            if (cursor) params.set("cursor", cursor);
+            return apiJson<PageResponse<ProjectRecord>>(
+              `/api/v1/projects?${params}`,
+              { signal: controller.signal },
+            );
+          },
+        );
         if (!controller.signal.aborted) {
           setProjects(items);
           setProjectError(false);
+          setProjectReadEpoch(epoch);
         }
       } catch {
-        if (!controller.signal.aborted) setProjectError(true);
+        if (!controller.signal.aborted) {
+          setProjectError(true);
+          setProjectErrorEpoch(epoch);
+        }
       }
     })();
     return () => controller.abort();
@@ -598,10 +611,16 @@ export default function InfrastructureOverviewScreen({
           </Button>
         </div>
       </div>
-      {projectError && (
+      {projectsLoading && (
+        <p role="status">
+          Loading complete project catalogue. Canonical Work is unavailable
+          until this read completes.
+        </p>
+      )}
+      {projectError && projectErrorEpoch === epoch && (
         <p role="status">
           Project filters are unavailable. Refresh now to retry. Resource search
-          remains available.
+          remains available. Canonical Work is unavailable.
         </p>
       )}
       {error && (
@@ -676,7 +695,7 @@ export default function InfrastructureOverviewScreen({
           clear the scope.
         </p>
       )}
-      {data && data.items.length > 0 && (
+      {data && (view === "gravity" || data.items.length > 0) && (
         <div className="cmd-network-workspace" data-view={view}>
           <section
             className="cmd-network-main"
@@ -691,11 +710,9 @@ export default function InfrastructureOverviewScreen({
             {view !== "gravity" && (
               <div className="cmd-network-section-heading">
                 <h2>
-                  {view === "gravity"
-                    ? "Gravity Observatory"
-                    : view === "map"
-                      ? "The infrastructure map"
-                      : "All resources in view"}
+                  {view === "map"
+                    ? "The infrastructure map"
+                    : "All resources in view"}
                 </h2>
                 <Button
                   aria-pressed={follow}
@@ -721,6 +738,12 @@ export default function InfrastructureOverviewScreen({
                   }}
                   initialSearch={initialQuery}
                   viewsClient={observatoryViewsClient}
+                  workClient={loadObservatoryWorkPage}
+                  workProjectIds={
+                    projectsReady
+                      ? projects.map((project) => project.id)
+                      : undefined
+                  }
                   evidenceClient={evidenceClient}
                   scopeProjectId={scope.projectId || null}
                   paused={paused}
@@ -901,10 +924,7 @@ export default function InfrastructureOverviewScreen({
                                 : "required by"}
                             :{" "}
                             <a href={`/resources/${otherId}`}>
-                              {other?.name ??
-                                (view === "gravity"
-                                  ? "Resource outside this scope"
-                                  : "Resource outside this page")}
+                              {other?.name ?? "Resource outside this page"}
                             </a>
                           </p>
                         );
@@ -918,9 +938,7 @@ export default function InfrastructureOverviewScreen({
               >
                 <div className="cmd-network-section-heading">
                   <h2>Recent events</h2>
-                  <span>
-                    Latest 8 / {view === "gravity" ? "this scope" : "this page"}
-                  </span>
+                  <span>Latest 8 / this page</span>
                 </div>
                 {data.events.length === 0 ? (
                   <p>No real events recorded for resources in this view.</p>
