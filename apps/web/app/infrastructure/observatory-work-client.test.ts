@@ -578,6 +578,7 @@ async function loadSelectionCoordinator() {
     events: [],
   };
   let sceneReads = 0;
+  const sceneRevisions: string[] = [];
   const evidenceRequests: Record<string, unknown>[] = [];
   vi.stubGlobal(
     "fetch",
@@ -589,15 +590,15 @@ async function loadSelectionCoordinator() {
         return Response.json(snapshot);
       if (url === "/api/v1/infrastructure/observatory/scene") {
         sceneReads++;
-        return Response.json({
-          scene: projectObservatory({
-            ...input,
-            ...JSON.parse(String(init?.body)),
-            now: new Date(
-              Date.parse(input.now) + sceneReads * 1000,
-            ).toISOString(),
-          }),
+        const scene = projectObservatory({
+          ...input,
+          ...JSON.parse(String(init?.body)),
+          now: new Date(
+            Date.parse(input.now) + sceneReads * 1000,
+          ).toISOString(),
         });
+        sceneRevisions.push(scene.projectionRevision);
+        return Response.json({ scene });
       }
       if (url === "/api/v1/infrastructure/observatory/operational") {
         const query = JSON.parse(String(init?.body));
@@ -618,7 +619,13 @@ async function loadSelectionCoordinator() {
   );
   const view = render(createElement(InfrastructureOverviewScreen));
   await waitFor(() => expect(coordinatorRenderer.hooks).not.toBeNull());
-  return { view, hosts, evidenceRequests, reads: () => sceneReads };
+  return {
+    view,
+    hosts,
+    evidenceRequests,
+    sceneRevisions,
+    reads: () => sceneReads,
+  };
 }
 it("opts in only PR evidence through the actual owner coordinator and preserves the request on refresh", async () => {
   const { hosts, evidenceRequests, reads } = await loadSelectionCoordinator();
@@ -1267,3 +1274,57 @@ it.each(["hidden", "scene failure"] as const)(
     ]);
   },
 );
+
+it("independent parent manual refresh recovers after transient evidence error", async () => {
+  const { hosts, evidenceRequests, sceneRevisions } =
+    await loadSelectionCoordinator();
+  const baseFetch = vi.mocked(fetch).getMockImplementation()!;
+  let failPr = true,
+    recovered = false;
+  const prRequests: unknown[] = [];
+  vi.mocked(fetch).mockImplementation(async (path, init) => {
+    if (String(path) === "/api/v1/infrastructure/observatory/operational") {
+      const query = JSON.parse(String(init?.body));
+      if (query.facet === "pull_requests") {
+        prRequests.push(query);
+        if (failPr) {
+          failPr = false;
+          return Response.json({}, { status: 503 });
+        }
+        const response = await baseFetch(path, init);
+        recovered = true;
+        return response;
+      }
+    }
+    return baseFetch(path, init);
+  });
+  fireEvent.click(screen.getByRole("button", { name: hosts[0]!.label + ":" }));
+  await waitFor(() => expect(evidenceRequests).toHaveLength(1));
+  fireEvent.change(screen.getByRole("combobox", { name: "Evidence facet" }), {
+    target: { value: "pull_requests" },
+  });
+  await screen.findByRole("button", { name: "Retry evidence" });
+  fireEvent.click(screen.getByRole("button", { name: "Refresh now" }));
+  await waitFor(() => expect(recovered).toBe(true));
+  await act(async () => {
+    await new Promise((resolve) => setTimeout(resolve, 10));
+  });
+  expect(prRequests).toHaveLength(2);
+  expect(prRequests[1]).toEqual(prRequests[0]);
+  expect(sceneRevisions.length).toBeGreaterThan(1);
+  expect(new Set(sceneRevisions).size).toBe(1);
+  console.log(
+    "INDEPENDENT_RECOVERY",
+    JSON.stringify({
+      sceneRevisionCount: sceneRevisions.length,
+      sameSceneRevision: new Set(sceneRevisions).size === 1,
+      successfulRefresh: recovered,
+      sameRequest:
+        JSON.stringify(prRequests[0]) === JSON.stringify(prRequests[1]),
+      retryStillVisible: !!screen.queryByRole("button", {
+        name: "Retry evidence",
+      }),
+    }),
+  );
+  expect(screen.queryByRole("button", { name: "Retry evidence" })).toBeNull();
+});

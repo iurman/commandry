@@ -39,6 +39,189 @@ const result = (count = 0) => ({
 });
 afterEach(cleanup);
 describe("operational evidence inspector", () => {
+  it("recovers the same request key after a new client accepts a successful retained read", async () => {
+    const failed = vi.fn().mockRejectedValue(new Error("Transient read error"));
+    const props = {
+      resourceId,
+      scopeKey: "A",
+      readRevision: "same-read",
+      repository: true,
+    };
+    const data = repositoryResult(),
+      before = structuredClone(data);
+    const view = render(
+      <ObservatoryOperationalEvidence {...props} loadEvidence={failed} />,
+    );
+    expect(
+      await screen.findByRole("button", { name: "Retry evidence" }),
+    ).toBeVisible();
+    let finish!: (value: unknown) => void;
+    const recovered = vi.fn(
+      () =>
+        new Promise((resolve) => {
+          finish = resolve;
+        }),
+    );
+    view.rerender(
+      <ObservatoryOperationalEvidence {...props} loadEvidence={recovered} />,
+    );
+    expect(recovered).toHaveBeenCalledTimes(1);
+    expect(
+      screen.getByRole("button", { name: "Retry evidence" }),
+    ).toBeVisible();
+    await act(async () => finish(data));
+    expect(await screen.findByText(ciSha)).toBeVisible();
+    expect(screen.getByText(/completed.*failure/)).toBeVisible();
+    expect(
+      screen.queryByRole("button", { name: "Retry evidence" }),
+    ).not.toBeInTheDocument();
+    expect(recovered.mock.calls).toEqual(failed.mock.calls);
+    expect(failed).toHaveBeenCalledExactlyOnceWith(resourceId, "pull_requests");
+    expect(data).toEqual(before);
+  });
+
+  it("does not let a superseded successful response clear a newer same-key failure", async () => {
+    let finish!: (value: unknown) => void;
+    const old = vi.fn(
+      () =>
+        new Promise((resolve) => {
+          finish = resolve;
+        }),
+    );
+    const props = {
+      resourceId,
+      scopeKey: "A",
+      readRevision: "same-read",
+      repository: false,
+    };
+    const view = render(
+      <ObservatoryOperationalEvidence {...props} loadEvidence={old} />,
+    );
+    const current = vi
+      .fn()
+      .mockRejectedValue(new Error("Current request failed"));
+    view.rerender(
+      <ObservatoryOperationalEvidence {...props} loadEvidence={current} />,
+    );
+    expect(
+      await screen.findByRole("button", { name: "Retry evidence" }),
+    ).toBeVisible();
+    await act(async () => finish(result(137)));
+    expect(
+      screen.getByRole("button", { name: "Retry evidence" }),
+    ).toBeVisible();
+    expect(screen.queryByText(/137 reviewed/)).not.toBeInTheDocument();
+    expect(current.mock.calls).toEqual(old.mock.calls);
+    expect(current).toHaveBeenCalledExactlyOnceWith(resourceId, "availability");
+  });
+
+  it.each(["success", "error"] as const)(
+    "excludes a superseded same-key %s after a current successful recovery",
+    async (settlement) => {
+      const props = {
+        resourceId,
+        scopeKey: "A",
+        readRevision: "same-read",
+        repository: false,
+      };
+      const failed = vi
+        .fn()
+        .mockRejectedValue(new Error("Initial transient error"));
+      const view = render(
+        <ObservatoryOperationalEvidence {...props} loadEvidence={failed} />,
+      );
+      expect(
+        await screen.findByRole("button", { name: "Retry evidence" }),
+      ).toBeVisible();
+      let finish!: (value: unknown) => void, reject!: (reason: Error) => void;
+      const old = vi.fn(
+        () =>
+          new Promise((resolve, fail) => {
+            finish = resolve;
+            reject = fail;
+          }),
+      );
+      view.rerender(
+        <ObservatoryOperationalEvidence {...props} loadEvidence={old} />,
+      );
+      const current = vi.fn().mockResolvedValue(result(1));
+      view.rerender(
+        <ObservatoryOperationalEvidence {...props} loadEvidence={current} />,
+      );
+      expect(
+        await screen.findByText("unavailable / 1 reviewed sources"),
+      ).toBeVisible();
+      await act(async () => {
+        if (settlement === "success") finish(result(137));
+        else reject(new Error("Superseded error"));
+      });
+      expect(
+        screen.getByText("unavailable / 1 reviewed sources"),
+      ).toBeVisible();
+      expect(screen.queryByText(/137 reviewed/)).not.toBeInTheDocument();
+      expect(
+        screen.queryByRole("button", { name: "Retry evidence" }),
+      ).not.toBeInTheDocument();
+      expect(current.mock.calls).toEqual(old.mock.calls);
+      expect(current.mock.calls).toEqual(failed.mock.calls);
+    },
+  );
+
+  it.each(["subject", "facet", "raw-payload"] as const)(
+    "keeps the current error until a valid response is accepted after a %s mismatch",
+    async (mode) => {
+      const props = {
+        resourceId,
+        scopeKey: "A",
+        readRevision: "same-read",
+        repository: false,
+      };
+      const failed = vi
+        .fn()
+        .mockRejectedValue(new Error("Initial transient error"));
+      const view = render(
+        <ObservatoryOperationalEvidence {...props} loadEvidence={failed} />,
+      );
+      expect(
+        await screen.findByRole("button", { name: "Retry evidence" }),
+      ).toBeVisible();
+      const invalid = vi.fn().mockResolvedValue({
+        ...result(),
+        ...(mode === "subject"
+          ? { resourceId: projectId }
+          : mode === "facet"
+            ? { facet: "pull_requests" }
+            : { rawPayload: "PRIVATE" }),
+      });
+      await act(async () =>
+        view.rerender(
+          <ObservatoryOperationalEvidence {...props} loadEvidence={invalid} />,
+        ),
+      );
+      expect(invalid).toHaveBeenCalledExactlyOnceWith(
+        resourceId,
+        "availability",
+      );
+      expect(
+        screen.getByRole("button", { name: "Retry evidence" }),
+      ).toBeVisible();
+      expect(
+        screen.queryByText("unsupported / 0 reviewed sources"),
+      ).not.toBeInTheDocument();
+      expect(screen.queryByText("PRIVATE")).not.toBeInTheDocument();
+      const current = vi.fn().mockResolvedValue(result(1));
+      view.rerender(
+        <ObservatoryOperationalEvidence {...props} loadEvidence={current} />,
+      );
+      expect(
+        await screen.findByText("unavailable / 1 reviewed sources"),
+      ).toBeVisible();
+      expect(
+        screen.queryByRole("button", { name: "Retry evidence" }),
+      ).not.toBeInTheDocument();
+    },
+  );
+
   it("reloads the same subject when a new scene read commits", async () => {
     const load = vi
       .fn()

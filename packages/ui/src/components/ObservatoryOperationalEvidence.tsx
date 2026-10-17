@@ -53,8 +53,10 @@ export function ObservatoryOperationalEvidence({
         const parsed = observatoryOperationalEvidenceResultSchema.parse(raw);
         if (parsed.resourceId !== resourceId || parsed.facet !== facet)
           throw new Error("Evidence subject changed");
-        if (generation.current === ticket)
+        if (generation.current === ticket) {
           setLoaded({ key: requestKey, value: parsed });
+          setFailedKey(null);
+        }
       })
       .catch(() => {
         if (generation.current === ticket) setFailedKey(requestKey);
