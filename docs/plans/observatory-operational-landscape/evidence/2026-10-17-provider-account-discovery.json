@@ -1,0 +1,99 @@
+{
+  "status": "operational-discovery-only",
+  "observedDate": "2026-10-17",
+  "method": "authenticated provider consoles through visible browser UI plus a separate read-only public status API request",
+  "sourceRevision": "cc22952f0b88799455ec84055e8cf1a071c2c5f5",
+  "productionRevisionDuringDiscovery": "507303ca1e82b8b15cc8d94864b61db1de86ed7e",
+  "releaseInProgress": 39065358282,
+  "activationPerformed": false,
+  "providerConfigurationChanged": false,
+  "rawPrivateReceiptSha256": "f199cd2611754363c49303f076f4ddcfc0bde430871966f9764b0c31bff81766",
+  "ephemera": {
+    "hostingProvider": "Vercel",
+    "environmentLabel": "Production",
+    "deploymentPage": "https://vercel.com/iurmans-projects/ephemera/AZFZf5gtYY9PYfH7kpQRq4NjgA1R",
+    "repository": "https://github.com/iurman/ephemera",
+    "commit": "696d70284dd5f6ab584a46686f7791c085ab5cca",
+    "statusLabel": "Ready",
+    "customDomain": "ephemera.isaacurman.com",
+    "domainRecommendation": "DNS Change Recommended",
+    "parentDomainRegistrar": "Namecheap",
+    "parentDomainNameserverProvider": "Cloudflare",
+    "canonicalDeploymentMapping": "not created or verified by this discovery",
+    "currentAvailability": "not established by deployment Ready",
+    "physicalHost": "not established"
+  },
+  "resupals": {
+    "hostingProduct": "Cloudflare Workers",
+    "environmentLabel": "Production",
+    "repository": "https://github.com/iurman/resupals",
+    "activeVersionShort": "6712267b",
+    "commit": "28ea59374c93f64e00c4f4ce3f869f1d4287506d",
+    "trafficPercentageLabel": 100,
+    "canonicalDeploymentMapping": "not created or verified by this discovery",
+    "geography": null,
+    "reviewedIncidentPlane": null,
+    "currentAvailability": "not established by deployment Ready",
+    "physicalHost": "not established"
+  },
+  "cloudflareStatusRead": {
+    "url": "https://www.cloudflarestatus.com/api/v2/summary.json",
+    "observedAt": "2026-10-17T20:11:12.925Z",
+    "httpStatus": 200,
+    "bodySha256": "f178dc2cea77cdff38eed5a1fc5603a9e811d96044b12c149698a3a61ba8ce94",
+    "bodyBytes": 235399,
+    "componentCount": 482,
+    "incidentCount": 1,
+    "maintenanceCount": 25,
+    "pageUpdatedAt": "2026-08-27T00:00:00.000Z",
+    "selectedComponentIdentities": [
+      {
+        "id": "dp8ppfycqxcs",
+        "name": "Authoritative DNS"
+      },
+      {
+        "id": "z0yd3sxqjqdm",
+        "name": "D1"
+      },
+      {
+        "id": "3lbj8lp3d750",
+        "name": "Images"
+      },
+      {
+        "id": "hb7g5sq2zz0h",
+        "name": "R2"
+      },
+      {
+        "id": "y98zlwj1d7zh",
+        "name": "Tunnel"
+      },
+      {
+        "id": "57srcl8zcn7c",
+        "name": "Workers"
+      },
+      {
+        "id": "pg21w9xb991r",
+        "name": "Workers Assets"
+      },
+      {
+        "id": "vcpsk0w6g86k",
+        "name": "Workers Builds"
+      }
+    ],
+    "localImpact": "not established",
+    "localCanonicalMapping": "not created",
+    "noticeEnvironmentGeographyPlane": "not supplied by this structured source; retained unknown"
+  },
+  "scopeCorrections": [
+    "InfraAgent is design prior art only. InfraAgent, CRM and Arvo are repository inventory only.",
+    "Ephemera remains non-blocking. No DNS or registrar change is authorized by its recommendation.",
+    "Existing signed-in access was used; no credentials or grants were expanded."
+  ],
+  "limits": [
+    "Authenticated console observations are root-observed, not independently replayed by the static source reviewer.",
+    "Raw account identifiers, bound backing-store identifiers and registrar contact details are excluded from this public receipt.",
+    "Short Worker version is not a full immutable version identity.",
+    "The source API read time is not its reported page update time or proof of provider freshness.",
+    "No repository-to-host or repository-to-deployment canonical relation is inferred from a display name."
+  ]
+}

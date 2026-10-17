@@ -1,0 +1,267 @@
+{
+  "status": "Operational; published unapproved candidate, not deployed",
+  "observedAt": "2026-10-17T20:46:52.861230+00:00",
+  "run": {
+    "headSha": "885b356876a94adfae5c2c5c5c743c3cb866845b",
+    "url": "https://github.com/iurman/commandry/actions/runs/39065358282",
+    "status": "completed",
+    "conclusion": "success",
+    "createdAt": "2026-10-17T20:07:09Z",
+    "updatedAt": "2026-10-17T20:44:55Z"
+  },
+  "candidate": {
+    "status": "UNAPPROVED_CANDIDATE",
+    "target": "production",
+    "revision": "885b356876a94adfae5c2c5c5c743c3cb866845b",
+    "image": "ghcr.io/iurman/commandry@sha256:605e90004c9f596dc990faa611d4e9d189275f9bc83996df2ca5cf5bb6d4c80c",
+    "publishedTag": "ghcr.io/iurman/commandry:885b356876a94adfae5c2c5c5c743c3cb866845b-39065358282-1",
+    "buildTime": "2026-10-17T20:18:18Z",
+    "rawImageCreated": "2026-10-17T20:18:18.857080297Z",
+    "configDigest": "sha256:4599a81fec161fd0db5a8ef5b23e203d826e0e0138b923ce20a5905778c5a3cc",
+    "manifestByteDigestVerified": true,
+    "registryContentDigestVerified": true,
+    "configByteDigestVerified": true,
+    "sourceClean": true,
+    "platform": "linux/amd64",
+    "workflow": {
+      "conclusion": "success",
+      "created_at": "2026-10-17T20:07:09Z",
+      "head_branch": "main",
+      "head_sha": "885b356876a94adfae5c2c5c5c743c3cb866845b",
+      "html_url": "https://github.com/iurman/commandry/actions/runs/39065358282",
+      "id": 39065358282,
+      "run_attempt": 1,
+      "status": "completed",
+      "updated_at": "2026-10-17T20:44:55Z"
+    },
+    "registryAccountCredentialUsed": false,
+    "registryReadOnly": true,
+    "productionDeploymentOccurred": false,
+    "approvalRecordCreated": false,
+    "remainingAcceptance": [
+      "B05 incident snooze unsupported in current source contract",
+      "E07 genuine document.hidden precondition unverified",
+      "F04 physical mobile keyboard and safe-area check unverified",
+      "F06 actual owner interpretation pending",
+      "G06 lower-powered physical device unverified; measured stress costs retained"
+    ],
+    "sourceActivationVerified": false,
+    "observedAt": "2026-10-17T20:45:37.103650+00:00"
+  },
+  "browser": {
+    "originalIdentityCount": 207,
+    "passed": 202,
+    "originalSkipped": 5,
+    "failed": 0,
+    "flaky": 0,
+    "retryResultsAboveZero": 0,
+    "workers": 1,
+    "identityDigest": "f90a13654a4a123ae9382a5b6fe25046e9c95d23d325481fb7a7fc8b375c671b",
+    "independentReviewVerdict": "ACCEPT_BROWSER_REPORT_CONSERVATION_AND_OUTCOME",
+    "checks": {
+      "identities": true,
+      "identityDigest": true,
+      "projectCounts": true,
+      "outcomes": true,
+      "allComparisonDifferenceListsEmpty": true,
+      "noReportedErrors": true,
+      "stats": true,
+      "oneWorker": true,
+      "retryConfig": true,
+      "projectConfig": true,
+      "hashAndMetadata": true
+    },
+    "counts": {
+      "totalIdentities": 207,
+      "uniqueIdentities": 207,
+      "projectCounts": {
+        "desktop": 69,
+        "phone-320": 69,
+        "phone-390": 69
+      },
+      "reportStatuses": {
+        "expected": 202,
+        "skipped": 5
+      },
+      "expectedStatuses": {
+        "passed": 202,
+        "skipped": 5
+      },
+      "rawResultStatuses": {
+        "passed": 202,
+        "skipped": 5
+      },
+      "perProjectReportStatuses": {
+        "desktop": {
+          "expected": 68,
+          "skipped": 1
+        },
+        "phone-320": {
+          "expected": 67,
+          "skipped": 2
+        },
+        "phone-390": {
+          "expected": 67,
+          "skipped": 2
+        }
+      },
+      "resultCount": 207,
+      "attemptCountPerIdentityDistribution": {
+        "1": 207
+      },
+      "retryIndexDistribution": {
+        "0": 207
+      },
+      "topLevelErrorCount": 0,
+      "testErrorCount": 0,
+      "resultErrorCount": 0,
+      "singleResultErrorFieldCount": 0,
+      "stdoutEntryCount": 648,
+      "stderrEntryCount": 0
+    },
+    "suiteTiming": {
+      "baselineDurationMs": 792213.361,
+      "currentDurationMs": 1381241.289,
+      "differenceMs": 589027.928,
+      "currentStartTime": "2026-10-17T20:19:01.856Z",
+      "interpretation": "Full reporter duration, not application response latency; one-worker successful full run and two-worker failed prior run are not a controlled equal-work performance comparison."
+    },
+    "priorFailedCasesCurrentTimings": [
+      {
+        "stableKey": "[\"desktop\",\"gravity-master-scene.spec.ts\",[\"gravity-master-scene.spec.ts\",\"one master scene renders and inspects the complete multi-page inventory\"]]",
+        "identity": {
+          "project": "desktop",
+          "file": "gravity-master-scene.spec.ts",
+          "titleLineage": [
+            "gravity-master-scene.spec.ts",
+            "one master scene renders and inspects the complete multi-page inventory"
+          ]
+        },
+        "priorStatus": "unexpected",
+        "priorRawStatus": "timedOut",
+        "priorDurationMs": 302841,
+        "currentStatus": "expected",
+        "currentRawStatus": "passed",
+        "currentDurationMs": 231444,
+        "currentStartTime": "2026-10-17T20:19:39.351Z",
+        "reportedTestTimeoutMs": 300000,
+        "retry": 0,
+        "durationDifferenceMs": -71397,
+        "interpretation": "Descriptive only: previous failures stopped before current successful completion; not equal-work timing or causal speed evidence."
+      },
+      {
+        "stableKey": "[\"desktop\",\"infrastructure-overview.spec.ts\",[\"infrastructure-overview.spec.ts\",\"Gravity uses canonical resources, persisted appearance, focus and truthful source evidence\"]]",
+        "identity": {
+          "project": "desktop",
+          "file": "infrastructure-overview.spec.ts",
+          "titleLineage": [
+            "infrastructure-overview.spec.ts",
+            "Gravity uses canonical resources, persisted appearance, focus and truthful source evidence"
+          ]
+        },
+        "priorStatus": "unexpected",
+        "priorRawStatus": "failed",
+        "priorDurationMs": 63040,
+        "currentStatus": "expected",
+        "currentRawStatus": "passed",
+        "currentDurationMs": 130084,
+        "currentStartTime": "2026-10-17T20:23:39.928Z",
+        "reportedTestTimeoutMs": 240000,
+        "retry": 0,
+        "durationDifferenceMs": 67044,
+        "interpretation": "Descriptive only: previous failures stopped before current successful completion; not equal-work timing or causal speed evidence."
+      },
+      {
+        "stableKey": "[\"phone-390\",\"gravity-master-scene.spec.ts\",[\"gravity-master-scene.spec.ts\",\"one master scene renders and inspects the complete multi-page inventory\"]]",
+        "identity": {
+          "project": "phone-390",
+          "file": "gravity-master-scene.spec.ts",
+          "titleLineage": [
+            "gravity-master-scene.spec.ts",
+            "one master scene renders and inspects the complete multi-page inventory"
+          ]
+        },
+        "priorStatus": "unexpected",
+        "priorRawStatus": "failed",
+        "priorDurationMs": 67019,
+        "currentStatus": "expected",
+        "currentRawStatus": "passed",
+        "currentDurationMs": 95091,
+        "currentStartTime": "2026-10-17T20:30:16.060Z",
+        "reportedTestTimeoutMs": 300000,
+        "retry": 0,
+        "durationDifferenceMs": 28072,
+        "interpretation": "Descriptive only: previous failures stopped before current successful completion; not equal-work timing or causal speed evidence."
+      }
+    ],
+    "reportSha256": "f3244e64ba2e671011d3f617029622c33568270190d158d197baf5b245540b95",
+    "archiveDigest": "sha256:6203f5a195d841e4b71e8810b6cef91e6517adf60cf793bc3230854efce64536",
+    "archiveByteDigestAndSizeLocallyVerified": true,
+    "artifactId": 12113652557,
+    "originalSkippedCases": [
+      [
+        "desktop",
+        "local-auth.spec.ts",
+        "provisional owner can sign in, use a protected API, and sign out"
+      ],
+      [
+        "phone-320",
+        "local-auth.spec.ts",
+        "provisional owner can sign in, use a protected API, and sign out"
+      ],
+      [
+        "phone-320",
+        "observatory-overlays.spec.ts",
+        "Appearance controls fit and remain hittable across actual wrap boundaries"
+      ],
+      [
+        "phone-390",
+        "local-auth.spec.ts",
+        "provisional owner can sign in, use a protected API, and sign out"
+      ],
+      [
+        "phone-390",
+        "observatory-overlays.spec.ts",
+        "Appearance controls fit and remain hittable across actual wrap boundaries"
+      ]
+    ]
+  },
+  "imageScan": {
+    "high": 43,
+    "critical": 0,
+    "fixableHighOrCritical": 0,
+    "secretFindings": 0,
+    "source": "Actual rendered GitHub publish job summary #summary-117491762644, read through CUA after workflow completion",
+    "policy": "Unfixed findings are reported and do not block the existing publication policy; passing is not a vulnerability-free claim"
+  },
+  "screenshots": [
+    {
+      "path": "2026-10-17-ci-release-4k.png",
+      "sourceArtifactPath": "infrastructure-overview-Gr-b82d7-nd-truthful-source-evidence-desktop/gravity-wallboard-f1-4k.png",
+      "bytes": 3267484,
+      "sha256": "ae2f9c65ce901c5863725f450a6d61eaad95746ca722693721c647aee483d5c1",
+      "scope": "Actual hosted browser screenshot, synthetic disposable PostgreSQL population; not production telemetry or postdeploy evidence"
+    },
+    {
+      "path": "2026-10-17-ci-release-desktop.png",
+      "sourceArtifactPath": "gravity-master-scene-one-m-b6034-mplete-multi-page-inventory-desktop/complete-fleet-dark.png",
+      "bytes": 507328,
+      "sha256": "c08656547e40ab05b4ac0bd82d7afb703f92263ac2803493c7090e0435dac4d5",
+      "scope": "Actual hosted browser screenshot, synthetic disposable PostgreSQL population; not production telemetry or postdeploy evidence"
+    },
+    {
+      "path": "2026-10-17-ci-release-phone-390.png",
+      "sourceArtifactPath": "gravity-master-scene-one-m-b6034-mplete-multi-page-inventory-phone-390/complete-fleet-dark.png",
+      "bytes": 4020632,
+      "sha256": "8559099e88eda7d5e3b75e409c77d53541bdf7f370ac554bc31d94d0b250b8da",
+      "scope": "Actual hosted browser screenshot, synthetic disposable PostgreSQL population; not production telemetry or postdeploy evidence"
+    }
+  ],
+  "limits": [
+    "The one-worker pass establishes completion under that CI scheduling policy, not a causal performance fix or equivalent inter-test concurrency.",
+    "Original failed releases remain failed historical evidence.",
+    "Production remains at the prior release until genuine protected approval and the constrained deployment finish.",
+    "Live source, mapping and signed-in activation remain unverified.",
+    "The independent browser review used the then-pending workflow snapshot; later full workflow and image verification are separate evidence."
+  ]
+}

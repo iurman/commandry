@@ -1,8 +1,16 @@
 # Observatory execution record
 
-**Status: Operational. Implementation and local browser corrections accepted; hosted release and constrained deployment remain in progress.**
+**Status: Operational. Full hosted release and immutable publication passed; protected approval, constrained deployment and signed-in activation remain in progress.**
 
-## Current full-suite release boundary, 2026-10-17
+## Current verified release candidate, 2026-10-17
+
+[The full T43 release](T43-RELEASE.md) completed successfully at main `885b356` in run `39065358282`. Independent comparison retains all 207 original browser identities, 202 actual passes, exactly five original skips and zero failures, flakes or retries. Owner workflows, production-service rehearsal, provenance, existing image-security gates and immutable publication/readback also pass. Registry manifest/config bytes and clean revision are verified. The image scan reports 43 high findings with no reported fix, zero critical findings, zero fixable high/critical findings and zero secret findings; publication is not a vulnerability-free claim.
+
+The exact unapproved image and actual synthetic screenshots are retained in the linked release record. Genuine root-only operator approval, the existing constrained deployment, live identity/containment/link preservation, signed-in verification and actual source/mapping activation remain pending. InfraAgent/CRM/Arvo remain repository inventory/design-reference scope; [provider discovery](PROVIDER-DISCOVERY.md) does not authorize DNS changes. The 58-scenario ledger remains 53 source-qualified local passes and five explicit partial/unrun limitations. No whole-workflow completion is claimed.
+
+## Earlier full-suite release boundaries, 2026-10-17
+
+The entries below retain the actual historical milestones and failures. The current release status is the verified candidate above.
 
 [T42](T42.md) now passes all 15 original shared-world cases in 247354.58 ms, with zero retries, skips or flaky results. Independent source and actual execution review accept complete semantics, recorded timing and strict physical cleanup at clean source 60921f5. Only the two aggregate timeout literals change; explicit guards remain and implicit actions can wait longer. This is completion under the calibrated harness, not a rendering-speed or physical-device claim. Full 207-case main release, immutable publication, genuine approval, constrained deployment and signed-in activation remain pending.
 
