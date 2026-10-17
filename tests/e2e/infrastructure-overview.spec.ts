@@ -1,13 +1,16 @@
 import { randomUUID } from "node:crypto";
+import { appendFileSync, mkdirSync, writeFileSync } from "node:fs";
 import { mkdir, writeFile } from "node:fs/promises";
 import {
   test,
   expect,
   type APIRequestContext,
   type Response,
+  type Request,
 } from "@playwright/test";
 import {
   entityIdSchema,
+  infrastructureOverviewSchema,
   observatorySceneReadResultSchema,
   resourceSummarySchema,
   type ObservatorySceneDto,
@@ -265,6 +268,8 @@ async function fullF1Population(request: APIRequestContext) {
     resources: mapped,
     strategy: useExisting ? "provided-seed" : "real-api",
     projectIds: [...projects.values()].map((project) => project.id),
+    beforeIds: before.membershipIndex.resourceIds,
+    afterIds: scene.membershipIndex.resourceIds,
   };
 }
 
@@ -567,15 +572,212 @@ test("Gravity uses canonical resources, persisted appearance, focus and truthful
   request,
 }, testInfo) => {
   test.setTimeout(120000);
+  const diagnosticStarted = performance.now();
   const f = await fixture(request);
   const errors: string[] = [];
+  const transitionPath = testInfo.outputPath("f1-global-transition.jsonl");
+  const transitionSummaryPath = testInfo.outputPath(
+    "f1-global-transition.json",
+  );
+  let transitionActive = false;
+  let transitionPhase = "not-started";
+  let transitionPassed = false;
+  let transitionFixture: unknown = null;
+  let lastDom: unknown = null;
+  let firstRegionObserved = false;
+  let requestSequence = 0;
+  const transitionRecords: unknown[] = [];
+  const diagnosticErrors: string[] = [];
+  const transitionRequests = new WeakMap<
+    object,
+    { id: number; started: number }
+  >();
+  const transitionChecks: Promise<void>[] = [];
+  const pendingResponseChecks = new Set<Promise<void>>();
+  const pendingTransitionChecks = new Set<Promise<void>>();
+  function trackPending(check: Promise<void>, pending: Set<Promise<void>>) {
+    pending.add(check);
+    void check.then(
+      () => pending.delete(check),
+      () => pending.delete(check),
+    );
+  }
+  function diagnostic(event: string, detail: object = {}) {
+    if (!transitionActive) return;
+    const elapsedMs = performance.now() - diagnosticStarted;
+    const record = {
+      utc: new Date().toISOString(),
+      elapsedMs,
+      remainingMs: Math.max(0, testInfo.timeout - elapsedMs),
+      deadlineMs: testInfo.timeout,
+      test: testInfo.title,
+      project: testInfo.project.name,
+      worker: testInfo.workerIndex,
+      parallelIndex: testInfo.parallelIndex,
+      phase: transitionPhase,
+      event,
+      ...detail,
+    };
+    transitionRecords.push(record);
+    try {
+      appendFileSync(transitionPath, JSON.stringify(record) + "\n");
+    } catch (error) {
+      console.error("Transition diagnostic write failed", String(error));
+    }
+  }
+  function diagnosticQuery(outgoing: Request) {
+    let query: Record<string, unknown> = {};
+    try {
+      const body: unknown = outgoing.postDataJSON();
+      if (body && typeof body === "object" && !Array.isArray(body))
+        query = body as Record<string, unknown>;
+    } catch {
+      /* GETs and malformed bodies have no admitted scene query. */
+    }
+    const url = new URL(outgoing.url());
+    return {
+      projectId: query.projectId ?? url.searchParams.get("projectId"),
+      hasProjectId:
+        Object.hasOwn(query, "projectId") || url.searchParams.has("projectId"),
+      environment: query.environment ?? null,
+      grouping: query.grouping ?? null,
+      viewRevision: query.viewRevision ?? null,
+      cursor: url.searchParams.get("cursor"),
+    };
+  }
+  async function diagnosticOverview(response: Response) {
+    const observed = transitionRequests.get(response.request());
+    if (!transitionActive || !observed) return;
+    const path = new URL(response.url()).pathname;
+    diagnostic("response", {
+      requestId: observed.id,
+      ticket: requestNavigation.get(response.request()),
+      navigation,
+      path,
+      status: response.status(),
+      durationMs: performance.now() - observed.started,
+      query: diagnosticQuery(response.request()),
+    });
+    if (path !== "/api/v1/infrastructure/overview" || !response.ok()) return;
+    try {
+      const text = await response.text();
+      const result = infrastructureOverviewSchema.parse(JSON.parse(text));
+      diagnostic("overview-page", {
+        requestId: observed.id,
+        ticket: requestNavigation.get(response.request()),
+        navigation,
+        query: diagnosticQuery(response.request()),
+        nextCursor: result.nextCursor,
+        total: result.total,
+        ids: result.items.map((item) => item.id),
+        durationMs: performance.now() - observed.started,
+        responseBytes: Buffer.byteLength(text),
+      });
+    } catch (error) {
+      diagnostic("overview-parse-error", {
+        requestId: observed.id,
+        error: String(error),
+        transport: response.request().failure()?.errorText ?? "complete",
+      });
+    }
+  }
+  async function diagnosticDom(label: string) {
+    let timer: ReturnType<typeof setTimeout> | undefined;
+    try {
+      const snapshot = await Promise.race([
+        page.evaluate(() => {
+          const region = document.querySelector(".cmd-operational-observatory");
+          const stage = region?.querySelector(".cmd-op-stage");
+          const canvas = region?.querySelector<HTMLCanvasElement>(
+            ".cmd-op-canvas canvas",
+          );
+          return {
+            regionPresent: !!region,
+            grouping: region?.getAttribute("data-grouping") ?? null,
+            viewRevision: region?.getAttribute("data-view-revision") ?? null,
+            projectionRevision:
+              region?.getAttribute("data-projection-revision") ?? null,
+            pending: region?.getAttribute("data-pending") ?? null,
+            project:
+              document.querySelector<HTMLSelectElement>(
+                '[aria-label="Infrastructure project"]',
+              )?.value ?? null,
+            hidden: document.hidden,
+            url: location.pathname + location.search,
+            viewport: {
+              width: innerWidth,
+              height: innerHeight,
+              dpr: devicePixelRatio,
+            },
+            stage: stage?.getBoundingClientRect().toJSON() ?? null,
+            canvas: canvas
+              ? {
+                  css: canvas.getBoundingClientRect().toJSON(),
+                  width: canvas.width,
+                  height: canvas.height,
+                }
+              : null,
+            messages: Array.from(
+              document.querySelectorAll(
+                '[role="status"], [role="alert"], .cmd-network-snapshot',
+              ),
+            ).map((element) => element.textContent?.slice(0, 1000)),
+          };
+        }),
+        new Promise<null>((resolve) => {
+          timer = setTimeout(() => resolve(null), 250);
+        }),
+      ]);
+      if (!snapshot) {
+        diagnostic("dom-snapshot-unavailable", {
+          label,
+          reason: "250ms diagnostic bound",
+        });
+        return;
+      }
+      lastDom = snapshot;
+      const key = JSON.stringify([
+        snapshot.grouping,
+        snapshot.viewRevision,
+        snapshot.projectionRevision,
+      ]);
+      const admitted = browserScenes.get(key)?.scene;
+      diagnostic("dom-snapshot", {
+        label,
+        snapshot,
+        key,
+        matchingScene: !!admitted,
+        missingF1Ids: fullPopulationIds.filter(
+          (id) => !admitted?.membershipIndex.resourceIds.includes(id),
+        ),
+      });
+      if (snapshot.regionPresent && !firstRegionObserved) {
+        firstRegionObserved = true;
+        diagnostic("first-region-observed", { key });
+      }
+    } catch (error) {
+      diagnostic("dom-snapshot-unavailable", { label, error: String(error) });
+    } finally {
+      if (timer !== undefined) clearTimeout(timer);
+    }
+  }
+
   async function attachJson(name: string, value: unknown) {
     const path = testInfo.outputPath(`${name}.json`);
     await mkdir(testInfo.outputDir, { recursive: true });
     await writeFile(path, JSON.stringify(value, null, 2) + "\n");
     await testInfo.attach(name, { path, contentType: "application/json" });
   }
-  page.on("pageerror", (error) => errors.push(error.message));
+  page.on("pageerror", (error) => {
+    errors.push(error.message);
+    diagnostic("page-error", { error: error.message });
+  });
+  page.on("console", (message) => {
+    if (message.type() === "error") {
+      diagnosticErrors.push(message.text().slice(0, 2000));
+      diagnostic("console-error", { error: message.text().slice(0, 2000) });
+    }
+  });
   let expectedIds = [f.host.id, f.web.id].sort();
   let fullPopulationMode = false;
   let fullPopulationIds: string[] = [];
@@ -590,10 +792,27 @@ test("Gravity uses canonical resources, persisted appearance, focus and truthful
     if (frame === page.mainFrame()) {
       navigation++;
       browserScenes.clear();
+      diagnostic("navigation", { navigation });
     }
   });
   page.on("request", (outgoing) => {
     requestNavigation.set(outgoing, navigation);
+    const url = new URL(outgoing.url());
+    if (
+      !transitionActive ||
+      (url.pathname !== "/api/v1/infrastructure/overview" &&
+        url.pathname !== "/api/v1/infrastructure/observatory/scene")
+    )
+      return;
+    const observed = { id: ++requestSequence, started: performance.now() };
+    transitionRequests.set(outgoing, observed);
+    diagnostic("request", {
+      requestId: observed.id,
+      ticket: navigation,
+      method: outgoing.method(),
+      path: url.pathname,
+      query: diagnosticQuery(outgoing),
+    });
   });
   async function inspectResponse(response: Response) {
     const ticket = requestNavigation.get(response.request());
@@ -603,8 +822,25 @@ test("Gravity uses canonical resources, persisted appearance, focus and truthful
       response.request().method() !== "POST" ||
       new URL(response.url()).pathname !==
         "/api/v1/infrastructure/observatory/scene"
-    )
+    ) {
+      if (
+        new URL(response.url()).pathname ===
+        "/api/v1/infrastructure/observatory/scene"
+      )
+        diagnostic("scene-rejected", {
+          ticket,
+          navigation,
+          status: response.status(),
+          reason:
+            ticket !== navigation
+              ? "stale-navigation"
+              : !response.ok()
+                ? "non-ok"
+                : "method",
+          query: diagnosticQuery(response.request()),
+        });
       return;
+    }
     const query = response.request().postDataJSON();
     const matchesIntendedScope = () =>
       !!query &&
@@ -613,14 +849,33 @@ test("Gravity uses canonical resources, persisted appearance, focus and truthful
       (fullPopulationMode
         ? !Object.hasOwn(query, "projectId")
         : query.projectId === f.project.id);
-    if (!matchesIntendedScope()) return;
+    if (!matchesIntendedScope()) {
+      diagnostic("scene-rejected", {
+        ticket,
+        navigation,
+        reason: "scope",
+        query: diagnosticQuery(response.request()),
+      });
+      return;
+    }
+    diagnostic("matching-scene-response", {
+      ticket,
+      navigation,
+      query: diagnosticQuery(response.request()),
+    });
     try {
       let text: string;
       try {
         text = await response.text();
       } catch (error) {
-        if (response.request().failure()?.errorText === "net::ERR_ABORTED")
+        if (response.request().failure()?.errorText === "net::ERR_ABORTED") {
+          diagnostic("scene-rejected", {
+            ticket,
+            navigation,
+            reason: "aborted",
+          });
           return;
+        }
         await response.finished();
         if (response.request().failure()?.errorText === "net::ERR_ABORTED")
           return;
@@ -629,6 +884,22 @@ test("Gravity uses canonical resources, persisted appearance, focus and truthful
       const { scene } = observatorySceneReadResultSchema.parse(
         JSON.parse(text),
       );
+      diagnostic("scene-parsed", {
+        ticket,
+        navigation,
+        admitted: ticket === navigation && matchesIntendedScope(),
+        key: JSON.stringify([
+          scene.grouping,
+          scene.viewRevision,
+          scene.projectionRevision,
+        ]),
+        ids: scene.membershipIndex.resourceIds,
+        missingF1Ids: fullPopulationIds.filter(
+          (id) => !scene.membershipIndex.resourceIds.includes(id),
+        ),
+        query: diagnosticQuery(response.request()),
+        responseBytes: Buffer.byteLength(text),
+      });
       if (ticket === navigation && matchesIntendedScope())
         browserScenes.set(
           JSON.stringify([
@@ -639,6 +910,11 @@ test("Gravity uses canonical resources, persisted appearance, focus and truthful
           { scene, query },
         );
     } catch (error) {
+      diagnostic("scene-parse-error", {
+        ticket,
+        navigation,
+        error: String(error),
+      });
       if (ticket === navigation)
         errors.push(
           `Invalid successful scene response: ${error instanceof Error ? error.message : "unknown"}`,
@@ -646,8 +922,29 @@ test("Gravity uses canonical resources, persisted appearance, focus and truthful
     }
   }
   page.on("response", (response) => {
-    responseChecks.push(inspectResponse(response));
+    const responseCheck = inspectResponse(response);
+    responseChecks.push(responseCheck);
+    trackPending(responseCheck, pendingResponseChecks);
+    if (transitionActive) {
+      const transitionCheck = diagnosticOverview(response);
+      transitionChecks.push(transitionCheck);
+      trackPending(transitionCheck, pendingTransitionChecks);
+    }
   });
+  for (const event of ["requestfailed", "requestfinished"] as const) {
+    page.on(event, (outgoing) => {
+      const observed = transitionRequests.get(outgoing);
+      if (observed)
+        diagnostic(event, {
+          requestId: observed.id,
+          ticket: requestNavigation.get(outgoing),
+          navigation,
+          path: new URL(outgoing.url()).pathname,
+          durationMs: performance.now() - observed.started,
+          failure: outgoing.failure()?.errorText ?? null,
+        });
+    });
+  }
   // Geometry assertions measure the settled view independently of GPU cadence.
   await page.addInitScript(() => {
     const original = window.IntersectionObserver;
@@ -1562,28 +1859,131 @@ test("Gravity uses canonical resources, persisted appearance, focus and truthful
         .evaluate((element) => element.getBoundingClientRect().height >= 160),
     ).toBe(true);
     const scopedIds = [...expectedIds];
+    transitionActive = true;
+    transitionPhase = "fixture";
+    mkdirSync(testInfo.outputDir, { recursive: true });
+    diagnostic("fixture:start", { scopedIds });
     const f1 = await fullF1Population(request);
+    transitionFixture = f1;
+    diagnostic("fixture:end", {
+      fixtureStrategy: f1.strategy,
+      fixtureProjectIds: f1.projectIds,
+      beforeIds: f1.beforeIds,
+      afterIds: f1.afterIds,
+      expectedF1Ids: f1.resources.map((resource) => resource.id),
+    });
     const f1Ids = f1.resources.map((resource) => resource.id).sort();
     fullPopulationIds = f1Ids;
-    await page.setViewportSize({ width: 3840, height: 2160 });
-    fullPopulationMode = true;
-    await page.getByLabel("Infrastructure project").selectOption("");
-    await expect
-      .poll(async () => {
-        const current = browserScenes.get(
-          JSON.stringify([
-            await gravity.getAttribute("data-grouping"),
-            await gravity.getAttribute("data-view-revision"),
-            await gravity.getAttribute("data-projection-revision"),
-          ]),
-        )?.scene;
-        return (
-          !!current &&
-          f1Ids.every((id) => current.membershipIndex.resourceIds.includes(id))
+    try {
+      transitionPhase = "project-to-global";
+      diagnostic("viewport:start");
+      await page.setViewportSize({ width: 3840, height: 2160 });
+      diagnostic("viewport:end");
+      fullPopulationMode = true;
+      diagnostic("global-selection:start", { navigation });
+      await page.getByLabel("Infrastructure project").selectOption("");
+      diagnostic("global-selection:end", { navigation });
+      await expect
+        .poll(async () => {
+          const current = browserScenes.get(
+            JSON.stringify([
+              await gravity.getAttribute("data-grouping"),
+              await gravity.getAttribute("data-view-revision"),
+              await gravity.getAttribute("data-projection-revision"),
+            ]),
+          )?.scene;
+          return (
+            !!current &&
+            f1Ids.every((id) =>
+              current.membershipIndex.resourceIds.includes(id),
+            )
+          );
+        })
+        .toBe(true);
+      diagnostic("population-predicate:passed");
+      await applied("projects");
+      transitionPassed = true;
+      diagnostic("settled-key:passed");
+    } finally {
+      diagnostic("finally", {
+        passed: transitionPassed,
+        parserAndPageErrors: [...errors],
+        consoleErrors: diagnosticErrors,
+      });
+      let diagnosticTimer: ReturnType<typeof setTimeout> | undefined;
+      const flushChecks = [...responseChecks, ...transitionChecks];
+      const flushSettled = await Promise.race([
+        Promise.allSettled(flushChecks).then(() => true),
+        new Promise<false>((resolve) => {
+          diagnosticTimer = setTimeout(() => resolve(false), 250);
+        }),
+      ]).finally(() => {
+        if (diagnosticTimer !== undefined) clearTimeout(diagnosticTimer);
+      });
+      const parserFlush = {
+        boundMs: 250,
+        expired: !flushSettled,
+        checked: flushChecks.length,
+        pendingResponseChecks: pendingResponseChecks.size,
+        pendingTransitionChecks: pendingTransitionChecks.size,
+      };
+      diagnostic("parser-flush", parserFlush);
+      await diagnosticDom("transition-finally");
+      const collectionState = {
+        complete:
+          pendingResponseChecks.size === 0 &&
+          pendingTransitionChecks.size === 0,
+        pendingResponseChecks: pendingResponseChecks.size,
+        pendingTransitionChecks: pendingTransitionChecks.size,
+      };
+      diagnostic("collection-completeness", collectionState);
+      try {
+        writeFileSync(
+          transitionSummaryPath,
+          JSON.stringify(
+            {
+              passed: transitionPassed,
+              parserFlush,
+              collectionState,
+              fixture: transitionFixture,
+              parserAndPageErrors: [...errors],
+              consoleErrors: diagnosticErrors,
+              lastDom,
+              acceptedScenes: [...browserScenes].map(([key, value]) => ({
+                key,
+                ids: value.scene.membershipIndex.resourceIds,
+                missingF1Ids: f1Ids.filter(
+                  (id) => !value.scene.membershipIndex.resourceIds.includes(id),
+                ),
+              })),
+              records: transitionRecords,
+            },
+            null,
+            2,
+          ) + "\n",
         );
-      })
-      .toBe(true);
-    await applied("projects");
+      } catch (error) {
+        console.error("Transition summary write failed", String(error));
+      }
+      transitionActive = false;
+      for (const [name, path, contentType] of [
+        ["f1-global-transition", transitionSummaryPath, "application/json"],
+        [
+          "f1-global-transition-timeline",
+          transitionPath,
+          "application/x-ndjson",
+        ],
+      ]) {
+        await testInfo
+          .attach(name!, { path, contentType })
+          .catch((error: unknown) => {
+            console.error(
+              "Transition diagnostic attachment failed",
+              String(error),
+            );
+          });
+      }
+    }
     await appearance.click();
     const textSize = page.getByRole("combobox", {
       name: "Text size",

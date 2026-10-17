@@ -1,0 +1,267 @@
+{
+  "status": "Actual hosted FAIL, diagnosis in progress",
+  "workflow": {
+    "conclusion": "failure",
+    "headSha": "74d41481dfbcfdfb4faa2730c60078d81151079b",
+    "jobs": [
+      {
+        "completedAt": "2026-10-17T16:27:53Z",
+        "conclusion": "failure",
+        "databaseId": 117439688961,
+        "name": "publish",
+        "startedAt": "2026-10-17T16:03:02Z",
+        "status": "completed",
+        "steps": [
+          {
+            "completedAt": "2026-10-17T16:03:05Z",
+            "conclusion": "success",
+            "name": "Set up job",
+            "number": 1,
+            "startedAt": "2026-10-17T16:03:02Z",
+            "status": "completed"
+          },
+          {
+            "completedAt": "2026-10-17T16:03:06Z",
+            "conclusion": "success",
+            "name": "Run actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1",
+            "number": 2,
+            "startedAt": "2026-10-17T16:03:05Z",
+            "status": "completed"
+          },
+          {
+            "completedAt": "2026-10-17T16:03:07Z",
+            "conclusion": "success",
+            "name": "Verify the selected main commit",
+            "number": 3,
+            "startedAt": "2026-10-17T16:03:06Z",
+            "status": "completed"
+          },
+          {
+            "completedAt": "2026-10-17T16:03:15Z",
+            "conclusion": "success",
+            "name": "Run pnpm/action-setup@0977fd99725f1db4007ccb2928dbb4e90d06cc86",
+            "number": 4,
+            "startedAt": "2026-10-17T16:03:07Z",
+            "status": "completed"
+          },
+          {
+            "completedAt": "2026-10-17T16:03:20Z",
+            "conclusion": "success",
+            "name": "Run actions/setup-node@820762786026740c76f36085b0efc47a31fe5020",
+            "number": 5,
+            "startedAt": "2026-10-17T16:03:15Z",
+            "status": "completed"
+          },
+          {
+            "completedAt": "2026-10-17T16:03:34Z",
+            "conclusion": "success",
+            "name": "Set up local test environment",
+            "number": 6,
+            "startedAt": "2026-10-17T16:03:20Z",
+            "status": "completed"
+          },
+          {
+            "completedAt": "2026-10-17T16:05:56Z",
+            "conclusion": "success",
+            "name": "Check source, contracts, and workflow formatting",
+            "number": 7,
+            "startedAt": "2026-10-17T16:03:34Z",
+            "status": "completed"
+          },
+          {
+            "completedAt": "2026-10-17T16:05:57Z",
+            "conclusion": "success",
+            "name": "Audit production dependencies",
+            "number": 8,
+            "startedAt": "2026-10-17T16:05:56Z",
+            "status": "completed"
+          },
+          {
+            "completedAt": "2026-10-17T16:08:17Z",
+            "conclusion": "success",
+            "name": "Run unit and local tests",
+            "number": 9,
+            "startedAt": "2026-10-17T16:05:57Z",
+            "status": "completed"
+          },
+          {
+            "completedAt": "2026-10-17T16:12:41Z",
+            "conclusion": "success",
+            "name": "Build and test the application",
+            "number": 10,
+            "startedAt": "2026-10-17T16:08:17Z",
+            "status": "completed"
+          },
+          {
+            "completedAt": "2026-10-17T16:12:41Z",
+            "conclusion": "success",
+            "name": "Restore Next's generated declaration",
+            "number": 11,
+            "startedAt": "2026-10-17T16:12:41Z",
+            "status": "completed"
+          },
+          {
+            "completedAt": "2026-10-17T16:12:42Z",
+            "conclusion": "success",
+            "name": "Check production Compose configuration",
+            "number": 12,
+            "startedAt": "2026-10-17T16:12:41Z",
+            "status": "completed"
+          },
+          {
+            "completedAt": "2026-10-17T16:14:33Z",
+            "conclusion": "success",
+            "name": "Build and start the exact release image locally",
+            "number": 13,
+            "startedAt": "2026-10-17T16:12:42Z",
+            "status": "completed"
+          },
+          {
+            "completedAt": "2026-10-17T16:27:50Z",
+            "conclusion": "failure",
+            "name": "Exercise desktop and phone screens",
+            "number": 14,
+            "startedAt": "2026-10-17T16:14:33Z",
+            "status": "completed"
+          },
+          {
+            "completedAt": "2026-10-17T16:27:50Z",
+            "conclusion": "skipped",
+            "name": "Exercise governed owner workflows in disposable auth modes",
+            "number": 15,
+            "startedAt": "2026-10-17T16:27:50Z",
+            "status": "completed"
+          },
+          {
+            "completedAt": "2026-10-17T16:27:50Z",
+            "conclusion": "skipped",
+            "name": "Rehearse production services with the exact image",
+            "number": 16,
+            "startedAt": "2026-10-17T16:27:50Z",
+            "status": "completed"
+          },
+          {
+            "completedAt": "2026-10-17T16:27:50Z",
+            "conclusion": "skipped",
+            "name": "Confirm clean image provenance after tests",
+            "number": 17,
+            "startedAt": "2026-10-17T16:27:50Z",
+            "status": "completed"
+          },
+          {
+            "completedAt": "2026-10-17T16:27:50Z",
+            "conclusion": "skipped",
+            "name": "Report all high and critical image findings",
+            "number": 18,
+            "startedAt": "2026-10-17T16:27:50Z",
+            "status": "completed"
+          },
+          {
+            "completedAt": "2026-10-17T16:27:50Z",
+            "conclusion": "skipped",
+            "name": "Block fixable high and critical findings and secrets",
+            "number": 19,
+            "startedAt": "2026-10-17T16:27:50Z",
+            "status": "completed"
+          },
+          {
+            "completedAt": "2026-10-17T16:27:50Z",
+            "conclusion": "success",
+            "name": "Summarize image findings without exposing matches",
+            "number": 20,
+            "startedAt": "2026-10-17T16:27:50Z",
+            "status": "completed"
+          },
+          {
+            "completedAt": "2026-10-17T16:27:50Z",
+            "conclusion": "skipped",
+            "name": "Log in to GitHub Container Registry",
+            "number": 21,
+            "startedAt": "2026-10-17T16:27:50Z",
+            "status": "completed"
+          },
+          {
+            "completedAt": "2026-10-17T16:27:50Z",
+            "conclusion": "skipped",
+            "name": "Publish and read back the tested image by digest",
+            "number": 22,
+            "startedAt": "2026-10-17T16:27:50Z",
+            "status": "completed"
+          },
+          {
+            "completedAt": "2026-10-17T16:27:51Z",
+            "conclusion": "success",
+            "name": "Stop disposable local Compose services",
+            "number": 23,
+            "startedAt": "2026-10-17T16:27:50Z",
+            "status": "completed"
+          },
+          {
+            "completedAt": "2026-10-17T16:27:51Z",
+            "conclusion": "skipped",
+            "name": "Post Run actions/setup-node@820762786026740c76f36085b0efc47a31fe5020",
+            "number": 44,
+            "startedAt": "2026-10-17T16:27:51Z",
+            "status": "completed"
+          },
+          {
+            "completedAt": "2026-10-17T16:27:51Z",
+            "conclusion": "success",
+            "name": "Post Run pnpm/action-setup@0977fd99725f1db4007ccb2928dbb4e90d06cc86",
+            "number": 45,
+            "startedAt": "2026-10-17T16:27:51Z",
+            "status": "completed"
+          },
+          {
+            "completedAt": "2026-10-17T16:27:52Z",
+            "conclusion": "success",
+            "name": "Post Run actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1",
+            "number": 46,
+            "startedAt": "2026-10-17T16:27:51Z",
+            "status": "completed"
+          },
+          {
+            "completedAt": "2026-10-17T16:27:52Z",
+            "conclusion": "success",
+            "name": "Complete job",
+            "number": 47,
+            "startedAt": "2026-10-17T16:27:52Z",
+            "status": "completed"
+          }
+        ],
+        "url": "https://github.com/iurman/commandry/actions/runs/39047712252/job/117439688961"
+      }
+    ],
+    "status": "completed",
+    "url": "https://github.com/iurman/commandry/actions/runs/39047712252"
+  },
+  "browserSummary": {
+    "passed": 200,
+    "skipped": 5,
+    "failed": 2,
+    "reportedDuration": "12.9m"
+  },
+  "failures": [
+    {
+      "project": "desktop",
+      "file": "tests/e2e/gravity-master-scene.spec.ts",
+      "test": "one master scene renders and inspects the complete multi-page inventory",
+      "line": 272,
+      "observed": "Original180000ms test deadline exceeded at page.emulateMedia; theme/preceding phase not established by retained log."
+    },
+    {
+      "project": "desktop",
+      "file": "tests/e2e/infrastructure-overview.spec.ts",
+      "test": "Gravity uses canonical resources, persisted appearance, focus and truthful source evidence",
+      "line": 1585,
+      "observed": "Original5000ms predicate cannot match current browser scene containing all91API-returned F1 IDs after selecting global project scope; actual request/response/population detail not retained."
+    }
+  ],
+  "causes": "Not established. Local exact targeted source-qualified12case run remains valid; full hosted world adds distinct evidence.",
+  "ciArtifactsAvailable": 0,
+  "originalDeadlinesAndAssertionsRemainRequired": true,
+  "imagePublished": false,
+  "productionDeploymentOccurred": false,
+  "sourceActivated": false,
+  "observedAt": "2026-10-17T16:30:07.723511+00:00"
+}

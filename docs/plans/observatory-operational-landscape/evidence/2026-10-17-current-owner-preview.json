@@ -1,0 +1,23 @@
+{
+  "observedAt": "2026-10-17T16:05:49.392273+00:00",
+  "sourceSha": "bf56247ac0e20039c8e03ebda13bf334ae356850",
+  "buildId": "4m2m2ss0N9Sfmf6xgurhP",
+  "reviewUrl": "http://127.0.0.1:38553/infrastructure",
+  "fixture": "18-resource synthetic operational fixture",
+  "actualReadResourceCount": 18,
+  "bridgeSceneHttpStatus": 200,
+  "browserTab": 8,
+  "cuaReloadAndScreenshotInspected": true,
+  "visibleBannerSourceMatches": true,
+  "visibleCanonicalCountsAndSeparateFacets": true,
+  "browserCookieNotExposedByBridge": true,
+  "authMode": "test-local-password",
+  "readOnlyBridgeLimits": "No operational ingestion, Work, private views or provider-feed access; generic shell connectivity check intentionally unsupported and can show Cannot reach local app.",
+  "ownerInterpretationAccepted": false,
+  "ownerPort3217Untouched": true,
+  "initialAuthOffBridgeFailureRetained": true,
+  "actualOwnerModeSignInAndBridgeSucceeded": true,
+  "unusedAuthOffRuntimeRetiredWithVerifiedCleanup": true,
+  "priorOwnerBridge38553ReplacedOnlyAfterExactOwnershipCheck": true,
+  "legacy538BackendRetained": true
+}

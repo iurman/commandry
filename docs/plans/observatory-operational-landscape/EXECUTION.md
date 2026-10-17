@@ -2,11 +2,19 @@
 
 **Status: Operational. Implementation and local browser corrections accepted; hosted release and constrained deployment remain in progress.**
 
+## Current full-suite release boundary, 2026-10-17
+
+T37/T38 diagnostic source and executed evidence have independent Astra acceptance. Root reexecutes both worker packets, normally merges the exclusive test/workflow branches, verifies exact source bytes and passes dependency boundaries after each merge. The affected fifteen-case shared PostgreSQL18/build run passes with both original deadlines and all three viewports; the complete 207-case hosted result remains failed and unresolved. [T37 evidence](evidence/2026-10-17-shared-world-browser-diagnostics.json) retains complete IDs, phase/request records, unknown-path401console observations and strict actual cleanup. The normal diagnostic PR/main run is next.
+
+Release39047712252 completes with200PASS/5SKIP/2FAIL at the full browser stage after all preceding gates and container startup pass. No image is published. [T37 diagnosis](T37.md) records the two observed desktop failures and missing CI artifacts; independent source reviews precede a bounded causal correction. Local targeted acceptance remains exact-source qualified, and the full workflow remains unfinished.
+
 ## Current accepted local correction, 2026-10-17
 
 T35/T36 close all three reopened local cases: 53 PASS, 0 FAIL and five explicit partial/unrun limitations. Final worker 3b15e63, normally merged locally at d74e48f, retains original guarantees and passes 78 component controls plus all 12 built browser cases in 1.1 minutes. Root independently executes all five packet checks and verifies source hashes plus strict owned cleanup. Astra final source/evidence review accepts; exact prior failed attempts, final measurements and actual screenshots are in [T36](T36.md) and [sanitized final evidence](evidence/2026-10-17-browser-final.json). The subsequent prefer-const correction has a separately recorded hash and independent acceptance as preserving behavior. Repository checks and scoped browser lint pass; current final repository bytes still require the mandatory hosted release.
 
-The next authorized steps are the corrective normal PR/merge, a single full main release, exact immutable-image metadata verification, genuine protected approval, existing constrained deployment and signed-in live/source activation. No image was published or production modified by this local correction. Unchanged historical GPU/soak/database/MCP evidence retains its actual original source53827d6. Five explicit owner/device/source limitations remain; the entire workflow is unfinished.
+[PR25](https://github.com/iurman/commandry/pull/25) is normally merged at main 74d4148. Previous main 6d3b91a and reviewed head bf56247 remain ancestors, and the merged tree equals the reviewed tree. [Full release39047712252](https://github.com/iurman/commandry/actions/runs/39047712252) has failed the full browser stage at that exact main revision. T37 owns the actual failure diagnosis. See [merge evidence](evidence/2026-10-17-corrective-main-merge.json). The remaining authorized steps are exact published-image metadata verification, genuine protected approval, existing constrained deployment and signed-in live/source activation. No image was published or production modified by this local correction. Unchanged historical GPU/soak/database/MCP evidence retains its actual original source53827d6. Five explicit owner/device/source limitations remain; the entire workflow is unfinished.
+
+The current read-only [synthetic owner preview](http://127.0.0.1:38553/infrastructure) has a fresh actual bf56247 build and private compiled assets. Disposable owner sign-in, bridge read, source banner and CUA reload/pixels are verified. The initial auth-off bridge refusal is retained and corrected only in private test runtime configuration; production and the owner preview on port3217 are unchanged. It preserves synthetic-data limits and does not establish F06 owner interpretation. See [current preview evidence](evidence/2026-10-17-current-owner-preview.json).
 
 ## Retained release history, 2026-10-17
 

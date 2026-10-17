@@ -1,0 +1,18 @@
+{
+  "pr": "https://github.com/iurman/commandry/pull/25",
+  "previousMain": "6d3b91aadb25e4c7b0a05294a2d333b9be9f138f",
+  "reviewedHead": "bf56247ac0e20039c8e03ebda13bf334ae356850",
+  "mergeCommit": "74d41481dfbcfdfb4faa2730c60078d81151079b",
+  "previousMainAndReviewedHeadRemainAncestors": true,
+  "mergedTreeEqualsReviewedTree": true,
+  "mainRefVerified": true,
+  "mergedAt": "2026-10-17T16:02:30Z",
+  "status": "Normal merge verified; full release in progress",
+  "releaseRun": 39047712252,
+  "releaseUrl": "https://github.com/iurman/commandry/actions/runs/39047712252",
+  "releaseRevision": "74d41481dfbcfdfb4faa2730c60078d81151079b",
+  "releaseStatus": "in_progress",
+  "observedAt": "2026-10-17T16:06:55.001424+00:00",
+  "productionDeployed": false,
+  "sourceActivated": false
+}

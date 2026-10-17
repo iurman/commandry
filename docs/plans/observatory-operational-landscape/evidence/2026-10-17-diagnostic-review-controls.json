@@ -1,0 +1,65 @@
+{
+  "status": "Diagnostic source review corrections pending; no product cause selected",
+  "hostedFailureRun": 39047712252,
+  "hostedFailureRevision": "74d41481dfbcfdfb4faa2730c60078d81151079b",
+  "observedCounts": {
+    "passed": 200,
+    "skipped": 5,
+    "failed": 2
+  },
+  "independentStaticFindings": [
+    {
+      "area": "master",
+      "finding": "Total 180000ms budget exhaustion; theme and prior phase unknown; 299 sequential setup writes are in original budget"
+    },
+    {
+      "area": "global transition",
+      "finding": "DOM depends on both complete overview pagination and independent scene; changed overview totals reject collection without internal retry",
+      "occurredInHostedFailure": "not established"
+    },
+    {
+      "area": "workflow",
+      "finding": "Existing retained failure traces were not uploaded; artifact count zero"
+    },
+    {
+      "area": "diagnostic helper",
+      "finding": "Shared output path corrected to unique run-owned --output; static re-review accepted"
+    },
+    {
+      "area": "test diagnostics",
+      "finding": "Awaited snapshot inside original poll changes cadence; remove before source acceptance"
+    },
+    {
+      "area": "test diagnostics",
+      "finding": "Guard finally writes to preserve original thrown failure; flush both protocol and scene parser tasks with bounded pending evidence"
+    }
+  ],
+  "interruptedAttempt": {
+    "runId": "run-c28f5a84-4090-42b4-ac77-47c4c211ed3a",
+    "source": "9083c87d6455ba1e5bd2630a9e477b987a13a702",
+    "sourceClean": false,
+    "buildCompleted": true,
+    "browserExecuted": false,
+    "stoppedDuring": "preview startup before web spawn",
+    "helperExitCode": 1,
+    "normalCleanupAcceptance": "FAILED due intentional startup interruption, retained unchanged",
+    "separateObservedRecovery": {
+      "freshMatchingStoppedReceipt": true,
+      "allReceiptCleanupFlags": true,
+      "actualParentAbsent": true,
+      "actualPreviewPidAndGroupAbsent": true,
+      "actualOwnedPostgresDirectoryProcessesAbsent": true,
+      "actualTemporaryDirectoryAbsent": true
+    }
+  },
+  "workflowAction": {
+    "reference": "https://github.com/actions/upload-artifact/releases/tag/v7.0.2",
+    "version": "v7.0.2",
+    "immutableCommit": "cf430e030ddbb5b0abf93d22962f4752f3646cd9",
+    "githubApiRefVerified": true,
+    "hostedUploadExecuted": false
+  },
+  "publication": false,
+  "deployment": false,
+  "sourceActivation": false
+}
