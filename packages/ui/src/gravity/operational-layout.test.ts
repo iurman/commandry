@@ -415,6 +415,99 @@ describe("operational component interactions with the real semantic scene", () =
     };
     return { input, scene, host, props };
   }
+  it("persists implicit custom grouping from the actual add-resource action and restores it on remount", async () => {
+    const { input, scene, host, props } = setup();
+    localStorage.setItem(
+      observatoryStorageKey,
+      JSON.stringify({
+        ...defaultObservatoryPreferences(),
+        grouping: "projects",
+      }),
+    );
+    const view = render(createElement(OperationalObservatory, props));
+    await waitFor(() => expect(props.onQueryChange).toHaveBeenCalledTimes(1));
+    const projects = props.onQueryChange.mock.lastCall![0] as ObservatoryQuery;
+    expect(projects.grouping).toBe("projects");
+    view.rerender(
+      createElement(OperationalObservatory, {
+        ...props,
+        scene: projectObservatory({ ...input, ...projects }),
+      }),
+    );
+    expect(screen.getByLabelText("Observatory grouping")).toHaveValue(
+      "projects",
+    );
+    fireEvent.click(
+      screen.getByRole("button", { name: "Appearance and views" }),
+    );
+    fireEvent.change(screen.getByLabelText("Sector name"), {
+      target: { value: "Implicit sector" },
+    });
+    fireEvent.change(screen.getByRole("combobox", { name: "Resource" }), {
+      target: { value: host.resourceId },
+    });
+    fireEvent.change(
+      screen.getByRole("combobox", { name: "Group this sector by" }),
+      { target: { value: "hosts" } },
+    );
+    fireEvent.click(
+      screen.getByRole("button", { name: "Add resource to sector" }),
+    );
+    expect(props.onQueryChange).toHaveBeenCalledTimes(2);
+    const custom = props.onQueryChange.mock.lastCall![0] as ObservatoryQuery;
+    expect(custom).toMatchObject({
+      grouping: "custom",
+      sectors: [
+        {
+          id: "local-sector:Implicit%20sector",
+          label: "Implicit sector",
+          grouping: "hosts",
+          resourceIds: [host.resourceId],
+        },
+      ],
+    });
+    const response = projectObservatory({ ...input, ...custom });
+    expect(response.membershipIndex.resourceIds).toEqual(
+      scene.membershipIndex.resourceIds,
+    );
+    view.rerender(
+      createElement(OperationalObservatory, { ...props, scene: response }),
+    );
+    expect(
+      screen.getByRole("region", { name: "Operational Observatory" }),
+    ).toHaveAttribute("data-grouping", "custom");
+    expect(
+      screen.getByRole("region", { name: "Operational Observatory" }),
+    ).toHaveAttribute("data-pending", "false");
+    await waitFor(() =>
+      expect(
+        JSON.parse(localStorage.getItem(observatoryStorageKey)!),
+      ).toMatchObject({
+        grouping: "custom",
+        sectors: custom.sectors,
+      }),
+    );
+    view.unmount();
+    props.onQueryChange.mockClear();
+    const remount = render(createElement(OperationalObservatory, props));
+    await waitFor(() => expect(props.onQueryChange).toHaveBeenCalledTimes(1));
+    const restored = props.onQueryChange.mock.lastCall![0] as ObservatoryQuery;
+    expect(restored).toMatchObject({
+      grouping: "custom",
+      sectors: custom.sectors,
+    });
+    remount.rerender(
+      createElement(OperationalObservatory, {
+        ...props,
+        scene: projectObservatory({ ...input, ...restored }),
+      }),
+    );
+    expect(screen.getByLabelText("Observatory grouping")).toHaveValue("custom");
+    expect(
+      screen.getByRole("region", { name: "Operational Observatory" }),
+    ).toHaveAttribute("data-pending", "false");
+    expect(engine.update.mock.lastCall![1].cameraMode).toBe("composed");
+  });
   it.each([
     {
       name: "unsupported operational grouping in the legacy key",

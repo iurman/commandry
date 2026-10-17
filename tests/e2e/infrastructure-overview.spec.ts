@@ -1,5 +1,18 @@
 import { randomUUID } from "node:crypto";
-import { test, expect, type APIRequestContext } from "@playwright/test";
+import { mkdir, writeFile } from "node:fs/promises";
+import {
+  test,
+  expect,
+  type APIRequestContext,
+  type Response,
+} from "@playwright/test";
+import {
+  entityIdSchema,
+  observatorySceneReadResultSchema,
+  resourceSummarySchema,
+  type ObservatorySceneDto,
+} from "@commandry/contracts";
+import { mixedObservatoryFixture } from "../fixtures/observatory";
 
 async function fixture(request: APIRequestContext) {
   const name = `Network ${randomUUID().slice(0, 8)}`;
@@ -66,6 +79,193 @@ async function fixture(request: APIRequestContext) {
     });
   expect((await send()).status()).toBe(202);
   return { name, project, host, web, source, send };
+}
+
+async function fullF1Population(request: APIRequestContext) {
+  const model = mixedObservatoryFixture();
+  async function read() {
+    const response = await request.post(
+      "/api/v1/infrastructure/observatory/scene",
+      { data: { grouping: "projects" } },
+    );
+    expect(response.status()).toBe(200);
+    return observatorySceneReadResultSchema.parse(await response.json()).scene;
+  }
+  const before = await read();
+  const present = model.resources.filter((resource) =>
+    before.membershipIndex.resourceIds.includes(resource.id),
+  );
+  expect([0, model.resources.length]).toContain(present.length);
+  const useExisting =
+    present.length === model.resources.length &&
+    process.env.COMMANDRY_E2E_FORCE_F1_API !== "1";
+  const suffix = `TV ${randomUUID().slice(0, 8)}`;
+  const projects = new Map<string, { id: string; name: string }>();
+  const resources = new Map<string, { id: string; name: string }>();
+  for (const project of model.projects) {
+    if (useExisting) {
+      projects.set(project.id, project);
+      continue;
+    }
+    const name = `${project.name} ${suffix}`;
+    const response = await request.post("/api/v1/projects", { data: { name } });
+    expect(response.status()).toBe(201);
+    const created = await response.json();
+    expect(created.name).toBe(name);
+    projects.set(project.id, { id: entityIdSchema.parse(created.id), name });
+  }
+  for (const resource of model.resources) {
+    if (useExisting) {
+      resources.set(resource.id, resource);
+      continue;
+    }
+    const name = `${resource.name} ${suffix}`;
+    const response = await request.post("/api/v1/resources", {
+      data: { name, kind: resource.kind },
+    });
+    expect(response.status()).toBe(201);
+    const created = resourceSummarySchema.parse(await response.json());
+    expect(created).toMatchObject({ name, kind: resource.kind });
+    resources.set(resource.id, { id: created.id, name });
+  }
+  const observed = model.resources.filter(
+    (resource) => resource.sources.length,
+  );
+  const memberships = new Map(
+    model.resources.map((resource) => [
+      resource.id,
+      resource.projects.map((project) => projects.get(project.id)!),
+    ]),
+  );
+  for (const [index, resource] of observed.entries()) {
+    if (!memberships.get(resource.id)!.length)
+      memberships.set(resource.id, [
+        projects.get(model.projects[index + 4]!.id)!,
+      ]);
+  }
+  if (!useExisting) {
+    for (const resource of model.resources) {
+      const current = resources.get(resource.id)!;
+      for (const project of memberships.get(resource.id)!)
+        expect(
+          (
+            await request.post(`/api/v1/projects/${project.id}/resources`, {
+              data: { resourceId: current.id, type: "supports" },
+            })
+          ).status(),
+        ).toBe(201);
+      if (resource.parentResourceId)
+        expect(
+          (
+            await request.put(`/api/v1/resources/${current.id}/parent`, {
+              data: {
+                parentResourceId: resources.get(resource.parentResourceId)!.id,
+                expectedParentResourceId: null,
+              },
+            })
+          ).status(),
+        ).toBe(200);
+    }
+    for (const [index, resource] of observed.entries()) {
+      const identifier = `tv-f1-${suffix.slice(3)}-${index}`;
+      const sourceResponse = await request.post("/api/v1/real-integrations", {
+        data: {
+          name: `${resource.name} ${suffix} telemetry`,
+          kind: "linux-host",
+          projectId: memberships.get(resource.id)![0]!.id,
+          resourceId: resources.get(resource.id)!.id,
+          identifier,
+          freshnessWindowMinutes: 10080,
+        },
+      });
+      expect(sourceResponse.status()).toBe(201);
+      const source = await sourceResponse.json();
+      const tokenResponse = await request.post(
+        `/api/v1/real-integrations/${entityIdSchema.parse(source.id)}/token`,
+      );
+      expect(tokenResponse.status()).toBe(201);
+      const token = await tokenResponse.json();
+      expect(
+        (
+          await request.post(`/api/v1/real-integrations/${source.id}/receive`, {
+            headers: { authorization: `Bearer ${token.token}` },
+            data: {
+              hostname: identifier,
+              sampleId: randomUUID(),
+              observedAt: new Date().toISOString(),
+              memory: { totalBytes: 17179869184, availableBytes: 8589934592 },
+              disk: { totalBytes: 107374182400, availableBytes: 53687091200 },
+              uptimeSeconds: 3600,
+              load1Milli: 1500,
+            },
+          })
+        ).status(),
+      ).toBe(202);
+    }
+  }
+  const scene = await read();
+  const canonical = new Map(
+    scene.representations
+      .filter((node) => node.resourceId && !node.referenceTo)
+      .map((node) => [node.resourceId!, node]),
+  );
+  const mapped = model.resources.map((resource) => {
+    const current = resources.get(resource.id)!;
+    const parentResourceId = resource.parentResourceId
+      ? resources.get(resource.parentResourceId)!.id
+      : null;
+    const node = canonical.get(current.id)!;
+    expect(node).toMatchObject({ label: current.name, kind: resource.kind });
+    expect(node.projects.map((project) => project.id).sort()).toEqual(
+      memberships
+        .get(resource.id)!
+        .map((project) => project.id)
+        .sort(),
+    );
+    expect(
+      scene.containment.find((item) => item.resourceId === current.id)
+        ?.parentResourceId ?? null,
+    ).toBe(parentResourceId);
+    expect(scene.membershipIndex.resourceIds).toContain(current.id);
+    return { ...current, kind: resource.kind, parentResourceId };
+  });
+  expect(mapped).toHaveLength(91);
+  expect(
+    new Set([...projects.values()].map((project) => project.id)).size,
+  ).toBe(15);
+  expect(
+    mapped.filter((resource) => resource.kind === "repository"),
+  ).toHaveLength(60);
+  expect(mapped.filter((resource) => resource.kind === "host")).toHaveLength(
+    18,
+  );
+  expect(mapped.filter((resource) => resource.kind === "service")).toHaveLength(
+    13,
+  );
+  expect(
+    [...memberships.values()].filter((items) => items.length > 1),
+  ).toHaveLength(7);
+  expect(
+    model.resources.filter(
+      (resource) =>
+        resource.kind === "repository" && !memberships.get(resource.id)!.length,
+    ),
+  ).toHaveLength(48);
+  expect(
+    scene.sourceObservations.filter(
+      (item) =>
+        observed.some(
+          (resource) => resources.get(resource.id)!.id === item.resourceId,
+        ) && item.state === "reporting",
+    ),
+  ).toHaveLength(4);
+  for (const id of before.membershipIndex.resourceIds)
+    expect(scene.membershipIndex.resourceIds).toContain(id);
+  return {
+    resources: mapped,
+    strategy: useExisting ? "provided-seed" : "real-api",
+    projectIds: [...projects.values()].map((project) => project.id),
+  };
 }
 
 test("map, list, evidence, project focus and wallboard work across themes and viewports", async ({
@@ -150,6 +350,10 @@ test("map, list, evidence, project focus and wallboard work across themes and vi
     await expect(
       page.getByRole("button", { name: "TV style" }),
     ).toHaveAttribute("aria-pressed", "true");
+    await page.getByRole("button", { name: "Topology", exact: true }).click();
+    await expect
+      .poll(() => page.locator(".cmd-network-node strong").count())
+      .toBeGreaterThan(0);
     const labelsFit = await page
       .locator(".cmd-network-node strong")
       .evaluateAll((labels) =>
@@ -181,6 +385,7 @@ test("map, list, evidence, project focus and wallboard work across themes and vi
       f.project.id,
     );
   }
+  await page.getByRole("button", { name: "Topology", exact: true }).click();
   await page.getByLabel("Find a resource").fill("does-not-exist");
   await page.getByRole("button", { name: "Search", exact: true }).click();
   await expect(
@@ -364,49 +569,144 @@ test("Gravity uses canonical resources, persisted appearance, focus and truthful
   test.setTimeout(120000);
   const f = await fixture(request);
   const errors: string[] = [];
+  async function attachJson(name: string, value: unknown) {
+    const path = testInfo.outputPath(`${name}.json`);
+    await mkdir(testInfo.outputDir, { recursive: true });
+    await writeFile(path, JSON.stringify(value, null, 2) + "\n");
+    await testInfo.attach(name, { path, contentType: "application/json" });
+  }
   page.on("pageerror", (error) => errors.push(error.message));
+  let expectedIds = [f.host.id, f.web.id].sort();
+  let fullPopulationMode = false;
+  let fullPopulationIds: string[] = [];
+  let navigation = 0;
+  const requestNavigation = new WeakMap<object, number>();
+  const browserScenes = new Map<
+    string,
+    { scene: ObservatorySceneDto; query: unknown }
+  >();
+  const responseChecks: Promise<void>[] = [];
+  page.on("framenavigated", (frame) => {
+    if (frame === page.mainFrame()) {
+      navigation++;
+      browserScenes.clear();
+    }
+  });
+  page.on("request", (outgoing) => {
+    requestNavigation.set(outgoing, navigation);
+  });
+  async function inspectResponse(response: Response) {
+    const ticket = requestNavigation.get(response.request());
+    if (
+      ticket !== navigation ||
+      !response.ok() ||
+      response.request().method() !== "POST" ||
+      new URL(response.url()).pathname !==
+        "/api/v1/infrastructure/observatory/scene"
+    )
+      return;
+    const query = response.request().postDataJSON();
+    const matchesIntendedScope = () =>
+      !!query &&
+      typeof query === "object" &&
+      !Array.isArray(query) &&
+      (fullPopulationMode
+        ? !Object.hasOwn(query, "projectId")
+        : query.projectId === f.project.id);
+    if (!matchesIntendedScope()) return;
+    try {
+      let text: string;
+      try {
+        text = await response.text();
+      } catch (error) {
+        if (response.request().failure()?.errorText === "net::ERR_ABORTED")
+          return;
+        await response.finished();
+        if (response.request().failure()?.errorText === "net::ERR_ABORTED")
+          return;
+        throw error;
+      }
+      const { scene } = observatorySceneReadResultSchema.parse(
+        JSON.parse(text),
+      );
+      if (ticket === navigation && matchesIntendedScope())
+        browserScenes.set(
+          JSON.stringify([
+            scene.grouping,
+            scene.viewRevision,
+            scene.projectionRevision,
+          ]),
+          { scene, query },
+        );
+    } catch (error) {
+      if (ticket === navigation)
+        errors.push(
+          `Invalid successful scene response: ${error instanceof Error ? error.message : "unknown"}`,
+        );
+    }
+  }
+  page.on("response", (response) => {
+    responseChecks.push(inspectResponse(response));
+  });
   // Geometry assertions measure the settled view independently of GPU cadence.
   await page.addInitScript(() => {
     const original = window.IntersectionObserver;
     const history: unknown[] = [];
-    Object.assign(window, { gravityIntersectionHistory: history });
+    const state = { observed: 0, falseDelivered: 0, suppressed: 0, history };
+    Object.assign(window, {
+      gravityIntersectionHistory: history,
+      gravityIntersectionState: state,
+    });
+    let sequence = 0;
     window.IntersectionObserver = class extends original {
       constructor(
         callback: IntersectionObserverCallback,
         options?: IntersectionObserverInit,
       ) {
-        let delivered = false;
+        const observerId = ++sequence;
+        const delivered = new Set<Element>();
         super((entries, observer) => {
-          const latest = entries.at(-1);
-          if (!latest?.target.classList.contains("cmd-gravity-canvas")) {
-            callback(entries, observer);
-            return;
+          const unrelated = entries.filter(
+            (entry) => !entry.target.classList.contains("cmd-op-canvas"),
+          );
+          if (unrelated.length) callback(unrelated, observer);
+          for (const latest of entries.filter((entry) =>
+            entry.target.classList.contains("cmd-op-canvas"),
+          )) {
+            state.observed++;
+            const first = !delivered.has(latest.target);
+            history.push({
+              observerId,
+              target: latest.target.className,
+              time: latest.time,
+              intersecting: latest.isIntersecting,
+              bounds: latest.boundingClientRect.toJSON(),
+              forwarded: first ? false : null,
+              suppressed: !first,
+            });
+            // Reproduce a paused observer: deliver initial false, then withhold
+            // subsequent notifications. Real scrolling must wake the scene.
+            if (!first) {
+              state.suppressed++;
+              continue;
+            }
+            delivered.add(latest.target);
+            state.falseDelivered++;
+            callback(
+              [
+                {
+                  time: latest.time,
+                  target: latest.target,
+                  rootBounds: latest.rootBounds,
+                  boundingClientRect: latest.boundingClientRect,
+                  intersectionRect: new DOMRect(),
+                  intersectionRatio: 0,
+                  isIntersecting: false,
+                },
+              ],
+              observer,
+            );
           }
-          history.push(
-            entries.map((entry) => ({
-              time: entry.time,
-              intersecting: entry.isIntersecting,
-              bounds: entry.boundingClientRect.toJSON(),
-            })),
-          );
-          // Reproduce a paused observer: deliver initial false, then withhold
-          // subsequent notifications. Real scrolling must wake the scene.
-          if (delivered) return;
-          delivered = true;
-          callback(
-            [
-              {
-                time: latest.time,
-                target: latest.target,
-                rootBounds: latest.rootBounds,
-                boundingClientRect: latest.boundingClientRect,
-                intersectionRect: new DOMRect(),
-                intersectionRatio: 0,
-                isIntersecting: false,
-              },
-            ],
-            observer,
-          );
         }, options);
       }
     };
@@ -414,191 +714,1059 @@ test("Gravity uses canonical resources, persisted appearance, focus and truthful
   await page.emulateMedia({ reducedMotion: "reduce" });
   await page.goto(`/infrastructure?projectId=${f.project.id}`);
   const gravity = page.getByRole("region", {
-    name: "Gravity Observatory",
+    name: "Operational Observatory",
     exact: true,
   });
-  await expect(
-    gravity.getByRole("combobox", { name: "Gravity grouping" }),
-  ).toBeVisible();
-  const host = gravity.getByRole("button", {
-    name: `Select ${f.host.name}, host, Reporting`,
+  const grouping = gravity.getByRole("combobox", {
+    name: "Observatory grouping",
     exact: true,
   });
-  await host.click();
-  await expect(
-    page.getByRole("region", {
-      name: `Selected resource ${f.host.name}`,
-      exact: true,
-    }),
-  ).toContainText("Service health: unknown");
-  await expect(
-    gravity.getByText("Reporting / Service health: unknown", { exact: true }),
-  ).toBeVisible();
-  await expect(gravity.locator("canvas")).toBeVisible();
-  await gravity
-    .getByRole("button", { name: "Open focus lens", exact: true })
-    .click();
-  await expect(
-    gravity.getByRole("button", { name: "Close focus lens", exact: true }),
-  ).toBeVisible();
-  await gravity.locator("canvas").scrollIntoViewIfNeeded();
-  let lastLensGeometry: unknown;
-  try {
+  const canvas = gravity.locator(".cmd-op-canvas canvas");
+  const outline = gravity.locator(".cmd-op-outline");
+  const inspector = gravity.getByRole("complementary", {
+    name: "Observatory inspector",
+    exact: true,
+  });
+  const appearance = gravity.getByRole("button", {
+    name: "Appearance and views",
+    exact: true,
+  });
+  await expect(grouping).toBeVisible();
+  async function applied(expectedGrouping?: string) {
+    if (expectedGrouping)
+      await expect(gravity).toHaveAttribute("data-grouping", expectedGrouping);
+    await expect(gravity).toHaveAttribute("data-pending", "false");
+    let result: { scene: ObservatorySceneDto; query: unknown } | undefined;
     await expect
       .poll(async () => {
-        const geometry = await gravity
-          .locator(".cmd-gravity-lens")
-          .evaluate((element) => {
-            const parent = element.parentElement!;
-            const stage = parent.getBoundingClientRect();
-            const container = parent.querySelector(".cmd-gravity-canvas");
-            const canvas = container?.querySelector("canvas");
-            const renderedWidth = element.getBoundingClientRect().width;
-            const expectedWidth = Math.min(
-              stage.height * 0.72,
-              stage.width * 0.62,
-            );
-            const delta = Math.abs(renderedWidth - expectedWidth);
-            const style = getComputedStyle(element);
-            return {
-              settled: delta < 1,
-              renderedWidth,
-              expectedWidth,
-              delta,
-              stageWidth: stage.width,
-              stageHeight: stage.height,
-              containerWidth: container?.clientWidth ?? null,
-              containerHeight: container?.clientHeight ?? null,
-              inlineWidth: (element as HTMLElement).style.width,
-              computedWidth: style.width,
-              transform: style.transform,
-              opacity: style.opacity,
-              documentHidden: document.hidden,
-              viewportHeight: innerHeight,
-              containerTop: container?.getBoundingClientRect().top ?? null,
-              canvasDiagnostics: canvas ? { ...canvas.dataset } : null,
-              intersections: (
-                window as unknown as { gravityIntersectionHistory: unknown[] }
-              ).gravityIntersectionHistory,
-            };
-          });
-        lastLensGeometry = geometry;
-        return geometry.settled;
+        result = browserScenes.get(
+          JSON.stringify([
+            await gravity.getAttribute("data-grouping"),
+            await gravity.getAttribute("data-view-revision"),
+            await gravity.getAttribute("data-projection-revision"),
+          ]),
+        );
+        return !!result;
       })
       .toBe(true);
-  } catch (error) {
-    console.error(
-      "Focus lens geometry at failure:",
-      JSON.stringify(lastLensGeometry),
-    );
-    throw error;
+    const scene = result!.scene;
+    if (fullPopulationMode) {
+      const required = [...fullPopulationIds, ...expectedIds];
+      for (const id of required)
+        expect(scene.membershipIndex.resourceIds).toContain(id);
+      expectedIds = [...scene.membershipIndex.resourceIds];
+    }
+    expect(scene.membershipIndex.resourceIds).toEqual(expectedIds);
+    expect(
+      scene.representations
+        .filter((node) => node.resourceId && !node.referenceTo)
+        .map((node) => node.resourceId!)
+        .sort(),
+    ).toEqual(expectedIds);
+    expect(
+      scene.containment.find((item) => item.resourceId === f.web.id)
+        ?.parentResourceId,
+    ).toBe(f.host.id);
+    const nodes = new Map(scene.representations.map((node) => [node.id, node]));
+    const represented = new Set<string>(),
+      visited = new Set<string>(),
+      pending = [...scene.visibleRepresentationIds];
+    while (pending.length) {
+      const id = pending.pop()!;
+      if (visited.has(id)) continue;
+      visited.add(id);
+      for (const member of scene.membershipIndex.directMembers[id] ?? [])
+        represented.add(member);
+      pending.push(...(scene.membershipIndex.children[id] ?? []));
+      const reference = nodes.get(id)?.referenceTo;
+      if (reference) pending.push(reference);
+    }
+    expect([...represented].sort()).toEqual(expectedIds);
+    await canvas.scrollIntoViewIfNeeded();
+    await expect
+      .poll(async () =>
+        Number(await canvas.getAttribute("data-gravity-contributions")),
+      )
+      .toBe(scene.visibleRepresentationIds.length);
+    return result!;
   }
-  // A clipped ancestor must still pause GPU work, even with stale IO delivery.
-  const previousStyle = await gravity
-    .locator(".cmd-gravity")
-    .evaluate((element) => {
-      const previous = element.getAttribute("style");
-      Object.assign((element as HTMLElement).style, {
-        height: "0px",
-        maxHeight: "0px",
-        minHeight: "0px",
-        overflow: "hidden",
-      });
-      document.dispatchEvent(new Event("scroll"));
-      return previous;
+  async function expandCompleteOutline() {
+    if (
+      !(await outline.evaluate(
+        (element) => (element as HTMLDetailsElement).open,
+      ))
+    )
+      await outline.locator("summary").click();
+    const { scene } = await applied();
+    let expanded = 0;
+    if (fullPopulationMode) {
+      // The additional full-population setup opens each mounted level through
+      // its real handlers; original scoped journeys retain pointer clicks.
+      while (true) {
+        const count = await outline
+          .locator('button[aria-expanded="false"]')
+          .evaluateAll(async (buttons) => {
+            for (const button of buttons) {
+              if ((button as HTMLButtonElement).disabled)
+                throw new Error("Full-inventory expansion control is disabled");
+              // Each real toggle captures its rendered query. Wait for its
+              // actual commit before the next handler reads that query.
+              await new Promise<void>((resolve, reject) => {
+                let timer: ReturnType<typeof setTimeout>;
+                const observer = new MutationObserver(() => {
+                  if (button.getAttribute("aria-expanded") === "true") {
+                    clearTimeout(timer);
+                    observer.disconnect();
+                    resolve();
+                  }
+                });
+                observer.observe(button, { attributes: true });
+                timer = setTimeout(() => {
+                  observer.disconnect();
+                  reject(new Error("Full-inventory expansion did not commit"));
+                }, 5000);
+                (button as HTMLButtonElement).click();
+                if (button.getAttribute("aria-expanded") === "true") {
+                  clearTimeout(timer);
+                  observer.disconnect();
+                  resolve();
+                }
+              });
+            }
+            return buttons.length;
+          });
+        if (!count) break;
+        expanded += count;
+        expect(expanded).toBeLessThanOrEqual(scene.representations.length);
+        await applied();
+      }
+    }
+    while (await outline.locator('button[aria-expanded="false"]').count()) {
+      expect(++expanded).toBeLessThanOrEqual(scene.representations.length);
+      await outline.locator('button[aria-expanded="false"]').first().click();
+    }
+    await applied();
+    expect(
+      (
+        await outline
+          .locator("li[data-resource-id]:not([data-reference])")
+          .evaluateAll((elements) =>
+            elements.map((element) => element.getAttribute("data-resource-id")),
+          )
+      ).sort(),
+    ).toEqual(expectedIds);
+    const controls = outline.locator(
+      "li[data-resource-id]:not([data-reference]) > .cmd-op-outline-row > button:not(.cmd-op-expand)",
+    );
+    await expect(controls).toHaveCount(expectedIds.length);
+    expect(
+      await controls.evaluateAll((buttons) =>
+        buttons.every((button) => !(button as HTMLButtonElement).disabled),
+      ),
+    ).toBe(true);
+  }
+  const canonicalRow = (id: string) =>
+    outline.locator(
+      `li[data-resource-id="${id}"]:not([data-reference]) > .cmd-op-outline-row > button:not(.cmd-op-expand)`,
+    );
+  async function selectCanonical(id: string, name: string) {
+    await expandCompleteOutline();
+    const row = canonicalRow(id);
+    await expect(row).toHaveCount(1);
+    await row.click();
+    await expect(row).toHaveAttribute("aria-pressed", "true");
+    await expect(
+      outline.locator(
+        'li[data-resource-id]:not([data-reference]) > .cmd-op-outline-row > button[aria-pressed="true"]',
+      ),
+    ).toHaveCount(1);
+    await expect(
+      inspector.getByRole("heading", { name, exact: true }),
+    ).toBeVisible();
+    await expect(
+      inspector.locator("code").filter({ hasText: new RegExp(`^${id}$`) }),
+    ).toHaveText(id);
+    const result = await applied();
+    const node = result.scene.representations.find(
+      (item) => item.resourceId === id && !item.referenceTo,
+    )!;
+    await expect(canvas).toHaveAttribute("data-gravity-main-focus", node.id);
+    await expect(gravity.locator(".cmd-op-stage-caption strong")).toHaveText(
+      name,
+    );
+    return { ...result, node };
+  }
+  async function availabilityRemainsUnknown(
+    node: ObservatorySceneDto["representations"][number],
+  ) {
+    expect(node.summary.availability.passing).toBe(0);
+    expect(node.summary.coverage.monitored).toBe(0);
+    expect(node.summary.coverage.state).toBe("not_monitored");
+    await expect(inspector.locator(".cmd-op-availability")).toContainText(
+      "0 passing",
+    );
+    await expect(inspector.locator(".cmd-op-availability")).toContainText(
+      "Not monitored",
+    );
+  }
+  async function pose() {
+    const value = await canvas.evaluate((element) => {
+      const position =
+        element.getAttribute("data-gravity-camera-position") ?? "";
+      const target = element.getAttribute("data-gravity-camera-target") ?? "";
+      const values = [...position.split(","), ...target.split(",")].map(Number);
+      return {
+        position,
+        target,
+        finite:
+          values.length === 6 &&
+          values.every(Number.isFinite) &&
+          !!position &&
+          !!target,
+        frames: Number(element.getAttribute("data-gravity-rendered-frames")),
+      };
     });
-  await expect(gravity.locator("canvas")).toHaveAttribute(
-    "data-gravity-visible",
-    "false",
+    expect(value.finite).toBe(true);
+    expect(value.frames).toBeGreaterThan(0);
+    return value;
+  }
+  async function intersectionState() {
+    return page.evaluate(
+      () =>
+        (
+          window as unknown as {
+            gravityIntersectionState: {
+              observed: number;
+              falseDelivered: number;
+              suppressed: number;
+              history: {
+                observerId: number;
+                forwarded: boolean | null;
+                suppressed: boolean;
+              }[];
+            };
+          }
+        ).gravityIntersectionState,
+    );
+  }
+  const selectedHost = await selectCanonical(f.host.id, f.host.name);
+  await availabilityRemainsUnknown(selectedHost.node);
+  expect(selectedHost.node.summary.telemetry.counts.reporting).toBeGreaterThan(
+    0,
   );
-  const pausedFrames = await gravity
-    .locator("canvas")
-    .getAttribute("data-gravity-rendered-frames");
+  await expect(
+    inspector
+      .locator(".cmd-op-facet")
+      .filter({ hasText: "Telemetry freshness" }),
+  ).toContainText("reporting");
+  await inspector.getByText("Observation evidence", { exact: true }).click();
+  const source = selectedHost.scene.sourceObservations.find(
+    (item) => item.resourceId === f.host.id && item.sourceId === f.source.id,
+  )!;
+  expect(source).toBeTruthy();
+  expect(source.observedAt).not.toBeNull();
+  const observedAt = Date.parse(source.observedAt!);
+  expect(Number.isFinite(observedAt)).toBe(true);
+  expect(
+    Date.parse(selectedHost.scene.evaluatedAt) - observedAt,
+  ).toBeGreaterThanOrEqual(0);
+  expect(Date.parse(selectedHost.scene.evaluatedAt) - observedAt).toBeLessThan(
+    5 * 60_000,
+  );
+  const sourceArticle = inspector
+    .locator("article")
+    .filter({ hasText: `Source ${f.source.id}:` });
+  await expect(sourceArticle).toHaveCount(1);
+  await expect(sourceArticle).toContainText(`Observed ${source.observedAt}`);
+  for (const [metricName, value] of [
+    ["host_memory_used", 40],
+    ["host_disk_used", 25],
+  ] as const) {
+    const metric = selectedHost.scene.capacityObservations.find(
+      (item) => item.resourceId === f.host.id && item.name === metricName,
+    )!;
+    expect(metric.value).toBe(value);
+    expect(metric.observedAt).toBe(source.observedAt);
+    const article = inspector
+      .locator("article")
+      .filter({ hasText: `${metricName}:` });
+    await expect(article).toContainText(`Observed ${metric.observedAt}`);
+    const href = await article
+      .getByRole("link", { name: "Source evidence", exact: true })
+      .getAttribute("href");
+    expect((await request.get(href!)).status()).toBe(200);
+  }
+  await gravity
+    .getByLabel("Search complete Observatory inventory", { exact: true })
+    .fill(f.web.id);
+  await applied();
+  const searchResults = gravity.getByRole("region", {
+    name: "Complete inventory search results",
+    exact: true,
+  });
+  await expect(searchResults.getByRole("button")).toHaveCount(1);
+  await searchResults.getByRole("button").click();
+  await expect(
+    inspector.locator("code").filter({ hasText: new RegExp(`^${f.web.id}$`) }),
+  ).toHaveText(f.web.id);
+  await gravity
+    .getByRole("button", { name: "Clear search", exact: true })
+    .click();
+  await applied();
+  await expect(
+    inspector.locator("code").filter({ hasText: new RegExp(`^${f.host.id}$`) }),
+  ).toHaveText(f.host.id);
+  await expect(canvas).toHaveAttribute(
+    "data-gravity-main-focus",
+    selectedHost.node.id,
+  );
+  await expect(canvas).toBeVisible();
+  await pose();
+  await appearance.click();
+  const lensChoice = page.getByLabel("Optional selected-subject lens", {
+    exact: true,
+  });
+  await lensChoice.check();
+  await expect(lensChoice).toBeChecked();
+  await page.keyboard.press("Escape");
+  await expect(appearance).toBeFocused();
+  await canvas.scrollIntoViewIfNeeded();
+  const lens = gravity.locator(".cmd-op-lens");
+  await expect(lens).toBeVisible();
+  await expect(lens).toContainText(f.host.name);
+  await expect
+    .poll(async () => (await intersectionState()).falseDelivered)
+    .toBeGreaterThan(0);
+  let lastLensGeometry: unknown;
+  async function lensAgreesWithSharedViewport() {
+    try {
+      await expect
+        .poll(async () => {
+          const geometry = await lens.evaluate((element) => {
+            const parent = element.parentElement!;
+            const stage = parent.getBoundingClientRect();
+            const container =
+              parent.querySelector<HTMLElement>(".cmd-op-canvas")!;
+            const canvas = container.querySelector("canvas")!;
+            const bounds = container.getBoundingClientRect();
+            const rect = element.getBoundingClientRect();
+            const width = container.clientWidth;
+            const height = container.clientHeight;
+            const radius = Math.min(height * 0.22, width * 0.22, 220);
+            const expectedWidth = 2 * radius;
+            const expectedX = bounds.left + width * 0.76;
+            const expectedY = bounds.top + height * 0.3;
+            const delta = Math.max(
+              Math.abs(rect.width - expectedWidth),
+              Math.abs(rect.height - expectedWidth),
+              Math.abs(rect.left + rect.width / 2 - expectedX),
+              Math.abs(rect.top + rect.height / 2 - expectedY),
+            );
+            const style = getComputedStyle(element);
+            return {
+              settled:
+                width > 0 &&
+                height > 0 &&
+                delta < 1 &&
+                Number(canvas.dataset.gravityLensAmount) === 1 &&
+                canvas.dataset.gravityFocusRequested === "true" &&
+                canvas.dataset.gravitySelectedPresent === "true" &&
+                Number(canvas.dataset.gravityFocusVertices) > 0 &&
+                Number(style.opacity) > 0.99 &&
+                style.visibility === "visible" &&
+                rect.left >= bounds.left - 1 &&
+                rect.right <= bounds.right + 1 &&
+                rect.top >= bounds.top - 1 &&
+                rect.bottom <= bounds.bottom + 1,
+              renderedWidth: rect.width,
+              expectedWidth,
+              expectedX,
+              expectedY,
+              radius,
+              delta,
+              lens: rect.toJSON(),
+              stage: stage.toJSON(),
+              container: bounds.toJSON(),
+              containerWidth: width,
+              containerHeight: height,
+              inlineWidth: (element as HTMLElement).style.width,
+              computedWidth: style.width,
+              computedHeight: style.height,
+              maxWidth: style.maxWidth,
+              transform: style.transform,
+              opacity: style.opacity,
+              visibility: style.visibility,
+              documentHidden: document.hidden,
+              viewport: { width: innerWidth, height: innerHeight },
+              canvasDiagnostics: { ...canvas.dataset },
+              intersections: (
+                window as unknown as { gravityIntersectionState: unknown }
+              ).gravityIntersectionState,
+            };
+          });
+          lastLensGeometry = geometry;
+          return geometry.settled;
+        })
+        .toBe(true);
+    } catch (error) {
+      console.error(
+        "Focus lens geometry at failure:",
+        JSON.stringify(lastLensGeometry),
+      );
+      throw error;
+    }
+  }
+  await lensAgreesWithSharedViewport();
+  // A clipped ancestor must still pause GPU work, even with stale IO delivery.
+  const beforeClip = await intersectionState();
+  const clippedBounds = await gravity.evaluate((element) => {
+    const previous = element.getAttribute("style");
+    Object.assign((element as HTMLElement).style, {
+      height: "0px",
+      maxHeight: "0px",
+      minHeight: "0px",
+      overflow: "hidden",
+    });
+    document.dispatchEvent(new Event("scroll"));
+    const container = element.querySelector<HTMLElement>(".cmd-op-canvas")!;
+    return {
+      previous,
+      ancestor: element.getBoundingClientRect().toJSON(),
+      clippedHeight: element.clientHeight,
+      container: container.getBoundingClientRect().toJSON(),
+      containerWidth: container.clientWidth,
+      containerHeight: container.clientHeight,
+    };
+  });
+  expect(clippedBounds.clippedHeight).toBe(0);
+  expect(clippedBounds.containerWidth).toBeGreaterThan(0);
+  expect(clippedBounds.containerHeight).toBeGreaterThan(0);
+  await expect(canvas).toHaveAttribute("data-gravity-visible", "false");
+  const pausedFrames = Number(
+    await canvas.getAttribute("data-gravity-rendered-frames"),
+  );
+  expect(Number.isFinite(pausedFrames)).toBe(true);
+  expect(pausedFrames).toBeGreaterThan(0);
   await page.waitForTimeout(150);
-  await expect(gravity.locator("canvas")).toHaveAttribute(
+  await expect(canvas).toHaveAttribute(
     "data-gravity-rendered-frames",
-    pausedFrames!,
+    String(pausedFrames),
   );
-  await gravity.locator(".cmd-gravity").evaluate((element, previous) => {
+  await gravity.evaluate((element, previous) => {
     if (previous === null) element.removeAttribute("style");
     else element.setAttribute("style", previous);
     document.dispatchEvent(new Event("scroll"));
-  }, previousStyle);
-  await gravity.locator("canvas").scrollIntoViewIfNeeded();
-  await expect(gravity.locator("canvas")).toHaveAttribute(
-    "data-gravity-visible",
-    "true",
-  );
-  await gravity
-    .getByRole("button", { name: "Close focus lens", exact: true })
+  }, clippedBounds.previous);
+  await canvas.scrollIntoViewIfNeeded();
+  await expect(canvas).toHaveAttribute("data-gravity-visible", "true");
+  await expect
+    .poll(async () =>
+      Number(await canvas.getAttribute("data-gravity-rendered-frames")),
+    )
+    .toBeGreaterThan(pausedFrames);
+  await expect
+    .poll(async () => (await intersectionState()).suppressed)
+    .toBeGreaterThan(beforeClip.suppressed);
+  const observer = await intersectionState();
+  expect(observer.observed).toBeGreaterThan(0);
+  expect(
+    observer.history
+      .filter((entry) => entry.forwarded !== null)
+      .every((entry) => entry.forwarded === false),
+  ).toBe(true);
+  await lensAgreesWithSharedViewport();
+  await appearance.click();
+  await lensChoice.uncheck();
+  await expect(lensChoice).not.toBeChecked();
+  await page.keyboard.press("Escape");
+  await expect(lens).toHaveCount(0);
+  await grouping.selectOption("custom");
+  await applied("custom");
+  await appearance.click();
+  await page.getByLabel("Sector name", { exact: true }).fill("Home lab");
+  await page
+    .getByRole("combobox", { name: "Resource", exact: true })
+    .selectOption(f.host.id);
+  await page
+    .locator("label")
+    .filter({ hasText: "Group this sector by" })
+    .getByRole("combobox")
+    .selectOption("hosts");
+  await page
+    .getByRole("button", { name: "Add resource to sector", exact: true })
     .click();
-  await gravity.getByLabel("Gravity grouping").selectOption("custom");
-  await gravity.getByLabel("Custom layout sector").fill("Home lab");
-  await gravity.getByText("Appearance", { exact: true }).click();
-  await gravity.getByLabel("Gravity surface").selectOption("midnight");
-  await gravity.getByText("Appearance", { exact: true }).click();
+  await expect(
+    page.getByText("Home lab / 1 members / hosts", { exact: true }),
+  ).toBeVisible();
+  const theme = page.getByRole("combobox", {
+    name: "Surface theme",
+    exact: true,
+  });
+  await expect(theme).toBeVisible();
+  await theme.selectOption("midnight");
+  await page.keyboard.press("Escape");
+  const custom = await applied("custom");
+  expect(custom.query).toMatchObject({
+    sectors: [
+      { label: "Home lab", grouping: "hosts", resourceIds: [f.host.id] },
+    ],
+  });
   await page.reload();
-  await expect(gravity.getByLabel("Gravity grouping")).toHaveValue("custom");
-  await gravity
-    .getByRole("button", {
-      name: `Select ${f.host.name}, host, Reporting`,
+  await expect(grouping).toHaveValue("custom");
+  const restored = await applied("custom");
+  expect(restored.query).toMatchObject({
+    sectors: [
+      { label: "Home lab", grouping: "hosts", resourceIds: [f.host.id] },
+    ],
+  });
+  await expect(gravity).toHaveAttribute("data-theme", "midnight");
+  await selectCanonical(f.host.id, f.host.name);
+  await appearance.click();
+  await expect(theme).toBeVisible();
+  await expect(theme).toHaveValue("midnight");
+  await expect(
+    page.getByText("Home lab / 1 members / hosts", { exact: true }),
+  ).toBeVisible();
+  await expect(
+    page
+      .getByRole("combobox", { name: "Resource", exact: true })
+      .getByRole("option", { name: `${f.host.name} / Host`, exact: true }),
+  ).toHaveAttribute("value", f.host.id);
+  await page.keyboard.press("Escape");
+  await grouping.selectOption("projects");
+  await applied("projects");
+  await expect
+    .poll(() =>
+      page.evaluate(() =>
+        JSON.parse(
+          localStorage.getItem("commandry.infrastructure.observatory.v2") ??
+            "null",
+        ),
+      ),
+    )
+    .toMatchObject({ grouping: "projects" });
+  await appearance.click();
+  await page.getByLabel("Sector name", { exact: true }).fill("Home lab");
+  await page
+    .getByRole("combobox", { name: "Resource", exact: true })
+    .selectOption(f.host.id);
+  await page
+    .locator("label")
+    .filter({ hasText: "Group this sector by" })
+    .getByRole("combobox")
+    .selectOption("hosts");
+  await page
+    .getByRole("button", { name: "Add resource to sector", exact: true })
+    .click();
+  await page.keyboard.press("Escape");
+  const implicitCustom = await applied("custom");
+  expect(implicitCustom.query).toMatchObject({
+    sectors: [
+      { label: "Home lab", grouping: "hosts", resourceIds: [f.host.id] },
+    ],
+  });
+  await expect
+    .poll(() =>
+      page.evaluate(() =>
+        JSON.parse(
+          localStorage.getItem("commandry.infrastructure.observatory.v2") ??
+            "null",
+        ),
+      ),
+    )
+    .toMatchObject({
+      grouping: "custom",
+      sectors: [
+        { label: "Home lab", grouping: "hosts", resourceIds: [f.host.id] },
+      ],
+    });
+  await page.reload();
+  await expect(grouping).toHaveValue("custom");
+  const restoredImplicit = await applied("custom");
+  expect(restoredImplicit.query).toMatchObject({
+    sectors: [
+      { label: "Home lab", grouping: "hosts", resourceIds: [f.host.id] },
+    ],
+  });
+  await expect(gravity).toHaveAttribute("data-theme", "midnight");
+  await selectCanonical(f.host.id, f.host.name);
+  await grouping.selectOption("projects");
+  await applied("projects");
+  await selectCanonical(f.host.id, f.host.name);
+  await expect(
+    inspector.getByRole("button", {
+      name: `Open project ${f.name}`,
       exact: true,
-    })
-    .click();
-  await expect(gravity.getByLabel("Custom layout sector")).toHaveValue(
-    "Home lab",
+    }),
+  ).toBeVisible();
+  await expect(page.getByLabel("Infrastructure project")).toHaveValue(
+    f.project.id,
   );
-  await gravity.getByLabel("Gravity grouping").selectOption("projects");
-  await expect(
-    gravity.getByText(/inspector shows every membership/),
-  ).toBeVisible();
   await page.emulateMedia({ reducedMotion: "no-preference" });
+  await appearance.click();
+  const camera = page.getByRole("combobox", { name: "Camera", exact: true });
   await expect(
-    gravity.getByRole("option", { name: "Slow orbit", exact: true }),
+    camera.getByRole("option", { name: "Slow orbit", exact: true }),
   ).toBeEnabled();
-  await gravity.getByLabel("Gravity camera").selectOption("orbit");
-  await expect(gravity.getByLabel("Gravity camera")).toHaveValue("orbit");
+  await camera.selectOption("orbit");
+  await expect(
+    gravity.getByRole("button", { name: "Stop presentation", exact: true }),
+  ).toBeVisible();
+  await canvas.scrollIntoViewIfNeeded();
+  const orbit = await pose();
+  await expect
+    .poll(async () => {
+      const next = await pose();
+      return (
+        next.frames > orbit.frames &&
+        (next.position !== orbit.position || next.target !== orbit.target)
+      );
+    })
+    .toBe(true);
   await gravity
-    .getByRole("button", { name: "Pause scene motion", exact: true })
+    .getByRole("button", { name: "Pause scene", exact: true })
     .click();
   await expect(
-    gravity.getByRole("button", { name: "Resume scene motion", exact: true }),
+    gravity.getByRole("button", { name: "Resume scene", exact: true }),
   ).toBeVisible();
+  await expect(
+    gravity.getByRole("button", { name: "Resume scene", exact: true }),
+  ).toHaveAttribute("aria-pressed", "true");
+  await canvas.scrollIntoViewIfNeeded();
+  await page.waitForTimeout(150);
+  const pausedPose = await pose();
+  await page.waitForTimeout(150);
+  const stillPose = await pose();
+  expect(stillPose.position).toBe(pausedPose.position);
+  expect(stillPose.target).toBe(pausedPose.target);
   await page.getByRole("button", { name: "List", exact: true }).click();
   await expect(
     page.getByRole("region", { name: "Resource list", exact: true }),
   ).toContainText(f.web.name);
   await page.getByRole("button", { name: "Gravity", exact: true }).click();
+  await applied("projects");
   expect(
     await page.evaluate(
       () => document.documentElement.scrollWidth <= innerWidth + 1,
     ),
   ).toBe(true);
   await page.getByRole("link", { name: "Open wallboard", exact: true }).click();
-  await expect(page.getByLabel("Gravity grouping")).toHaveValue("projects");
+  await expect(grouping).toHaveValue("projects");
+  await applied("projects");
+  async function wallboardGeometry(label: string) {
+    const measurement = await page.evaluate(() => {
+      const selectors = [
+        ".cmd-network-console",
+        ".cmd-network-header",
+        ".cmd-network-vitals",
+        ".cmd-network-toolbar",
+        ".cmd-network-snapshot",
+        ".cmd-network-workspace",
+        ".cmd-network-main",
+        ".cmd-network-truth",
+        ".cmd-operational-observatory",
+        ".cmd-op-toolbar",
+        ".cmd-op-attention",
+        ".cmd-op-workspace",
+        ".cmd-op-landscape",
+        ".cmd-op-stage",
+        ".cmd-op-canvas",
+        ".cmd-op-inspector",
+        ".cmd-op-outline",
+        ".cmd-op-work-dock",
+        ".cmd-op-canonical-work",
+        ".cmd-operational-observatory > :last-child",
+        ".cmd-network-footer",
+      ];
+      const rect = (element: Element) =>
+        element.getBoundingClientRect().toJSON();
+      const elements = selectors.map((selector) => {
+        const element = document.querySelector<HTMLElement>(selector);
+        if (!element) return { selector, present: false };
+        const style = getComputedStyle(element);
+        return {
+          selector,
+          present: true,
+          classes: element.className,
+          rect: rect(element),
+          scrollHeight: element.scrollHeight,
+          clientHeight: element.clientHeight,
+          scrollWidth: element.scrollWidth,
+          clientWidth: element.clientWidth,
+          scrollTop: element.scrollTop,
+          gridColumns: style.gridTemplateColumns,
+          gridRows: style.gridTemplateRows,
+          minHeight: style.minHeight,
+          maxHeight: style.maxHeight,
+          height: style.height,
+          overflowX: style.overflowX,
+          overflowY: style.overflowY,
+          fontSize: style.fontSize,
+          textScale: style.getPropertyValue("--op-text-scale"),
+        };
+      });
+      const controls = [
+        ...document.querySelectorAll<HTMLElement>(
+          ".cmd-network-header :is(button,a), .cmd-network-toolbar :is(button,input,select), .cmd-op-toolbar :is(button,input,select), .cmd-network-footer a",
+        ),
+      ].map((element) => ({
+        name: element.getAttribute("aria-label") ?? element.textContent,
+        rect: rect(element),
+      }));
+      const consoleElement = document.querySelector<HTMLElement>(
+        ".cmd-network-console",
+      )!;
+      const workspace = document.querySelector<HTMLElement>(
+        ".cmd-network-workspace",
+      )!;
+      const consoleStyle = getComputedStyle(consoleElement);
+      const availableWidth =
+        consoleElement.clientWidth -
+        parseFloat(consoleStyle.paddingLeft) -
+        parseFloat(consoleStyle.paddingRight);
+      const stage = document
+        .querySelector<HTMLElement>(".cmd-op-stage")!
+        .getBoundingClientRect();
+      const canvas = document
+        .querySelector<HTMLCanvasElement>(".cmd-op-canvas canvas")!
+        .getBoundingClientRect();
+      const main = document.querySelector<HTMLElement>(".cmd-network-main")!;
+      const observatory = document.querySelector<HTMLElement>(
+        ".cmd-operational-observatory",
+      )!;
+      const truth = document.querySelector<HTMLElement>(".cmd-network-truth")!;
+      const truthRect = truth.getBoundingClientRect();
+      const naturalTruth = truth.cloneNode(true) as HTMLElement;
+      Object.assign(naturalTruth.style, {
+        position: "absolute",
+        visibility: "hidden",
+        pointerEvents: "none",
+        boxSizing: "border-box",
+        width: `${truthRect.width}px`,
+        height: "auto",
+        minHeight: "0",
+        maxHeight: "none",
+      });
+      main.append(naturalTruth);
+      const naturalTruthHeight = naturalTruth.getBoundingClientRect().height;
+      naturalTruth.remove();
+      const mainRect = main.getBoundingClientRect();
+      const observatoryRect = observatory.getBoundingClientRect();
+      const rowAllocation = {
+        main: mainRect.toJSON(),
+        observatory: observatoryRect.toJSON(),
+        truth: truthRect.toJSON(),
+        naturalTruthHeight,
+        ready:
+          Math.abs(truthRect.height - naturalTruthHeight) < 1 &&
+          Math.abs(observatoryRect.top - mainRect.top) < 1 &&
+          Math.abs(observatoryRect.bottom - truthRect.top) < 1 &&
+          Math.abs(truthRect.bottom - mainRect.bottom) < 1,
+      };
+      return {
+        viewport: {
+          width: innerWidth,
+          height: innerHeight,
+          scrollX,
+          scrollY,
+          visual: visualViewport && {
+            width: visualViewport.width,
+            height: visualViewport.height,
+            scale: visualViewport.scale,
+          },
+        },
+        document: {
+          scrollHeight: document.documentElement.scrollHeight,
+          clientHeight: document.documentElement.clientHeight,
+          scrollWidth: document.documentElement.scrollWidth,
+          clientWidth: document.documentElement.clientWidth,
+        },
+        body: {
+          scrollHeight: document.body.scrollHeight,
+          clientHeight: document.body.clientHeight,
+          scrollWidth: document.body.scrollWidth,
+        },
+        availableWidth,
+        workspaceWidth: workspace.getBoundingClientRect().width,
+        stage: stage.toJSON(),
+        canvas: canvas.toJSON(),
+        rowAllocation,
+        elements,
+        controls,
+        ready:
+          document.documentElement.scrollHeight <= innerHeight + 1 &&
+          document.documentElement.scrollWidth <= innerWidth + 1 &&
+          stage.height >= 160 &&
+          canvas.width > 0 &&
+          Math.abs(canvas.height - stage.height) < 1 &&
+          Math.abs(canvas.width - stage.width) < 1 &&
+          rowAllocation.ready &&
+          Math.abs(workspace.getBoundingClientRect().width - availableWidth) <
+            1,
+      };
+    });
+    return { label, ...measurement };
+  }
+  async function fittedWallboard(label: string) {
+    const immediate = await wallboardGeometry(label + " immediate");
+    let settled = immediate;
+    try {
+      await expect
+        .poll(async () => {
+          settled = await wallboardGeometry(label + " reconciled");
+          return settled.ready;
+        })
+        .toBe(true);
+      expect(settled.controls.length).toBeGreaterThan(0);
+      for (const control of settled.controls) {
+        if (!control.rect.width || !control.rect.height) continue;
+        expect(control.rect.left).toBeGreaterThanOrEqual(-1);
+        expect(control.rect.top).toBeGreaterThanOrEqual(-1);
+        expect(control.rect.right).toBeLessThanOrEqual(
+          settled.viewport.width + 1,
+        );
+        expect(control.rect.bottom).toBeLessThanOrEqual(
+          settled.viewport.height + 1,
+        );
+      }
+    } catch (error) {
+      console.error(
+        "Wallboard allocation at failure:",
+        JSON.stringify({ immediate, settled }),
+      );
+      throw error;
+    } finally {
+      await attachJson(label, { immediate, settled });
+    }
+    return settled;
+  }
   if (testInfo.project.name === "desktop") {
+    const defaultWallboard = await wallboardGeometry(
+      "default desktop wallboard",
+    );
+    expect(defaultWallboard.stage.height).toBeGreaterThanOrEqual(160);
+    expect(defaultWallboard.workspaceWidth).toBeCloseTo(
+      defaultWallboard.availableWidth,
+      0,
+    );
+    await attachJson("default-desktop-wallboard", defaultWallboard);
     await page.setViewportSize({ width: 1920, height: 1080 });
+    await fittedWallboard("1920x1080-gravity-wallboard");
     expect(
       await page.evaluate(
         () => document.documentElement.scrollHeight <= innerHeight + 1,
       ),
     ).toBe(true);
     expect(
-      await page
-        .locator(".cmd-gravity-stage")
+      await gravity
+        .locator(".cmd-op-stage")
         .evaluate((element) => element.getBoundingClientRect().height >= 160),
     ).toBe(true);
-  }
-  await page.getByText("Resources in this scene (2)", { exact: true }).click();
-  await expect(
-    page.getByRole("button", {
-      name: `Select ${f.web.name}, service, No observation`,
+    const scopedIds = [...expectedIds];
+    const f1 = await fullF1Population(request);
+    const f1Ids = f1.resources.map((resource) => resource.id).sort();
+    fullPopulationIds = f1Ids;
+    await page.setViewportSize({ width: 3840, height: 2160 });
+    fullPopulationMode = true;
+    await page.getByLabel("Infrastructure project").selectOption("");
+    await expect
+      .poll(async () => {
+        const current = browserScenes.get(
+          JSON.stringify([
+            await gravity.getAttribute("data-grouping"),
+            await gravity.getAttribute("data-view-revision"),
+            await gravity.getAttribute("data-projection-revision"),
+          ]),
+        )?.scene;
+        return (
+          !!current &&
+          f1Ids.every((id) => current.membershipIndex.resourceIds.includes(id))
+        );
+      })
+      .toBe(true);
+    await applied("projects");
+    await appearance.click();
+    const textSize = page.getByRole("combobox", {
+      name: "Text size",
       exact: true,
-    }),
-  ).toBeVisible();
+    });
+    await textSize.selectOption("1.5");
+    await page.keyboard.press("Escape");
+    await expect
+      .poll(() =>
+        gravity.evaluate((element) =>
+          getComputedStyle(element).getPropertyValue("--op-text-scale").trim(),
+        ),
+      )
+      .toBe("1.5");
+    const fullFit = await fittedWallboard("3840x2160-f1-150-percent-text");
+    expect(
+      fullFit.elements.find(
+        (element) => element.selector === ".cmd-operational-observatory",
+      )?.fontSize,
+    ).toBe("21px");
+    await expandCompleteOutline();
+    const search = gravity.getByLabel("Search complete Observatory inventory", {
+      exact: true,
+    });
+    await search.fill("Synthetic");
+    await expect
+      .poll(() => searchResults.getByRole("button").count())
+      .toBeGreaterThanOrEqual(f1.resources.length);
+    const searched = await applied("projects");
+    const searchIds = searched.scene.searchResults.map(
+      (result) => result.resourceId,
+    );
+    for (const id of f1Ids) expect(searchIds).toContain(id);
+    for (const id of searchIds) expect(expectedIds).toContain(id);
+    await expect(searchResults.getByRole("button")).toHaveCount(
+      searchIds.length,
+    );
+    const searchControls = await searchResults
+      .getByRole("button")
+      .evaluateAll((buttons) =>
+        buttons.map((button) => ({
+          text: button.textContent,
+          enabled: !(button as HTMLButtonElement).disabled,
+        })),
+      );
+    for (const resource of f1.resources) {
+      const index = searched.scene.searchResults.findIndex(
+        (result) => result.resourceId === resource.id,
+      );
+      expect(index).toBeGreaterThanOrEqual(0);
+      expect(searchControls[index]?.text).toContain(resource.name);
+      expect(searchControls[index]?.enabled).toBe(true);
+    }
+    const representatives = [
+      f1.resources.filter((resource) => resource.kind === "repository").at(-1)!,
+      f1.resources.find(
+        (resource) => resource.kind === "host" && resource.parentResourceId,
+      )!,
+      f1.resources.filter((resource) => resource.kind === "service").at(-1)!,
+    ];
+    const inspectedIds: string[] = [];
+    for (const resource of representatives) {
+      const index = searched.scene.searchResults.findIndex(
+        (result) => result.resourceId === resource.id,
+      );
+      expect(index).toBeGreaterThanOrEqual(0);
+      const result = searchResults.getByRole("button").nth(index);
+      await expect(result).toContainText(resource.name);
+      await expect(result).toBeEnabled();
+      await result.click();
+      await expect(
+        inspector.getByRole("heading", { name: resource.name, exact: true }),
+      ).toBeVisible();
+      await expect(
+        inspector
+          .locator("code")
+          .filter({ hasText: new RegExp("^" + resource.id + "$") }),
+      ).toHaveText(resource.id);
+      const selected = await applied("projects");
+      const node = selected.scene.representations.find(
+        (item) => item.resourceId === resource.id && !item.referenceTo,
+      )!;
+      await expect(canvas).toHaveAttribute("data-gravity-main-focus", node.id);
+      inspectedIds.push(resource.id);
+    }
+    expect(inspectedIds.sort()).toEqual(
+      representatives.map((resource) => resource.id).sort(),
+    );
+    await gravity
+      .getByRole("button", { name: "Clear search", exact: true })
+      .click();
+    const complete = await applied("projects");
+    await expandCompleteOutline();
+    const last = canonicalRow(f1.resources.at(-1)!.id);
+    await last.focus();
+    await last.press("Enter");
+    await expect(last).toHaveAttribute("aria-pressed", "true");
+    await expect(last).toBeInViewport();
+    await selectCanonical(f.host.id, f.host.name);
+    await inspector.getByText("Observation evidence", { exact: true }).click();
+    const sourceLink = inspector
+      .locator("article")
+      .filter({ hasText: "Source " + f.source.id + ":" })
+      .getByRole("link", { name: "Source evidence", exact: true })
+      .first();
+    await sourceLink.focus();
+    await expect(sourceLink).toBeFocused();
+    await expect(sourceLink).toBeInViewport();
+    expect(
+      (await request.get((await sourceLink.getAttribute("href"))!)).status(),
+    ).toBe(200);
+    const workSummary = gravity.locator(".cmd-op-canonical-work > summary");
+    await workSummary.click();
+    await expect(workSummary).toBeInViewport();
+    await workSummary.focus();
+    await workSummary.press("Enter");
+    await expect(gravity.locator(".cmd-op-canonical-work")).not.toHaveAttribute(
+      "open",
+      "",
+    );
+    await expect(
+      gravity.locator('footer[aria-label="Recorded active work"]'),
+    ).toBeInViewport();
+    await fittedWallboard("3840x2160-f1-accessible-regions");
+    await page.screenshot({
+      path: testInfo.outputPath("gravity-wallboard-f1-4k.png"),
+      fullPage: true,
+    });
+    await attachJson("f1-complete-population", {
+      expectedF1Ids: f1Ids,
+      fixtureStrategy: f1.strategy,
+      fixtureProjectIds: f1.projectIds,
+      inspectedIds,
+      searchControls,
+      authorizedIds: complete.scene.membershipIndex.resourceIds,
+      additionalAuthorizedIds:
+        complete.scene.membershipIndex.resourceIds.filter(
+          (id) => !f1Ids.includes(id),
+        ),
+      grouping: complete.scene.grouping,
+      textScale: 1.5,
+    });
+    await appearance.click();
+    await textSize.selectOption("1");
+    await page.keyboard.press("Escape");
+    fullPopulationMode = false;
+    expectedIds = scopedIds;
+    await page.getByLabel("Infrastructure project").selectOption(f.project.id);
+    await applied("projects");
+    await page.setViewportSize({ width: 1920, height: 1080 });
+    await fittedWallboard("1920x1080-restored-project-wallboard");
+  }
+  const service = await selectCanonical(f.web.id, f.web.name);
+  expect(
+    service.scene.sourceObservations.filter(
+      (item) => item.resourceId === f.web.id,
+    ),
+  ).toEqual([]);
+  expect(service.node.summary.telemetry.counts.reporting ?? 0).toBe(0);
+  await availabilityRemainsUnknown(service.node);
+  expect(
+    await inspector
+      .getByText("Physical containment", { exact: true })
+      .evaluate((element) => element.nextElementSibling?.textContent),
+  ).toBe(f.host.name);
+  await expect(
+    inspector.locator("article").filter({ hasText: `Source ${f.source.id}:` }),
+  ).toHaveCount(0);
+  expect(
+    await page.evaluate(
+      () => document.documentElement.scrollWidth <= innerWidth + 1,
+    ),
+  ).toBe(true);
   await page.screenshot({
     path: testInfo.outputPath("gravity-wallboard.png"),
     fullPage: true,
+  });
+  await Promise.all(responseChecks);
+  await attachJson("observer-and-lens-diagnostics", {
+    observer: await intersectionState(),
+    lastLensGeometry,
+    clippedBounds,
   });
   expect(errors).toEqual([]);
 });
