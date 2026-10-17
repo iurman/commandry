@@ -22,11 +22,6 @@ No GitHub writes, merge/rerun controls, credentials, production activation, new 
     "file": "packages/application/src/observatory-observations.ts",
     "symbol": "OperationalObservation",
     "kind": "type"
-  },
-  {
-    "file": "packages/contracts/src/observatory-repository.ts",
-    "symbol": "observatoryRepositoryEvidenceSchema",
-    "kind": "schema"
   }
 ]
 ```
@@ -146,7 +141,7 @@ T23
 
 ## Risks
 
-Current-head identity, partial permissions, pagination and old persisted payload compatibility require explicit tests. Keep independent security evidence and old PR reads intact. Raw nesting must remain compatible with the shared poller. Six writable files keep ownership exclusive; the explicit read budget covers existing large adapter/test context with depth0, not repository exploration.
+The readonly OperationalObservation boundary is pinned. The repository evidence schema is deliberately mutable within the six-file write set; its additive evolution is governed by the explicit compatibility/negative tests rather than an immutable pin. Current-head identity, partial permissions, pagination and old persisted payload compatibility require explicit tests. Keep independent security evidence and old PR reads intact. Raw nesting must remain compatible with the shared poller. Six writable files keep ownership exclusive; the explicit read budget covers existing large adapter/test context with depth0, not repository exploration.
 
 ## Escalation answers
 
