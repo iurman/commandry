@@ -1,0 +1,71 @@
+{
+  "observedAt": "2026-10-17T17:47:18.345Z",
+  "sourceSha": "df2d659f4714ab2286d246b4739957a4d66a6ca6",
+  "sourceClean": true,
+  "moduleHash": "27691659cede43161d9b126b1d585d2d77014e4808b42f036fe6ff871df66969",
+  "transformedHash": "eb65aec580f2426c8d49ce849deaf0010c07bbd81887fb1a0b4ddac1f4fad3e2",
+  "typescriptVersion": "5.9.3",
+  "browserClosed": true,
+  "semanticControlOnly": true,
+  "passed": true,
+  "failure": null,
+  "helperSha256": "040c8361039c0b4bb950aa2768aef04a9a8a3630b4d85033e3000aff5139960c",
+  "cases": [
+    {
+      "name": "positive-two-genuine-pointers",
+      "passed": true,
+      "violationCodes": []
+    },
+    {
+      "name": "next-dispatch-before-prior-commit",
+      "passed": true,
+      "violationCodes": ["uncommitted-prior-target"]
+    },
+    {
+      "name": "transient-committed-loss-stays-latched",
+      "passed": true,
+      "violationCodes": ["lost-expansion"]
+    },
+    {
+      "name": "committed-target-disappears",
+      "passed": true,
+      "violationCodes": ["lost-expansion", "missing-target"]
+    },
+    {
+      "name": "discovered-target-disappears",
+      "passed": true,
+      "violationCodes": ["missing-target"]
+    },
+    {
+      "name": "duplicate-real-dispatch",
+      "passed": true,
+      "violationCodes": [
+        "duplicate-dispatch",
+        "target-not-collapsed",
+        "unexpected-target-order",
+        "unsettled-disposal"
+      ]
+    },
+    {
+      "name": "nested-passes-preserve-committed-history",
+      "passed": true,
+      "violationCodes": []
+    },
+    {
+      "name": "last-commit-original-five-second-bound",
+      "passed": true,
+      "violationCodes": ["missing-commit", "unsettled-disposal"]
+    },
+    {
+      "name": "late-commit-cannot-erase-deadline-failure",
+      "passed": true,
+      "violationCodes": ["late-commit", "missing-commit"]
+    },
+    {
+      "name": "final-disposal-retains-last-moment-loss",
+      "passed": true,
+      "violationCodes": ["lost-expansion"]
+    }
+  ],
+  "qualification": "Actual committed observer, genuine pointer events, private semantic DOM fixture only; no product, hosted hardware, end-to-end or GPU performance claim."
+}

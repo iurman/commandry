@@ -119,7 +119,7 @@ Master light operational expansion takes51.610s and hosts33.592s. Twelve count c
 
 Only the two tests and the new observational test utility may change. Product paths are read-only reference. Preserve all207 full-suite cases, all15 affected cases, all103master identities, both themes, all groupings, real inspection/lens/screenshots, refresh failure/recovery, F1 complete API fixture and every extra, observer negative controls, context-loss and geometry checks, original180000/120000/5000limits, two workers and zero retries. Existing diagnostics remain best-effort and must not mask the original failure. Source/global-scene completeness and client authority stay intact.
 
-The worker packet's commands prove lint, formatting and discovery only. They do not establish behavioral acceptance. Root must independently reexecute the packet and complete the control below before merge; an independent Astra source/executed-evidence review must accept the result. No unchanged hosted retry.
+The worker packet's commands prove lint, formatting and discovery only. They do not establish behavioral acceptance. Root must independently reexecute the packet and complete the control below before merge; an independent Astra source/executed-evidence review must accept the result before a release-facing PR merge. Local feature-branch source convergence may stage T39 after actual observer controls and independent static acceptance; the combined T39/T40 candidate still requires all fifteen real cases and final executed-evidence review before that PR. No unchanged hosted retry.
 
 ### Root-owned controlled verification
 
