@@ -1,0 +1,133 @@
+{
+  "observedAt": "2026-10-17T17:55:17.971Z",
+  "sourceSha": "0264bac680465f129d8cc572ca178aa6e4fcd037",
+  "sourceClean": true,
+  "sourceHash": "cccb346cc20c59510a9208476983dba205a52b6a6db9df1c1ab5febc26608614",
+  "extractedActualStatement": "await expect(\n      searchResults.getByRole(\"button\").nth(f1.resources.length - 1),\n    ).toBeAttached({ timeout: 5000 });",
+  "semanticAssertionOnly": true,
+  "browserClosed": true,
+  "passed": true,
+  "failure": null,
+  "helperSha256": "86f26cd91aeed0f7f3403aec272aa72f673f99db1e9a5b0d25ae91c859225124",
+  "cases": [
+    {
+      "name": "zero-buttons-rejected",
+      "expectedPass": false,
+      "actualPass": false,
+      "assertionStartedAt": 1792259695300,
+      "assertionCompletedAt": 1792259700305,
+      "fixtureTiming": null,
+      "finalButtonCount": null,
+      "clock": {
+        "beforeClock": 1792259695296,
+        "browserClock": 1792259695299,
+        "afterClock": 1792259695299
+      },
+      "assertionDurationMs": 5005.550939,
+      "durationMs": 5016.550781
+    },
+    {
+      "name": "ninety-buttons-rejected",
+      "expectedPass": false,
+      "actualPass": false,
+      "assertionStartedAt": 1792259700344,
+      "assertionCompletedAt": 1792259705346,
+      "fixtureTiming": null,
+      "finalButtonCount": null,
+      "clock": {
+        "beforeClock": 1792259700341,
+        "browserClock": 1792259700343,
+        "afterClock": 1792259700344
+      },
+      "assertionDurationMs": 5001.837351000001,
+      "durationMs": 5011.164426
+    },
+    {
+      "name": "ninety-one-buttons-accepted",
+      "expectedPass": true,
+      "actualPass": true,
+      "assertionStartedAt": 1792259705379,
+      "assertionCompletedAt": 1792259705395,
+      "fixtureTiming": null,
+      "finalButtonCount": null,
+      "clock": {
+        "beforeClock": 1792259705377,
+        "browserClock": 1792259705378,
+        "afterClock": 1792259705379
+      },
+      "assertionDurationMs": 16.424466999998913,
+      "durationMs": 23.234142999999676
+    },
+    {
+      "name": "all-182-buttons-accepted",
+      "expectedPass": true,
+      "actualPass": true,
+      "assertionStartedAt": 1792259705432,
+      "assertionCompletedAt": 1792259705453,
+      "fixtureTiming": null,
+      "finalButtonCount": null,
+      "clock": {
+        "beforeClock": 1792259705428,
+        "browserClock": 1792259705430,
+        "afterClock": 1792259705431
+      },
+      "assertionDurationMs": 21.050545000000056,
+      "durationMs": 29.842554000000746
+    },
+    {
+      "name": "absent-region-rejected",
+      "expectedPass": false,
+      "actualPass": false,
+      "assertionStartedAt": 1792259705487,
+      "assertionCompletedAt": 1792259710488,
+      "fixtureTiming": null,
+      "finalButtonCount": null,
+      "clock": {
+        "beforeClock": 1792259705485,
+        "browserClock": 1792259705486,
+        "afterClock": 1792259705487
+      },
+      "assertionDurationMs": 5001.0254079999995,
+      "durationMs": 5008.669348000001
+    },
+    {
+      "name": "results-appear-before-deadline",
+      "expectedPass": true,
+      "actualPass": true,
+      "assertionStartedAt": 1792259710523,
+      "assertionCompletedAt": 1792259711835,
+      "fixtureTiming": {
+        "armedAt": 1792259710537,
+        "appearedAt": 1792259711538
+      },
+      "finalButtonCount": 182,
+      "clock": {
+        "beforeClock": 1792259710520,
+        "browserClock": 1792259710523,
+        "afterClock": 1792259710523
+      },
+      "assertionDurationMs": 1311.624675000001,
+      "durationMs": 1347.1588119999979
+    },
+    {
+      "name": "results-appear-after-deadline-rejected",
+      "expectedPass": false,
+      "actualPass": false,
+      "assertionStartedAt": 1792259711901,
+      "assertionCompletedAt": 1792259716902,
+      "fixtureTiming": {
+        "armedAt": 1792259711919,
+        "appearedAt": 1792259717920
+      },
+      "finalButtonCount": 182,
+      "clock": {
+        "beforeClock": 1792259711898,
+        "browserClock": 1792259711900,
+        "afterClock": 1792259711901
+      },
+      "assertionDurationMs": 5001.127037999999,
+      "durationMs": 6049.533533999998
+    }
+  ],
+  "qualification": "Actual committed statement with genuine Chromium locators and original5000ms guard. Private count/deadline semantics only; later identity/authority/application tests and full release remain required."
+}
