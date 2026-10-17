@@ -1,0 +1,24 @@
+{
+  "observedAt": "2026-10-17T15:14:55.832276+00:00",
+  "status": "retained genuine component failure; final corrected acceptance pending",
+  "immutableSourceBase": "7ad54a5d5e65875443950c91063165f4746ce577",
+  "componentSha256": "96e53d53c4931f75a1419764fccbe7a1c8486db0c5c3f4947af7c510178b7896",
+  "test": "persists implicit custom grouping from the actual add-resource action and restores it on remount",
+  "actualBaseline": {
+    "failed": 1,
+    "passedOriginalControls": 77,
+    "activeGrouping": "custom",
+    "pending": false,
+    "storedGrouping": "projects",
+    "expectedStoredGrouping": "custom"
+  },
+  "boundary": "Actual React component with real semantic scene projection and mocked GPU; no HTTP/browser/deployment claim",
+  "scope": "Add resource to sector must save the grouping it actually applies, alongside authorized sector membership",
+  "requiredFinalEvidence": [
+    "Original explicit-Custom journey retained",
+    "Separate implicit Add-resource path from a noncustom grouping survives built reload without correction",
+    "Original77component/preference controls plus new regression",
+    "Actual full browser file/all3projects/root independent packet/source review"
+  ],
+  "productionChanged": false
+}

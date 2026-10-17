@@ -348,3 +348,8 @@ Read-only checks from the existing VPS reached current507303c /version, /health/
 ## 2026-10-17 actual corrected helper cleanup
 
 A separate full T36 unchanged-CSS baseline at422701f/BUILD_ID0nCX3w0oQxLYjvB_-HqWb again reports9PASS/3FAIL. Its new IPC shutdown passes strict cleanup with a fresh matching stopped receipt; root independently verifies actual preview, web, PostgreSQL and process-group absence and exact temporary-directory removal. The original exit143 failure remains retained. Both phone geometry failures remain intentional pre-correction evidence; desktop advances to a remaining unmigrated Surface theme control. Source-only journey review will identify remaining control mismatches before the final full packet. This is cleanup acceptance only, not browser/source/release acceptance. Coverage stays51PASS/1FAIL/6partial-unrun.
+
+
+## 2026-10-17 implicit custom causal regression
+
+Astra preflight distinguishes the original omitted explicit-Custom step from a real alternate-path product defect. The explicit four-file replan was committed and the stopped child normally fast-forwarded with all working source/test bytes preserved. Its final manifest pins7ad54a5,53read files, four exclusive writes and all five acceptance commands. The new actual component regression then failed once while all77original controls passed: active Custom was nonpending but saved grouping remained Projects. [Causal evidence](evidence/2026-10-17-implicit-custom-baseline.json) is retained. The bounded writer and phone cap corrections and both built reload journeys are now in the final packet. Coverage is51PASS/2FAIL/5partial-unrun until actual corrected acceptance; no release or production change is implied.
