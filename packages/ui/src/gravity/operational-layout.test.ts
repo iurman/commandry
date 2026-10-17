@@ -24,6 +24,7 @@ import {
   operationalObservatoryFixture,
   scaleObservatoryFixture,
   observatoryFixtureResource,
+  observatoryFixtureInput,
 } from "@commandry/test-support";
 import {
   mapOperationalEvents,
@@ -929,4 +930,88 @@ describe("operational component interactions with the real semantic scene", () =
       }),
     );
   });
+});
+
+describe("provider plane context in the actual inspector", () => {
+  it.each([
+    [
+      "control",
+      "Control plane: a disruption may delay deployment or administration. Service availability is observed independently.",
+    ],
+    [
+      "data",
+      "Data plane: a disruption may affect service traffic. Local availability and impact are observed independently.",
+    ],
+    [
+      null,
+      "Plane unknown: the notice does not identify control or data plane. Local availability and impact are observed independently.",
+    ],
+  ] as const)(
+    "discloses %s plane without converting passing availability to failure",
+    async (plane, explanation) => {
+      const fixture = operationalObservatoryFixture();
+      const service = { ...fixture.services[0]!, parentResourceId: null };
+      const scene = projectObservatory({
+        ...observatoryFixtureInput([service, fixture.providers[0]!]),
+        signals: [fixture.signals[0]!],
+        requirements: [fixture.requirements[0]!],
+        providerDependencies: [
+          { ...fixture.providerDependencies[0]!, plane: plane ?? "control" },
+        ],
+        providerNotices: [{ ...fixture.providerNotices[0]!, plane }],
+      });
+      const snapshot: InfrastructureOverview = {
+        readAt: scene.readCompletedAt,
+        total: 2,
+        nextCursor: null,
+        items: [],
+        edges: [],
+        events: [],
+      };
+      render(
+        createElement(OperationalObservatory, {
+          scene,
+          snapshot,
+          selectedId: service.id,
+          onSelect: vi.fn(),
+          onProject: vi.fn(),
+          onQueryChange: vi.fn(),
+        }),
+      );
+      await waitFor(() => expect(engine.update).toHaveBeenCalled());
+      const inspector = screen.getByRole("complementary", {
+        name: "Observatory inspector",
+      });
+      const summary = within(inspector).getByText(
+        "Provider notices and relevance (1)",
+      );
+      fireEvent.click(summary);
+      const disclosure = summary.closest("details")!;
+      expect(disclosure).toHaveAttribute("open");
+      expect(within(disclosure).getByText(explanation)).toBeVisible();
+      expect(
+        within(inspector).getByText(
+          "1 passing / 0 failing / 0 degraded / 0 unknown / 0 maintenance",
+        ),
+      ).toBeVisible();
+      expect(
+        within(inspector).getByText(
+          "No confirmed required local impact in the available evidence.",
+        ),
+      ).toBeVisible();
+      expect(
+        within(disclosure).getByText(
+          plane === null ? "relevance unknown" : "potential exposure",
+        ),
+      ).toBeVisible();
+      expect(disclosure).toHaveTextContent(
+        "local impact unknown; causation unknown",
+      );
+      for (const other of ["Control plane:", "Data plane:", "Plane unknown:"])
+        if (!explanation.startsWith(other))
+          expect(
+            within(disclosure).queryByText((text) => text.startsWith(other)),
+          ).toBeNull();
+    },
+  );
 });
