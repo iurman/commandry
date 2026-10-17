@@ -2,11 +2,11 @@
 
 ## Goal
 
-Restore prior ancestor reading context through breadcrumbs without resetting its saved camera.
+Restore ancestor reading context and adopt direct current breadcrumbs without moving their camera.
 
 ## Non-goals
 
-No new camera store, renderer, coordinator, source, evidence, canonical model, mappings or permissions.
+No new camera store, replacement renderer, coordinator, source, evidence, canonical model, mappings or permissions.
 
 ## Base
 
@@ -32,9 +32,9 @@ No new camera store, renderer, coordinator, source, evidence, canonical model, m
 {
   "task_id": "T27",
   "title": "Restore ancestor breadcrumb reading context",
-  "goal": "Restore prior ancestor reading context through breadcrumbs without resetting its saved camera.",
+  "goal": "Restore ancestor reading context and adopt direct current breadcrumbs without moving their camera.",
   "brief": {
-    "change": "Use authorized retained history for ancestor returns",
+    "change": "Restore saved ancestor poses and retain accepted automatic camera context",
     "check": "PATH=/home/urmani/.local/share/pnpm/.tools/pnpm/11.19.0/bin:/home/urmani/.cache/codex-runtimes/codex-primary-runtime/dependencies/node/bin:$PATH pnpm exec vitest run --config vitest.config.mts packages/ui/src/gravity/operational-layout.test.ts packages/ui/src/gravity/renderer-pressure.test.ts"
   },
   "seed_files": [
@@ -78,11 +78,15 @@ No new camera store, renderer, coordinator, source, evidence, canonical model, m
     "packages/ui/src/gravity/labels.test.ts",
     "docs/plans/observatory-operational-landscape/T27.md",
     "packages/ui/src/components/OperationalObservatory.tsx",
-    "packages/ui/src/gravity/operational-layout.test.ts"
+    "packages/ui/src/gravity/operational-layout.test.ts",
+    "packages/ui/src/gravity/renderer.ts",
+    "packages/ui/src/gravity/renderer-pressure.test.ts"
   ],
   "write_files": [
     "packages/ui/src/components/OperationalObservatory.tsx",
-    "packages/ui/src/gravity/operational-layout.test.ts"
+    "packages/ui/src/gravity/operational-layout.test.ts",
+    "packages/ui/src/gravity/renderer.ts",
+    "packages/ui/src/gravity/renderer-pressure.test.ts"
   ],
   "create_files": [],
   "forbidden": [
@@ -100,7 +104,7 @@ No new camera store, renderer, coordinator, source, evidence, canonical model, m
       "expect": {
         "exit": 0
       },
-      "covers": "Causal breadcrumb saved-camera/context restoration plus exact Back/Escape/direct-input renderer/component controls"
+      "covers": "Preserved causal breadcrumb pose and tour-current-crumb adoption controls, exact history/alias/Back/Escape behavior"
     },
     {
       "id": "A2",
@@ -114,7 +118,7 @@ No new camera store, renderer, coordinator, source, evidence, canonical model, m
     {
       "id": "A3",
       "kind": "command",
-      "run": "PATH=/home/urmani/.local/share/pnpm/.tools/pnpm/11.19.0/bin:/home/urmani/.cache/codex-runtimes/codex-primary-runtime/dependencies/node/bin:$PATH pnpm exec prettier --check packages/ui/src/components/OperationalObservatory.tsx packages/ui/src/gravity/operational-layout.test.ts",
+      "run": "PATH=/home/urmani/.local/share/pnpm/.tools/pnpm/11.19.0/bin:/home/urmani/.cache/codex-runtimes/codex-primary-runtime/dependencies/node/bin:$PATH pnpm exec prettier --check packages/ui/src/components/OperationalObservatory.tsx packages/ui/src/gravity/operational-layout.test.ts packages/ui/src/gravity/renderer.ts packages/ui/src/gravity/renderer-pressure.test.ts",
       "expect": {
         "exit": 0
       },
@@ -123,7 +127,7 @@ No new camera store, renderer, coordinator, source, evidence, canonical model, m
     {
       "id": "A4",
       "kind": "command",
-      "run": "PATH=/home/urmani/.local/share/pnpm/.tools/pnpm/11.19.0/bin:/home/urmani/.cache/codex-runtimes/codex-primary-runtime/dependencies/node/bin:$PATH pnpm exec eslint packages/ui/src/components/OperationalObservatory.tsx packages/ui/src/gravity/operational-layout.test.ts",
+      "run": "PATH=/home/urmani/.local/share/pnpm/.tools/pnpm/11.19.0/bin:/home/urmani/.cache/codex-runtimes/codex-primary-runtime/dependencies/node/bin:$PATH pnpm exec eslint packages/ui/src/components/OperationalObservatory.tsx packages/ui/src/gravity/operational-layout.test.ts packages/ui/src/gravity/renderer.ts packages/ui/src/gravity/renderer-pressure.test.ts",
       "expect": {
         "exit": 0
       },
@@ -147,3 +151,7 @@ Use exact representation history and existing saved pose. Preserve authorization
 ## Escalation answers
 
 Owner authorized useful breadcrumbs and reading-context preservation. Read T27.md. You are not alone; T24 must converge before this task starts, then T26 coordinator can own separate files, and T25 owns labels only. Do not revert others. Root provisions frozen dependencies, no install/search/commit. Exact .agent/manifests/T27.json/CURRENT administrative reads and python3 .agent/tools/review_packet.py build --manifest .agent/manifests/T27.json --repo . --base <immutablebasefrommanifest> verification are authorized. Fullreport/logs go .agent/scratch/T27/ and packet artifacts .agent/review/. Verify actual never/FullAccess before command work; precise escalation for missing context. Root owns independent review/new-built pose closure.
+
+## Independent review correction
+
+The original T27 candidate passes65 focused tests and fixes manual breadcrumb restoration. Independent review retains a failed tour-host to current-breadcrumb to child to ancestor control: the component accepts the shown subject, but renderer focus identity still points to the prior overview, so later navigation saves/restores a fitted host pose. Extend only the existing renderer and pressure-test ownership alongside the component and component tests. Preserve the immediate current-crumb no-focus/no-movement assertion and exact later position/target. A small explicit context-adoption operation may reuse current renderer state and saved poses; do not add a second camera store. Keep T24 direct-selection behavior and geometry unchanged. The coordinator already forwards complete focus options and is read-only for T27 because T29 owns it. Root must regenerate at the new immutable documentation base before resuming the same worktree.
