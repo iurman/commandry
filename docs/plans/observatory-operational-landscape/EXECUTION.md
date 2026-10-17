@@ -278,3 +278,8 @@ The final compatible-read protocol is prepared with inert import/help verificati
 
 
 Combined T29 and T30 source review subsequently passed. The retained original independent parent control now passes with unchanged assertions, all 211 scoped tests and UI/web typechecks pass, and five core source/test files are byte-identical to the reviewed compatibility/freshness/authority implementation. T29 and T30 are integrated by normal feature-branch merges. The only merge conflict was this chronological execution log; its entries were preserved. Actual final built, HTTP/SDK and release verification remain pending.
+
+
+### Full-suite integration controls
+
+The first final candidate suite passed 2,886 unit tests and retained three actual MCP SDK initialization failures. The new owner query refinement prevented the existing project-field omission used to register the tool; a direct call reproduced the same unsupported refined-object operation. The full required check passed formatting and lint with 72 warnings and zero lint errors, then caught the breadcrumb reverse lookup using a method outside the web compiler's accepted library. T31 scopes both compatibility corrections to five source/test files, retains existing SDK and pose assertions, and requires the affected source tests and contracts/UI/web typechecks. No compiler target, authority, timestamp or test tolerance change is planned. Full checks, build and final actual protocols remain pending.
