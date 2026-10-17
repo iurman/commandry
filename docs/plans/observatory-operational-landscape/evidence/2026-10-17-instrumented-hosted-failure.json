@@ -64,6 +64,30 @@
   "deployment": "not attempted",
   "sourceActivation": "not attempted",
   "productionUnchanged": true,
-  "rootCause": "pending independent artifact reviews; no repair selected",
-  "preservedAcceptance": "All207 original cases, original5 skips, original2 workers/retries0 and deadlines/assertions retained."
+  "rootCause": "Independent static trace reviews identify unfinished sequential observation and expensive repeated browser reads; CPU/GPU/browser scheduling causes remain unprofiled. No product fix selected.",
+  "preservedAcceptance": "All207 original cases, original5 skips, original2 workers/retries0 and deadlines/assertions retained.",
+  "reviewedObservations": {
+    "global": {
+      "overviewPages": 5,
+      "stableTotal": 227,
+      "f1Resources": 91,
+      "allEligibleExtras": 136,
+      "membershipComplete": true,
+      "currentDomBeforeDeadline": true,
+      "sequentialAttributeReadCallbackCompletedBeforeDeadline": false,
+      "collectorOrParserFailure": false
+    },
+    "master": {
+      "lightOperationalExpansionMs": 51610.429,
+      "lightHostsExpansionMs": 33592.291,
+      "foregroundCountCalls": 24,
+      "foregroundCountDurationMs": 36909.643,
+      "uniqueTargetsAndLocalCommits": true,
+      "allCachedSceneMemberships": 103,
+      "sceneResponseCount": 39,
+      "maximumSceneNetworkMs": 381.653,
+      "productPerformanceAttribution": "unprofiled"
+    },
+    "review": "Independent Astra master/global trace reviews completed; candidate control and execution remain pending"
+  }
 }
