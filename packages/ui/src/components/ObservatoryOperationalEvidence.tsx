@@ -16,11 +16,13 @@ export type ObservatoryEvidenceClient = (
 export function ObservatoryOperationalEvidence({
   resourceId,
   scopeKey,
+  readRevision = "",
   repository,
   loadEvidence,
 }: {
   resourceId: string;
   scopeKey: string;
+  readRevision?: string;
   repository: boolean;
   loadEvidence: ObservatoryEvidenceClient;
 }) {
@@ -34,7 +36,13 @@ export function ObservatoryOperationalEvidence({
   const [failedKey, setFailedKey] = useState<string | null>(null);
   const [attempt, setAttempt] = useState(0);
   const generation = useRef(0);
-  const requestKey = JSON.stringify([resourceId, scopeKey, facet, attempt]);
+  const requestKey = JSON.stringify([
+    resourceId,
+    scopeKey,
+    readRevision,
+    facet,
+    attempt,
+  ]);
   const result = loaded?.key === requestKey ? loaded.value : null;
   const failed = failedKey === requestKey;
   useEffect(() => {

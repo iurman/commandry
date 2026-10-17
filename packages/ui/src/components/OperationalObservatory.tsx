@@ -1725,6 +1725,7 @@ function OperationalObservatoryView({
               key={`evidence:${scene.scopeDigest}:${selected.resourceId}`}
               resourceId={selected.resourceId}
               scopeKey={scene.scopeDigest}
+              readRevision={scene.readCompletedAt}
               repository={selected.kind === "repository"}
               loadEvidence={evidenceClient}
             />

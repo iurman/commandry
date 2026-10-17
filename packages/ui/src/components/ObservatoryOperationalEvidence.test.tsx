@@ -1,6 +1,7 @@
 // @vitest-environment jsdom
 import { afterEach, describe, expect, it, vi } from "vitest";
 import {
+  act,
   cleanup,
   fireEvent,
   render,
@@ -38,6 +39,93 @@ const result = (count = 0) => ({
 });
 afterEach(cleanup);
 describe("operational evidence inspector", () => {
+  it("reloads the same subject when a new scene read commits", async () => {
+    const load = vi
+      .fn()
+      .mockResolvedValueOnce(result())
+      .mockResolvedValue(result(1));
+    const view = render(
+      <ObservatoryOperationalEvidence
+        resourceId={resourceId}
+        scopeKey="A"
+        readRevision="first-read"
+        repository={false}
+        loadEvidence={load}
+      />,
+    );
+    expect(
+      await screen.findByText("unsupported / 0 reviewed sources"),
+    ).toBeVisible();
+    view.rerender(
+      <ObservatoryOperationalEvidence
+        resourceId={resourceId}
+        scopeKey="A"
+        readRevision="committed-review"
+        repository={false}
+        loadEvidence={load}
+      />,
+    );
+    expect(
+      await screen.findByText("unavailable / 1 reviewed sources"),
+    ).toBeVisible();
+    expect(load).toHaveBeenCalledTimes(2);
+  });
+  it("withholds a late response from an earlier read of the same scope", async () => {
+    let finish!: (value: unknown) => void;
+    const load = vi
+      .fn()
+      .mockImplementationOnce(
+        () =>
+          new Promise((resolve) => {
+            finish = resolve;
+          }),
+      )
+      .mockResolvedValue(result(1));
+    const view = render(
+      <ObservatoryOperationalEvidence
+        resourceId={resourceId}
+        scopeKey="A"
+        readRevision="first-read"
+        repository={false}
+        loadEvidence={load}
+      />,
+    );
+    view.rerender(
+      <ObservatoryOperationalEvidence
+        resourceId={resourceId}
+        scopeKey="A"
+        readRevision="next-read"
+        repository={false}
+        loadEvidence={load}
+      />,
+    );
+    expect(
+      await screen.findByText("unavailable / 1 reviewed sources"),
+    ).toBeVisible();
+    await act(async () => finish(result(137)));
+    expect(screen.queryByText(/137 reviewed/)).not.toBeInTheDocument();
+    expect(load).toHaveBeenCalledTimes(2);
+  });
+  it("reuses an identical read revision without clearing current evidence", async () => {
+    const load = vi.fn().mockResolvedValue(result(1));
+    const props = {
+      resourceId,
+      scopeKey: "A",
+      readRevision: "same-read",
+      repository: false,
+      loadEvidence: load,
+    };
+    const view = render(<ObservatoryOperationalEvidence {...props} />);
+    expect(
+      await screen.findByText("unavailable / 1 reviewed sources"),
+    ).toBeVisible();
+    view.rerender(<ObservatoryOperationalEvidence {...props} />);
+    expect(screen.getByText("unavailable / 1 reviewed sources")).toBeVisible();
+    expect(
+      screen.queryByText("Reading authorized evidence..."),
+    ).not.toBeInTheDocument();
+    expect(load).toHaveBeenCalledTimes(1);
+  });
   it("keeps every configured source inspectable and does not present unread coverage as passing", async () => {
     render(
       <ObservatoryOperationalEvidence
