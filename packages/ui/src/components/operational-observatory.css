@@ -66,6 +66,10 @@
   min-width: 0;
   font-size: 0.86em;
 }
+.cmd-op-toolbar select {
+  min-width: 0;
+  width: 100%;
+}
 .cmd-op-heading {
   flex: 1 1 210px;
   display: grid;
