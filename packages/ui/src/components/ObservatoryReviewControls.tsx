@@ -344,23 +344,23 @@ export function ObservatoryReviewControls(
     props.selectedProjectId,
     kind,
   ]);
-  const current = useRef({
+  const [current, setCurrent] = useState({
     identity,
     load: props.loadCatalogue,
     review: props.review,
     key: 0,
   });
   if (
-    current.current.identity !== identity ||
-    current.current.load !== props.loadCatalogue ||
-    current.current.review !== props.review
+    current.identity !== identity ||
+    current.load !== props.loadCatalogue ||
+    current.review !== props.review
   )
-    current.current = {
+    setCurrent({
       identity,
       load: props.loadCatalogue,
       review: props.review,
-      key: current.current.key + 1,
-    };
+      key: current.key + 1,
+    });
   return (
     <details className="cmd-observatory-review" open>
       <summary>Reviewed configuration</summary>
@@ -404,7 +404,7 @@ export function ObservatoryReviewControls(
         id={`${tabsId}-panel`}
         aria-labelledby={`${tabsId}-${kind}`}
       >
-        <ReviewPanel key={current.current.key} {...props} kind={kind} />
+        <ReviewPanel key={current.key} {...props} kind={kind} />
       </div>
     </details>
   );
@@ -414,7 +414,7 @@ function ReviewPanel(
     kind: ObservatoryReviewKind;
   },
 ) {
-  const props = useRef(currentProps).current;
+  const [props] = useState(() => currentProps);
   const onReviewed = useRef(currentProps.onReviewed);
   useLayoutEffect(() => {
     onReviewed.current = currentProps.onReviewed;
@@ -759,7 +759,8 @@ function ReviewPanel(
               />
             </label>
             <p>
-              Submitting this review records the signed-in owner's approval.
+              Submitting this review records the signed-in owner&apos;s
+              approval.
             </p>
             <button type="submit">
               {saving ? "Submitting review..." : "Submit review"}

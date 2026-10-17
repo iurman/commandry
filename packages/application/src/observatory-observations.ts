@@ -6,7 +6,7 @@ export type OperationalSourceClaim = {
   id: string;
   leaseId: string;
   resourceId: string;
-  kind: "infraagent-monitor" | "github-repository";
+  kind: "infraagent-monitor" | "github-repository" | "http-readiness";
   externalId: string;
   freshnessSeconds: number;
   environment: string | null;
@@ -121,7 +121,9 @@ export function validateOperationalSourceClaim(
       !text(claim.id, 200) ||
       !text(claim.leaseId, 200) ||
       !resourceIdentity(claim.resourceId) ||
-      !["infraagent-monitor", "github-repository"].includes(claim.kind) ||
+      !["infraagent-monitor", "github-repository", "http-readiness"].includes(
+        claim.kind,
+      ) ||
       !text(claim.externalId) ||
       !Number.isSafeInteger(claim.freshnessSeconds) ||
       claim.freshnessSeconds <= 0 ||

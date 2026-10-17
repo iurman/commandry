@@ -109,7 +109,9 @@ export const observatorySourceCatalogueItemSchema = z
           !value.externalId
             .split("/")
             .some((part) => part === "." || part === "..")
-      : /^[A-Za-z0-9_-]+$/.test(value.externalId);
+      : value.sourceKind === "http-readiness"
+        ? value.externalId === "commandry-web-readiness"
+        : /^[A-Za-z0-9_-]+$/.test(value.externalId);
   }, "Invalid source identity");
 export const observatoryCatalogueItemSchema = z.discriminatedUnion("kind", [
   observatoryAnnotationCatalogueItemSchema,

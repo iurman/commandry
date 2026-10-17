@@ -84,7 +84,7 @@ export const observatorySourceBindingChangeSchema = z
     resourceId: id,
     projectId: id,
     environment: z.string().trim().min(1).max(100).nullable(),
-    kind: z.enum(["infraagent-monitor", "github-repository"]),
+    kind: z.enum(["infraagent-monitor", "github-repository", "http-readiness"]),
     externalId: z.string().trim().min(1).max(250),
     enabled: z.boolean(),
     freshnessSeconds: z.number().int().min(30).max(86400),
@@ -97,7 +97,9 @@ export const observatorySourceBindingChangeSchema = z
           !value.externalId
             .split("/")
             .some((part) => part === "." || part === "..")
-        : /^[A-Za-z0-9_-]+$/.test(value.externalId);
+        : value.kind === "http-readiness"
+          ? value.externalId === "commandry-web-readiness"
+          : /^[A-Za-z0-9_-]+$/.test(value.externalId);
     if (!valid)
       context.addIssue({
         code: "custom",

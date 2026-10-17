@@ -53,7 +53,7 @@ const sourceFields = {
 export const observatoryOperationalSourceRecordSchema = z.strictObject({
   ...sourceFields,
   id: identity,
-  kind: z.enum(["infraagent-monitor", "github-repository"]),
+  kind: z.enum(["infraagent-monitor", "github-repository", "http-readiness"]),
   freshnessSeconds: z.number().int().min(30).max(86400),
   details: z
     .unknown()
@@ -205,7 +205,7 @@ export const observatoryOperationalEvidenceResultSchema = z
       items: z.array(
         z.strictObject({
           ...itemFields,
-          kind: z.literal("infraagent-monitor"),
+          kind: z.enum(["infraagent-monitor", "http-readiness"]),
           payload: observatoryAvailabilityEvidenceSchema.nullable(),
         }),
       ),
