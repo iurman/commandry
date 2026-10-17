@@ -1,5 +1,18 @@
 import { describe, expect, it } from "vitest";
-import { fieldBounds, fieldGeometry, packField } from "./field";
+import {
+  Color,
+  Mesh,
+  PerspectiveCamera,
+  PlaneGeometry,
+  type BufferGeometry,
+} from "three";
+import { ObservatoryRenderer, type RendererSettings } from "./renderer";
+import {
+  fieldBounds,
+  fieldGeometry,
+  fieldTransition,
+  packField,
+} from "./field";
 import type { FieldColor, PackedField } from "./field";
 import { surfaceHeight } from "./model";
 import type { Well } from "./model";
@@ -284,5 +297,147 @@ describe("complete landscape work and coverage", () => {
       depth: 58,
       apron: 90,
     });
+  });
+});
+
+describe("identity-aware renderer terrain planning", () => {
+  it("keeps all 91 unchanged wells at their original terrain detail on refresh", () => {
+    const wells = Array.from({ length: 91 }, (_, index) => well(index));
+    const settings = {
+      theme: "porcelain",
+      palette: {
+        reporting: "#2288bb",
+        attention: "#cc8800",
+        unhealthy: "#cc2200",
+      },
+      motion: false,
+      cameraMode: "manual",
+      ambient: false,
+      selected: null,
+      focus: false,
+      activity: { source: null, running: false, follow: false, trace: null },
+    } as unknown as RendererSettings;
+    // Exercise the shipped update and terrain methods without creating a WebGL context.
+    const renderer = Object.assign(
+      Object.create(ObservatoryRenderer.prototype),
+      {
+        renderer: { domElement: { dataset: {} } },
+        geometry: new PlaneGeometry(1, 1),
+        terrain: new Mesh(),
+        terrainPlan: "",
+        targets: wells,
+        wells,
+        settings,
+        fieldColors: new Map(),
+        controls: { maxDistance: 220 },
+        camera: new PerspectiveCamera(40, 1, 0.1, 500),
+        uniforms: {
+          uWarning: { value: new Color() },
+          uReporting: { value: new Color() },
+          uFailure: { value: new Color() },
+        },
+        submitField() {},
+        reconcileViewport() {},
+      },
+    ) as {
+      coverLandscape(wells: Well[]): void;
+      update(wells: Well[], settings: RendererSettings): void;
+      geometry: BufferGeometry;
+      terrainPlan: string;
+      cameraTween?: unknown;
+    };
+    try {
+      renderer.coverLandscape(wells);
+      const initial = renderer.geometry;
+      const vertices = initial.attributes.position!.count;
+      renderer.update(
+        wells.map((subject) => ({ ...subject })),
+        settings,
+      );
+      expect(renderer.geometry.attributes.position!.count).toBe(vertices);
+      expect(renderer.geometry).toBe(initial);
+      expect(renderer.cameraTween).toBeUndefined();
+    } finally {
+      renderer.geometry.dispose();
+    }
+  });
+});
+
+describe("transition identity union", () => {
+  it("budgets each unchanged identity once and retains both moved and fading extents", () => {
+    const previous = Array.from({ length: 91 }, (_, index) => well(index));
+    const same = fieldTransition(
+      previous,
+      previous.map((subject) => ({ ...subject })),
+    );
+    expect(same.population).toBe(91);
+    expect(same.footprints).toHaveLength(91);
+    expect(same.bounds).toEqual(fieldBounds(previous));
+    const next = previous
+      .slice(1)
+      .map((subject) =>
+        subject.id === "resource-90"
+          ? { ...subject, x: 500, z: -400, radius: 7 }
+          : subject,
+      );
+    next.push({ ...well(100), x: -600, z: 500 });
+    const transition = fieldTransition(previous, next);
+    expect(transition.population).toBe(92);
+    expect(
+      transition.footprints.filter((subject) => subject.id === "resource-90"),
+    ).toHaveLength(2);
+    expect(
+      transition.footprints.some((subject) => subject.id === "resource-0"),
+    ).toBe(true);
+    expect(
+      transition.footprints.some((subject) => subject.id === "resource-100"),
+    ).toBe(true);
+    expect(transition.bounds).toEqual(fieldBounds([...previous, ...next]));
+    expect(transition.key).toBe(
+      fieldTransition([...previous].reverse(), [...next].reverse()).key,
+    );
+    const moved = next.find((subject) => subject.id === "resource-90")!;
+    const old = previous[90]!;
+    expect(transition.bounds.x + transition.bounds.width / 2).toBeGreaterThan(
+      moved.x + moved.radius,
+    );
+    expect(transition.bounds.x - transition.bounds.width / 2).toBeLessThan(
+      old.x - old.radius,
+    );
+  });
+  it("keeps genuine exiting GPU fields until they fade rather than deduplicating by position", () => {
+    const a = { ...well(0), x: 0, z: 0, depth: 3 };
+    const b = { ...well(1), x: 0, z: 0, depth: 0.01 };
+    const transition = fieldTransition([a, b], [a]);
+    expect(transition.population).toBe(2);
+    const packed = packField(transition.footprints, 64, color, attention);
+    expect(packed.count).toBe(2);
+    expect(packed.data[15]).toBe(Math.fround(b.depth));
+    expect(fieldTransition([a, b], []).footprints).toHaveLength(2);
+    expect(fieldTransition([], []).population).toBe(0);
+  });
+});
+
+describe("swept field bounds", () => {
+  it("covers interior radius/aspect peaks without double-counting the identity", () => {
+    const previous = { ...well(10), x: -24, z: 0.3, radius: 1, aspect: 10 };
+    const next = { ...previous, x: 24, radius: 10, aspect: 1 };
+    const transition = fieldTransition([previous], [next]);
+    expect(transition.population).toBe(1);
+    for (const t of [0.1, 0.25, 0.5, 0.75, 0.9]) {
+      const x = previous.x + (next.x - previous.x) * t;
+      const radius = previous.radius + (next.radius - previous.radius) * t;
+      const aspect = previous.aspect + (next.aspect - previous.aspect) * t;
+      const extent = radius * Math.max(1, aspect) * 4 * 1.3;
+      expect(
+        transition.bounds.x - transition.bounds.width / 2,
+      ).toBeLessThanOrEqual(x - extent);
+      expect(
+        transition.bounds.x + transition.bounds.width / 2,
+      ).toBeGreaterThanOrEqual(x + extent);
+    }
+    expect(fieldTransition([previous], [{ ...previous }]).bounds).toEqual(
+      fieldBounds([previous]),
+    );
   });
 });

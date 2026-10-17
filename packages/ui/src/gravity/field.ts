@@ -84,16 +84,31 @@ export function fieldBounds(wells: readonly Well[]) {
     maxX = 34,
     minZ = -29,
     maxZ = 29;
-  let vertical = 1;
+  const heights = new Map<string, number>();
+  const dimensions = new Map<string, { radius: number; aspect: number }>();
+  for (const well of wells) {
+    const previous = dimensions.get(well.id);
+    dimensions.set(well.id, {
+      radius: Math.max(previous?.radius ?? 0, well.radius),
+      aspect: Math.max(previous?.aspect ?? 1, well.aspect),
+    });
+  }
   for (const well of wells) {
     // Conservative through rotation and the 1.3x entry-radius transition.
-    const extent = well.radius * Math.max(1, well.aspect) * 4 * 1.3;
+    const shape = dimensions.get(well.id)!;
+    // Radius and aspect can peak together between unlike endpoint shapes.
+    const extent = shape.radius * Math.max(1, shape.aspect) * 4 * 1.3;
     minX = Math.min(minX, well.x - extent);
     maxX = Math.max(maxX, well.x + extent);
     minZ = Math.min(minZ, well.z - extent);
     maxZ = Math.max(maxZ, well.z + extent);
-    vertical +=
-      Math.abs(well.depth) + Math.abs(well.elevation) + well.radius * 0.13;
+    heights.set(
+      well.id,
+      Math.max(
+        heights.get(well.id) ?? 0,
+        Math.abs(well.depth) + Math.abs(well.elevation) + well.radius * 0.13,
+      ),
+    );
   }
   const width = maxX - minX,
     depth = maxZ - minZ;
@@ -102,7 +117,8 @@ export function fieldBounds(wells: readonly Well[]) {
     z: (minZ + maxZ) / 2,
     width,
     depth,
-    vertical,
+    vertical:
+      1 + [...heights.values()].reduce((sum, height) => sum + height, 0),
     apron: Math.max(90, Math.max(width, depth) * 0.35),
   };
 }
@@ -132,4 +148,42 @@ export function fieldGeometry(
   );
   const z = Math.max(1, Math.floor(vertices / (x + 1)) - 1);
   return { x, z, vertices: (x + 1) * (z + 1), evaluations };
+}
+
+const geometryFields = [
+  "x",
+  "z",
+  "radius",
+  "depth",
+  "aspect",
+  "angle",
+  "elevation",
+  "profile",
+] as const;
+
+// A moving identity can need both footprints, but consumes one contribution budget.
+export function fieldTransition(
+  previous: readonly Well[],
+  next: readonly Well[],
+) {
+  const identities = new Set<string>();
+  const shapes = new Set<string>();
+  const footprints: Well[] = [];
+  for (const well of [...previous, ...next]) {
+    identities.add(well.id);
+    const key = JSON.stringify([
+      well.id,
+      ...geometryFields.map((field) => well[field]),
+    ]);
+    if (!shapes.has(key)) {
+      shapes.add(key);
+      footprints.push(well);
+    }
+  }
+  return {
+    population: identities.size,
+    footprints,
+    bounds: fieldBounds(footprints),
+    key: JSON.stringify([...shapes].sort()),
+  };
 }
