@@ -1594,3 +1594,65 @@ describe("independent semantic review regressions", () => {
     expect(reads.requirements).toBeLessThanOrEqual(requirements.length * 10);
   });
 });
+
+describe("structured provider plane context", () => {
+  it.each(["control", "data", null] as const)(
+    "preserves the exact %s notice plane alongside independent passing availability",
+    (plane) => {
+      const fixture = operationalObservatoryFixture();
+      const service = { ...fixture.services[0]!, parentResourceId: null };
+      const notice = { ...fixture.providerNotices[0]!, plane };
+      const dependency = {
+        ...fixture.providerDependencies[0]!,
+        plane: plane ?? "control",
+      };
+      const input = {
+        ...observatoryFixtureInput([service, fixture.providers[0]!]),
+        signals: [fixture.signals[0]!],
+        requirements: [fixture.requirements[0]!],
+        providerDependencies: [dependency],
+        providerNotices: [notice],
+      };
+      const scene = projectObservatory(input);
+      expect(scene.providerExposures).toHaveLength(1);
+      expect(scene.providerExposures[0]).toMatchObject({
+        plane,
+        noticeId: notice.id,
+        updateId: notice.updateId,
+        sourceId: notice.sourceId,
+        observedAt: notice.observedAt,
+        status: notice.status,
+        relevance: plane === null ? "unknown" : "matched",
+        classification:
+          plane === null ? "relevance_unknown" : "potential_exposure",
+        localImpact: "unknown",
+        causation: "unknown",
+      });
+      expect(scene.summary.availability).toMatchObject({
+        passing: 1,
+        failing: 0,
+        confirmedImpact: false,
+        required: { passing: 1, failing: 0 },
+      });
+      expect(scene.summary.incidentIds).toEqual([]);
+      const failing = projectObservatory({
+        ...input,
+        signals: [
+          observatoryFixtureSignal(
+            service.id,
+            "independent-failure",
+            "failing",
+          ),
+        ],
+      });
+      expect(failing.providerExposures[0]).toMatchObject({
+        plane,
+        classification:
+          plane === null ? "relevance_unknown" : "confirmed_local_impact",
+        localImpact: "confirmed",
+        causation: "unknown",
+      });
+      expect(failing.summary.availability.required.failing).toBe(1);
+    },
+  );
+});

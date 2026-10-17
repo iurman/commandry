@@ -20979,6 +20979,20 @@
                         }
                       ]
                     },
+                    "plane": {
+                      "anyOf": [
+                        {
+                          "type": "string",
+                          "enum": [
+                            "control",
+                            "data"
+                          ]
+                        },
+                        {
+                          "type": "null"
+                        }
+                      ]
+                    },
                     "relevance": {
                       "type": "string",
                       "enum": [
@@ -21079,6 +21093,7 @@
                     "providerId",
                     "resourceId",
                     "dependencyId",
+                    "plane",
                     "relevance",
                     "classification",
                     "severity",
@@ -23239,6 +23254,20 @@
                     }
                   ]
                 },
+                "plane": {
+                  "anyOf": [
+                    {
+                      "type": "string",
+                      "enum": [
+                        "control",
+                        "data"
+                      ]
+                    },
+                    {
+                      "type": "null"
+                    }
+                  ]
+                },
                 "relevance": {
                   "type": "string",
                   "enum": [
@@ -23339,6 +23368,7 @@
                 "providerId",
                 "resourceId",
                 "dependencyId",
+                "plane",
                 "relevance",
                 "classification",
                 "severity",

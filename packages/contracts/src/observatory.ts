@@ -187,6 +187,7 @@ export const observatoryProviderExposureSchema = z
     providerId: z.uuid(),
     resourceId: z.uuid(),
     dependencyId: id.nullable(),
+    plane: observatoryProviderNoticeSchema.shape.plane,
     relevance: z.enum(["matched", "unrelated", "unknown"]),
     classification: z.enum([
       "confirmed_local_impact",

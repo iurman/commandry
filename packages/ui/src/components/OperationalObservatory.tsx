@@ -1824,6 +1824,13 @@ function OperationalObservatoryView({
                     {exposure.causation}. {exposure.freshness},{" "}
                     {exposure.status}, observed {exposure.observedAt}.
                   </p>
+                  <p>
+                    {exposure.plane === "control"
+                      ? "Control plane: a disruption may delay deployment or administration. Service availability is observed independently."
+                      : exposure.plane === "data"
+                        ? "Data plane: a disruption may affect service traffic. Local availability and impact are observed independently."
+                        : "Plane unknown: the notice does not identify control or data plane. Local availability and impact are observed independently."}
+                  </p>
                   <Evidence values={exposure.evidenceRefs} />
                 </article>
               ))

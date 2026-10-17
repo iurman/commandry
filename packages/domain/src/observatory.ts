@@ -164,6 +164,7 @@ export type ObservatoryProviderExposure = {
   providerId: string;
   resourceId: string;
   dependencyId: string | null;
+  plane: ObservatoryProviderNotice["plane"];
   relevance: "matched" | "unrelated" | "unknown";
   classification:
     | "confirmed_local_impact"
@@ -829,6 +830,7 @@ export function evaluateObservatoryProviderExposure(
     providerId: notice.providerId,
     resourceId: context.resourceId,
     dependencyId: dependency?.id ?? null,
+    plane: notice.plane,
     relevance,
     classification,
     severity: notice.severity,
