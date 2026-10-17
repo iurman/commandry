@@ -936,3 +936,552 @@ describe("provider severity, relevance, local impact and attribution", () => {
     ).toThrow(/mismatch/);
   });
 });
+
+describe("independent semantic review regressions", () => {
+  const providerInput = () => {
+    const fixture = operationalObservatoryFixture();
+    const service = { ...fixture.services[0]!, parentResourceId: null },
+      provider = fixture.providers[0]!,
+      host = fixture.hosts[0]!;
+    return {
+      ...observatoryFixtureInput([service, provider, host]),
+      providerDependencies: [
+        { ...fixture.providerDependencies[0]!, environment: "production" },
+      ],
+      providerNotices: [
+        { ...fixture.providerNotices[0]!, environment: "production" },
+      ],
+      service,
+      provider,
+      host,
+    };
+  };
+  it("R1 excludes development-only provider impact from a production scene", () => {
+    const base = providerInput();
+    const input = {
+      ...base,
+      requirements: ["production", "development"].map((environment) => ({
+        id: environment,
+        resourceId: base.service.id,
+        role: "required" as const,
+        environment,
+      })),
+      signals: [
+        observatoryFixtureSignal(
+          base.service.id,
+          "production-pass",
+          "passing",
+          "production",
+        ),
+        observatoryFixtureSignal(
+          base.service.id,
+          "development-failure",
+          "failing",
+          "development",
+        ),
+      ],
+      providerDependencies: base.providerDependencies.map((dependency) => ({
+        ...dependency,
+        environment: "development",
+      })),
+      providerNotices: base.providerNotices.map((notice) => ({
+        ...notice,
+        environment: "development",
+      })),
+    };
+    const production = projectObservatory({
+      ...input,
+      environment: "production",
+    });
+    const development = projectObservatory({
+      ...input,
+      environment: "development",
+    });
+    expect(production.population.canonicalResourceCount).toBe(3);
+    expect(production.summary.availability).toMatchObject({
+      passing: 1,
+      failing: 0,
+      confirmedImpact: false,
+    });
+    expect(production.providerExposures).toEqual([]);
+    expect(development.providerExposures[0]).toMatchObject({
+      classification: "confirmed_local_impact",
+      localImpact: "confirmed",
+    });
+  });
+  it.each([
+    ["development", "*"],
+    ["*", "development"],
+  ])(
+    "R1 independently excludes foreign dependency/notice scopes %s/%s",
+    (dependencyEnvironment, noticeEnvironment) => {
+      const input = providerInput();
+      const scene = projectObservatory({
+        ...input,
+        environment: "production",
+        signals: [
+          observatoryFixtureSignal(
+            input.service.id,
+            "development-only",
+            "failing",
+            "development",
+          ),
+        ],
+        providerDependencies: [
+          {
+            ...input.providerDependencies[0]!,
+            environment: dependencyEnvironment!,
+          },
+        ],
+        providerNotices: [
+          { ...input.providerNotices[0]!, environment: noticeEnvironment! },
+        ],
+      });
+      expect(scene.providerExposures).toEqual([]);
+      expect(scene.population.canonicalResourceCount).toBe(3);
+    },
+  );
+  it.each(["maintenance", "retired", "stopped"] as const)(
+    "R2 preserves fresh monitoring under %s lifecycle",
+    (state) => {
+      const resource = observatoryFixtureResource(93001);
+      const signal = observatoryFixtureSignal(
+        resource.id,
+        "fresh-check",
+        "passing",
+      );
+      const input = {
+        ...observatoryFixtureInput([resource]),
+        environment: "production",
+        signals: [signal],
+      };
+      const lifecycle: ObservatorySignal = {
+        ...signal,
+        id: "lifecycle-check",
+        facet: "lifecycle",
+        state,
+      };
+      const before = projectObservatory(input),
+        after = projectObservatory({ ...input, signals: [signal, lifecycle] });
+      expect(after.summary.coverage).toEqual(before.summary.coverage);
+      expect(after.summary.availability.maintenance).toBe(1);
+      const failing = projectObservatory({
+        ...input,
+        signals: [
+          signal,
+          lifecycle,
+          observatoryFixtureSignal(resource.id, "fresh-failure", "failing"),
+        ],
+      });
+      expect(failing.summary.availability.failing).toBe(1);
+      expect(failing.summary.coverage.monitored).toBe(1);
+    },
+  );
+  it.each(["fresh", "stale", "inaccessible"] as const)(
+    "R3 conserves unrelated unknown provider counts alongside %s evidence",
+    (mode) => {
+      const input = providerInput();
+      const base = observatoryFixtureSignal(
+        input.service.id,
+        "provider-signal",
+        "unknown",
+      );
+      const providerSignal: ObservatorySignal = {
+        ...base,
+        facet: "provider",
+        state: "exposure",
+        observedAt:
+          mode === "stale" ? "2026-10-16T11:00:00.000Z" : base.observedAt,
+      };
+      const scene = projectObservatory({
+        ...input,
+        environment: "production",
+        signals: [providerSignal],
+        facetAccess:
+          mode === "inaccessible"
+            ? [
+                {
+                  resourceId: input.service.id,
+                  facet: "provider",
+                  state: "inaccessible",
+                },
+              ]
+            : [],
+      });
+      expect(scene.summary.provider.counts.unknown).toBe(2);
+      expect(scene.summary.provider.counts.potential_exposure).toBe(1);
+      const expected: Record<string, number> = {};
+      for (const resource of scene.membershipIndex.resourceIds)
+        for (const [state, count] of Object.entries(
+          representation(scene, resource).summary.provider.counts,
+        ))
+          expected[state] = (expected[state] ?? 0) + count;
+      expect(scene.summary.provider.counts).toEqual(expected);
+      expect(
+        representation(scene, input.service.id).summary.provider.counts[
+          mode === "fresh" ? "exposure" : mode
+        ],
+      ).toBe(1);
+    },
+  );
+  it("R4 matches explicit wildcard mappings without borrowing another environment's failure", () => {
+    const input = providerInput(),
+      dependency = input.providerDependencies[0]!,
+      notice = input.providerNotices[0]!;
+    const fail = observatoryFixtureSignal(
+      input.service.id,
+      "production-failure",
+      "failing",
+      "production",
+    );
+    const development = observatoryFixtureSignal(
+      input.service.id,
+      "development-failure",
+      "failing",
+      "development",
+    );
+    const context = {
+      resourceId: input.service.id,
+      now: input.now,
+      localSignals: [fail, development],
+    };
+    const wildcard = evaluateObservatoryProviderExposure(
+      notice,
+      { ...dependency, environment: "*" },
+      context,
+    );
+    expect(wildcard.classification).toBe("confirmed_local_impact");
+    expect(wildcard.evidenceRefs).toContain(
+      "fixture:observation:production-failure",
+    );
+    expect(wildcard.evidenceRefs).not.toContain(
+      "fixture:observation:development-failure",
+    );
+    expect(
+      evaluateObservatoryProviderExposure(
+        notice,
+        { ...dependency, environment: "*" },
+        { ...context, localSignals: [development] },
+      ).localImpact,
+    ).toBe("unknown");
+    expect(
+      evaluateObservatoryProviderExposure(
+        notice,
+        { ...dependency, environment: null },
+        context,
+      ).localImpact,
+    ).toBe("unknown");
+    const production = projectObservatory({
+      ...input,
+      environment: "production",
+      signals: [development],
+      providerDependencies: [{ ...dependency, environment: "*" }],
+      providerNotices: [{ ...notice, environment: "*" }],
+    });
+    expect(production.providerExposures[0]?.localImpact).toBe("unknown");
+    const selectedDevelopment = projectObservatory({
+      ...input,
+      environment: "development",
+      signals: [development],
+      providerDependencies: [{ ...dependency, environment: "*" }],
+      providerNotices: [{ ...notice, environment: "*" }],
+    });
+    expect(selectedDevelopment.providerExposures[0]?.localImpact).toBe(
+      "confirmed",
+    );
+  });
+  it.each(["advisory", "stale", "future"] as const)(
+    "R3 counts a canonical member once for overlapping %s signals and duplicate notice classifications",
+    (classification) => {
+      const input = providerInput();
+      const observedAt =
+        classification === "stale"
+          ? "2026-10-16T11:00:00.000Z"
+          : classification === "future"
+            ? "2026-10-16T13:00:00.000Z"
+            : input.now;
+      const base = observatoryFixtureSignal(
+        input.service.id,
+        "overlapping-provider",
+        "unknown",
+      );
+      const signal: ObservatorySignal = {
+        ...base,
+        observedAt,
+        facet: "provider",
+        state: classification === "advisory" ? "advisory" : "exposure",
+      };
+      const notice = {
+        ...input.providerNotices[0]!,
+        observedAt,
+        status:
+          classification === "advisory"
+            ? ("resolved" as const)
+            : ("open" as const),
+      };
+      const secondNotice = {
+        ...notice,
+        id: notice.id + ":second",
+        updateId: notice.updateId + ":second",
+        evidenceRefs: ["fixture:second-provider-notice"],
+      };
+      for (const signals of [[], [signal]]) {
+        const scene = projectObservatory({
+          ...input,
+          signals,
+          providerNotices: [notice, { ...notice }, secondNotice],
+        });
+        const member = representation(scene, input.service.id);
+        expect(member.memberCount).toBe(1);
+        expect(member.summary.provider.counts).toEqual({ [classification]: 1 });
+        expect(scene.summary.provider.counts).toEqual({
+          unknown: 2,
+          [classification]: 1,
+        });
+        expect(scene.providerExposures).toHaveLength(2);
+        expect(
+          scene.providerExposures.flatMap((exposure) => exposure.evidenceRefs),
+        ).toContain("fixture:second-provider-notice");
+        expect(scene.signals).toHaveLength(signals.length);
+        expect(member.summary.provider.signalIds).toEqual(
+          signals.length ? [signal.id] : [],
+        );
+      }
+    },
+  );
+  it("R3 counts distinct canonical resources separately despite overlapping classifications", () => {
+    const input = providerInput();
+    const second = observatoryFixtureResource(93002);
+    const services = [input.service, second];
+    const signals = services.map((service): ObservatorySignal => ({
+      ...observatoryFixtureSignal(
+        service.id,
+        "advisory-" + service.id,
+        "unknown",
+      ),
+      facet: "provider",
+      state: "advisory",
+    }));
+    const notice = {
+      ...input.providerNotices[0]!,
+      status: "resolved" as const,
+    };
+    const scene = projectObservatory({
+      ...input,
+      resources: [...input.resources, second],
+      collection: { complete: true, resourceCount: 4 },
+      signals,
+      providerDependencies: services.map((service) => ({
+        ...input.providerDependencies[0]!,
+        id: "dependency-" + service.id,
+        resourceId: service.id,
+      })),
+      providerNotices: [
+        notice,
+        {
+          ...notice,
+          id: notice.id + ":second",
+          updateId: notice.updateId + ":second",
+        },
+      ],
+    });
+    expect(scene.summary.provider.counts).toEqual({ unknown: 2, advisory: 2 });
+    expect(scene.providerExposures).toHaveLength(4);
+    for (const service of services)
+      expect(representation(scene, service.id).summary.provider.counts).toEqual(
+        { advisory: 1 },
+      );
+  });
+  it("R3 preserves an explicit unknown observation rather than erasing it as an absent-evidence fallback", () => {
+    const input = providerInput();
+    const base = observatoryFixtureSignal(
+      input.service.id,
+      "explicit-unknown",
+      "unknown",
+    );
+    const signal: ObservatorySignal = {
+      ...base,
+      facet: "provider",
+      state: "unknown",
+    };
+    const scene = projectObservatory({ ...input, signals: [signal] });
+    expect(scene.summary.provider.counts.unknown).toBe(3);
+    expect(scene.summary.provider.counts.potential_exposure).toBe(1);
+  });
+  it("R4 keeps unknown mapping/notice environments unknown while retaining independent availability", () => {
+    const input = providerInput();
+    const failure = observatoryFixtureSignal(
+      input.service.id,
+      "actual-failure",
+      "failing",
+    );
+    for (const missing of ["dependency", "notice"] as const) {
+      const scene = projectObservatory({
+        ...input,
+        environment: "production",
+        signals: [failure],
+        providerDependencies: [
+          {
+            ...input.providerDependencies[0]!,
+            environment: missing === "dependency" ? null : "production",
+          },
+        ],
+        providerNotices: [
+          {
+            ...input.providerNotices[0]!,
+            environment: missing === "notice" ? null : "production",
+          },
+        ],
+      });
+      expect(scene.providerExposures[0]).toMatchObject({
+        relevance: "unknown",
+        localImpact: "unknown",
+        classification: "relevance_unknown",
+      });
+      expect(scene.summary.availability.failing).toBe(1);
+    }
+  });
+  it("R6 preserves monitored deep F3 conflicts, stale checks and access states across all 1000 identities", () => {
+    const fixture = scaleObservatoryFixture(1000);
+    const signals = fixture.resources.map((resource, i) => ({
+      ...observatoryFixtureSignal(resource.id, "deep-check-" + i, "passing"),
+      observedAt: i === 997 ? "2026-10-16T11:00:00.000Z" : fixture.now,
+    }));
+    signals.push(
+      observatoryFixtureSignal(
+        fixture.resources[999]!.id,
+        "deep-conflict",
+        "failing",
+      ),
+    );
+    const facetAccess = fixture.resources.flatMap((resource, i) =>
+      (
+        [
+          "availability",
+          "telemetry",
+          "capacity",
+          "lifecycle",
+          "security",
+          "provider",
+          "work",
+        ] as const
+      ).map((facet) => ({
+        resourceId: resource.id,
+        facet,
+        state:
+          facet === "security"
+            ? ("inaccessible" as const)
+            : facet === "work"
+              ? ("unsupported" as const)
+              : facet === "availability" && i === 998
+                ? ("disabled" as const)
+                : ("available" as const),
+      })),
+    );
+    const requirements = fixture.resources
+      .filter((resource) => resource.kind === "service")
+      .map((resource, i) => ({
+        id: "deep-requirement-" + i,
+        resourceId: resource.id,
+        role: "required" as const,
+        environment: "production",
+      }));
+    const scene = projectObservatory({
+      ...fixture,
+      environment: "production",
+      signals,
+      facetAccess,
+      requirements,
+    });
+    expectConservation(
+      scene,
+      fixture.resources.map((resource) => resource.id),
+    );
+    expect(scene.signals).toHaveLength(1001);
+    expect(scene.summary.availability).toMatchObject({
+      passing: 397,
+      failing: 1,
+      unknown: 2,
+      confirmedImpact: true,
+    });
+    expect(scene.summary.coverage).toEqual({
+      eligible: 400,
+      monitored: 398,
+      unmonitored: 2,
+      stale: 1,
+      state: "incomplete",
+    });
+    expect(scene.summary.security.counts).toEqual({ inaccessible: 1000 });
+    expect(scene.summary.work.counts).toEqual({ unsupported: 1000 });
+    expect(scene.summary.incidentIds).toEqual([
+      "fixture:incident:deep-conflict",
+    ]);
+  });
+  it("R6 indexes dense evidence, access and requirements once before deep aggregation", () => {
+    const input = scaleObservatoryFixture(80);
+    const reads = { signals: 0, accesses: 0, requirements: 0 };
+    const observe = <T extends { resourceId: string }>(
+      value: T,
+      type: keyof typeof reads,
+    ): T =>
+      new Proxy(value, {
+        get(target, property, receiver) {
+          if (property === "resourceId") reads[type]++;
+          return Reflect.get(target, property, receiver);
+        },
+      });
+    const signals = input.resources.map((resource, i) =>
+      observe(
+        observatoryFixtureSignal(resource.id, "monitored-" + i, "passing"),
+        "signals",
+      ),
+    );
+    const facetAccess = input.resources.flatMap((resource) =>
+      (
+        [
+          "availability",
+          "telemetry",
+          "capacity",
+          "lifecycle",
+          "security",
+          "provider",
+          "work",
+        ] as const
+      ).map((facet) =>
+        observe(
+          { resourceId: resource.id, facet, state: "available" as const },
+          "accesses",
+        ),
+      ),
+    );
+    const requirements = input.resources
+      .filter((resource) => resource.kind === "service")
+      .map((resource, i) =>
+        observe(
+          {
+            id: "required-" + i,
+            resourceId: resource.id,
+            role: "required" as const,
+            environment: "production",
+          },
+          "requirements",
+        ),
+      );
+    const scene = projectObservatory({
+      ...input,
+      environment: "production",
+      signals,
+      facetAccess,
+      requirements,
+    });
+    expectConservation(
+      scene,
+      input.resources.map((resource) => resource.id),
+    );
+    expect(scene.signals).toHaveLength(80);
+    expect(scene.summary.coverage.monitored).toBe(requirements.length);
+    expect(reads.signals).toBeLessThanOrEqual(signals.length * 10);
+    expect(reads.accesses).toBeLessThanOrEqual(facetAccess.length * 10);
+    expect(reads.requirements).toBeLessThanOrEqual(requirements.length * 10);
+  });
+});

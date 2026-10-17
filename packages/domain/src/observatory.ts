@@ -409,42 +409,100 @@ function uniqueById<T extends { id: string }>(items: readonly T[]): T[] {
 }
 const applies = (value: string | null, environment: string | null) =>
   environment === null || value === environment;
-function accessFor(
+type FacetIndex = {
+  input: ObservatoryInput;
+  resources: Map<string, ObservatoryResource>;
+  signals: Map<string, Map<ObservatoryFacet, ObservatorySignal[]>>;
+  selectedSignals: Map<string, Map<ObservatoryFacet, ObservatorySignal[]>>;
+  accesses: Map<string, Map<ObservatoryFacet, ObservatoryAccess>>;
+  requirements: Map<string, ObservatoryRequirement[]>;
+  freshness: Map<ObservatorySignal, ObservatoryFreshness>;
+};
+function createFacetIndex(
   input: ObservatoryInput,
+  resources: readonly ObservatoryResource[],
+): FacetIndex {
+  const index: FacetIndex = {
+    input,
+    resources: new Map(resources.map((resource) => [resource.id, resource])),
+    signals: new Map(),
+    selectedSignals: new Map(),
+    accesses: new Map(),
+    requirements: new Map(),
+    freshness: new Map(),
+  };
+  for (const signal of input.signals ?? []) {
+    if (!index.resources.has(signal.resourceId)) continue;
+    const facets =
+      index.signals.get(signal.resourceId) ??
+      new Map<ObservatoryFacet, ObservatorySignal[]>();
+    const observations = facets.get(signal.facet) ?? [];
+    observations.push(signal);
+    facets.set(signal.facet, observations);
+    index.signals.set(signal.resourceId, facets);
+  }
+  for (const [id, facets] of index.signals) {
+    const selected = new Map<ObservatoryFacet, ObservatorySignal[]>();
+    for (const [facet, observations] of facets) {
+      const signals = uniqueById(
+        observations.filter((signal) =>
+          applies(signal.environment, input.environment ?? null),
+        ),
+      );
+      selected.set(facet, signals);
+      for (const signal of signals)
+        index.freshness.set(
+          signal,
+          observatoryFreshness(
+            signal.observedAt,
+            signal.freshnessMs,
+            input.now,
+          ),
+        );
+    }
+    index.selectedSignals.set(id, selected);
+  }
+  for (const item of input.facetAccess ?? []) {
+    if (!index.resources.has(item.resourceId)) continue;
+    const facets =
+      index.accesses.get(item.resourceId) ??
+      new Map<ObservatoryFacet, ObservatoryAccess>();
+    if (!facets.has(item.facet)) facets.set(item.facet, item.state);
+    index.accesses.set(item.resourceId, facets);
+  }
+  for (const item of input.requirements ?? []) {
+    if (!index.resources.has(item.resourceId)) continue;
+    const requirements = index.requirements.get(item.resourceId) ?? [];
+    requirements.push(item);
+    index.requirements.set(item.resourceId, requirements);
+  }
+  return index;
+}
+function accessFor(
+  index: FacetIndex,
   id: string,
   facet: ObservatoryFacet,
 ): ObservatoryAccess {
   return (
-    input.facetAccess?.find(
-      (item) => item.resourceId === id && item.facet === facet,
-    )?.state ??
+    index.accesses.get(id)?.get(facet) ??
     (facet === "security" || facet === "work" ? "unsupported" : "available")
   );
 }
 function signalsFor(
-  input: ObservatoryInput,
+  index: FacetIndex,
   id: string,
   facet: ObservatoryFacet,
 ): ObservatorySignal[] {
-  return uniqueById(
-    (input.signals ?? []).filter(
-      (signal) =>
-        signal.resourceId === id &&
-        signal.facet === facet &&
-        applies(signal.environment, input.environment ?? null),
-    ),
-  );
+  return index.selectedSignals.get(id)?.get(facet) ?? [];
 }
 function currentSignals(
-  input: ObservatoryInput,
+  index: FacetIndex,
   id: string,
   facet: ObservatoryFacet,
 ): ObservatorySignal[] {
-  if (accessFor(input, id, facet) !== "available") return [];
-  return signalsFor(input, id, facet).filter(
-    (signal) =>
-      observatoryFreshness(signal.observedAt, signal.freshnessMs, input.now) ===
-      "fresh",
+  if (accessFor(index, id, facet) !== "available") return [];
+  return signalsFor(index, id, facet).filter(
+    (signal) => index.freshness.get(signal) === "fresh",
   );
 }
 function sourceState(
@@ -473,6 +531,13 @@ export function reduceObservatoryFacets(
   const resources = uniqueById(
     input.resources.filter((resource) => ids.has(resource.id)),
   );
+  return reduceIndexedFacets(createFacetIndex(input, resources), resources);
+}
+function reduceIndexedFacets(
+  index: FacetIndex,
+  resources: readonly ObservatoryResource[],
+): ObservatorySummary {
+  const input = index.input;
   const availability = {
     ...emptyCounts(),
     required: emptyCounts(),
@@ -497,9 +562,7 @@ export function reduceObservatoryFacets(
     work: emptyFacet(),
   };
   for (const resource of resources) {
-    const declaredRequirements = (input.requirements ?? []).filter(
-      (requirement) => requirement.resourceId === resource.id,
-    );
+    const declaredRequirements = index.requirements.get(resource.id) ?? [];
     const requirements = uniqueById(
       declaredRequirements.filter((requirement) =>
         applies(requirement.environment, input.environment ?? null),
@@ -525,11 +588,11 @@ export function reduceObservatoryFacets(
         !declaredRequirements.length ||
         signal.environment === requirement.environment;
       const observations = currentSignals(
-        input,
+        index,
         resource.id,
         "availability",
       ).filter(matchesRequirement);
-      const lifecycle = currentSignals(input, resource.id, "lifecycle").filter(
+      const lifecycle = currentSignals(index, resource.id, "lifecycle").filter(
         matchesRequirement,
       );
       const has = (state: string) =>
@@ -547,19 +610,12 @@ export function reduceObservatoryFacets(
               : "unknown";
       availability[state]++;
       count(availability[requirement.role], state);
-      if (state !== "unknown" && state !== "maintenance") monitored++;
+      if (has("passing") || has("degraded") || has("failing")) monitored++;
       if (
         !observations.length &&
-        signalsFor(input, resource.id, "availability")
+        signalsFor(index, resource.id, "availability")
           .filter(matchesRequirement)
-          .some(
-            (signal) =>
-              observatoryFreshness(
-                signal.observedAt,
-                signal.freshnessMs,
-                input.now,
-              ) === "stale",
-          )
+          .some((signal) => index.freshness.get(signal) === "stale")
       )
         stale++;
       if (state === "failing" && requirement.role === "required")
@@ -572,10 +628,10 @@ export function reduceObservatoryFacets(
     for (const facet of facets) {
       if (facet === "availability") continue;
       const summary = summaries[facet];
-      const access = accessFor(input, resource.id, facet);
-      const observations = signalsFor(input, resource.id, facet);
+      const access = accessFor(index, resource.id, facet);
+      const observations = signalsFor(index, resource.id, facet);
       const current =
-        access === "available" ? currentSignals(input, resource.id, facet) : [];
+        access === "available" ? currentSignals(index, resource.id, facet) : [];
       summary.signalIds.push(...observations.map((signal) => signal.id));
       if (access !== "available") count(summary.counts, access);
       else if (current.length) {
@@ -583,13 +639,7 @@ export function reduceObservatoryFacets(
           count(summary.counts, state);
       } else if (observations.length) {
         for (const state of sort(
-          observations.map((signal) =>
-            observatoryFreshness(
-              signal.observedAt,
-              signal.freshnessMs,
-              input.now,
-            ),
-          ),
+          observations.map((signal) => index.freshness.get(signal)!),
         ))
           count(summary.counts, state);
       } else if (facet === "telemetry") {
@@ -627,6 +677,60 @@ export function reduceObservatoryFacets(
   };
 }
 
+function aggregateResourceSummaries(
+  index: FacetIndex,
+  summaries: ReadonlyMap<string, ObservatorySummary>,
+  resourceIds: readonly string[],
+): ObservatorySummary {
+  const result = reduceIndexedFacets(index, []);
+  const states = Object.keys(emptyCounts()) as (keyof ObservatoryStateCounts)[];
+  for (const id of new Set(resourceIds)) {
+    const summary = summaries.get(id);
+    if (!summary) continue;
+    for (const state of states) {
+      result.availability[state] += summary.availability[state];
+      for (const role of ["required", "optional", "unspecified"] as const)
+        result.availability[role][state] += summary.availability[role][state];
+    }
+    result.availability.confirmedImpact ||=
+      summary.availability.confirmedImpact;
+    result.coverage.eligible += summary.coverage.eligible;
+    result.coverage.monitored += summary.coverage.monitored;
+    result.coverage.stale += summary.coverage.stale;
+    for (const facet of facets) {
+      if (facet === "availability") continue;
+      for (const [state, value] of Object.entries(summary[facet].counts))
+        result[facet].counts[state] =
+          (result[facet].counts[state] ?? 0) + value;
+      result[facet].signalIds.push(...summary[facet].signalIds);
+    }
+    result.incidentIds.push(...summary.incidentIds);
+  }
+  const coverage = result.coverage;
+  coverage.unmonitored = coverage.eligible - coverage.monitored;
+  coverage.state =
+    coverage.monitored === 0
+      ? "not_monitored"
+      : coverage.monitored < coverage.eligible
+        ? "incomplete"
+        : "complete";
+  for (const facet of facets)
+    if (facet !== "availability")
+      result[facet].signalIds = sort(result[facet].signalIds);
+  result.incidentIds = sort(result.incidentIds);
+  return result;
+}
+
+const providerScopeMatch = (
+  a: string | null,
+  b: string | null,
+): "matched" | "unrelated" | "unknown" =>
+  a === null || b === null
+    ? "unknown"
+    : a === b || a === "*" || b === "*"
+      ? "matched"
+      : "unrelated";
+
 /** A wildcard is explicit applicability; null means unknown, never global. */
 export function evaluateObservatoryProviderExposure(
   notice: ObservatoryProviderNotice,
@@ -644,23 +748,14 @@ export function evaluateObservatoryProviderExposure(
     notice.freshnessMs,
     context.now,
   );
-  const match = (
-    a: string | null,
-    b: string | null,
-  ): "matched" | "unrelated" | "unknown" =>
-    a === null || b === null
-      ? "unknown"
-      : a === b || a === "*" || b === "*"
-        ? "matched"
-        : "unrelated";
   const matches =
     dependency && dependency.resourceId === context.resourceId
       ? [
-          match(notice.providerId, dependency.providerId),
-          match(notice.product, dependency.product),
-          match(notice.environment, dependency.environment),
-          match(notice.geography, dependency.geography),
-          match(notice.plane, dependency.plane),
+          providerScopeMatch(notice.providerId, dependency.providerId),
+          providerScopeMatch(notice.product, dependency.product),
+          providerScopeMatch(notice.environment, dependency.environment),
+          providerScopeMatch(notice.geography, dependency.geography),
+          providerScopeMatch(notice.plane, dependency.plane),
         ]
       : ["unknown"];
   const relevance = matches.includes("unrelated")
@@ -673,9 +768,11 @@ export function evaluateObservatoryProviderExposure(
       signal.resourceId === context.resourceId &&
       signal.facet === "availability" &&
       signal.state === "failing" &&
-      (dependency
-        ? applies(signal.environment, dependency.environment)
-        : true) &&
+      dependency !== null &&
+      providerScopeMatch(signal.environment, dependency.environment) ===
+        "matched" &&
+      providerScopeMatch(signal.environment, notice.environment) ===
+        "matched" &&
       observatoryFreshness(
         signal.observedAt,
         signal.freshnessMs,
@@ -766,9 +863,17 @@ export function observatoryMembers(
   scene: Pick<ObservatoryScene, "representations" | "membershipIndex">,
   groupId: string,
 ): string[] {
-  const representations = new Map(
-    scene.representations.map((item) => [item.id, item]),
+  return indexedMembers(
+    scene,
+    groupId,
+    new Map(scene.representations.map((item) => [item.id, item])),
   );
+}
+function indexedMembers(
+  scene: Pick<ObservatoryScene, "representations" | "membershipIndex">,
+  groupId: string,
+  representations: ReadonlyMap<string, ObservatoryRepresentation>,
+): string[] {
   if (!representations.has(groupId)) throw new Error("Unknown representation");
   const pending = [groupId],
     seen = new Set<string>(),
@@ -849,6 +954,14 @@ export function projectObservatory(input: ObservatoryInput): ObservatoryScene {
       accesses.add(id);
     }
   const projectionInput = { ...input, resources: ordered, signals };
+  const facetIndex = createFacetIndex(projectionInput, ordered);
+  const emptySummary = reduceIndexedFacets(facetIndex, []);
+  const resourceSummaries = new Map(
+    ordered.map((resource) => [
+      resource.id,
+      reduceIndexedFacets(facetIndex, [resource]),
+    ]),
+  );
   const containment: ObservatoryScene["containment"] = ordered.map(
     (resource) => {
       const seen = new Set([resource.id]);
@@ -924,7 +1037,7 @@ export function projectObservatory(input: ObservatoryInput): ObservatoryScene {
         scopeDigest: input.scopeDigest,
         projectionRevision: "",
       },
-      summary: reduceObservatoryFacets({ ...projectionInput, resources: [] }),
+      summary: emptySummary,
     });
     directMembers[id] = resource && !referenceTo ? [resource.id] : [];
     return id;
@@ -1268,7 +1381,7 @@ export function projectObservatory(input: ObservatoryInput): ObservatoryScene {
       ),
     })),
     sourceObservations: ordered.flatMap((resource) =>
-      accessFor(input, resource.id, "telemetry") === "available"
+      accessFor(facetIndex, resource.id, "telemetry") === "available"
         ? [...resource.sources]
             .sort((a, b) => a.id.localeCompare(b.id))
             .map((source) => ({
@@ -1289,7 +1402,7 @@ export function projectObservatory(input: ObservatoryInput): ObservatoryScene {
         : [],
     ),
     capacityObservations: ordered.flatMap((resource) =>
-      accessFor(input, resource.id, "capacity") === "available"
+      accessFor(facetIndex, resource.id, "capacity") === "available"
         ? [...resource.metrics]
             .sort(
               (a, b) =>
@@ -1308,70 +1421,99 @@ export function projectObservatory(input: ObservatoryInput): ObservatoryScene {
         : [],
     ),
     providerExposures: [],
-    summary: reduceObservatoryFacets(projectionInput),
+    summary: emptySummary,
     searchResults: [],
   };
+  const membersByNode = new Map<string, string[]>();
   for (const node of representations) {
-    const members = observatoryMembers(scene, node.id);
+    const members = indexedMembers(scene, node.id, nodes);
+    membersByNode.set(node.id, members);
     node.memberCount = members.length;
     node.memberDigest = observatoryDigest(members);
     node.expansionRef.projectionRevision = revision;
-    node.summary = reduceObservatoryFacets(projectionInput, members);
   }
+  const selectedEnvironment = input.environment ?? null;
+  const providerInScope = (environment: string | null) =>
+    selectedEnvironment === null ||
+    environment === null ||
+    providerScopeMatch(environment, selectedEnvironment) === "matched";
   const notices = uniqueById(
     (input.providerNotices ?? []).filter(
-      (notice) => resources.get(notice.providerId)?.kind === "provider",
+      (notice) =>
+        resources.get(notice.providerId)?.kind === "provider" &&
+        providerInScope(notice.environment),
     ),
   );
-  for (const dependency of dependencies)
-    for (const notice of notices.filter(
-      (item) => item.providerId === dependency.providerId,
-    ))
-      scene.providerExposures.push(
-        evaluateObservatoryProviderExposure(notice, dependency, {
-          resourceId: dependency.resourceId,
-          now: input.now,
-          localSignals:
-            accessFor(input, dependency.resourceId, "availability") ===
-            "available"
-              ? signals
-              : [],
-          ...((input.attributions ?? []).find(
-            (item) =>
-              item.noticeId === notice.id &&
-              item.resourceId === dependency.resourceId,
-          )
-            ? {
-                attribution: (input.attributions ?? []).find(
-                  (item) =>
-                    item.noticeId === notice.id &&
-                    item.resourceId === dependency.resourceId,
-                )!,
-              }
-            : {}),
-        }),
+  const noticesByProvider = new Map<string, ObservatoryProviderNotice[]>();
+  for (const notice of notices) {
+    const values = noticesByProvider.get(notice.providerId) ?? [];
+    values.push(notice);
+    noticesByProvider.set(notice.providerId, values);
+  }
+  const exposuresByResource = new Map<string, ObservatoryProviderExposure[]>();
+  for (const dependency of dependencies.filter((item) =>
+    providerInScope(item.environment),
+  ))
+    for (const notice of noticesByProvider.get(dependency.providerId) ?? []) {
+      const attribution = (input.attributions ?? []).find(
+        (item) =>
+          item.noticeId === notice.id &&
+          item.resourceId === dependency.resourceId,
       );
-  const addExposureSummary = (
-    summary: ObservatorySummary,
-    memberIds: readonly string[],
-  ) => {
-    for (const resourceId of memberIds) {
-      const exposures = scene.providerExposures.filter(
-        (item) => item.resourceId === resourceId,
-      );
-      if (!exposures.length) continue;
-      if (summary.provider.counts.unknown) summary.provider.counts.unknown--;
-      for (const classification of sort(
-        exposures.map((item) =>
-          item.freshness === "fresh" ? item.classification : item.freshness,
-        ),
-      ))
-        count(summary.provider.counts, classification);
+      const exposure = evaluateObservatoryProviderExposure(notice, dependency, {
+        resourceId: dependency.resourceId,
+        now: input.now,
+        localSignals:
+          accessFor(facetIndex, dependency.resourceId, "availability") ===
+          "available"
+            ? (
+                facetIndex.signals
+                  .get(dependency.resourceId)
+                  ?.get("availability") ?? []
+              ).filter(
+                (signal) =>
+                  selectedEnvironment === null ||
+                  providerScopeMatch(
+                    signal.environment,
+                    selectedEnvironment,
+                  ) === "matched",
+              )
+            : [],
+        ...(attribution ? { attribution } : {}),
+      });
+      scene.providerExposures.push(exposure);
+      const values = exposuresByResource.get(dependency.resourceId) ?? [];
+      values.push(exposure);
+      exposuresByResource.set(dependency.resourceId, values);
     }
-  };
-  addExposureSummary(scene.summary, populationIds);
+  // Replace only this canonical resource's absence-of-evidence fallback before
+  // aggregation. An unrelated member's unknown/access/stale count is independent.
+  for (const [resourceId, exposures] of exposuresByResource) {
+    const summary = resourceSummaries.get(resourceId)!;
+    if (
+      accessFor(facetIndex, resourceId, "provider") === "available" &&
+      signalsFor(facetIndex, resourceId, "provider").length === 0
+    )
+      delete summary.provider.counts.unknown;
+    for (const classification of sort(
+      exposures.map((item) =>
+        item.freshness === "fresh" ? item.classification : item.freshness,
+      ),
+    ))
+      // Multiple sources establish one canonical member in this classification.
+      summary.provider.counts[classification] = 1;
+  }
+  scene.summary = aggregateResourceSummaries(
+    facetIndex,
+    resourceSummaries,
+    populationIds,
+  );
   for (const node of representations)
-    addExposureSummary(node.summary, observatoryMembers(scene, node.id));
+    node.summary = aggregateResourceSummaries(
+      facetIndex,
+      resourceSummaries,
+      membersByNode.get(node.id)!,
+    );
   scene.searchResults = searchObservatory(scene, input.search ?? "");
   const expanded = new Set(input.expandedRepresentationIds ?? []);
   for (const result of scene.searchResults)
