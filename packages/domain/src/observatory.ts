@@ -96,7 +96,7 @@ export type ObservatorySignal = {
     environment: string | null;
     incidentId: string | null;
     /** Retained evidence can stay fresh in time after its source loses coverage. */
-    sourceQualification?: "current" | "last_known";
+    sourceQualification?: "current" | "last_known" | undefined;
   };
 }[ObservatoryFacet];
 export type ObservatoryFacetAccess = {

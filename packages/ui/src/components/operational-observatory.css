@@ -590,3 +590,25 @@
     scroll-behavior: auto;
   }
 }
+
+/* The Observatory provides its own subject inspector and recorded activity. */
+.cmd-network-workspace[data-view="gravity"] {
+  grid-template-columns: minmax(0, 1fr);
+}
+.cmd-op-source-details > details,
+.cmd-op-source-details > div {
+  margin-block: 10px;
+  border-top: 1px solid var(--op-line);
+  padding-top: 8px;
+}
+.cmd-op-source-details ul {
+  padding-left: 18px;
+}
+.cmd-op-source-details code {
+  overflow-wrap: anywhere;
+}
+.cmd-op-canonical-work > summary {
+  padding: 12px 20px;
+  cursor: pointer;
+  border-top: 1px solid var(--op-line);
+}

@@ -366,6 +366,145 @@ test(
         },
       );
       await t.test(
+        "operational detail SQL binds shared sources to their project before safe complete evidence reads",
+        async () => {
+          const subject = randomUUID();
+          await admin.db.insert(resource).values({
+            id: subject,
+            kind: "service",
+            name: "Detail scope fixture",
+          });
+          await admin.db.insert(projectResourceLink).values(
+            [projectId, otherProjectId].map((id) => ({
+              id: randomUUID(),
+              projectId: id,
+              resourceId: subject,
+              type: "relates_to" as const,
+              sourceKind: "project" as const,
+              targetKind: "resource" as const,
+              lifecycle: "active" as const,
+            })),
+          );
+          const metadata = (id: string, project: string, index: number) => ({
+            id,
+            projectId: project,
+            resourceId: subject,
+            environment: "test",
+            kind: "infraagent-monitor",
+            externalId: "detail-" + index,
+            enabled: true,
+            version: 1,
+            freshnessSeconds: 300,
+            provenance: {
+              actorId: "fixture:operational-detail",
+              recordedAt: now.toISOString(),
+              evidenceRefs: ["fixture:detail-ownership"],
+            },
+            snapshot: {
+              observedAt: now.toISOString(),
+              rawPayload: { secret: "PRIVATE_ORIGINAL" },
+              details: {
+                monitorId: "detail-" + index,
+                monitorStatus: "up",
+                enabled: true,
+                sourceState: "available",
+                reason: "observed",
+                lastCheckedAt: now.toISOString(),
+                latestCheck: {
+                  checkedAt: now.toISOString(),
+                  status: "up",
+                  responseTimeMs: 12,
+                  statusCode: 200,
+                },
+                openIncident: null,
+                recentChecksLimit: 25,
+                historyComplete: false,
+              },
+              signals: [],
+            },
+          });
+          const ownIds = Array.from({ length: 137 }, () => randomUUID()),
+            foreignId = randomUUID();
+          await admin.db
+            .insert(observatorySource)
+            .values([
+              ...ownIds.map((id, index) => metadata(id, projectId, index)),
+              metadata(foreignId, otherProjectId, 999),
+            ]);
+          const query = {
+            projectId,
+            resourceId: subject,
+            facet: "availability",
+          };
+          const machine = await read.operationalEvidence(request(), query);
+          assert.equal(machine.items.length, 137);
+          assert.deepEqual(
+            machine.items.map((item) => item.sourceId).sort(),
+            ownIds.sort(),
+          );
+          assert.ok(
+            machine.items.every((item) => item.projectId === projectId),
+          );
+          assert.ok(!JSON.stringify(machine).includes("PRIVATE_ORIGINAL"));
+          const ownerRead = createObservatoryReadService(
+            createObservatoryOwnerReadRepository(runtime.db, {
+              environment: "test",
+            }),
+            { environment: "test" },
+          );
+          assert.equal(
+            (
+              await ownerRead.operationalEvidence(
+                { identity: owner, projectId },
+                query,
+              )
+            ).items.length,
+            137,
+          );
+          assert.equal(
+            (
+              await ownerRead.operationalEvidence(
+                { identity: owner },
+                { resourceId: subject, facet: "availability" },
+              )
+            ).items.length,
+            138,
+          );
+          await admin.db
+            .update(observatorySource)
+            .set({
+              snapshot: { details: { malformed: "FOREIGN_PRIVATE_DETAILS" } },
+            })
+            .where(eq(observatorySource.id, foreignId));
+          assert.equal(
+            (await read.operationalEvidence(request(), query)).items.length,
+            137,
+          );
+          assert.equal(
+            (
+              await ownerRead.operationalEvidence(
+                { identity: owner, projectId },
+                query,
+              )
+            ).items.length,
+            137,
+          );
+          await admin.db
+            .update(projectResourceLink)
+            .set({ lifecycle: "archived" })
+            .where(
+              and(
+                eq(projectResourceLink.projectId, projectId),
+                eq(projectResourceLink.resourceId, subject),
+              ),
+            );
+          await assert.rejects(
+            () => read.operationalEvidence(request(), query),
+            denied("INVALID_REFERENCE"),
+          );
+        },
+      );
+      await t.test(
         "whitespace review is rejected before persistence; accepted original references round-trip",
         async () => {
           const change = {

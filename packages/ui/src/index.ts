@@ -159,3 +159,13 @@ export type { OperationalObservatoryProps } from "./components/OperationalObserv
 export type { ObservatoryQuery } from "./gravity/observatory-preferences";
 
 export type { ObservatoryViewsClient } from "./components/ObservatoryCanonicalViews";
+
+export {
+  ObservatoryOperationalEvidence,
+  type ObservatoryEvidenceClient,
+} from "./components/ObservatoryOperationalEvidence";
+
+export {
+  ObservatoryWorkDock,
+  type ObservatoryWorkDockProps,
+} from "./components/ObservatoryWorkDock";

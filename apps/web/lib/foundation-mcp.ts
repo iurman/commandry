@@ -38,6 +38,7 @@ import {
   foundationOnboardingToolInputSchema,
   foundationWorkflowListToolQuerySchema,
   observatorySceneQuerySchema,
+  observatoryOperationalEvidenceQuerySchema,
   observatoryMembershipQuerySchema,
   observatoryRelationsQuerySchema,
   observatorySignalEvidenceQuerySchema,
@@ -285,6 +286,28 @@ export function createFoundationMcpServer(
           annotations: readAnnotations,
         },
         (input) => result(() => observatory.signalEvidence(input)),
+      );
+    if (
+      [
+        "observatory.signals.read",
+        "observatory.security.read",
+        "work.read",
+      ].some((operation) =>
+        capabilities.has(operation as FoundationActor["capabilities"][number]),
+      )
+    )
+      register(
+        "get_observatory_operational_evidence",
+        {
+          description:
+            scope +
+            "Read-only reviewed availability checks, repository PRs or security evidence for one authorized resource. Each facet requires its separate capability, with canonical source-project scope and complete source lists. Raw payloads, credentials and other facets are excluded. Assignment and pull requests do not establish an active run.",
+          inputSchema: safeSchema(
+            observatoryOperationalEvidenceQuerySchema.omit({ projectId: true }),
+          ),
+          annotations: readAnnotations,
+        },
+        (input) => result(() => observatory.operationalEvidence(input)),
       );
     if (capabilities.has("observatory.providers.read"))
       register(

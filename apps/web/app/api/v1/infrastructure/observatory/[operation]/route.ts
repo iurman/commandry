@@ -16,9 +16,14 @@ export async function POST(
   try {
     const { operation } = await context.params;
     if (
-      !["scene", "members", "relations", "signals", "providers"].includes(
-        operation,
-      )
+      ![
+        "scene",
+        "members",
+        "relations",
+        "signals",
+        "providers",
+        "operational",
+      ].includes(operation)
     )
       throw new FoundationError("NOT_FOUND");
     const input = await readObservatoryJson(request);
@@ -40,7 +45,9 @@ export async function POST(
             ? await service.relations(owner, input)
             : operation === "signals"
               ? await service.signalEvidence(owner, input)
-              : await service.providerExplanation(owner, input);
+              : operation === "operational"
+                ? await service.operationalEvidence(owner, input)
+                : await service.providerExplanation(owner, input);
     return jsonResponse(
       request,
       result,

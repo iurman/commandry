@@ -42,6 +42,18 @@ export function createObservatoryMcpReads(
     projectId: context.projectId,
   });
   return {
+    operationalEvidence: (input) => {
+      const operation: Operation =
+        input.facet === "security"
+          ? "observatory.security.read"
+          : input.facet === "pull_requests"
+            ? "work.read"
+            : "observatory.signals.read";
+      return service(operation).operationalEvidence(
+        request(operation),
+        query(input),
+      );
+    },
     scene: (input) =>
       service("observatory.read").scene(
         request("observatory.read"),

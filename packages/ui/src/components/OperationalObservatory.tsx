@@ -12,6 +12,10 @@ import {
 } from "./ObservatoryCanonicalViews";
 import { FloatingSurface } from "./FloatingSurface";
 import {
+  ObservatoryOperationalEvidence,
+  type ObservatoryEvidenceClient,
+} from "./ObservatoryOperationalEvidence";
+import {
   mapOperationalEvents,
   operationalAttention,
   operationalMembers,
@@ -54,6 +58,7 @@ export type OperationalObservatoryProps = {
   onQueryChange: (query: ObservatoryQuery) => void;
   initialSearch?: string;
   viewsClient?: ObservatoryViewsClient;
+  evidenceClient?: ObservatoryEvidenceClient;
   scopeProjectId?: string | null;
   paused?: boolean;
   delayed?: boolean;
@@ -294,6 +299,7 @@ function OperationalObservatoryView({
   onCameraFocus,
   initialSearch = "",
   viewsClient,
+  evidenceClient,
   scopeProjectId = null,
   paused = false,
   delayed = false,
@@ -1669,6 +1675,15 @@ function OperationalObservatoryView({
               structural size is retained; unknown RAM is never zero.
             </p>
           ) : null}
+          {selected?.resourceId && evidenceClient && (
+            <ObservatoryOperationalEvidence
+              key={`${scene.scopeDigest}:${selected.resourceId}`}
+              resourceId={selected.resourceId}
+              scopeKey={scene.scopeDigest}
+              repository={selected.kind === "repository"}
+              loadEvidence={evidenceClient}
+            />
+          )}
           <details>
             <summary>Observation evidence</summary>
             {scene.signals
@@ -1679,8 +1694,11 @@ function OperationalObservatoryView({
                     {words(signal.facet)}: {words(signal.state)}
                   </strong>
                   <p>
-                    {words(signal.freshness)} / observed {signal.observedAt} /
-                    source {signal.sourceId}
+                    {words(signal.freshness)} /{" "}
+                    {signal.sourceQualification === "last_known"
+                      ? "retained evidence; current source coverage is unavailable / "
+                      : ""}
+                    observed {signal.observedAt} / source {signal.sourceId}
                     {signal.environment ? ` / ${signal.environment}` : ""}
                   </p>
                   <Evidence values={signal.evidenceRefs} />

@@ -7,7 +7,13 @@ const OperationalObservatory = dynamic(
   { ssr: false, loading: () => <p role="status">Loading Gravity view...</p> },
 );
 
-import { useEffect, useRef, useState, type FormEvent } from "react";
+import {
+  useCallback,
+  useEffect,
+  useRef,
+  useState,
+  type FormEvent,
+} from "react";
 import type {
   InfrastructureOverview,
   InfrastructureResource,
@@ -110,6 +116,23 @@ export default function InfrastructureOverviewScreen({
   const [rotatePages, setRotatePages] = useState(false);
   const [arrivals, setArrivals] = useState<string[]>([]);
   const previousEvents = useRef<Set<string> | null>(null);
+  const evidenceClient = useCallback(
+    async (
+      resourceId: string,
+      facet: "availability" | "pull_requests" | "security",
+    ) =>
+      apiJson<unknown>("/api/v1/infrastructure/observatory/operational", {
+        method: "POST",
+        headers: { "content-type": "application/json" },
+        body: JSON.stringify({
+          ...sceneQuery,
+          ...(scope.projectId ? { projectId: scope.projectId } : {}),
+          resourceId,
+          facet,
+        }),
+      }),
+    [sceneQuery, scope.projectId],
+  );
   const [fullscreenError, setFullscreenError] = useState<string | null>(null);
   const container = useRef<HTMLDivElement>(null);
 
@@ -654,7 +677,7 @@ export default function InfrastructureOverviewScreen({
         </p>
       )}
       {data && data.items.length > 0 && (
-        <div className="cmd-network-workspace">
+        <div className="cmd-network-workspace" data-view={view}>
           <section
             className="cmd-network-main"
             aria-label={
@@ -665,21 +688,23 @@ export default function InfrastructureOverviewScreen({
                   : "Resource list"
             }
           >
-            <div className="cmd-network-section-heading">
-              <h2>
-                {view === "gravity"
-                  ? "Gravity Observatory"
-                  : view === "map"
-                    ? "The infrastructure map"
-                    : "All resources in view"}
-              </h2>
-              <Button
-                aria-pressed={follow}
-                onClick={() => setFollow((current) => !current)}
-              >
-                Follow attention
-              </Button>
-            </div>
+            {view !== "gravity" && (
+              <div className="cmd-network-section-heading">
+                <h2>
+                  {view === "gravity"
+                    ? "Gravity Observatory"
+                    : view === "map"
+                      ? "The infrastructure map"
+                      : "All resources in view"}
+                </h2>
+                <Button
+                  aria-pressed={follow}
+                  onClick={() => setFollow((current) => !current)}
+                >
+                  Follow attention
+                </Button>
+              </div>
+            )}
             {view === "gravity" ? (
               observatory ? (
                 <OperationalObservatory
@@ -696,6 +721,7 @@ export default function InfrastructureOverviewScreen({
                   }}
                   initialSearch={initialQuery}
                   viewsClient={observatoryViewsClient}
+                  evidenceClient={evidenceClient}
                   scopeProjectId={scope.projectId || null}
                   paused={paused}
                   delayed={!!error || !!sceneError || scenePending}
@@ -748,177 +774,181 @@ export default function InfrastructureOverviewScreen({
               Lines show recorded relationships, not live network traffic.
             </p>
           </section>
-          <aside
-            className="cmd-network-inspector"
-            aria-label="Resource inspector and recent events"
-          >
-            {selected && (
-              <section aria-label={`Selected resource ${selected.name}`}>
-                <p className="cmd-eyebrow">
-                  {isInfrastructureHost(selected.kind)
-                    ? "Host / Compute"
-                    : "Resource / Service"}
-                </p>
-                <h2>{selected.name}</h2>
-                <p
-                  className="cmd-network-source-state"
-                  data-telemetry={selected.telemetry}
-                >
-                  {label(selected)}
-                </p>
-                <p>Service health: unknown</p>
-                {selected.childCount !== undefined && (
-                  <p>Child resources: {selected.childCount}</p>
-                )}
-                <Capacity resource={selected} />
-                {selected.metrics
-                  .filter(
-                    (metric) =>
-                      !["host_memory_used", "host_disk_used"].includes(
-                        metric.name,
-                      ),
-                  )
-                  .map((metric) => (
-                    <p key={`${metric.name}:${metric.evidenceHref}`}>
-                      {metric.name === "host_uptime"
-                        ? "Host uptime"
-                        : "Load (1 minute)"}
-                      :{" "}
-                      {metric.unit === "milli_load"
-                        ? metric.value / 1000
-                        : `${metric.value} ${metric.unit}`}
-                    </p>
-                  ))}
-                {selected.sources.length === 0 && (
-                  <p>No real source is connected. Health remains unknown.</p>
-                )}
-                {selected.sources.map((source) => (
-                  <div className="cmd-network-source" key={source.id}>
-                    <strong>{source.name}</strong>
-                    <span>
-                      {source.kind} / {source.enabled ? "Enabled" : "Disabled"}
-                    </span>
-                    <span>
-                      Freshness window: {source.freshnessWindowMinutes} minutes
-                    </span>
-                    <span>
-                      {source.observedAt ? (
-                        <>
-                          Observed{" "}
-                          <time dateTime={source.observedAt}>
-                            {time(source.observedAt)}
-                          </time>
-                        </>
-                      ) : (
-                        "No observation received"
-                      )}
-                    </span>
-                    {source.error && (
-                      <span>
-                        Source reported an error. Inspect the integration for
-                        details.
-                      </span>
-                    )}
-                  </div>
-                ))}
-                {selected.metrics.length > 0 && (
-                  <details>
-                    <summary>Measurement evidence</summary>
-                    {selected.metrics.map((metric) => (
+          {view !== "gravity" && (
+            <aside
+              className="cmd-network-inspector"
+              aria-label="Resource inspector and recent events"
+            >
+              {selected && (
+                <section aria-label={`Selected resource ${selected.name}`}>
+                  <p className="cmd-eyebrow">
+                    {isInfrastructureHost(selected.kind)
+                      ? "Host / Compute"
+                      : "Resource / Service"}
+                  </p>
+                  <h2>{selected.name}</h2>
+                  <p
+                    className="cmd-network-source-state"
+                    data-telemetry={selected.telemetry}
+                  >
+                    {label(selected)}
+                  </p>
+                  <p>Service health: unknown</p>
+                  {selected.childCount !== undefined && (
+                    <p>Child resources: {selected.childCount}</p>
+                  )}
+                  <Capacity resource={selected} />
+                  {selected.metrics
+                    .filter(
+                      (metric) =>
+                        !["host_memory_used", "host_disk_used"].includes(
+                          metric.name,
+                        ),
+                    )
+                    .map((metric) => (
                       <p key={`${metric.name}:${metric.evidenceHref}`}>
-                        <a href={metric.evidenceHref}>
-                          {metric.name}: {metric.value} {metric.unit}
-                        </a>
-                        <br />
-                        <time dateTime={metric.sampledAt}>
-                          {time(metric.sampledAt)}
-                        </time>
+                        {metric.name === "host_uptime"
+                          ? "Host uptime"
+                          : "Load (1 minute)"}
+                        :{" "}
+                        {metric.unit === "milli_load"
+                          ? metric.value / 1000
+                          : `${metric.value} ${metric.unit}`}
                       </p>
                     ))}
-                  </details>
-                )}
-                <div className="cmd-network-inspector-links">
-                  <a href={`/resources/${selected.id}`}>
-                    Open resource and relationships
-                  </a>
-                  <a href={`/resources/${selected.id}#dependency-impact`}>
-                    Inspect dependency impact
-                  </a>
-                  {selected.projects.map((project) => (
-                    <a key={project.id} href={`/projects/${project.id}`}>
-                      {project.name}
-                    </a>
+                  {selected.sources.length === 0 && (
+                    <p>No real source is connected. Health remains unknown.</p>
+                  )}
+                  {selected.sources.map((source) => (
+                    <div className="cmd-network-source" key={source.id}>
+                      <strong>{source.name}</strong>
+                      <span>
+                        {source.kind} /{" "}
+                        {source.enabled ? "Enabled" : "Disabled"}
+                      </span>
+                      <span>
+                        Freshness window: {source.freshnessWindowMinutes}{" "}
+                        minutes
+                      </span>
+                      <span>
+                        {source.observedAt ? (
+                          <>
+                            Observed{" "}
+                            <time dateTime={source.observedAt}>
+                              {time(source.observedAt)}
+                            </time>
+                          </>
+                        ) : (
+                          "No observation received"
+                        )}
+                      </span>
+                      {source.error && (
+                        <span>
+                          Source reported an error. Inspect the integration for
+                          details.
+                        </span>
+                      )}
+                    </div>
                   ))}
-                </div>
-                <details>
-                  <summary>Relationships in this snapshot</summary>
-                  {data.edges
-                    .filter(
-                      (edge) =>
-                        edge.from === selected.id || edge.to === selected.id,
-                    )
-                    .map((edge) => {
-                      const otherId =
-                        edge.from === selected.id ? edge.to : edge.from;
-                      const other = data.items.find(
-                        (item) => item.id === otherId,
-                      );
-                      return (
-                        <p key={edge.id}>
-                          {edge.from === selected.id
-                            ? edge.type
-                            : edge.type === "contains"
-                              ? "contained by"
-                              : "required by"}
-                          :{" "}
-                          <a href={`/resources/${otherId}`}>
-                            {other?.name ??
-                              (view === "gravity"
-                                ? "Resource outside this scope"
-                                : "Resource outside this page")}
+                  {selected.metrics.length > 0 && (
+                    <details>
+                      <summary>Measurement evidence</summary>
+                      {selected.metrics.map((metric) => (
+                        <p key={`${metric.name}:${metric.evidenceHref}`}>
+                          <a href={metric.evidenceHref}>
+                            {metric.name}: {metric.value} {metric.unit}
                           </a>
+                          <br />
+                          <time dateTime={metric.sampledAt}>
+                            {time(metric.sampledAt)}
+                          </time>
                         </p>
-                      );
-                    })}
-                </details>
-              </section>
-            )}
-            <section
-              className="cmd-network-activity"
-              aria-label="Recent infrastructure events"
-            >
-              <div className="cmd-network-section-heading">
-                <h2>Recent events</h2>
-                <span>
-                  Latest 8 / {view === "gravity" ? "this scope" : "this page"}
-                </span>
-              </div>
-              {data.events.length === 0 ? (
-                <p>No real events recorded for resources in this view.</p>
-              ) : (
-                <ol>
-                  {data.events.map((event) => (
-                    <li key={event.id}>
-                      <a href={event.evidenceHref}>{event.summary}</a>
-                      <span>{event.sourceLabel}</span>
-                      <time dateTime={event.occurredAt}>
-                        {time(event.occurredAt)}
-                      </time>
-                    </li>
-                  ))}
-                </ol>
+                      ))}
+                    </details>
+                  )}
+                  <div className="cmd-network-inspector-links">
+                    <a href={`/resources/${selected.id}`}>
+                      Open resource and relationships
+                    </a>
+                    <a href={`/resources/${selected.id}#dependency-impact`}>
+                      Inspect dependency impact
+                    </a>
+                    {selected.projects.map((project) => (
+                      <a key={project.id} href={`/projects/${project.id}`}>
+                        {project.name}
+                      </a>
+                    ))}
+                  </div>
+                  <details>
+                    <summary>Relationships in this snapshot</summary>
+                    {data.edges
+                      .filter(
+                        (edge) =>
+                          edge.from === selected.id || edge.to === selected.id,
+                      )
+                      .map((edge) => {
+                        const otherId =
+                          edge.from === selected.id ? edge.to : edge.from;
+                        const other = data.items.find(
+                          (item) => item.id === otherId,
+                        );
+                        return (
+                          <p key={edge.id}>
+                            {edge.from === selected.id
+                              ? edge.type
+                              : edge.type === "contains"
+                                ? "contained by"
+                                : "required by"}
+                            :{" "}
+                            <a href={`/resources/${otherId}`}>
+                              {other?.name ??
+                                (view === "gravity"
+                                  ? "Resource outside this scope"
+                                  : "Resource outside this page")}
+                            </a>
+                          </p>
+                        );
+                      })}
+                  </details>
+                </section>
               )}
-              <a
-                href={
-                  scope.projectId
-                    ? `/activity?projectId=${scope.projectId}`
-                    : "/activity"
-                }
+              <section
+                className="cmd-network-activity"
+                aria-label="Recent infrastructure events"
               >
-                Browse event history
-              </a>
-            </section>
-          </aside>
+                <div className="cmd-network-section-heading">
+                  <h2>Recent events</h2>
+                  <span>
+                    Latest 8 / {view === "gravity" ? "this scope" : "this page"}
+                  </span>
+                </div>
+                {data.events.length === 0 ? (
+                  <p>No real events recorded for resources in this view.</p>
+                ) : (
+                  <ol>
+                    {data.events.map((event) => (
+                      <li key={event.id}>
+                        <a href={event.evidenceHref}>{event.summary}</a>
+                        <span>{event.sourceLabel}</span>
+                        <time dateTime={event.occurredAt}>
+                          {time(event.occurredAt)}
+                        </time>
+                      </li>
+                    ))}
+                  </ol>
+                )}
+                <a
+                  href={
+                    scope.projectId
+                      ? `/activity?projectId=${scope.projectId}`
+                      : "/activity"
+                  }
+                >
+                  Browse event history
+                </a>
+              </section>
+            </aside>
+          )}
         </div>
       )}
       <footer className="cmd-network-footer">

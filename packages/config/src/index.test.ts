@@ -16,6 +16,25 @@ describe("runtime configuration", () => {
     expect(config.dbPoolMax).toBe(3);
     expect(config.bossPoolMax).toBe(5);
     expect(config.providerStatusPolling).toBe(false);
+    expect(config.operationalSourcePolling).toBe(false);
+    expect(config.observatoryGitHubTokenFile).toBeUndefined();
+    expect(
+      loadRuntimeConfig({
+        ...valid,
+        OPERATIONAL_SOURCE_POLLING: "true",
+        OBSERVATORY_GITHUB_TOKEN_FILE: "/run/secrets/observatory-github",
+        OBSERVATORY_INFRAAGENT_ORIGIN: "https://monitor.example.test",
+        OBSERVATORY_INFRAAGENT_KEY_FILE: "/run/secrets/observatory-monitor",
+      }),
+    ).toMatchObject({
+      operationalSourcePolling: true,
+      observatoryGitHubTokenFile: "/run/secrets/observatory-github",
+      observatoryInfraAgentOrigin: "https://monitor.example.test",
+      observatoryInfraAgentKeyFile: "/run/secrets/observatory-monitor",
+    });
+    expect(() =>
+      loadRuntimeConfig({ ...valid, OPERATIONAL_SOURCE_POLLING: "sometimes" }),
+    ).toThrow(ConfigurationError);
     expect(
       loadRuntimeConfig({ ...valid, PROVIDER_STATUS_POLLING: "true" })
         .providerStatusPolling,
@@ -101,6 +120,11 @@ describe("runtime configuration", () => {
     expect(config.humanAuthMode).toBe("password");
     expect(config.productionAuthMode).toBe("password");
     expect(config.providerStatusPolling).toBe(true);
+    expect(config.operationalSourcePolling).toBe(true);
+    expect(
+      loadRuntimeConfig({ ...production, OPERATIONAL_SOURCE_POLLING: "false" })
+        .operationalSourcePolling,
+    ).toBe(false);
     expect(
       loadRuntimeConfig({ ...production, PROVIDER_STATUS_POLLING: "false" })
         .providerStatusPolling,

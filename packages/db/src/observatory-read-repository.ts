@@ -16,7 +16,10 @@ import { createFoundationProjectReadAccessRepository } from "./foundation-read-r
 import { requireWorkflowOwnerSession } from "./foundation-workflow-access-repository";
 import { observatoryClientScope } from "./observatory-schema";
 import { auditEvent } from "./schema";
-import { collectObservatoryRecords } from "./observatory-records";
+import {
+  collectObservatoryRecords,
+  readObservatoryOperationalRecords,
+} from "./observatory-records";
 
 type ReadOperation =
   | "observatory.read"
@@ -58,6 +61,11 @@ export function createObservatoryMachineReadRepository(
         })());
       return {
         scope,
+        readOperationalEvidence: async (resourceId: string) =>
+          readObservatoryOperationalRecords(tx, resourceId, {
+            projectId: request.projectId,
+            ...(await scope()),
+          }),
         readObservatory: async () =>
           collectObservatoryRecords(
             tx,
@@ -127,6 +135,12 @@ export function createObservatoryOwnerReadRepository(
             environment: options.environment,
           };
           const result = await callback(access, {
+            readOperationalEvidence: (resourceId: string) =>
+              readObservatoryOperationalRecords(tx, resourceId, {
+                ...(request.projectId ? { projectId: request.projectId } : {}),
+                resourceIds: null,
+                scopeDigest,
+              }),
             readObservatory: () =>
               collectObservatoryRecords(
                 tx,

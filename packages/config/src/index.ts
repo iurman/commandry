@@ -57,7 +57,17 @@ const environmentSchema = z.object({
   ),
   DB_POOL_MAX: z.coerce.number().int().min(1).max(20).default(5),
   BOSS_POOL_MAX: z.coerce.number().int().min(1).max(20).default(5),
-  PROVIDER_STATUS_POLLING: z.enum(["true", "false"]).optional(),
+  PROVIDER_STATUS_POLLING: z.preprocess(
+    (value) => (value === "" ? undefined : value),
+    z.enum(["true", "false"]).optional(),
+  ),
+  OPERATIONAL_SOURCE_POLLING: z.preprocess(
+    (value) => (value === "" ? undefined : value),
+    z.enum(["true", "false"]).optional(),
+  ),
+  OBSERVATORY_GITHUB_TOKEN_FILE: optionalString,
+  OBSERVATORY_INFRAAGENT_ORIGIN: optionalString,
+  OBSERVATORY_INFRAAGENT_KEY_FILE: optionalString,
   LOCAL_APPROVAL_AUTO_CEILING: z
     .enum(["read_only", "reversible"])
     .default("reversible"),
@@ -95,6 +105,10 @@ export type RuntimeConfig = {
   dbPoolMax: number;
   bossPoolMax: number;
   providerStatusPolling: boolean;
+  operationalSourcePolling: boolean;
+  observatoryGitHubTokenFile?: string;
+  observatoryInfraAgentOrigin?: string;
+  observatoryInfraAgentKeyFile?: string;
   localApprovalAutoCeiling: "read_only" | "reversible";
   localApprovalTtlSeconds: number;
   localOvernightMaxDays: number;
@@ -275,6 +289,19 @@ export function loadRuntimeConfig(
       value.PROVIDER_STATUS_POLLING === "true" ||
       (value.PROVIDER_STATUS_POLLING === undefined &&
         value.APP_ENV === "production"),
+    operationalSourcePolling:
+      value.OPERATIONAL_SOURCE_POLLING === "true" ||
+      (value.OPERATIONAL_SOURCE_POLLING === undefined &&
+        value.APP_ENV === "production"),
+    ...(value.OBSERVATORY_GITHUB_TOKEN_FILE
+      ? { observatoryGitHubTokenFile: value.OBSERVATORY_GITHUB_TOKEN_FILE }
+      : {}),
+    ...(value.OBSERVATORY_INFRAAGENT_ORIGIN
+      ? { observatoryInfraAgentOrigin: value.OBSERVATORY_INFRAAGENT_ORIGIN }
+      : {}),
+    ...(value.OBSERVATORY_INFRAAGENT_KEY_FILE
+      ? { observatoryInfraAgentKeyFile: value.OBSERVATORY_INFRAAGENT_KEY_FILE }
+      : {}),
     localApprovalAutoCeiling: value.LOCAL_APPROVAL_AUTO_CEILING,
     localApprovalTtlSeconds: value.LOCAL_APPROVAL_TTL_SECONDS,
     localOvernightMaxDays: value.LOCAL_OVERNIGHT_MAX_DAYS,

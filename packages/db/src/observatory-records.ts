@@ -1,4 +1,4 @@
-import { and, asc, desc, eq, inArray } from "drizzle-orm";
+import { and, asc, desc, eq, inArray, isNotNull, sql } from "drizzle-orm";
 import { linuxHostSampleSchema } from "@commandry/contracts";
 import { infrastructureTelemetry } from "@commandry/application";
 import {
@@ -270,4 +270,46 @@ export async function collectObservatoryRecords(
     signals,
     facetAccess: combineObservatorySourceAccess(facetAccess),
   };
+}
+
+/** Complete safe current source details, inside the same authorized transaction. */
+export async function readObservatoryOperationalRecords(
+  tx: Transaction,
+  resourceId: string,
+  scope: ObservatoryRecordScope,
+): Promise<unknown[]> {
+  if (scope.resourceIds !== null && !scope.resourceIds.includes(resourceId))
+    throw new FoundationError("FORBIDDEN");
+  const sources = await tx
+    .select()
+    .from(observatorySource)
+    .where(
+      and(
+        eq(observatorySource.resourceId, resourceId),
+        isNotNull(observatorySource.projectId),
+        scope.projectId
+          ? eq(observatorySource.projectId, scope.projectId)
+          : undefined,
+        sql`exists (select 1 from project_resource_link binding where binding.project_id = ${observatorySource.projectId} and binding.resource_id = ${observatorySource.resourceId} and binding.lifecycle = 'active')`,
+      ),
+    )
+    .orderBy(asc(observatorySource.id));
+  return sources.map((source) => ({
+    id: source.id,
+    projectId: source.projectId,
+    resourceId: source.resourceId,
+    kind: source.kind,
+    version: source.version,
+    environment: source.environment,
+    enabled: source.enabled,
+    freshnessSeconds: source.freshnessSeconds,
+    lastAttemptAt: source.lastAttemptAt?.toISOString() ?? null,
+    lastSuccessAt: source.lastSuccessAt?.toISOString() ?? null,
+    lastError: source.lastError,
+    observedAt:
+      typeof source.snapshot?.observedAt === "string"
+        ? source.snapshot.observedAt
+        : null,
+    details: source.snapshot?.details ?? null,
+  }));
 }

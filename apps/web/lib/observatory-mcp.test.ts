@@ -121,6 +121,7 @@ describe("Observatory discovery and reads over the actual MCP SDK", () => {
     try {
       const tools = (await f.client.listTools()).tools;
       expect(tools.map((t) => t.name).sort()).toEqual([
+        "get_observatory_operational_evidence",
         "get_observatory_provider_explanation",
         "get_observatory_scene",
         "get_observatory_signal_evidence",
@@ -203,6 +204,22 @@ describe("Observatory discovery and reads over the actual MCP SDK", () => {
       });
       expect(denied.isError).toBe(true);
       expect(denied.structuredContent).toEqual({ code: "FORBIDDEN" });
+      const operationalDenied = await f.client.callTool({
+        name: "get_observatory_operational_evidence",
+        arguments: { resourceId, facet: "security" },
+      });
+      expect(operationalDenied.structuredContent).toEqual({
+        code: "FORBIDDEN",
+      });
+      const operational = await f.client.callTool({
+        name: "get_observatory_operational_evidence",
+        arguments: { resourceId, facet: "availability" },
+      });
+      expect(operational.isError).not.toBe(true);
+      expect(operational.structuredContent).toMatchObject({
+        access: "unavailable",
+        items: [],
+      });
       f.access.operations = [];
       const revoked = await f.client.callTool({
         name: "get_observatory_scene",
