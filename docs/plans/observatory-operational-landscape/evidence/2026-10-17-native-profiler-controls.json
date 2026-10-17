@@ -1,0 +1,165 @@
+{
+  "status": "Operational diagnostic controls, independently reviewed; not application acceptance",
+  "sourceRevision": "e3d370413fba4da29a9caf5dbed91b621e61c535",
+  "sourceCleanBeforeAndAfter": true,
+  "nativeUtilitySha256": "b75f382f0221c7c1db072a11178738d7c7c65762fa672d78bbfca581afa5f385",
+  "transpiledUtilitySha256": "ab2db5a9b7253cb39576da006c7b52656d22067057a0594446d4a1936dda6640",
+  "nodeVersion": "24.19.0",
+  "typescriptVersion": "5.9.3",
+  "chromiumVersion": "153.0.8010.12",
+  "startedAt": "2026-10-17T18:39:06.610Z",
+  "completedAt": "2026-10-17T18:39:31.403Z",
+  "controllerExitCode": 0,
+  "controllerAbsentAfterExit": true,
+  "controlCases": [
+    {
+      "name": "disabled installer and direct entry",
+      "observedResult": "PASS"
+    },
+    {
+      "name": "enabled periodic and final chunks with real known browser/runner work",
+      "observedResult": "PASS"
+    },
+    {
+      "name": "page closes before final stop",
+      "observedResult": "OBSERVED"
+    },
+    {
+      "name": "already closed page setup",
+      "observedResult": "OBSERVED"
+    },
+    {
+      "name": "actual temporary write blocked on private FIFO",
+      "observedResult": "OBSERVED"
+    }
+  ],
+  "nativeArtifacts": [
+    {
+      "case": "closed-page",
+      "indexStatus": "partial",
+      "indexFinalizationLinked": true,
+      "callerAcknowledgment": "not evaluated by this static stack summarizer",
+      "profiles": [
+        {
+          "file": "observatory-diagnostic-profile-runner-000.cpuprofile",
+          "sha256": "ccd87cb338c44c2c489e036317f7e83c107fb3f16c6c9bb4deeb71b6cca22a97",
+          "nativeStartUs": 193063683720,
+          "nativeEndUs": 193064465941,
+          "sampleCount": 142,
+          "weightsUsable": true,
+          "provenance": "index-and-finalization-referenced-caller-ack-unverified",
+          "knownControlFrames": []
+        }
+      ]
+    },
+    {
+      "case": "failed-setup",
+      "indexStatus": "partial",
+      "indexFinalizationLinked": true,
+      "callerAcknowledgment": "not evaluated by this static stack summarizer",
+      "profiles": [
+        {
+          "file": "observatory-diagnostic-profile-runner-000.cpuprofile",
+          "sha256": "f2506a2c2e87181d62d7158697758cb75298300089998b23f5ca195c8042e6ea",
+          "nativeStartUs": 193064508708,
+          "nativeEndUs": 193064597202,
+          "sampleCount": 1,
+          "weightsUsable": true,
+          "provenance": "index-and-finalization-referenced-caller-ack-unverified",
+          "knownControlFrames": []
+        }
+      ]
+    },
+    {
+      "case": "positive",
+      "indexStatus": "stopped",
+      "indexFinalizationLinked": true,
+      "callerAcknowledgment": "not evaluated by this static stack summarizer",
+      "profiles": [
+        {
+          "file": "observatory-diagnostic-profile-browser-000.cpuprofile",
+          "sha256": "e234326f1de7fe8b1ae1b24a0f9de4f09f768f5fb9da4e8f292fa28777188cd8",
+          "nativeStartUs": 193042210489,
+          "nativeEndUs": 193062222430,
+          "sampleCount": 3943,
+          "weightsUsable": true,
+          "provenance": "index-and-finalization-referenced-caller-ack-unverified",
+          "knownControlFrames": [
+            {
+              "function": "diagnosticKnownBrowserCpuSpan",
+              "selfSamples": 78,
+              "inclusivePresenceSamples": 135
+            }
+          ]
+        },
+        {
+          "file": "observatory-diagnostic-profile-browser-001.cpuprofile",
+          "sha256": "618ccf3c21d71d375e29126374869967870360d6e2331b6705f23928aa930641",
+          "nativeStartUs": 193062318405,
+          "nativeEndUs": 193063630782,
+          "sampleCount": 258,
+          "weightsUsable": true,
+          "provenance": "index-and-finalization-referenced-caller-ack-unverified",
+          "knownControlFrames": []
+        },
+        {
+          "file": "observatory-diagnostic-profile-runner-000.cpuprofile",
+          "sha256": "9362e8028e7d3d33ac5b37ee4b0fe80c7cf4d4aa6e7a2200b4b0edb5322187bf",
+          "nativeStartUs": 193042117909,
+          "nativeEndUs": 193062215279,
+          "sampleCount": 3945,
+          "weightsUsable": true,
+          "provenance": "index-and-finalization-referenced-caller-ack-unverified",
+          "knownControlFrames": [
+            {
+              "function": "diagnosticKnownRunnerCpuSpan",
+              "selfSamples": 45,
+              "inclusivePresenceSamples": 116
+            }
+          ]
+        },
+        {
+          "file": "observatory-diagnostic-profile-runner-001.cpuprofile",
+          "sha256": "2daaf34252028e0cf75a33b819afb0d87b9b6dbc735fd3207802273b6aff72d6",
+          "nativeStartUs": 193062226508,
+          "nativeEndUs": 193063622815,
+          "sampleCount": 256,
+          "weightsUsable": true,
+          "provenance": "index-and-finalization-referenced-caller-ack-unverified",
+          "knownControlFrames": []
+        }
+      ]
+    }
+  ],
+  "blockedWrite": {
+    "boundary": "Actual temporary filesystem write blocked on a private FIFO",
+    "setupReturnedMs": 2108.266456000001,
+    "repeatedStopReturnedMs": 0.05248800000117626,
+    "stopReturnedBeforeFifoRelease": true,
+    "publication": "failed/uncertain, no final profile/index artifacts; not successful output",
+    "cleanup": "Owned profiler/timer cleanup completed before FIFO release; physical write settled after release; post-exit FIFO census retained then two owned FIFOs removed",
+    "coverageLimit": "Exercises write/abort path; does not establish all mkdir/rename/kernel-stall behaviors"
+  },
+  "qualifications": [
+    "Disabled mode registered no hooks and created no output.",
+    "Known runner/browser CPU functions were captured in periodic chunk000 only. Chunk001 retained native samples but did not capture those named functions; no repeated-oracle claim.",
+    "Positive stopMs includes post-stop verification and is not an application overhead benchmark.",
+    "Closing the page before stop produced partial output and browser-detach uncertainty; successful overall browser.close does not erase that diagnostic uncertainty.",
+    "Already-closed setup retained a one-sample runner profile, not workload attribution.",
+    "All owned acquisitions settled and browser.close completed. Individual browser child PIDs were not serialized or independently censused in these controls.",
+    "Native samples attribute elapsed stacks, including idle/native/GC, and are not process CPU seconds or GPU duration.",
+    "Static index/finalization linkage alone does not certify caller acknowledgment, publication or cleanup; actual raw control receipts were independently reviewed.",
+    "Read-only sampler actual control observed 199 ticks at100Hz, or1.99 CPU-seconds, for the owned busy process; sampler ran on CPU4 and sampled workload on CPUs0..3. No universal short-lived-process census.",
+    "Six synthetic analyzer controls passed for missing/null samples, explicit empty samples, recursive-frame deduplication, duplicate IDs and failed-save late-file provenance. They are not application measurements."
+  ],
+  "privateEvidenceSha256": {
+    "profile-controls.mjs": "a276bba749fcf1802a24f0f876fb7a86b2eee06c761ff77664dafcd0946792ed",
+    "result.json": "a48d6223375c3ccd26edd284bde05bf5c9b4cf68d8a7cb370a15dba0ffb3d2a2",
+    "T41-native-controls.log": "d95546e7b491e43da2024f02bbe6aedf9e74fada9ebdca665ffab4f4e9036104",
+    "T41-native-controls-cleanup-proof.json": "7d14841dad564e242a422c069abbff15917e05b972b440a23137c86025ef66ee",
+    "process-sampler.py": "ed3d230011f6db2c2a0ad1ebe4fc1dde16d3409e8be96aa250e646f6de1fadfa",
+    "summarize-native-profiles.py": "b0ff15874c4d49e6668503b212b5bb453288e9f1c7139c76ab08d62a6c1daab1",
+    "nativeControlExecutionReview": "c7c27b98403a456b136f69201dcf8adf5a96d7bbcfec2a3d9bf3130ca588d498",
+    "nativeAnalyzerStaticReview": "071c83549a859bd7167a7df82dacee97ef6012bc94393bcf01dacc363db82d5f"
+  }
+}
