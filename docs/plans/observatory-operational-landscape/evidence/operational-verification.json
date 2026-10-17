@@ -346,5 +346,53 @@
     ],
     "genuineDocumentHidden": "Unverified environment precondition; real document.hidden never became true",
     "releaseAccepted": false
-  }
+  },
+  "acceptedSourceCorrections": {
+    "T24": {
+      "commit": "37e80c3",
+      "focusedTests": 104,
+      "independentControls": 14,
+      "originalCausalFailuresRetained": 3,
+      "builtReplay": "pending"
+    },
+    "T25": {
+      "commit": "12d1d09",
+      "focusedTests": 19,
+      "captured31AnchorSettles": {
+        "reduced": 5,
+        "motion": 67
+      },
+      "stableRefreshCalls": 10,
+      "allIDsRetained": true,
+      "originalBoundaryDisclosed": true,
+      "builtReplay": "pending"
+    },
+    "combinedRootTests": 114
+  },
+  "nonemptyProtocol27d68a4": {
+    "source": "27d68a4e03b302aa7439324499bbc8841b1e4efb",
+    "checkGroups": 22,
+    "authorizationDenials": 8,
+    "ciRuns": 101,
+    "pages": [
+      100,
+      1
+    ],
+    "securityCategories": [
+      "code",
+      "dependency",
+      "secret"
+    ],
+    "originalResourcesPreserved": 91,
+    "explicitSyntheticProvidersAdded": 1,
+    "availabilityRuntimeUnchanged": true,
+    "ownerHttpSdkBuiltParity": true,
+    "ownedSourceDisabledVersion": 3,
+    "ownedMappingInactiveVersion": 2,
+    "ownedGrantsRevoked": 5,
+    "ownedHandlesClosed": true,
+    "productionF4": false,
+    "futureReadNegotiationVerified": false
+  },
+  "remainingSourceLimitation": "Incident snooze is unavailable in the supported derived incident contract; paused coverage is not snooze or recovery. OQ-037; no InfraAgent activation required."
 }
