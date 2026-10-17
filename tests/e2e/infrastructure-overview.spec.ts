@@ -2023,9 +2023,9 @@ test("Gravity uses canonical resources, persisted appearance, focus and truthful
       exact: true,
     });
     await search.fill("Synthetic");
-    await expect
-      .poll(() => searchResults.getByRole("button").count())
-      .toBeGreaterThanOrEqual(f1.resources.length);
+    await expect(
+      searchResults.getByRole("button").nth(f1.resources.length - 1),
+    ).toBeAttached({ timeout: 5000 });
     const searched = await applied("projects");
     const searchIds = searched.scene.searchResults.map(
       (result) => result.resourceId,
