@@ -8,6 +8,9 @@ import {
   type ObservatorySceneDto,
 } from "@commandry/contracts";
 import { installOutlineObserver } from "./observatory-outline-observer";
+import { installDiagnosticProfiling } from "./observatory-diagnostic-profile";
+
+installDiagnosticProfiling(test);
 
 test("one master scene renders and inspects the complete multi-page inventory", async ({
   page,

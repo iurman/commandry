@@ -16,6 +16,9 @@ import {
   type ObservatorySceneDto,
 } from "@commandry/contracts";
 import { mixedObservatoryFixture } from "../fixtures/observatory";
+import { installDiagnosticProfiling } from "./observatory-diagnostic-profile";
+
+installDiagnosticProfiling(test);
 
 async function fixture(request: APIRequestContext) {
   const name = `Network ${randomUUID().slice(0, 8)}`;
