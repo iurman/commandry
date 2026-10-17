@@ -48,13 +48,11 @@ No dispatcher, machine grant expansion or production changes.
     "packages/application/src/foundation-work.ts",
     "packages/application/src/foundation-work.test.ts",
     "packages/application/src/observatory-management.ts",
-    "packages/db/src/client.ts",
-    "packages/db/src/schema.ts",
+    "docs/plans/observatory-operational-landscape/T13-SCHEMA-CONTEXT.md",
     "packages/db/src/project-work-query.ts",
     "packages/db/src/foundation-work-repository.ts",
     "packages/db/src/foundation-work.integration.test.ts",
     "packages/db/src/observatory-read-repository.ts",
-    "packages/db/src/foundation-workflow-access-repository.ts",
     "packages/db/src/observatory-access.integration.test.ts"
   ],
   "write_files": [
