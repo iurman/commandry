@@ -315,5 +315,36 @@
     "T20-R1 actual GPU portrait focus/lens/picking",
     "GPU test matching actual Three sampler precision, original tolerances unchanged",
     "390px label failure diagnosed as zero eligible lens labels; nonempty control moved to lens-off, exact collision invariant retained and independently reviewed"
-  ]
+  ],
+  "built20aInteractionReview": {
+    "source": "20a696732c88bb97e65731b83a04ec7a91502cc5",
+    "c03Assertions": {
+      "passed": 9,
+      "total": 9
+    },
+    "g03Controls": {
+      "passed": 9,
+      "total": 9
+    },
+    "nativeSelectedRefreshGroups": {
+      "passed": 11,
+      "total": 11,
+      "staleWaitMs": 35006,
+      "productionEvidence": false
+    },
+    "completeSceneE2e": {
+      "passed": 3,
+      "total": 3,
+      "resourcesPerProject": 103,
+      "canonicalFixturePreserved": true
+    },
+    "confirmedOpenDefects": [
+      "E05 automatic tour self-cancellation and repeated external selection intent",
+      "C06 new-event pulse consumed while routine scene refresh pending",
+      "D02 false label solver quiescence with unchanged input",
+      "E03 breadcrumb refits prior panned camera"
+    ],
+    "genuineDocumentHidden": "Unverified environment precondition; real document.hidden never became true",
+    "releaseAccepted": false
+  }
 }
