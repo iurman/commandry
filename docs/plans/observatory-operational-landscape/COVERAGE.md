@@ -4,7 +4,7 @@
 
 All 58 scenarios retain their complete canonical wording in [ACCEPTANCE.md](ACCEPTANCE.md). PASS requires executed evidence against the actual implementation. A connector substitute does not establish production activation.
 
-Release status, 2026-10-17: PR22 is merged at `922cc6d`. [Main release run 39035678643](https://github.com/iurman/commandry/actions/runs/39035678643) failed before image publication because one original 257-resource pressure test exceeded its five-second deadline; 2,916 other tests passed. Source checks and the production dependency audit passed. The CI failure is under controlled investigation without weakening tests. Feature outcomes below remain source-qualified; the full release workflow is unfinished and production deployment has not occurred.
+Release status, 2026-10-17: implementation PR22 and concurrency correction PR23 are normally merged. [Run39037231379](https://github.com/iurman/commandry/actions/runs/39037231379) passed corrected hosted unit/local tests, source/audit/applicationbuild/integration/Compose, then failed because container context omitted the test-support workspace manifest. No image was published. The context-only T34 correction passes actual local full-image/filesystem checks and coordinator packet rerun; independent source review accepts the correction; a new hosted release remains pending. Original failures are retained. Feature outcomes below remain source-qualified; the full workflow is unfinished and production deployment has not occurred.
 
 | Scenario | State | Evidence / remaining check |
 | --- | --- | --- |

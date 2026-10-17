@@ -1,0 +1,79 @@
+{
+  "status": "Local validation and independent source review PASS; hosted release pending",
+  "immutableBase": "66c29e5020354c2c2d7366c66b094a8f449f9b41",
+  "originalHostedFailure": {
+    "run": 39037231379,
+    "url": "https://github.com/iurman/commandry/actions/runs/39037231379",
+    "revision": "e26d4a061749de1510a567ec9ce1cc0a42c0e90b",
+    "failedStage": "worker-deps production deploy",
+    "error": "ERR_PNPM_WORKSPACE_PKG_NOT_FOUND: @commandry/test-support",
+    "earlierPassed": [
+      "source/contracts/types/format/lint/lab",
+      "production dependency audit",
+      "full unit and local tests",
+      "application build and integration",
+      "production Compose configuration"
+    ],
+    "publishedImage": null
+  },
+  "unchangedLocalBaseline": {
+    "revision": "e26d4a061749de1510a567ec9ce1cc0a42c0e90b",
+    "target": "worker-deps",
+    "exitCode": 1,
+    "sameWorkspaceError": true
+  },
+  "sourceDelta": {
+    "path": ".dockerignore",
+    "replace": "packages/test-support",
+    "with": [
+      "packages/test-support/**",
+      "!packages/test-support/package.json"
+    ],
+    "otherTrackedChanges": [],
+    "allOtherProductTestAndBuildPolicyBytesUnchanged": true
+  },
+  "actualLocalImageReceipt": {
+    "source": "66c29e5020354c2c2d7366c66b094a8f449f9b41",
+    "sourceClean": false,
+    "task": "observatory-t34",
+    "images": {
+      "runtime": "commandry-observatory-t34-candidate:local",
+      "context": "commandry-observatory-t34-context:local"
+    },
+    "checks": [
+      {
+        "kind": "context",
+        "result": {
+          "manifestOnly": [
+            "package.json"
+          ],
+          "fixtureBodiesAbsent": true,
+          "productionTestSupportAbsent": true
+        }
+      },
+      {
+        "kind": "runtime",
+        "result": {
+          "webEntry": true,
+          "workerEntry": true,
+          "fixtureSourceAbsent": true,
+          "productionTestSupportUnresolvable": true
+        }
+      }
+    ],
+    "runtimeImageId": "a6ccaca3f88cdd6c58d31f43dcf48ab70200a42499b1d259e43e716b234fe5f8",
+    "contextImageId": "61b8d8c7dce69cc4b67b6f35cc89de0fffd0a38df8f7316d59fe1290251b7863",
+    "helperSha256": "fa77a823053cfc695e8bd2993d427225f75500d42c73289951a8e54dd3a03668",
+    "completed": true
+  },
+  "coordinatorExactBasePacketRerun": "PASS",
+  "staticHarnessReview": "ACCEPT, no actionable findings",
+  "finalSourceReview": "ACCEPT by independent Astra, no actionable findings",
+  "limits": [
+    "local candidates are source-clean=false and cannot be deployed as production releases",
+    "worker production dependency links/store lack fixture package; final runtime fixture source is absent and fixture package is unresolvable",
+    "no universal filesystem package-metadata absence claim",
+    "inspection containers start no app/service, bind no port, mount no volume and run with no network/read-only/automatic removal",
+    "actual hosted full release, protected approval/deployment/live validation and five owner/source/device limits remain"
+  ]
+}

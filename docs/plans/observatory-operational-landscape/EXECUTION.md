@@ -4,14 +4,11 @@
 
 ## Current release state, 2026-10-17
 
-PR22 was normally merged at `922cc6d2c4a3e4f3b0d3c345b75f57a707387c22`. The previous main and reviewed feature head remain ancestors, and the merge tree exactly matches the reviewed feature tree. The final actual built source `53827d6` differs only in documentation and evidence. Its software closure remains recorded below and in COVERAGE.md.
+The implementation is normally merged through PR22 at922cc6d. Its product and test bytes match the actual built53827d6 feature evidence, apart from the subsequent test-runner ceiling. The first main release39035678643 failed one original pressure test at5026ms against the unchanged5000ms deadline. T33's numeric worker ceiling4to2 passed controlled original-suite comparisons, worker/coordinator full-test acceptance and independent Astra review, then normally merged through [PR23](https://github.com/iurman/commandry/pull/23) ate26d4a0.
 
-The first main-only release run [39035678643](https://github.com/iurman/commandry/actions/runs/39035678643) failed before image publication. Source checks, contracts, formatting, lint, types, lab checks and the production dependency audit passed. The unit suite passed 167 of 168 files and 2,916 of 2,917 tests. The only failure was the original 257-resource portrait pressure case at 390x844 for active-36 exceeding its five-second deadline. There was no assertion mismatch reported. The failure is preserved and is under controlled CPU/concurrency investigation. No timeout, fixture population or assertion may be relaxed to clear it, and no release success or image digest is claimed.
+[Release39037231379](https://github.com/iurman/commandry/actions/runs/39037231379) verified corrected hosted unit/local success and passed source/audit/applicationbuild/integration/Compose. It then failed container worker-deps because Docker context excluded the test-support workspace manifest. No image was published. An unchanged exact-e26 local target build reproduces that error. T34's manifest-only context correction passes actual full image/stage/filesystem checks in the worker and coordinator packet rerun. Independent harness review accepts the checks; independent final source review ACCEPTS with no actionable findings; the next hosted release remains pending. See [T33 causal evidence](T33.md) and [T34 actual image evidence](T34.md).
 
-The scoped T33 correction reduces only the existing Vitest ceiling from four workers to two. Matched original-suite runs on the same two assigned CPUs remove a reproduced geometry timeout, with no observed material wall-time cost. Worker acceptance, coordinator packet rerun and independent Astra review pass; every test, fixture, deadline and product byte remains unchanged. [Causal measurements and limits](T33.md) retain the actual hosted validation requirement.
-
-All 58 feature scenarios retain their recorded outcomes: 53 PASS and five explicit partial or unrun source, human or physical-device checks. The neutral F06 owner interpretation request is pending on the verified read-only synthetic preview. Protected exact-image approval, the existing constrained deployment, and exact signed-in live verification remain outstanding. No production deployment, source activation, DNS change or production SQL has occurred.
-
+All58feature scenarios retain their recorded outcomes:53PASS and five explicit partial or unrun source, human or physical-device checks. The neutral F06 owner interpretation request is pending on the verified read-only synthetic preview. Protected exact-image approval, the existing constrained deployment and exact signed-in live verification remain outstanding. No production deployment, source activation, DNS change or production SQL has occurred.
 
 ## Authority and baseline
 
@@ -28,7 +25,7 @@ Fetched origin/main is 507303ca1e82b8b15cc8d94864b61db1de86ed7e. The isolated im
 | C Grouped scene and focus          | Verified | Complete91/1000-resource scene, authorization, grouping, search, detail, tours and breadcrumbs pass actual built controls. Actual final53827d6 label build, pixels and idle pass.      |
 | D Mappings and operational sources | Verified in disposable boundaries        | Canonical reviewed records, supported availability, provider/scanner/CI source history and owner/API/MCP parity pass. Exact production mappings and activation remain qualified until deployed and reviewed.         |
 | E Repository/work/views/TV         | Verified with explicit runtime limit     | Actual private views, repository/security/CI evidence,101canonical Work records and30minuteTVsoak pass. Unreleased AgentRun remains unknown.                                                                         |
-| F Review and release               | In progress                              | Independently reviewed implementation and draftPR22 are pushed. Final label build, actual owner usability, normal main merge, main-only image CI, protected release controls and signed-in live verification remain. |
+| F Review and release | In progress | Implementation and T33 normally merged; T34 actual local image/packet checks pass. T34 final source review passes; hosted publication, protected release controls, owner interpretation and signed-in live verification remain. |
 
 ## Preserved resources
 
