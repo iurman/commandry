@@ -8,7 +8,7 @@ No arbitrary monitor platform, account, credential, deployment or canonical bind
 
 ## Base
 - branch: feat/observatory-operational-landscape
-- check command: PATH=/home/urmani/.local/share/pnpm/.tools/pnpm/11.19.0/bin:/home/urmani/.cache/codex-runtimes/codex-primary-runtime/dependencies/node/bin:$PATH pnpm exec vitest run --config vitest.config.mts packages/platform/src/commandry-readiness.test.ts
+- check command: PATH=/home/urmani/.local/share/pnpm/.tools/pnpm/11.19.0/bin:/home/urmani/.cache/codex-runtimes/codex-primary-runtime/dependencies/node/bin:$PATH pnpm exec vitest run --config vitest.config.mts packages/platform/src/infraagent-availability.test.ts
 - probes: none (actual disposable HTTP tests in task)
 
 ## Interfaces
