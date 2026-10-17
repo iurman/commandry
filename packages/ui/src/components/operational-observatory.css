@@ -471,6 +471,19 @@
 .cmd-op-work-dock button {
   text-align: left;
 }
+.cmd-op-canonical-work {
+  min-width: 0;
+  padding: 12px 20px;
+  border-top: 1px solid var(--op-line);
+}
+.cmd-op-canonical-work > summary {
+  min-height: 24px;
+  padding: 6px 0;
+  cursor: pointer;
+}
+.cmd-op-canonical-work[open] > summary {
+  margin-bottom: 12px;
+}
 .cmd-op-settings {
   display: grid;
   gap: 15px;
