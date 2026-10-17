@@ -102,7 +102,6 @@ export default function InfrastructureOverviewScreen({
   const [observatory, setObservatory] =
     useState<ObservatorySceneReadResult | null>(null);
   const [sceneError, setSceneError] = useState<string | null>(null);
-  const [scenePending, setScenePending] = useState(false);
   const [sceneQuery, setSceneQuery] = useState<ObservatoryQuery>({
     grouping: "operational",
     environment: null,
@@ -123,6 +122,20 @@ export default function InfrastructureOverviewScreen({
   const projectsLoading =
     projectReadEpoch !== epoch && projectErrorEpoch !== epoch;
   const [paused, setPaused] = useState(false);
+  // A resumed scene must not consume its baseline using an older overview.
+  const activityReadGeneration = useRef(0);
+  const [activityBaselinePending, setActivityBaselinePending] = useState(false);
+  const startActivityBaseline = useCallback(() => {
+    activityReadGeneration.current += 1;
+    setActivityBaselinePending(true);
+  }, []);
+  const wasDocumentHidden = useRef(false);
+  const documentHidden = useCallback(() => {
+    const hidden = document.hidden;
+    if (hidden && !wasDocumentHidden.current) startActivityBaseline();
+    wasDocumentHidden.current = hidden;
+    return hidden;
+  }, [startActivityBaseline]);
   const [view, setView] = useState<"gravity" | "map" | "list">("gravity");
   const [selectedId, setSelectedId] = useState<string | null>(null);
   const [selectionRevision, setSelectionRevision] = useState(0);
@@ -216,12 +229,21 @@ export default function InfrastructureOverviewScreen({
   }, [epoch]);
 
   useEffect(() => {
+    const onVisibility = () => {
+      documentHidden();
+    };
+    document.addEventListener("visibilitychange", onVisibility);
+    return () => document.removeEventListener("visibilitychange", onVisibility);
+  }, [documentHidden]);
+
+  useEffect(() => {
     if (paused) return;
     const controller = new AbortController();
     let inFlight = false;
     async function refresh() {
-      if (inFlight || document.hidden) return;
+      if (documentHidden() || inFlight) return;
       inFlight = true;
+      const readGeneration = activityReadGeneration.current;
       try {
         const fetchPage = (cursor: string | null, signal: AbortSignal) => {
           const params = new URLSearchParams({
@@ -263,6 +285,8 @@ export default function InfrastructureOverviewScreen({
           snapshot.events.map((event) => event.id),
         );
         setData(snapshot);
+        if (readGeneration === activityReadGeneration.current)
+          setActivityBaselinePending(false);
         setError(null);
         if (follow) {
           const attention = snapshot.items.filter(needsAttention);
@@ -276,8 +300,10 @@ export default function InfrastructureOverviewScreen({
             );
         }
       } catch (cause) {
-        if (!controller.signal.aborted)
+        if (!controller.signal.aborted) {
+          startActivityBaseline();
           setError(cause instanceof Error ? cause.message : "Refresh failed");
+        }
       } finally {
         inFlight = false;
         if (!controller.signal.aborted) setLoading(false);
@@ -286,7 +312,7 @@ export default function InfrastructureOverviewScreen({
     void refresh();
     const timer = window.setInterval(() => void refresh(), 15_000);
     const onVisible = () => {
-      if (!document.hidden) void refresh();
+      if (!documentHidden()) void refresh();
     };
     document.addEventListener("visibilitychange", onVisible);
     return () => {
@@ -294,7 +320,16 @@ export default function InfrastructureOverviewScreen({
       clearInterval(timer);
       document.removeEventListener("visibilitychange", onVisible);
     };
-  }, [scope, epoch, paused, follow, wallboard, view]);
+  }, [
+    scope,
+    epoch,
+    paused,
+    follow,
+    wallboard,
+    view,
+    documentHidden,
+    startActivityBaseline,
+  ]);
 
   useEffect(() => {
     if (view !== "gravity" || paused) return;
@@ -302,9 +337,8 @@ export default function InfrastructureOverviewScreen({
     const readScope = JSON.stringify([scope.projectId, sceneQuery.environment]);
     let inFlight = false;
     async function refreshScene() {
-      if (inFlight || document.hidden) return;
+      if (documentHidden() || inFlight) return;
       inFlight = true;
-      setScenePending(true);
       if (sceneReadScope.current !== readScope) {
         sceneReadScope.current = readScope;
         setObservatory(null);
@@ -326,19 +360,20 @@ export default function InfrastructureOverviewScreen({
           setSceneError(null);
         }
       } catch {
-        if (!controller.signal.aborted)
+        if (!controller.signal.aborted) {
+          startActivityBaseline();
           setSceneError(
             "Operational projection is unavailable. The last scene is delayed; refresh to retry.",
           );
+        }
       } finally {
-        if (!controller.signal.aborted) setScenePending(false);
         inFlight = false;
       }
     }
     void refreshScene();
     const timer = setInterval(() => void refreshScene(), 15000);
     const visible = () => {
-      if (!document.hidden) void refreshScene();
+      if (!documentHidden()) void refreshScene();
     };
     document.addEventListener("visibilitychange", visible);
     return () => {
@@ -346,7 +381,15 @@ export default function InfrastructureOverviewScreen({
       clearInterval(timer);
       document.removeEventListener("visibilitychange", visible);
     };
-  }, [view, paused, scope.projectId, sceneQuery, epoch]);
+  }, [
+    view,
+    paused,
+    scope.projectId,
+    sceneQuery,
+    epoch,
+    documentHidden,
+    startActivityBaseline,
+  ]);
 
   useEffect(() => {
     if (!wallboard) return;
@@ -400,6 +443,7 @@ export default function InfrastructureOverviewScreen({
     previousEvents.current = null;
     setRotatePages(false);
     setData(null);
+    startActivityBaseline();
     setObservatory(null);
     setSceneError(null);
     setProgress(null);
@@ -512,7 +556,10 @@ export default function InfrastructureOverviewScreen({
           </Button>
           <Button
             aria-pressed={paused}
-            onClick={() => setPaused((current) => !current)}
+            onClick={() => {
+              if (!paused) startActivityBaseline();
+              setPaused(!paused);
+            }}
           >
             {paused ? "Resume updates" : "Pause updates"}
           </Button>
@@ -779,7 +826,7 @@ export default function InfrastructureOverviewScreen({
                   onReviewed={onReviewed}
                   scopeProjectId={scope.projectId || null}
                   paused={paused}
-                  delayed={!!error || !!sceneError || scenePending}
+                  delayed={!!error || !!sceneError || activityBaselinePending}
                 />
               ) : (
                 <div role="status">

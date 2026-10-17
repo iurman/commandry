@@ -19,12 +19,15 @@ import { projectObservatory } from "@commandry/domain";
 import {
   scaleObservatoryFixture,
   mixedObservatoryFixture,
+  observatoryFixtureInput,
+  observatoryFixtureResource,
 } from "@commandry/test-support";
 import type {
   RendererHooks,
   RendererSettings,
 } from "@commandry/ui/gravity/renderer";
 import type { Well } from "@commandry/ui/gravity/model";
+import { OperationalRecordedActivity } from "@commandry/ui/gravity/operational-layout";
 import type { InfrastructureOverview } from "@commandry/contracts";
 import type {
   FoundationProjectWorkCursor,
@@ -69,6 +72,7 @@ const page = (project = projectId): FoundationProjectWorkPage => ({
 });
 afterEach(() => {
   cleanup();
+  vi.useRealTimers();
   vi.unstubAllGlobals();
   vi.restoreAllMocks();
 });
@@ -702,3 +706,519 @@ it("acknowledges local Observatory selection without replaying it as a new outer
   expect(coordinatorRenderer.settings?.cameraMode).toBe("tour");
   expect(coordinatorRenderer.focus).toHaveBeenCalledTimes(calls);
 });
+
+async function routineActivityCoordinator() {
+  coordinatorRenderer.enabled = true;
+  vi.useFakeTimers({ toFake: ["setInterval", "clearInterval"] });
+  const input = observatoryFixtureInput([
+      observatoryFixtureResource(97001, "host"),
+    ]),
+    scene = projectObservatory(input),
+    resource = input.resources[0]!,
+    host = scene.representations.find(
+      (node) => node.resourceId === resource.id,
+    )!;
+  const event = (
+    index: number,
+    age = 1000,
+  ): InfrastructureOverview["events"][number] => ({
+    id: id(98000 + index),
+    resourceId: resource.id,
+    summary: "Recorded source event " + index,
+    occurredAt: new Date(Date.now() - age).toISOString(),
+    sourceLabel: "Actual synthetic source",
+    evidenceHref: "/api/v1/source-envelopes/" + id(99000 + index),
+  });
+  let latestScene = scene,
+    deferOverview = false;
+  const overviewGates: (() => void)[] = [];
+  const baseline = event(1);
+  let events = [baseline],
+    sceneMode: "ready" | "defer" | "fail" = "ready",
+    overviewFailed = false,
+    removed = false,
+    sceneReads = 0,
+    overviewReads = 0;
+  const gates: {
+    resolve: (response: Response) => void;
+    reject: (error: Error) => void;
+  }[] = [];
+  vi.stubGlobal(
+    "fetch",
+    vi.fn(async (path: RequestInfo | URL, init?: RequestInit) => {
+      const url = String(path);
+      if (url.startsWith("/api/v1/projects?"))
+        return Response.json({ items: [], nextCursor: null });
+      if (url.startsWith("/api/v1/infrastructure/overview?")) {
+        overviewReads++;
+        if (overviewFailed) throw Error("Synthetic unavailable overview");
+        const payload = {
+          readAt: new Date().toISOString(),
+          total: removed ? 0 : 1,
+          nextCursor: null,
+          items: removed
+            ? []
+            : [
+                {
+                  ...resource,
+                  projects: [],
+                  metrics: [],
+                  sources: [],
+                  health: "unknown",
+                },
+              ],
+          edges: [],
+          events: removed ? [] : events,
+        };
+        if (deferOverview)
+          return new Promise<Response>((resolve) =>
+            overviewGates.push(() => resolve(Response.json(payload))),
+          );
+        return Response.json(payload);
+      }
+      if (url === "/api/v1/infrastructure/observatory/scene") {
+        sceneReads++;
+        latestScene = projectObservatory({
+          ...input,
+          ...JSON.parse(String(init?.body)),
+        });
+        if (sceneMode === "fail")
+          throw Error("Synthetic unavailable projection");
+        if (sceneMode === "defer")
+          return new Promise<Response>((resolve, reject) =>
+            gates.push({ resolve, reject }),
+          );
+        return Response.json({
+          scene: removed
+            ? projectObservatory({
+                ...scaleObservatoryFixture(0),
+                scopeDigest: "removed-authorized-population",
+              })
+            : projectObservatory({
+                ...input,
+                ...JSON.parse(String(init?.body)),
+              }),
+        });
+      }
+      return Response.json({}, { status: 404 });
+    }),
+  );
+  const visible = new Set(scene.visibleRepresentationIds);
+  let subject = host;
+  while (!visible.has(subject.id) && subject.parentRepresentationId)
+    subject = scene.representations.find(
+      (node) => node.id === subject.parentRepresentationId,
+    )!;
+  const view = render(createElement(InfrastructureOverviewScreen));
+  await waitFor(() =>
+    expect(coordinatorRenderer.settings?.activity.running).toBe(true),
+  );
+  expect(coordinatorRenderer.settings?.motion).toBe(true);
+  const activity = coordinatorRenderer.settings!.activity.source;
+  expect(activity).toBeInstanceOf(OperationalRecordedActivity);
+  expect(activity.snapshot().events).toEqual([]);
+  const tick = async () => {
+    await act(async () => {
+      await vi.advanceTimersByTimeAsync(15000);
+    });
+  };
+  const complete = async () => {
+    await act(async () => {
+      for (const gate of gates.splice(0))
+        gate.resolve(Response.json({ scene: latestScene }));
+    });
+  };
+  return {
+    view,
+    host,
+    visibleId: subject.id,
+    event,
+    baseline,
+    activity,
+    tick,
+    complete,
+    gates,
+    holdOverview: (hold: boolean) => {
+      deferOverview = hold;
+    },
+    completeOverview: async () => {
+      await act(async () => {
+        for (const resolve of overviewGates.splice(0)) resolve();
+      });
+    },
+    reads: () => ({ scene: sceneReads, overview: overviewReads }),
+    setEvents: (next: InfrastructureOverview["events"]) => {
+      events = next;
+    },
+    sceneMode: (next: typeof sceneMode) => {
+      sceneMode = next;
+    },
+    overviewFailure: (next: boolean) => {
+      overviewFailed = next;
+    },
+    remove: () => {
+      removed = true;
+    },
+  };
+}
+describe("routine scene refresh and actual recorded activity", () => {
+  it("pulses one genuinely new event while the natural same-scope scene refresh remains unresolved, without replaying duplicates or old events", async () => {
+    const f = await routineActivityCoordinator(),
+      fresh = f.event(2),
+      baseline = f.baseline;
+    f.sceneMode("defer");
+    f.setEvents([fresh, baseline]);
+    await f.tick();
+    expect(f.gates).toHaveLength(1);
+    expect(f.reads()).toEqual({ scene: 2, overview: 2 });
+    expect(f.activity.snapshot().events.map((event) => event.id)).toEqual([
+      fresh.id,
+    ]);
+    expect(coordinatorRenderer.settings?.activity.running).toBe(true);
+    expect(screen.queryByText(/Delayed recorded view/)).toBeNull();
+    expect(f.activity.snapshot().events[0]).toMatchObject({
+      id: fresh.id,
+      correlationId: fresh.id,
+      from: f.visibleId,
+      to: f.visibleId,
+      kind: "observation",
+      effect: "arrival",
+    });
+    expect(f.activity.snapshot().transfers).toEqual([]);
+    await f.complete();
+    expect(f.activity.snapshot().events.map((event) => event.id)).toEqual([
+      fresh.id,
+    ]);
+    f.activity.advance?.(1.5);
+    expect(f.activity.snapshot().events).toEqual([]);
+    f.sceneMode("ready");
+    f.setEvents([baseline, f.event(3, 61000), fresh, f.event(4, -60000)]);
+    await f.tick();
+    expect(f.activity.snapshot().events).toEqual([]);
+    const later = f.event(5);
+    f.setEvents([fresh, later, baseline]);
+    await f.tick();
+    expect(f.activity.snapshot().events.map((event) => event.id)).toEqual([
+      later.id,
+    ]);
+  });
+  it.each(["scene", "overview"] as const)(
+    "keeps actual %s failure delayed and does not replay its recorded backlog after recovery",
+    async (kind) => {
+      const f = await routineActivityCoordinator(),
+        backlog = f.event(6);
+      f.setEvents([backlog]);
+      if (kind === "scene") f.sceneMode("fail");
+      else f.overviewFailure(true);
+      await f.tick();
+      expect(coordinatorRenderer.settings?.activity.running).toBe(false);
+      expect(f.activity.snapshot().events).toEqual([]);
+      expect(screen.getByText(/Delayed recorded view/)).toBeTruthy();
+      f.sceneMode("ready");
+      f.overviewFailure(false);
+      await f.tick();
+      expect(coordinatorRenderer.settings?.activity.running).toBe(true);
+      expect(f.activity.snapshot().events).toEqual([]);
+      const fresh = f.event(7);
+      f.setEvents([fresh, backlog]);
+      await f.tick();
+      expect(f.activity.snapshot().events.map((event) => event.id)).toEqual([
+        fresh.id,
+      ]);
+    },
+  );
+  it("does not replay deliberate pause/restart backlog and clears the old population on scope removal", async () => {
+    const f = await routineActivityCoordinator();
+    fireEvent.click(screen.getByRole("button", { name: "Pause updates" }));
+    expect(coordinatorRenderer.settings?.activity.running).toBe(false);
+    const before = f.reads(),
+      backlog = f.event(8);
+    f.setEvents([backlog]);
+    await f.tick();
+    expect(f.reads()).toEqual(before);
+    expect(f.activity.snapshot().events).toEqual([]);
+    fireEvent.click(screen.getByRole("button", { name: "Resume updates" }));
+    await waitFor(() => expect(f.reads().overview).toBe(before.overview + 1));
+    await act(async () => {});
+    expect(f.activity.snapshot().events).toEqual([]);
+    const fresh = f.event(9);
+    f.setEvents([backlog, fresh]);
+    await f.tick();
+    expect(f.activity.snapshot().events.map((event) => event.id)).toEqual([
+      fresh.id,
+    ]);
+    f.remove();
+    await f.tick();
+    await screen.findByText("No authorized resources in this view.");
+    expect(screen.queryByText(f.host.label)).toBeNull();
+    expect(coordinatorRenderer.update.mock.lastCall?.[0]).toHaveLength(0);
+    expect(
+      coordinatorRenderer.settings?.activity.source.snapshot().events,
+    ).toEqual([]);
+  });
+});
+
+it("keeps restart baseline suppressed when the projection finishes before the independently delayed overview", async () => {
+  const f = await routineActivityCoordinator();
+  fireEvent.click(screen.getByRole("button", { name: "Pause updates" }));
+  f.holdOverview(true);
+  const backlog = f.event(10);
+  f.setEvents([backlog]);
+  fireEvent.click(screen.getByRole("button", { name: "Resume updates" }));
+  await act(async () => {});
+  expect(coordinatorRenderer.settings?.activity.running).toBe(false);
+  expect(f.activity.snapshot().events).toEqual([]);
+  await f.completeOverview();
+  expect(coordinatorRenderer.settings?.activity.running).toBe(true);
+  expect(f.activity.snapshot().events).toEqual([]);
+  f.holdOverview(false);
+  const fresh = f.event(11);
+  f.setEvents([backlog, fresh]);
+  await f.tick();
+  expect(f.activity.snapshot().events.map((event) => event.id)).toEqual([
+    fresh.id,
+  ]);
+});
+it("keeps a deliberate query revision pending static while accepting later genuine events after its new baseline", async () => {
+  const f = await routineActivityCoordinator();
+  f.sceneMode("defer");
+  fireEvent.change(
+    screen.getByRole("combobox", { name: "Observatory grouping" }),
+    { target: { value: "hosts" } },
+  );
+  await act(async () => {});
+  expect(f.gates).toHaveLength(1);
+  expect(coordinatorRenderer.settings?.activity.running).toBe(false);
+  const backlog = f.event(12);
+  f.setEvents([backlog]);
+  await f.tick();
+  expect(f.activity.snapshot().events).toEqual([]);
+  await f.complete();
+  expect(coordinatorRenderer.settings?.activity.running).toBe(true);
+  expect(f.activity.snapshot().events).toEqual([]);
+  f.sceneMode("ready");
+  const fresh = f.event(13);
+  f.setEvents([fresh, backlog]);
+  await f.tick();
+  expect(f.activity.snapshot().events.map((event) => event.id)).toEqual([
+    fresh.id,
+  ]);
+});
+it("preserves reading, reduced-motion and offscreen baseline rules during ordinary scene refresh", async () => {
+  const f = await routineActivityCoordinator();
+  fireEvent.focus(screen.getByRole("searchbox"));
+  f.setEvents([f.event(14)]);
+  await f.tick();
+  expect(coordinatorRenderer.settings?.motion).toBe(false);
+  expect(f.activity.snapshot().events).toEqual([]);
+  fireEvent.click(screen.getByRole("button", { name: "Start presentation" }));
+  expect(f.activity.snapshot().events).toEqual([]);
+  fireEvent.click(screen.getByRole("button", { name: "Appearance and views" }));
+  fireEvent.click(screen.getByRole("checkbox", { name: "Reduced motion" }));
+  f.setEvents([f.event(15)]);
+  await f.tick();
+  expect(coordinatorRenderer.settings?.motion).toBe(false);
+  expect(f.activity.snapshot().events).toEqual([]);
+  fireEvent.click(screen.getByRole("checkbox", { name: "Reduced motion" }));
+  fireEvent.keyDown(screen.getByRole("dialog"), { key: "Escape" });
+  fireEvent.click(screen.getByRole("button", { name: "Start presentation" }));
+  act(() => coordinatorRenderer.hooks?.visibility(false));
+  f.setEvents([f.event(16)]);
+  await f.tick();
+  expect(f.activity.snapshot().events).toEqual([]);
+  act(() => coordinatorRenderer.hooks?.visibility(true));
+  await f.tick();
+  expect(f.activity.snapshot().events).toEqual([]);
+  const fresh = f.event(17);
+  f.setEvents([fresh]);
+  await f.tick();
+  expect(f.activity.snapshot().events.map((event) => event.id)).toEqual([
+    fresh.id,
+  ]);
+});
+
+it.each(["scene", "overview"] as const)(
+  "keeps a failed %s resume suppressed until a successful first fresh read without replaying pause backlog",
+  async (kind) => {
+    const f = await routineActivityCoordinator();
+    fireEvent.click(screen.getByRole("button", { name: "Pause updates" }));
+    const backlog = f.event(18);
+    f.setEvents([backlog]);
+    if (kind === "scene") f.sceneMode("fail");
+    else f.overviewFailure(true);
+    fireEvent.click(screen.getByRole("button", { name: "Resume updates" }));
+    await screen.findByRole("alert");
+    expect(coordinatorRenderer.settings?.activity.running).toBe(false);
+    expect(f.activity.snapshot().events).toEqual([]);
+    f.sceneMode("ready");
+    f.overviewFailure(false);
+    fireEvent.click(screen.getByRole("button", { name: "Refresh now" }));
+    await waitFor(() =>
+      expect(coordinatorRenderer.settings?.activity.running).toBe(true),
+    );
+    expect(f.activity.snapshot().events).toEqual([]);
+    const fresh = f.event(19);
+    f.setEvents([backlog, fresh]);
+    await f.tick();
+    expect(f.activity.snapshot().events.map((event) => event.id)).toEqual([
+      fresh.id,
+    ]);
+  },
+);
+
+describe("independent review completion-order controls", () => {
+  it("silently baselines pause backlog when the overview finishes before a deferred resumed scene", async () => {
+    const f = await routineActivityCoordinator();
+    fireEvent.click(screen.getByRole("button", { name: "Pause updates" }));
+    const backlog = f.event(31);
+    f.setEvents([backlog]);
+    f.sceneMode("defer");
+    fireEvent.click(screen.getByRole("button", { name: "Resume updates" }));
+    await act(async () => {});
+    expect(f.gates).toHaveLength(1);
+    expect(f.activity.snapshot().events).toEqual([]);
+    await f.complete();
+    expect(f.activity.snapshot().events).toEqual([]);
+    f.sceneMode("ready");
+    const fresh = f.event(32);
+    f.setEvents([backlog, fresh]);
+    await f.tick();
+    expect(f.activity.snapshot().events.map((event) => event.id)).toEqual([
+      fresh.id,
+    ]);
+  });
+
+  it("silently baselines hidden-document backlog when the scene returns before the overview", async () => {
+    const f = await routineActivityCoordinator();
+    vi.spyOn(document, "hidden", "get").mockReturnValue(true);
+    act(() => coordinatorRenderer.hooks?.visibility(false));
+    const reads = f.reads();
+    const backlog = f.event(33);
+    f.setEvents([backlog]);
+    await f.tick();
+    expect(f.reads()).toEqual(reads);
+    expect(f.activity.snapshot().events).toEqual([]);
+    f.holdOverview(true);
+    vi.spyOn(document, "hidden", "get").mockReturnValue(false);
+    act(() => coordinatorRenderer.hooks?.visibility(true));
+    await act(async () => {
+      document.dispatchEvent(new Event("visibilitychange"));
+    });
+    expect(f.reads()).toEqual({
+      scene: reads.scene + 1,
+      overview: reads.overview + 1,
+    });
+    expect(f.activity.snapshot().events).toEqual([]);
+    await f.completeOverview();
+    expect(f.activity.snapshot().events).toEqual([]);
+    f.holdOverview(false);
+    const fresh = f.event(34);
+    f.setEvents([backlog, fresh]);
+    await f.tick();
+    expect(f.activity.snapshot().events.map((event) => event.id)).toEqual([
+      fresh.id,
+    ]);
+  });
+
+  it("silently baselines scene-failure backlog when recovery scene returns before the overview", async () => {
+    const f = await routineActivityCoordinator();
+    f.sceneMode("fail");
+    await f.tick();
+    expect(coordinatorRenderer.settings?.activity.running).toBe(false);
+    const backlog = f.event(35);
+    f.setEvents([backlog]);
+    f.sceneMode("ready");
+    f.holdOverview(true);
+    await f.tick();
+    expect(f.activity.snapshot().events).toEqual([]);
+    await f.completeOverview();
+    expect(f.activity.snapshot().events).toEqual([]);
+    f.holdOverview(false);
+    const fresh = f.event(36);
+    f.setEvents([backlog, fresh]);
+    await f.tick();
+    expect(f.activity.snapshot().events.map((event) => event.id)).toEqual([
+      fresh.id,
+    ]);
+  });
+});
+
+it("retains the hidden-return baseline when an overview started before hiding completes after the scene", async () => {
+  const f = await routineActivityCoordinator();
+  const beforeHidden = f.event(37);
+  f.setEvents([beforeHidden]);
+  f.holdOverview(true);
+  await f.tick();
+  vi.spyOn(document, "hidden", "get").mockReturnValue(true);
+  act(() => {
+    coordinatorRenderer.hooks?.visibility(false);
+    document.dispatchEvent(new Event("visibilitychange"));
+  });
+  const reads = f.reads();
+  const backlog = f.event(38);
+  f.setEvents([backlog]);
+  await f.tick();
+  expect(f.reads()).toEqual(reads);
+  vi.spyOn(document, "hidden", "get").mockReturnValue(false);
+  await act(async () => {
+    coordinatorRenderer.hooks?.visibility(true);
+    document.dispatchEvent(new Event("visibilitychange"));
+  });
+  expect(f.reads()).toEqual({
+    scene: reads.scene + 1,
+    overview: reads.overview,
+  });
+  await f.completeOverview();
+  expect(coordinatorRenderer.settings?.activity.running).toBe(false);
+  expect(f.activity.snapshot().events).toEqual([]);
+  f.holdOverview(false);
+  await f.tick();
+  expect(coordinatorRenderer.settings?.activity.running).toBe(true);
+  expect(f.activity.snapshot().events).toEqual([]);
+  const fresh = f.event(39);
+  f.setEvents([backlog, fresh]);
+  await f.tick();
+  expect(f.activity.snapshot().events.map((event) => event.id)).toEqual([
+    fresh.id,
+  ]);
+});
+
+it.each(["hidden", "scene failure"] as const)(
+  "silently baselines %s backlog when the recovery overview completes before the deferred scene",
+  async (kind) => {
+    const f = await routineActivityCoordinator();
+    if (kind === "hidden") {
+      vi.spyOn(document, "hidden", "get").mockReturnValue(true);
+      act(() => {
+        coordinatorRenderer.hooks?.visibility(false);
+        document.dispatchEvent(new Event("visibilitychange"));
+      });
+    } else {
+      f.sceneMode("fail");
+      await f.tick();
+      expect(coordinatorRenderer.settings?.activity.running).toBe(false);
+    }
+    const backlog = f.event(40);
+    f.setEvents([backlog]);
+    f.sceneMode("defer");
+    if (kind === "hidden") {
+      vi.spyOn(document, "hidden", "get").mockReturnValue(false);
+      await act(async () => {
+        coordinatorRenderer.hooks?.visibility(true);
+        document.dispatchEvent(new Event("visibilitychange"));
+      });
+    } else await f.tick();
+    expect(f.gates).toHaveLength(1);
+    expect(f.activity.snapshot().events).toEqual([]);
+    await f.complete();
+    expect(coordinatorRenderer.settings?.activity.running).toBe(true);
+    expect(f.activity.snapshot().events).toEqual([]);
+    f.sceneMode("ready");
+    const fresh = f.event(41);
+    f.setEvents([backlog, fresh]);
+    await f.tick();
+    expect(f.activity.snapshot().events.map((event) => event.id)).toEqual([
+      fresh.id,
+    ]);
+  },
+);
