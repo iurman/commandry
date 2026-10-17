@@ -593,9 +593,29 @@ function OperationalObservatoryView({
     else expanded.add(id);
     emit({ ...query, expandedRepresentationIds: [...expanded] });
   }
-  const actions = useRef({ activate, feature, onCameraFocus });
+  function loadPreferences(
+    saved: ObservatoryPreferences,
+    restoreGrouping: boolean,
+  ) {
+    const untouched = revision.current === 0;
+    const grouping = restoreGrouping ? saved.grouping : query.grouping,
+      sectors = restoreGrouping ? saved.sectors : query.sectors;
+    setPreferences((current) => ({
+      ...saved,
+      grouping: untouched ? grouping : current.grouping,
+      sectors: untouched ? sectors : current.sectors,
+    }));
+    // A later explicit query owns its grouping; hydration only initializes it.
+    if (
+      untouched &&
+      (grouping !== query.grouping ||
+        JSON.stringify(sectors) !== JSON.stringify(query.sectors))
+    )
+      emit({ ...query, grouping, sectors }, "composed");
+  }
+  const actions = useRef({ activate, feature, onCameraFocus, loadPreferences });
   useEffect(() => {
-    actions.current = { activate, feature, onCameraFocus };
+    actions.current = { activate, feature, onCameraFocus, loadPreferences };
   });
 
   useEffect(() => {
@@ -612,11 +632,19 @@ function OperationalObservatoryView({
       if (!active) return;
       media();
       let saved = defaultObservatoryPreferences();
+      let restoreGrouping = false;
       try {
-        saved = readObservatoryPreferences(
-          localStorage.getItem(observatoryStorageKey),
-          localStorage.getItem(legacyObservatoryStorageKey),
-        );
+        const raw = localStorage.getItem(observatoryStorageKey),
+          legacyRaw = localStorage.getItem(legacyObservatoryStorageKey);
+        saved = readObservatoryPreferences(raw, legacyRaw);
+        const source = JSON.parse(raw ?? legacyRaw ?? "null"),
+          groupings =
+            raw === null
+              ? ["hosts", "projects", "custom"]
+              : observatoryGroupings;
+        restoreGrouping =
+          source?.version === (raw === null ? 1 : 2) &&
+          groupings.includes(source.grouping);
       } catch {
         /* Settings remain usable without device storage. */
       }
@@ -624,7 +652,7 @@ function OperationalObservatoryView({
         saved.sectors,
         initialResourceIds,
       );
-      setPreferences({ ...saved, sectors });
+      actions.current.loadPreferences({ ...saved, sectors }, restoreGrouping);
       setLoaded(true);
     });
     return () => {
