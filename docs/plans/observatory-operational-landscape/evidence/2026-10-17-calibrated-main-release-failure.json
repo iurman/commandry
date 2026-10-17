@@ -1,0 +1,101 @@
+{
+  "status": "FAILED_FULL_MAIN_RELEASE_NO_PUBLICATION",
+  "workflow": {
+    "url": "https://github.com/iurman/commandry/actions/runs/39061877665",
+    "headSha": "f30c4aa649ce213c01b39748854fdf50d7f9f2ae",
+    "createdAt": "2026-10-17T19:18:19Z",
+    "updatedAt": "2026-10-17T19:43:44Z",
+    "status": "completed",
+    "conclusion": "failure"
+  },
+  "runId": 39061877665,
+  "normalMerge": {
+    "pullRequest": "https://github.com/iurman/commandry/pull/27",
+    "mergeRevision": "f30c4aa649ce213c01b39748854fdf50d7f9f2ae",
+    "reviewedHead": "123c56213e45cce7f85eccdaf6f87b1e17ccb555"
+  },
+  "browser": {
+    "discovered": 207,
+    "passed": 199,
+    "skipped": 5,
+    "failed": 3,
+    "flaky": 0,
+    "durationMs": 792213.361,
+    "failures": [
+      {
+        "file": "gravity-master-scene.spec.ts",
+        "line": 15,
+        "title": "one master scene renders and inspects the complete multi-page inventory",
+        "project": "desktop",
+        "status": "unexpected",
+        "attempts": [
+          {
+            "status": "timedOut",
+            "retry": 0,
+            "durationMs": 302841
+          }
+        ]
+      },
+      {
+        "file": "gravity-master-scene.spec.ts",
+        "line": 15,
+        "title": "one master scene renders and inspects the complete multi-page inventory",
+        "project": "phone-390",
+        "status": "unexpected",
+        "attempts": [
+          {
+            "status": "failed",
+            "retry": 0,
+            "durationMs": 67019
+          }
+        ]
+      },
+      {
+        "file": "infrastructure-overview.spec.ts",
+        "line": 573,
+        "title": "Gravity uses canonical resources, persisted appearance, focus and truthful source evidence",
+        "project": "desktop",
+        "status": "unexpected",
+        "attempts": [
+          {
+            "status": "failed",
+            "retry": 0,
+            "durationMs": 63040
+          }
+        ]
+      }
+    ]
+  },
+  "precedingGates": {
+    "Check source, contracts, and workflow formatting": "success",
+    "Audit production dependencies": "success",
+    "Run unit and local tests": "success",
+    "Build and test the application": "success",
+    "Restore Next's generated declaration": "success",
+    "Check production Compose configuration": "success",
+    "Build and start the exact release image locally": "success"
+  },
+  "diagnosticArtifact": {
+    "id": 12111354754,
+    "serverArchiveDigest": "sha256:f09a43c7cd9bab8fdb96b309e97e4cff73e227559bb557eec1f5c250fc2fe59c",
+    "serverArchiveDigestLocallyVerified": false,
+    "downloadMethod": "gh run download with extracted per-file SHA-256 census",
+    "extractedFiles": 67,
+    "extractedBytes": 111590125
+  },
+  "diagnosis": "Three completed independent bounded forensic reviews retained; complete-before-deadline states and delayed observations do not reclassify the failures or prove a product/parallelism cause.",
+  "guardPolicy": "No further aggregate or explicit-operation timeout increase is authorized by WORKERS-38. No unchanged release retry.",
+  "publicationOccurred": false,
+  "approvalRecordCreated": false,
+  "deploymentOccurred": false,
+  "sourceActivationVerified": false,
+  "productionObservedRevision": "507303ca1e82b8b15cc8d94864b61db1de86ed7e",
+  "productionObservationTime": "2026-10-17T19:26:09Z",
+  "localFifteenCaseResultReclassified": false,
+  "wholeWorkflowComplete": false,
+  "traceDiagnosisReceipt": "2026-10-17-calibrated-main-trace-diagnosis.json",
+  "skipConservationAgainstPriorFullMain": {
+    "priorRunId": 39051075901,
+    "identicalFiveSkippedTitleProjectPairs": true
+  }
+}

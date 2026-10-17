@@ -21,7 +21,12 @@ retains those failures and supports a bounded aggregate-budget calibration.
 The exact two-literal candidate now passes all 15 original cases without
 profiling, retries or skips, with independent source/execution acceptance and
 strict physical cleanup. Explicit guards remain; implicit waits can grow.
-Full 207-case main release, publication, genuine approval, deployment and live
+PR27 is normally merged. Subsequent full main release39061877665 at f30c4aa
+fails with 199 passes, five original skips and three browser failures. Exact
+diagnostics and three completed forensic reviews distinguish late observations
+from the cumulative deadline, without a product-cause claim. A reviewed
+one-worker CI experiment preserves every original case and guard. No image is
+published. Full main release, publication, genuine approval, deployment and live
 activation remain unfinished. The
 [58-scenario completion ledger](../plans/observatory-operational-landscape/COVERAGE.md)
 records 53 local passes, five explicit limitations and the remaining deployment
