@@ -520,8 +520,9 @@ function OperationalObservatoryView({
   function activate(id: string) {
     const node = nodes.get(id);
     if (!node) return;
+    if (focusId !== id && !automaticFeature.current)
+      history.current.push(entry());
     automaticFeature.current = false;
-    if (focusId !== id) history.current.push(entry());
     restoreCamera.current = false;
     setFocusSequence((value) => value + 1);
     setFocusId(id);
@@ -562,7 +563,9 @@ function OperationalObservatoryView({
     setFocusId(id);
     setCamera(previous?.camera ?? "composed");
     if (
+      id &&
       previous?.resourceId &&
+      nodes.get(id)?.resourceId === previous.resourceId &&
       scene.membershipIndex.resourceIds.includes(previous.resourceId)
     )
       onSelect(previous.resourceId);
@@ -1662,7 +1665,24 @@ function OperationalObservatoryView({
                   type="button"
                   key={id}
                   aria-current={id === selected.id ? "location" : undefined}
-                  onClick={() => activate(id)}
+                  onClick={() => {
+                    if (focusId === id) {
+                      if (automaticFeature.current)
+                        renderer.current?.adoptSubject(id);
+                      automaticFeature.current = false;
+                      setCamera("manual");
+                      return;
+                    }
+                    const index = history.current.findLastIndex(
+                      (previous) => previous.focusId === id,
+                    );
+                    if (index < 0) activate(id);
+                    else {
+                      const previous = history.current[index];
+                      history.current = history.current.slice(0, index);
+                      restore(previous);
+                    }
+                  }}
                 >
                   {nodes.get(id)?.label}
                 </button>

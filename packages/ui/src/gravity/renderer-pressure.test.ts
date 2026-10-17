@@ -71,6 +71,10 @@ type Internals = {
   camera: PerspectiveCamera;
   presentationElapsed: number;
   presentationInterrupted: boolean;
+  presentationMoved: boolean;
+  focusedSubject: string | null;
+  savedFocusPoses: Map<string | null, { position: Vector3; target: Vector3 }>;
+  cameraTween: unknown;
   controls: { target: Vector3; update(): void };
   geometry: BufferGeometry;
   geometryRevision: number;
@@ -880,6 +884,124 @@ it("refocuses an already-selected host after automatic camera movement when the 
     for (let now = 22050; now <= 26000; now += 50) fixture.frame(now);
     expect(featured).toHaveBeenCalledTimes(calls);
     expect(fixture.access.presentationElapsed).toBe(elapsed);
+  } finally {
+    fixture.renderer.dispose();
+  }
+});
+
+it("adopts a naturally featured host without a fit and retains its shown pose through child focus and restoration", () => {
+  const population = tourWells.flatMap((parent) => [
+    parent,
+    ...(parent.kind === "host"
+      ? [
+          {
+            ...parent,
+            id: parent.id + ":child",
+            kind: "service" as const,
+            hostId: parent.id,
+            x: parent.x + 2,
+            z: parent.z + 1,
+            radius: 1,
+          },
+        ]
+      : []),
+  ]);
+  const featured = vi.fn(),
+    fixture = setup(population, 1200, 900, 900, { featured });
+  try {
+    fixture.renderer.focusSubject(tourWells[0]!.id, { immediate: true });
+    fixture.renderer.update(population, {
+      ...settings,
+      motion: true,
+      cameraMode: "tour",
+    });
+    for (let now = 50; now <= 22000; now += 50) fixture.frame(now);
+    expect(featured.mock.calls.length).toBeGreaterThanOrEqual(2);
+    const subject = featured.mock.lastCall![0] as string,
+      child = population.find((well) => well.hostId === subject)!,
+      position = fixture.access.camera.position.clone(),
+      target = fixture.access.controls.target.clone(),
+      geometry = fixture.access.geometry,
+      revision = fixture.access.geometryRevision,
+      saved = [...fixture.access.savedFocusPoses.entries()],
+      previousSubject = fixture.access.focusedSubject,
+      focus = vi.spyOn(fixture.renderer, "focusSubject");
+    expect(fixture.access.presentationMoved).toBe(true);
+    expect(fixture.renderer.adoptSubject("unavailable-subject")).toBe(false);
+    expect(fixture.access.focusedSubject).toBe(previousSubject);
+    expect(fixture.access.presentationMoved).toBe(true);
+    expect(fixture.renderer.adoptSubject(subject)).toBe(true);
+    expect(focus).not.toHaveBeenCalled();
+    expect(fixture.access.camera.position.toArray()).toEqual(
+      position.toArray(),
+    );
+    expect(fixture.access.controls.target.toArray()).toEqual(target.toArray());
+    expect(fixture.access.focusedSubject).toBe(subject);
+    expect(fixture.access.presentationMoved).toBe(false);
+    expect(fixture.access.presentationInterrupted).toBe(true);
+    expect(fixture.access.cameraTween).toBeNull();
+    expect([...fixture.access.savedFocusPoses.entries()]).toEqual(saved);
+    expect(fixture.access.geometry).toBe(geometry);
+    expect(fixture.access.geometryRevision).toBe(revision);
+    expect(fixture.canvas.dataset.gravityMainFocus).toBe(subject);
+    fixture.renderer.update(population, {
+      ...settings,
+      motion: true,
+      selected: subject,
+    });
+    // The component may resolve the collapsed child to its visible parent first.
+    fixture.renderer.focusSubject(subject, { immediate: true });
+    expect(fixture.access.camera.position.toArray()).toEqual(
+      position.toArray(),
+    );
+    expect(fixture.access.controls.target.toArray()).toEqual(target.toArray());
+    fixture.renderer.focusSubject(child.id, { immediate: true });
+    const retained = fixture.access.savedFocusPoses.get(subject)!;
+    expect(retained.position.toArray()).toEqual(position.toArray());
+    expect(retained.target.toArray()).toEqual(target.toArray());
+    fixture.renderer.focusSubject(subject, { immediate: true, restore: true });
+    expect(fixture.access.camera.position.distanceTo(position)).toBeLessThan(
+      1e-8,
+    );
+    expect(fixture.access.controls.target.distanceTo(target)).toBeLessThan(
+      1e-8,
+    );
+    const calls = featured.mock.calls.length;
+    for (let now = 22050; now <= 26000; now += 50) fixture.frame(now);
+    expect(featured).toHaveBeenCalledTimes(calls);
+    expect(fixture.access.presentationElapsed).toBe(0);
+  } finally {
+    fixture.renderer.dispose();
+  }
+});
+
+it("adopts the visible in-flight pose instead of retaining a stale focus tween destination", () => {
+  const fixture = setup(tourWells);
+  try {
+    fixture.renderer.update(tourWells, { ...settings, motion: true });
+    fixture.renderer.focusSubject(tourWells[0]!.id);
+    fixture.frame(50);
+    expect(fixture.access.cameraTween).not.toBeNull();
+    const position = fixture.access.camera.position.toArray(),
+      target = fixture.access.controls.target.toArray();
+    expect(fixture.renderer.adoptSubject(tourWells[0]!.id)).toBe(true);
+    expect(fixture.access.cameraTween).toBeNull();
+    expect(fixture.access.camera.position.toArray()).toEqual(position);
+    expect(fixture.access.controls.target.toArray()).toEqual(target);
+    fixture.renderer.focusSubject(tourWells[1]!.id, { immediate: true });
+    const saved = fixture.access.savedFocusPoses.get(tourWells[0]!.id)!;
+    expect(saved.position.toArray()).toEqual(position);
+    expect(saved.target.toArray()).toEqual(target);
+    fixture.renderer.focusSubject(tourWells[0]!.id, {
+      immediate: true,
+      restore: true,
+    });
+    expect(
+      fixture.access.camera.position.distanceTo(new Vector3(...position)),
+    ).toBeLessThan(1e-8);
+    expect(
+      fixture.access.controls.target.distanceTo(new Vector3(...target)),
+    ).toBeLessThan(1e-8);
   } finally {
     fixture.renderer.dispose();
   }

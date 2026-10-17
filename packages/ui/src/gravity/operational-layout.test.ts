@@ -10,14 +10,22 @@ import {
   within,
 } from "@testing-library/react";
 import { createElement } from "react";
+import { PerspectiveCamera, Vector3 } from "three";
 import type {
   InfrastructureOverview,
   FoundationProjectWorkCursor,
   FoundationProjectWorkPage,
 } from "@commandry/contracts";
 import type { Well } from "./model";
-import type { RendererHooks, RendererSettings } from "./renderer";
-import { OperationalObservatory } from "../components/OperationalObservatory";
+import type {
+  ObservatoryRenderer,
+  RendererHooks,
+  RendererSettings,
+} from "./renderer";
+import {
+  OperationalObservatory,
+  type OperationalObservatoryProps,
+} from "../components/OperationalObservatory";
 import { projectObservatory } from "@commandry/test-support";
 import {
   mixedObservatoryFixture,
@@ -36,6 +44,7 @@ import {
 import {
   defaultObservatoryPreferences,
   observatoryGroupings,
+  type ObservatoryQuery,
 } from "./observatory-preferences";
 
 const options = defaultObservatoryPreferences();
@@ -47,6 +56,7 @@ const engine = vi.hoisted(() => ({
   dispose: vi.fn(),
   preset: vi.fn(),
   refresh: vi.fn(),
+  adopt: vi.fn<(id: string) => boolean>(),
 }));
 vi.mock("./renderer", () => ({
   ObservatoryRenderer: class {
@@ -78,6 +88,7 @@ vi.mock("./renderer", () => ({
     dispose = engine.dispose;
     preset = engine.preset;
     refreshActivity = engine.refresh;
+    adoptSubject = engine.adopt;
     measureAnchor() {}
   },
 }));
@@ -85,6 +96,7 @@ beforeEach(() => {
   vi.clearAllMocks();
   engine.fail = false;
   engine.hooks = null;
+  engine.adopt.mockReset();
   localStorage.clear();
   vi.stubGlobal(
     "matchMedia",
@@ -1364,3 +1376,388 @@ it("treats a new same-ID request as direct before the first tour feature without
   expect(props.onCameraFocus).toHaveBeenCalledTimes(before + 1);
   expect(props.onQueryChange).not.toHaveBeenCalled();
 });
+
+describe("breadcrumb reading-context restoration", () => {
+  async function setupReadingContext(initialChild = false) {
+    const host = observatoryFixtureResource(61001, "host"),
+      child = {
+        ...observatoryFixtureResource(61002),
+        parentResourceId: host.id,
+      },
+      leaf = {
+        ...observatoryFixtureResource(61003),
+        parentResourceId: child.id,
+      },
+      input = observatoryFixtureInput([host, child, leaf]),
+      scene = projectObservatory(input);
+    const { ObservatoryRenderer: ActualRenderer } =
+      await vi.importActual<typeof import("./renderer")>("./renderer");
+    const camera = new PerspectiveCamera(40, 1, 0.1, 500),
+      target = new Vector3(0, -1, 0);
+    camera.position.set(24, 18, 30);
+    // Use the shipped saved-pose method, without constructing a GPU or a second camera store.
+    const main = Object.assign(Object.create(ActualRenderer.prototype), {
+      renderer: { domElement: { dataset: {} } },
+      camera,
+      controls: { target, update() {} },
+      targets: [] as Well[],
+      settings: { motion: false },
+      focusedSubject: null,
+      savedFocusPoses: new Map(),
+      cameraTween: null,
+      reconcileViewport() {},
+    }) as {
+      targets: Well[];
+      focusSubject: ObservatoryRenderer["focusSubject"];
+      adoptSubject: ObservatoryRenderer["adoptSubject"];
+      presentationMoved: boolean;
+      focusedSubject: string | null;
+      savedFocusPoses: Map<
+        string | null,
+        { position: Vector3; target: Vector3 }
+      >;
+    };
+    engine.adopt.mockImplementation((id) => main.adoptSubject(id));
+    const props = {
+      scene,
+      snapshot: {
+        readAt: scene.readCompletedAt,
+        total: 3,
+        nextCursor: null,
+        items: [],
+        edges: [],
+        events: [],
+      } as InfrastructureOverview,
+      selectedId: initialChild ? child.id : null,
+      onSelect: vi.fn(),
+      onProject: vi.fn(),
+      onQueryChange: vi.fn<(query: ObservatoryQuery) => void>(),
+      onCameraFocus: vi.fn<
+        NonNullable<OperationalObservatoryProps["onCameraFocus"]>
+      >((_renderer, id, options) => {
+        main.targets = engine.update.mock.lastCall![0];
+        expect(main.focusSubject(id, { ...options, immediate: true })).toBe(
+          true,
+        );
+      }),
+    };
+    const view = render(createElement(OperationalObservatory, props));
+    await waitFor(() => expect(props.onCameraFocus).toHaveBeenCalled());
+    const node = (resourceId: string) =>
+      scene.representations.find(
+        (item) => item.resourceId === resourceId && !item.referenceTo,
+      )!;
+    const publish = async () => {
+      props.scene = projectObservatory({
+        ...input,
+        ...props.onQueryChange.mock.lastCall?.[0],
+      });
+      props.selectedId = props.onSelect.mock.lastCall?.[0] ?? props.selectedId;
+      view.rerender(createElement(OperationalObservatory, props));
+      await act(async () => {});
+    };
+    const select = async (resourceId: string) => {
+      act(() => engine.hooks!.select(node(resourceId).id));
+      await publish();
+    };
+    const breadcrumb = (resourceId: string) =>
+      within(
+        screen.getByRole("navigation", { name: "Observatory breadcrumbs" }),
+      ).getByRole("button", { name: node(resourceId).label });
+    return {
+      host,
+      child,
+      leaf,
+      props,
+      view,
+      main,
+      camera,
+      target,
+      node,
+      publish,
+      select,
+      breadcrumb,
+    };
+  }
+
+  it.each(["breadcrumb", "Back", "Escape"])(
+    "restores the exact panned ancestor pose and authorized query through %s",
+    async (action) => {
+      const context = await setupReadingContext();
+      const {
+        host,
+        child,
+        props,
+        camera,
+        target,
+        node,
+        publish,
+        select,
+        breadcrumb,
+      } = context;
+      const overview = {
+        position: camera.position.clone(),
+        target: target.clone(),
+      };
+      await select(host.id);
+      const savedQuery = props.onQueryChange.mock.lastCall![0];
+      camera.position.set(13, 19, 27);
+      target.set(3, -2, 7);
+      const reading = {
+        position: camera.position.clone(),
+        target: target.clone(),
+      };
+      await select(child.id);
+      expect(
+        props.onQueryChange.mock.lastCall![0].expandedRepresentationIds,
+      ).toContain(node(child.id).id);
+      expect(camera.position.toArray()).not.toEqual(reading.position.toArray());
+      if (action === "breadcrumb") fireEvent.click(breadcrumb(host.id));
+      else if (action === "Back")
+        fireEvent.click(screen.getByRole("button", { name: "Back" }));
+      else
+        fireEvent.keyDown(
+          screen.getByRole("region", { name: "Operational Observatory" }),
+          { key: "Escape" },
+        );
+      expect(props.onCameraFocus.mock.lastCall).toEqual([
+        expect.anything(),
+        node(host.id).id,
+        expect.objectContaining({ restore: true }),
+      ]);
+      expect(props.onQueryChange.mock.lastCall![0]).toEqual({
+        ...savedQuery,
+        viewRevision: expect.any(String),
+      });
+      expect(props.onSelect).toHaveBeenLastCalledWith(host.id);
+      expect(engine.update.mock.lastCall![1].cameraMode).toBe("manual");
+      expect(camera.position.toArray()).toEqual(reading.position.toArray());
+      expect(target.toArray()).toEqual(reading.target.toArray());
+      await publish();
+      const calls = props.onCameraFocus.mock.calls.length;
+      viewRefresh(context);
+      await act(async () => {});
+      expect(props.onCameraFocus).toHaveBeenCalledTimes(calls);
+      expect(camera.position.toArray()).toEqual(reading.position.toArray());
+      expect(target.toArray()).toEqual(reading.target.toArray());
+      fireEvent.click(breadcrumb(host.id));
+      expect(props.onCameraFocus).toHaveBeenCalledTimes(calls);
+      expect(camera.position.toArray()).toEqual(reading.position.toArray());
+      fireEvent.click(screen.getByRole("button", { name: "Back" }));
+      expect(props.onCameraFocus.mock.lastCall![1]).toBeNull();
+      expect(camera.position.toArray()).toEqual(overview.position.toArray());
+      expect(target.toArray()).toEqual(overview.target.toArray());
+    },
+  );
+
+  function viewRefresh(
+    context: Awaited<ReturnType<typeof setupReadingContext>>,
+  ) {
+    context.view.rerender(
+      createElement(OperationalObservatory, {
+        ...context.props,
+        scene: {
+          ...context.props.scene,
+          representations: [...context.props.scene.representations],
+        },
+      }),
+    );
+  }
+
+  it("unwinds descendants when an earlier ancestor breadcrumb is restored", async () => {
+    const { host, child, leaf, props, camera, target, select, breadcrumb } =
+      await setupReadingContext();
+    await select(host.id);
+    camera.position.set(11, 17, 29);
+    target.set(4, -3, 8);
+    const position = camera.position.toArray(),
+      center = target.toArray();
+    await select(child.id);
+    await select(leaf.id);
+    fireEvent.click(breadcrumb(host.id));
+    expect(props.onCameraFocus.mock.lastCall![2].restore).toBe(true);
+    expect(camera.position.toArray()).toEqual(position);
+    expect(target.toArray()).toEqual(center);
+    fireEvent.keyDown(
+      screen.getByRole("region", { name: "Operational Observatory" }),
+      { key: "Escape" },
+    );
+    expect(props.onCameraFocus.mock.lastCall![1]).toBeNull();
+  });
+
+  it("fits a never-visited ancestor directly and keeps Back to its prior composed child context", async () => {
+    const { host, child, props, node, publish, breadcrumb } =
+      await setupReadingContext(true);
+    fireEvent.click(breadcrumb(host.id));
+    expect(props.onCameraFocus.mock.lastCall![1]).toBe(node(host.id).id);
+    expect(props.onCameraFocus.mock.lastCall![2].restore).toBe(false);
+    await publish();
+    fireEvent.click(screen.getByRole("button", { name: "Back" }));
+    expect(props.onCameraFocus.mock.lastCall![1]).toBe(node(child.id).id);
+    expect(props.onCameraFocus.mock.lastCall![2].restore).toBe(true);
+    expect(engine.update.mock.lastCall![1].cameraMode).toBe("composed");
+  });
+  it("does not turn an automatic ancestor feature into retained direct reading history", async () => {
+    const { host, child, props, node, select } = await setupReadingContext();
+    fireEvent.click(screen.getByRole("button", { name: "Start presentation" }));
+    act(() => engine.hooks?.featured?.(node(host.id).id));
+    expect(engine.update.mock.lastCall![1].cameraMode).toBe("tour");
+    await select(child.id);
+    expect(engine.update.mock.lastCall![1].cameraMode).toBe("manual");
+    fireEvent.click(screen.getByRole("button", { name: "Back" }));
+    expect(props.onCameraFocus.mock.lastCall![1]).toBeNull();
+    expect(props.onCameraFocus.mock.lastCall![2].restore).toBe(true);
+  });
+
+  it("independent: retains a tour host reading pose after current breadcrumb, child, and ancestor", async () => {
+    const {
+      host,
+      child,
+      props,
+      camera,
+      target,
+      node,
+      select,
+      breadcrumb,
+      main,
+    } = await setupReadingContext();
+    fireEvent.click(screen.getByRole("button", { name: "Start presentation" }));
+    act(() => engine.hooks?.featured?.(node(host.id).id));
+    camera.position.set(31, 23, 47);
+    target.set(7, -3, 11);
+    main.presentationMoved = true;
+    const pose = {
+      position: camera.position.toArray(),
+      target: target.toArray(),
+    };
+    const calls = props.onCameraFocus.mock.calls.length;
+    fireEvent.click(breadcrumb(host.id));
+    expect(props.onCameraFocus).toHaveBeenCalledTimes(calls);
+    expect(engine.update.mock.lastCall![1].cameraMode).toBe("manual");
+    expect(camera.position.toArray()).toEqual(pose.position);
+    expect(target.toArray()).toEqual(pose.target);
+    expect(engine.adopt).toHaveBeenLastCalledWith(node(host.id).id);
+    const beforeChildSubject = main.focusedSubject;
+    await select(child.id);
+    const savedKeys = [...main.savedFocusPoses.keys()];
+    fireEvent.click(breadcrumb(host.id));
+    expect(props.onCameraFocus.mock.lastCall![2].restore).toBe(true);
+    console.info(
+      "Independent tour/current-crumb diagnostics",
+      JSON.stringify({
+        expectedSubject: node(host.id).id,
+        beforeChildSubject,
+        savedKeys,
+        expectedPose: pose,
+        actualPose: {
+          position: camera.position.toArray(),
+          target: target.toArray(),
+        },
+      }),
+    );
+    expect(camera.position.toArray()).toEqual(pose.position);
+    expect(target.toArray()).toEqual(pose.target);
+  });
+
+  it.each([false, true])(
+    "discards removed ancestor context after scope change=%s",
+    async (scopeChanged) => {
+      const { host, child, leaf, props, view, select } =
+        await setupReadingContext();
+      await select(host.id);
+      await select(child.id);
+      props.onSelect.mockClear();
+      const next = projectObservatory({
+        ...observatoryFixtureInput([
+          { ...child, parentResourceId: null },
+          leaf,
+        ]),
+        ...(scopeChanged ? { scopeDigest: "fixture:new-reading-scope" } : {}),
+      });
+      view.rerender(
+        createElement(OperationalObservatory, { ...props, scene: next }),
+      );
+      await act(async () => {});
+      expect(screen.queryByText(host.name)).toBeNull();
+      props.onQueryChange.mockClear();
+      fireEvent.click(screen.getByRole("button", { name: "Back" }));
+      expect(props.onSelect).not.toHaveBeenCalled();
+      expect(engine.update.mock.lastCall![1].selected).toBeNull();
+      expect(props.onCameraFocus.mock.lastCall![1]).toBeNull();
+      if (scopeChanged) expect(props.onQueryChange).not.toHaveBeenCalled();
+      else
+        expect(
+          props.onQueryChange.mock.lastCall![0].expandedRepresentationIds,
+        ).not.toContain("resource:" + host.id);
+    },
+  );
+});
+
+it.each([false, true])(
+  "restores only the exact shared alias context while alias removed=%s",
+  async (removed) => {
+    const input = mixedObservatoryFixture(),
+      scene = projectObservatory({ ...input, grouping: "projects" }),
+      alias = scene.representations.find(
+        (node) => node.referenceTo && node.resourceId,
+      )!,
+      canonical = scene.representations.find(
+        (node) => node.id === alias.referenceTo,
+      )!;
+    const props = {
+      scene,
+      snapshot: {
+        readAt: scene.readCompletedAt,
+        total: 91,
+        nextCursor: null,
+        items: [],
+        edges: [],
+        events: [],
+      } as InfrastructureOverview,
+      selectedId: null as string | null,
+      onSelect: vi.fn(),
+      onProject: vi.fn(),
+      onQueryChange: vi.fn<(query: ObservatoryQuery) => void>(),
+      onCameraFocus: vi.fn(),
+    };
+    const view = render(createElement(OperationalObservatory, props));
+    await waitFor(() => expect(engine.update).toHaveBeenCalled());
+    act(() => engine.hooks!.select(alias.id));
+    props.selectedId = alias.resourceId;
+    props.scene = projectObservatory({
+      ...input,
+      ...props.onQueryChange.mock.lastCall![0],
+    });
+    view.rerender(createElement(OperationalObservatory, props));
+    await act(async () => {});
+    expect(engine.update.mock.lastCall![1].selected).toBe(alias.id);
+    fireEvent.click(
+      screen.getByRole("button", { name: "Inspect canonical context" }),
+    );
+    expect(engine.update.mock.lastCall![1].selected).toBe(canonical.id);
+    props.onSelect.mockClear();
+    if (removed) {
+      props.scene = projectObservatory({ ...input, grouping: "hosts" });
+      expect(
+        props.scene.representations.some((node) => node.id === alias.id),
+      ).toBe(false);
+      view.rerender(createElement(OperationalObservatory, props));
+      await act(async () => {});
+    }
+    fireEvent.click(screen.getByRole("button", { name: "Back" }));
+    expect(engine.update.mock.lastCall![1].selected).toBe(
+      removed ? null : alias.id,
+    );
+    expect(props.onCameraFocus.mock.lastCall![2].restore).toBe(true);
+    if (removed) {
+      expect(props.onSelect).not.toHaveBeenCalled();
+      expect(props.onCameraFocus.mock.lastCall![1]).toBeNull();
+    } else {
+      expect(props.onSelect).toHaveBeenLastCalledWith(alias.resourceId);
+      expect(props.onCameraFocus.mock.lastCall![1]).toBe(alias.id);
+      view.rerender(createElement(OperationalObservatory, props));
+      await act(async () => {});
+      expect(engine.update.mock.lastCall![1].selected).toBe(alias.id);
+    }
+  },
+);
