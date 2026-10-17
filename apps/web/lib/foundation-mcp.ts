@@ -38,7 +38,7 @@ import {
   foundationOnboardingToolInputSchema,
   foundationWorkflowListToolQuerySchema,
   observatorySceneQuerySchema,
-  observatoryOperationalEvidenceQuerySchema,
+  observatoryOperationalEvidenceToolQuerySchema,
   observatoryMembershipQuerySchema,
   observatoryRelationsQuerySchema,
   observatorySignalEvidenceQuerySchema,
@@ -334,7 +334,7 @@ export function createFoundationMcpServer(
             scope +
             "Read-only reviewed availability checks, repository PRs or security evidence for one authorized resource. Each facet requires its separate capability, with canonical source-project scope and complete source lists. Raw payloads, credentials and other facets are excluded. Assignment and pull requests do not establish an active run.",
           inputSchema: safeSchema(
-            observatoryOperationalEvidenceQuerySchema.omit({ projectId: true }),
+            observatoryOperationalEvidenceToolQuerySchema,
           ),
           annotations: readAnnotations,
         },

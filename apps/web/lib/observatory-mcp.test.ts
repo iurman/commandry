@@ -15,6 +15,8 @@ import {
   foundationActorSchema,
   observatorySceneReadResultSchema,
   observatoryMembershipPageSchema,
+  observatoryOperationalEvidenceResultSchema,
+  observatoryRepositoryEvidenceSchema,
 } from "@commandry/contracts";
 import {
   FoundationError,
@@ -32,7 +34,7 @@ const operations: FoundationOperation[] = [
   "observatory.providers.read",
   "work.read",
 ];
-async function fixture(grants = operations) {
+async function fixture(grants = operations, operationalRows?: unknown[]) {
   const original = mixedObservatoryFixture();
   const project = original.projects[0]!;
   const input = {
@@ -75,6 +77,9 @@ async function fixture(grants = operations) {
             throw new FoundationError("FORBIDDEN");
           return callback(access, {
             readObservatory: async () => input,
+            ...(operationalRows
+              ? { readOperationalEvidence: async () => operationalRows }
+              : {}),
             readCatalogue: async () => [],
             readProviderFeed: async () => ({
               state: "unknown",
@@ -129,6 +134,221 @@ async function fixture(grants = operations) {
   };
 }
 describe("Observatory discovery and reads over the actual MCP SDK", () => {
+  it("discovers the optional project-free PR check query and preserves default versus explicit richer SDK reads", async () => {
+    const rows: unknown[] = [];
+    const f = await fixture(operations, rows);
+    try {
+      const tool = (await f.client.listTools()).tools.find(
+        (item) => item.name === "get_observatory_operational_evidence",
+      )!;
+      expect(tool.inputSchema.properties).not.toHaveProperty("projectId");
+      expect(tool.inputSchema.additionalProperties).toBe(false);
+      expect(
+        tool.inputSchema.properties?.includePullRequestChecks,
+      ).toMatchObject({ type: "boolean" });
+      expect(tool.inputSchema.required).not.toContain(
+        "includePullRequestChecks",
+      );
+      const resourceId = f.input.resources.find(
+        (item) => item.kind === "repository",
+      )!.id;
+      const at = f.input.now,
+        root = "https://github.com/synthetic-owner/repository",
+        headSha = "b".repeat(40);
+      const empty = {
+        state: "available",
+        readAt: at,
+        complete: true,
+        items: [],
+        errorCode: null,
+        retrySeconds: null,
+      };
+      const legacy = {
+        id: 1,
+        number: 1,
+        title: "Exact SDK PR",
+        draft: false,
+        updatedAt: at,
+        baseRef: "main",
+        headRef: "feature",
+        author: null,
+        url: root + "/pull/1",
+      };
+      const repository = observatoryRepositoryEvidenceSchema.parse({
+        schemaVersion: 1,
+        repository: { owner: "synthetic-owner", name: "repository", url: root },
+        readAt: at,
+        pullRequests: {
+          ...empty,
+          items: [
+            {
+              ...legacy,
+              headSha,
+              requiredCheckCoverage: "unknown",
+              checkRuns: {
+                ...empty,
+                headSha,
+                items: [
+                  {
+                    id: 1,
+                    headSha,
+                    name: "Exact SDK check",
+                    status: "completed",
+                    conclusion: "failure",
+                    startedAt: at,
+                    completedAt: at,
+                    freshness: "fresh",
+                    url: root + "/runs/1",
+                  },
+                ],
+              },
+              statuses: { ...empty, headSha },
+            },
+          ],
+        },
+        security: {
+          codeScanning: {
+            analyses: empty,
+            alerts: empty,
+            currentHeadCoverage: "unknown",
+          },
+          dependabot: empty,
+          secretScanning: empty,
+        },
+      });
+      rows.push({
+        id: "00000000-0000-4000-8000-000000000004",
+        projectId: f.project.id,
+        resourceId,
+        kind: "github-repository",
+        version: 1,
+        environment: "production",
+        enabled: true,
+        freshnessSeconds: 300,
+        lastAttemptAt: at,
+        lastSuccessAt: at,
+        lastError: null,
+        observedAt: at,
+        details: { sourceState: "available", reason: "observed", repository },
+      });
+      const before = structuredClone(rows);
+      const read = async (option: Record<string, boolean>) => {
+        const response = await f.client.callTool({
+          name: tool.name,
+          arguments: { resourceId, facet: "pull_requests", ...option },
+        });
+        expect(response.isError).not.toBe(true);
+        expect(response.content).toEqual([
+          { type: "text", text: JSON.stringify(response.structuredContent) },
+        ]);
+        const parsed = observatoryOperationalEvidenceResultSchema.parse(
+          response.structuredContent,
+        );
+        if (parsed.facet !== "pull_requests")
+          throw new Error("Expected PR evidence");
+        return parsed;
+      };
+      const original = await read({});
+      const disabled = await read({ includePullRequestChecks: false });
+      const complete = await read({ includePullRequestChecks: true });
+      expect(disabled).toEqual(original);
+      expect(original.items[0]!.payload).toEqual({
+        repository: repository.repository,
+        readAt: at,
+        pullRequests: { ...empty, items: [legacy] },
+      });
+      expect(complete.items[0]!.payload).toEqual({
+        repository: repository.repository,
+        readAt: at,
+        pullRequests: repository.pullRequests,
+      });
+      expect(complete.items[0]).toMatchObject({
+        observedAt: at,
+        freshness: "fresh",
+        projectId: f.project.id,
+      });
+      expect(complete.items[0]!.payload).not.toHaveProperty("security");
+      expect(f.requests).toHaveLength(3);
+      expect(
+        f.requests.every(
+          (request) =>
+            request.projectId === f.project.id &&
+            request.operation === "work.read" &&
+            request.environment === "test",
+        ),
+      ).toBe(true);
+      expect(rows).toEqual(before);
+    } finally {
+      await f.close();
+    }
+  });
+
+  it("enforces PR-only opt-in and strict no-project arguments before SDK reads without granting facet access", async () => {
+    const f = await fixture(["observatory.read", "observatory.signals.read"]);
+    try {
+      const name = "get_observatory_operational_evidence",
+        resourceId = f.input.resources[0]!.id;
+      expect(
+        (await f.client.listTools()).tools.map((tool) => tool.name),
+      ).toContain(name);
+      for (const query of [
+        { facet: "availability", includePullRequestChecks: true },
+        { facet: "security", includePullRequestChecks: true },
+        { facet: "pull_requests", includePullRequestChecks: "true" },
+        { facet: "pull_requests", includePullRequestChecks: null },
+        {
+          facet: "pull_requests",
+          includePullRequestChecks: true,
+          projectId: f.project.id,
+        },
+        { facet: "pull_requests", includePullRequestChecks: true, owner: true },
+        {
+          facet: "pull_requests",
+          includePullRequestChecks: true,
+          operations: ["work.read"],
+        },
+        {
+          facet: "pull_requests",
+          includePullRequestChecks: true,
+          now: f.input.now,
+        },
+      ]) {
+        const response = await f.client.callTool({
+          name,
+          arguments: { resourceId, ...query },
+        });
+        expect(response.isError).toBe(true);
+        expect(response.structuredContent).toEqual({ code: "INVALID_INPUT" });
+      }
+      expect(f.requests).toHaveLength(0);
+      for (const option of [
+        {},
+        { includePullRequestChecks: false },
+        { includePullRequestChecks: true },
+      ]) {
+        const denied = await f.client.callTool({
+          name,
+          arguments: { resourceId, facet: "pull_requests", ...option },
+        });
+        expect(denied.isError).toBe(true);
+        expect(denied.structuredContent).toEqual({ code: "FORBIDDEN" });
+      }
+      f.access.operations = [];
+      const revoked = await f.client.callTool({
+        name,
+        arguments: {
+          resourceId,
+          facet: "availability",
+          includePullRequestChecks: false,
+        },
+      });
+      expect(revoked.isError).toBe(true);
+      expect(revoked.structuredContent).toEqual({ code: "FORBIDDEN" });
+    } finally {
+      await f.close();
+    }
+  });
+
   it("discovers strict project-free separately granted tools and matches the shared complete scene", async () => {
     const f = await fixture();
     try {

@@ -20,22 +20,27 @@ export const observatoryOperationalFacetSchema = z.enum([
   "pull_requests",
   "security",
 ]);
+const operationalEvidenceQueryShape = observatorySceneQuerySchema.extend({
+  resourceId: identity,
+  facet: observatoryOperationalFacetSchema,
+  includePullRequestChecks: z.boolean().optional(),
+});
+const acceptsPullRequestChecks = (
+  query: z.infer<typeof operationalEvidenceQueryShape>,
+) => query.includePullRequestChecks !== true || query.facet === "pull_requests";
+const pullRequestChecksRefinement = {
+  path: ["includePullRequestChecks"],
+  message: "Pull request checks require the pull_requests facet",
+};
 export const observatoryOperationalEvidenceQuerySchema =
-  observatorySceneQuerySchema
-    .extend({
-      resourceId: identity,
-      facet: observatoryOperationalFacetSchema,
-      includePullRequestChecks: z.boolean().optional(),
-    })
-    .refine(
-      (query) =>
-        query.includePullRequestChecks !== true ||
-        query.facet === "pull_requests",
-      {
-        path: ["includePullRequestChecks"],
-        message: "Pull request checks require the pull_requests facet",
-      },
-    );
+  operationalEvidenceQueryShape.refine(
+    acceptsPullRequestChecks,
+    pullRequestChecksRefinement,
+  );
+export const observatoryOperationalEvidenceToolQuerySchema =
+  operationalEvidenceQueryShape
+    .omit({ projectId: true })
+    .refine(acceptsPullRequestChecks, pullRequestChecksRefinement);
 const errorCode = z.enum([
   "OPERATIONAL_INVALID_CLAIM",
   "OPERATIONAL_INVALID_OBSERVATION",
