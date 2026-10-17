@@ -512,6 +512,13 @@
       "when": 1792195200000,
       "tag": "0072_observatory_observation_provenance",
       "breakpoints": true
+    },
+    {
+      "idx": 73,
+      "version": "7",
+      "when": 1792195200001,
+      "tag": "0073_observatory_readiness_source",
+      "breakpoints": true
     }
   ]
 }

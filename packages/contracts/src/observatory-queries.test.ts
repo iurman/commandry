@@ -9,11 +9,11 @@ import {
   observatorySignalEvidenceQuerySchema,
   observatoryViewConfigurationSchema,
 } from "./observatory-queries";
-import { projectObservatory } from "../../domain/src/observatory";
+import { projectObservatory } from "@commandry/domain";
 import {
   mixedObservatoryFixture,
   observatoryFixtureId,
-} from "../../../tests/fixtures/observatory";
+} from "@commandry/test-support";
 
 describe("strict public Observatory queries", () => {
   it("defaults to the complete operational view and accepts every grouping", () => {

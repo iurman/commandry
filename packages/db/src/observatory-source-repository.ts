@@ -51,11 +51,10 @@ export function createObservatorySourceRepository(
           1000,
     );
   };
+  // Both canonical link directions express the same explicit project/resource binding.
   const binding = and(
     eq(link.projectId, source.projectId),
     eq(link.resourceId, source.resourceId),
-    eq(link.sourceKind, "project"),
-    eq(link.targetKind, "resource"),
     eq(link.lifecycle, "active"),
   );
   async function lockBinding(tx: Transaction, row: Source): Promise<boolean> {
@@ -69,8 +68,10 @@ export function createObservatorySourceRepository(
       !target ||
       (row.kind === "github-repository"
         ? target.kind !== "repository"
-        : row.kind !== "infraagent-monitor" ||
-          !["host", "service"].includes(target.kind))
+        : row.kind === "http-readiness"
+          ? !["service", "deployment"].includes(target.kind)
+          : row.kind !== "infraagent-monitor" ||
+            !["host", "service", "deployment"].includes(target.kind))
     )
       return false;
     const [owner] = await tx
@@ -86,8 +87,6 @@ export function createObservatorySourceRepository(
         and(
           eq(link.projectId, row.projectId),
           eq(link.resourceId, row.resourceId),
-          eq(link.sourceKind, "project"),
-          eq(link.targetKind, "resource"),
           eq(link.lifecycle, "active"),
         ),
       )
@@ -133,7 +132,7 @@ export function createObservatorySourceRepository(
               sql`${source.nextAttemptAt} <= ${time}`,
               sql`(${source.leaseUntil} is null or ${source.leaseUntil} <= ${time})`,
               sql`exists (select 1 from ${link} where ${binding})`,
-              sql`exists (select 1 from ${resource} where ${resource.id} = ${source.resourceId} and ((${source.kind} = 'github-repository' and ${resource.kind} = 'repository') or (${source.kind} = 'infraagent-monitor' and ${resource.kind} in ('host','service'))))`,
+              sql`exists (select 1 from ${resource} where ${resource.id} = ${source.resourceId} and ((${source.kind} = 'github-repository' and ${resource.kind} = 'repository') or (${source.kind} = 'infraagent-monitor' and ${resource.kind} in ('host','service','deployment')) or (${source.kind} = 'http-readiness' and ${resource.kind} in ('service','deployment'))))`,
             ),
           )
           .orderBy(asc(source.nextAttemptAt), asc(source.id))

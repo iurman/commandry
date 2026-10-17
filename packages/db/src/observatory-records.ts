@@ -257,7 +257,7 @@ export async function collectObservatoryRecords(
   const facetAccess: NonNullable<ObservatoryInput["facetAccess"]>[number][] =
     sources.map((source) => ({
       resourceId: source.resourceId,
-      facet: source.kind === "infraagent-monitor" ? "availability" : "security",
+      facet: source.kind === "github-repository" ? "security" : "availability",
       state: sourceAccess(source),
     }));
   const [providerFeed] = mappings.length

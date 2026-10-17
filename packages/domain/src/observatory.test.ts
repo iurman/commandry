@@ -22,7 +22,7 @@ import {
   observatoryFixtureResource,
   observatoryFixtureSignal,
   scaleObservatoryFixture,
-} from "../../../tests/fixtures/observatory";
+} from "@commandry/test-support";
 
 const groupings: ObservatoryGrouping[] = [
   "operational",

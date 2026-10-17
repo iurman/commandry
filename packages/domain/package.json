@@ -8,5 +8,8 @@
   "scripts": {
     "typecheck": "tsc --noEmit -p tsconfig.json",
     "test": "pnpm --dir ../.. exec vitest run --config vitest.config.mts packages/domain/src"
+  },
+  "devDependencies": {
+    "@commandry/test-support": "workspace:*"
   }
 }

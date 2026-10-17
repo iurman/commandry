@@ -849,6 +849,10 @@ function OperationalObservatoryView({
       className={`cmd-operational-observatory${preferences.tv ? " cmd-op-tv" : ""}${compact ? " cmd-op-compact" : ""}`}
       data-theme={theme}
       data-reading={reading}
+      data-grouping={scene.grouping}
+      data-view-revision={scene.viewRevision}
+      data-projection-revision={scene.projectionRevision}
+      data-pending={pending}
       style={style}
       aria-label="Operational Observatory"
       onKeyDown={(event) => {

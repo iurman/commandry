@@ -21,7 +21,7 @@ import {
   foundationTokenDigest,
   type FoundationOperation,
 } from "@commandry/domain";
-import { mixedObservatoryFixture } from "../../../tests/fixtures/observatory";
+import { mixedObservatoryFixture } from "@commandry/test-support";
 import { createFoundationMcpServer } from "./foundation-mcp";
 import { createObservatoryMcpReads } from "./observatory-mcp";
 const token = "af_" + "x".repeat(43);

@@ -100,7 +100,9 @@ export function ObservatoryOperationalEvidence({
               <summary>
                 {item.kind === "infraagent-monitor"
                   ? "Availability monitor"
-                  : "Repository source"}{" "}
+                  : item.kind === "http-readiness"
+                    ? "Commandry readiness check"
+                    : "Repository source"}{" "}
                 / {item.enabled ? "enabled" : "disabled"} / {item.freshness}
               </summary>
               <p>
@@ -133,11 +135,16 @@ export function ObservatoryOperationalEvidence({
               (item) =>
                 item.payload && (
                   <div key={item.sourceId}>
-                    <h5>Monitor {item.payload.monitorId}</h5>
+                    <h5>
+                      {item.kind === "http-readiness"
+                        ? "Readiness check"
+                        : "Monitor"}{" "}
+                      {item.payload.monitorId}
+                    </h5>
                     <p>
                       Source: {item.payload.sourceState}. Reason:{" "}
-                      {item.payload.reason.replaceAll("_", " ")}. Monitor
-                      reports {item.payload.monitorStatus}.
+                      {item.payload.reason.replaceAll("_", " ")}. Source reports{" "}
+                      {item.payload.monitorStatus}.
                     </p>
                     {item.payload.latestCheck && (
                       <p>
@@ -158,8 +165,9 @@ export function ObservatoryOperationalEvidence({
                       </p>
                     )}
                     <p>
-                      Recent checks are limited to the latest 25 from this
-                      source. This is not complete uptime history.
+                      {item.kind === "http-readiness"
+                        ? "One direct web/database readiness probe. This does not establish external user availability or complete uptime history."
+                        : "Recent checks are limited to the latest 25 from this source. This is not complete uptime history."}
                     </p>
                   </div>
                 ),

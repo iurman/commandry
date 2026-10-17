@@ -20262,7 +20262,7 @@
           },
           "operations": {
             "minItems": 1,
-            "maxItems": 15,
+            "maxItems": 19,
             "type": "array",
             "items": {
               "type": "string",
@@ -20270,6 +20270,10 @@
                 "foundation.read",
                 "work.read",
                 "resources.read",
+                "observatory.read",
+                "observatory.signals.read",
+                "observatory.security.read",
+                "observatory.providers.read",
                 "work.propose",
                 "evidence.record",
                 "memory.propose",
@@ -20333,7 +20337,7 @@
           },
           "operations": {
             "minItems": 1,
-            "maxItems": 15,
+            "maxItems": 19,
             "type": "array",
             "items": {
               "type": "string",
@@ -20341,6 +20345,10 @@
                 "foundation.read",
                 "work.read",
                 "resources.read",
+                "observatory.read",
+                "observatory.signals.read",
+                "observatory.security.read",
+                "observatory.providers.read",
                 "work.propose",
                 "evidence.record",
                 "memory.propose",
@@ -20434,7 +20442,7 @@
               },
               "operations": {
                 "minItems": 1,
-                "maxItems": 15,
+                "maxItems": 19,
                 "type": "array",
                 "items": {
                   "type": "string",
@@ -20442,6 +20450,10 @@
                     "foundation.read",
                     "work.read",
                     "resources.read",
+                    "observatory.read",
+                    "observatory.signals.read",
+                    "observatory.security.read",
+                    "observatory.providers.read",
                     "work.propose",
                     "evidence.record",
                     "memory.propose",
@@ -20555,7 +20567,7 @@
                 },
                 "operations": {
                   "minItems": 1,
-                  "maxItems": 15,
+                  "maxItems": 19,
                   "type": "array",
                   "items": {
                     "type": "string",
@@ -20563,6 +20575,10 @@
                       "foundation.read",
                       "work.read",
                       "resources.read",
+                      "observatory.read",
+                      "observatory.signals.read",
+                      "observatory.security.read",
+                      "observatory.providers.read",
                       "work.propose",
                       "evidence.record",
                       "memory.propose",

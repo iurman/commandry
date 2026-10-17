@@ -631,8 +631,10 @@ function operationalEvidenceItems(
   );
   unique(rows.map((row) => row.id));
   if (rows.some((row) => row.resourceId !== query.resourceId)) invalid();
-  const kind =
-    query.facet === "availability" ? "infraagent-monitor" : "github-repository";
+  const kinds =
+    query.facet === "availability"
+      ? ["infraagent-monitor", "http-readiness"]
+      : ["github-repository"];
   const latest = (values: readonly (string | null)[]) => {
     let result: string | null = null;
     for (const value of values)
@@ -646,7 +648,7 @@ function operationalEvidenceItems(
   return rows
     .filter(
       (row) =>
-        row.kind === kind &&
+        kinds.includes(row.kind) &&
         (query.environment === null || row.environment === query.environment),
     )
     .sort((left, right) => left.id.localeCompare(right.id))
@@ -663,6 +665,11 @@ function operationalEvidenceItems(
           const snapshot = observatoryAvailabilityEvidenceSchema.parse(
             row.details,
           );
+          if (
+            row.kind === "http-readiness" &&
+            snapshot.monitorId !== "commandry-web-readiness"
+          )
+            invalid();
           payload = snapshot;
           observedAt = snapshot.lastCheckedAt;
         } else {

@@ -8,6 +8,7 @@ import {
 } from "@commandry/application";
 import { createGitHubObservatoryReader } from "./github-observatory";
 import { createInfraAgentAvailabilityReader } from "./infraagent-availability";
+import { createCommandryReadinessReader } from "./commandry-readiness";
 
 const maximumBytes = 4096;
 const invalid = () =>
@@ -100,6 +101,8 @@ export async function createOperationalSourceReaders(
     githubTokenFile?: string;
     infraAgentOrigin?: string;
     infraAgentKeyFile?: string;
+    appOrigin?: string;
+    allowLoopbackForTests?: boolean;
     fetch?: typeof fetch;
   } = {},
 ): Promise<OperationalSourceReaders> {
@@ -124,6 +127,25 @@ export async function createOperationalSourceReaders(
       kind: "github-repository",
       code: "OPERATIONAL_CONFIGURATION_INVALID",
     });
+  }
+  if (options.appOrigin !== undefined) {
+    try {
+      readers.push({
+        kind: "http-readiness",
+        read: createCommandryReadinessReader({
+          appOrigin: options.appOrigin,
+          ...(options.allowLoopbackForTests === true
+            ? { allowLoopbackForTests: true }
+            : {}),
+          ...transport,
+        }),
+      });
+    } catch {
+      errors.push({
+        kind: "http-readiness",
+        code: "OPERATIONAL_CONFIGURATION_INVALID",
+      });
+    }
   }
   if (
     options.infraAgentOrigin !== undefined ||

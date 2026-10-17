@@ -1,6 +1,6 @@
 import { useState } from "react";
 import type { Meta, StoryObj } from "@storybook/react";
-import { FloatingSurface } from "../../../packages/ui/src/components/FloatingSurface";
+import { FloatingSurface } from "@commandry/ui";
 
 const meta = {
   title: "Components/Floating Surface",

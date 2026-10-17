@@ -10,10 +10,7 @@ import {
   observatorySignalSchema,
   observatorySummarySchema,
 } from "./observatory";
-import {
-  projectObservatory,
-  readObservatoryMembers,
-} from "../../domain/src/observatory";
+import { projectObservatory, readObservatoryMembers } from "@commandry/domain";
 import {
   mixedObservatoryFixture,
   operationalObservatoryFixture,
@@ -21,7 +18,7 @@ import {
   observatoryFixtureInput,
   observatoryFixtureProvenance,
   scaleObservatoryFixture,
-} from "../../../tests/fixtures/observatory";
+} from "@commandry/test-support";
 
 describe("versioned Observatory DTO", () => {
   it.each([

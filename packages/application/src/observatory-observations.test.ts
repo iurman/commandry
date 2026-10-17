@@ -12,7 +12,7 @@ import type {
 import {
   observatoryFixtureId,
   observatoryFixtureSignal,
-} from "../../../tests/fixtures/observatory";
+} from "@commandry/test-support";
 
 const at = "2026-10-16T12:00:00.000Z";
 function fixture() {

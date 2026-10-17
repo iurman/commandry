@@ -173,6 +173,10 @@ importers:
       zod:
         specifier: 4.6.5
         version: 4.6.5
+    devDependencies:
+      '@commandry/test-support':
+        specifier: workspace:*
+        version: link:../../packages/test-support
 
   apps/worker:
     dependencies:
@@ -228,6 +232,10 @@ importers:
       '@commandry/domain':
         specifier: workspace:*
         version: link:../domain
+    devDependencies:
+      '@commandry/test-support':
+        specifier: workspace:*
+        version: link:../test-support
 
   packages/config:
     dependencies:
@@ -244,6 +252,12 @@ importers:
       '@apidevtools/swagger-parser':
         specifier: 13.1.0
         version: 13.1.0(openapi-types@12.1.3)
+      '@commandry/domain':
+        specifier: workspace:*
+        version: link:../domain
+      '@commandry/test-support':
+        specifier: workspace:*
+        version: link:../test-support
 
   packages/db:
     dependencies:
@@ -276,7 +290,11 @@ importers:
         specifier: 0.31.11
         version: 0.31.11
 
-  packages/domain: {}
+  packages/domain:
+    devDependencies:
+      '@commandry/test-support':
+        specifier: workspace:*
+        version: link:../test-support
 
   packages/experience:
     devDependencies:
@@ -315,6 +333,12 @@ importers:
         specifier: 8.23.1
         version: 8.23.1
 
+  packages/test-support:
+    dependencies:
+      '@commandry/domain':
+        specifier: workspace:*
+        version: link:../domain
+
   packages/ui:
     dependencies:
       '@commandry/contracts':
@@ -327,6 +351,9 @@ importers:
         specifier: 0.186.1
         version: 0.186.1
     devDependencies:
+      '@commandry/test-support':
+        specifier: workspace:*
+        version: link:../test-support
       '@types/react':
         specifier: 19.3.0
         version: 19.3.0

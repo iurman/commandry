@@ -101,7 +101,7 @@ function draftFor(
       props.projectIds.includes(props.selectedProjectId)
         ? props.selectedProjectId
         : "",
-    sourceKind: "infraagent-monitor",
+    sourceKind: "",
     externalId: "",
     enabled: false,
     active: true,
@@ -725,11 +725,25 @@ function ReviewPanel(
                   "Choose a project",
                 )}
                 <p>Legacy unbound sources require explicit project review.</p>
-                {select("Source kind", "sourceKind", [
-                  ["infraagent-monitor", "InfraAgent monitor"],
-                  ["github-repository", "GitHub repository"],
-                ])}
+                {select(
+                  "Source kind",
+                  "sourceKind",
+                  [
+                    ["http-readiness", "Commandry web readiness"],
+                    ["github-repository", "GitHub repository"],
+                    ["infraagent-monitor", "Optional InfraAgent monitor"],
+                  ],
+                  "Choose a source kind",
+                )}
                 {text("Reviewed external ID", "externalId")}
+                {draft.sourceKind === "http-readiness" && (
+                  <p>
+                    Bind only the actual Commandry web service. Its fixed check
+                    ID is commandry-web-readiness. This observes the configured
+                    Commandry readiness endpoint and does not establish external
+                    user availability.
+                  </p>
+                )}
                 {text(
                   "Freshness seconds (30 to 86400)",
                   "freshnessSeconds",
@@ -737,9 +751,9 @@ function ReviewPanel(
                 )}
                 {checkbox("Enabled", "enabled")}
                 <p>
-                  Enabling schedules reads using server-configured reader
-                  credentials. Credentials and monitoring origins are not
-                  entered here.
+                  Enabling schedules server-side reads with the configured
+                  reader. Optional credentials stay on the server. Credentials
+                  and monitoring origins are not entered here.
                 </p>
               </>
             )}

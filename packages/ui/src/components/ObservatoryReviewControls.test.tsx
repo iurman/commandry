@@ -446,6 +446,8 @@ describe("owner reviewed configuration", () => {
     render(<ObservatoryReviewControls {...f.props} />);
     await tab("Sources");
     fireEvent.click(screen.getByRole("button", { name: "Create source" }));
+    expect(screen.getByLabelText("Source kind")).toHaveValue("");
+    field("Source kind", "infraagent-monitor");
     expect(screen.getByLabelText("Project")).toHaveValue("");
     expect(screen.getByLabelText("Enabled")).not.toBeChecked();
     expect(
@@ -487,6 +489,7 @@ describe("owner reviewed configuration", () => {
     submit();
     await waitFor(() => expect(f.props.onReviewed).toHaveBeenCalledOnce());
     fireEvent.click(screen.getByRole("button", { name: "Create source" }));
+    field("Source kind", "infraagent-monitor");
     expect(screen.getByLabelText("Project")).toHaveValue(id(201));
     expect(
       within(screen.getByLabelText("Project")).getAllByRole("option"),
@@ -571,6 +574,7 @@ describe("owner reviewed configuration", () => {
     render(<ObservatoryReviewControls {...f.props} />);
     await tab("Sources");
     fireEvent.click(screen.getByRole("button", { name: "Create source" }));
+    field("Source kind", "infraagent-monitor");
     field("Project", id(201));
     field("Reviewed external ID", "reviewed-monitor");
     evidence();
@@ -816,6 +820,7 @@ describe("owner reviewed configuration", () => {
     render(<ObservatoryReviewControls {...f.props} />);
     await tab("Sources");
     fireEvent.click(screen.getByRole("button", { name: "Create source" }));
+    field("Source kind", "infraagent-monitor");
     expect(
       within(screen.getByLabelText("Project")).getAllByRole("option"),
     ).toHaveLength(138);
@@ -833,6 +838,7 @@ describe("owner reviewed configuration", () => {
     render(<ObservatoryReviewControls {...f.props} />);
     await tab("Sources");
     fireEvent.click(screen.getByRole("button", { name: "Create source" }));
+    field("Source kind", "infraagent-monitor");
     field("Project", id(201));
     field(
       "Reviewed external ID",
@@ -1018,4 +1024,26 @@ describe("owner reviewed configuration", () => {
       );
     },
   );
+});
+
+it("reviews a fixed Commandry readiness source without an external monitor account", async () => {
+  const f = fixture({ source: [] });
+  f.props.resource = { ...resources[4]!, name: "Commandry web" };
+  render(<ObservatoryReviewControls {...f.props} />);
+  await tab("Sources");
+  fireEvent.click(screen.getByRole("button", { name: "Create source" }));
+  field("Project", id(201));
+  field("Source kind", "http-readiness");
+  field("Reviewed external ID", "https://other.example/health/ready");
+  evidence();
+  submit();
+  expect(f.review).not.toHaveBeenCalled();
+  field("Reviewed external ID", "commandry-web-readiness");
+  submit();
+  await waitFor(() => expect(f.props.onReviewed).toHaveBeenCalledOnce());
+  expect(f.review.mock.calls[0]![1]).toMatchObject({
+    kind: "http-readiness",
+    externalId: "commandry-web-readiness",
+    enabled: false,
+  });
 });

@@ -8,7 +8,7 @@ import {
   observatoryProviderFeedResultSchema,
   type ObservatoryProviderFeedQuery,
 } from "@commandry/contracts";
-import { mixedObservatoryFixture } from "../../../tests/fixtures/observatory";
+import { mixedObservatoryFixture } from "@commandry/test-support";
 
 function fixture() {
   const input = mixedObservatoryFixture();

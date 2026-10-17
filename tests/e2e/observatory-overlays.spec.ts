@@ -15,9 +15,10 @@ test("Appearance controls fit and remain hittable across actual wrap boundaries"
   });
   expect(seeded.status()).toBe(201);
   await page.goto("/infrastructure/wallboard");
-  const appearance = page
-    .locator("button, summary")
-    .filter({ hasText: /^Appearance(?: and views)?$/ });
+  const appearance = page.locator(".cmd-op-toolbar").getByRole("button", {
+    name: "Appearance and views",
+    exact: true,
+  });
   await expect(appearance).toBeVisible();
   const failures: unknown[] = [];
   for (const width of [

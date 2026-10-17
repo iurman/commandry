@@ -376,7 +376,16 @@ describe("Foundation owner clients", () => {
       (screen.getByLabelText("resources.read") as HTMLInputElement).checked,
     ).toBe(false);
     const checkboxes = screen.getAllByRole("checkbox") as HTMLInputElement[];
-    expect(checkboxes).toHaveLength(15);
+    expect(checkboxes).toHaveLength(19);
+    for (const operation of [
+      "observatory.read",
+      "observatory.signals.read",
+      "observatory.security.read",
+      "observatory.providers.read",
+    ])
+      expect(
+        (screen.getByLabelText(operation) as HTMLInputElement).checked,
+      ).toBe(false);
     expect(
       (screen.getByLabelText("work.propose") as HTMLInputElement).checked,
     ).toBe(false);

@@ -366,3 +366,60 @@ describe("explicit independent operational reader startup", () => {
     expect(fetch).not.toHaveBeenCalled();
   });
 });
+
+it("constructs fixed readiness independently without an InfraAgent account or startup request", async () => {
+  const transport = vi.fn(async () =>
+    Response.json({ status: "ready", service: "web", database: "ready" }),
+  );
+  const configured = await createOperationalSourceReaders({
+    appOrigin: "https://commandry.example",
+    fetch: transport,
+  });
+  expect(configured.errors).toEqual([]);
+  expect(configured.readers.map((reader) => reader.kind)).toEqual([
+    "github-repository",
+    "http-readiness",
+  ]);
+  expect(transport).not.toHaveBeenCalled();
+  const readiness = configured.readers.find(
+    (reader) => reader.kind === "http-readiness",
+  )!;
+  const observed = await readiness.read({
+    ...claim("http-readiness"),
+    externalId: "commandry-web-readiness",
+  });
+  expect(observed.signals[0]?.state).toBe("passing");
+  expect(observed.details.monitorId).toBe("commandry-web-readiness");
+  expect(transport).toHaveBeenCalledWith(
+    "https://commandry.example/health/ready",
+    expect.objectContaining({
+      method: "GET",
+      redirect: "error",
+      credentials: "omit",
+      cache: "no-store",
+    }),
+  );
+});
+it("isolates invalid readiness origin configuration and permits loopback only with the explicit test option", async () => {
+  const transport = unavailableFetch();
+  const denied = await createOperationalSourceReaders({
+    appOrigin: "http://127.0.0.1",
+    fetch: transport,
+  });
+  expect(denied.errors).toEqual([
+    { kind: "http-readiness", code: "OPERATIONAL_CONFIGURATION_INVALID" },
+  ]);
+  expect(denied.readers.map((reader) => reader.kind)).toEqual([
+    "github-repository",
+  ]);
+  const local = await createOperationalSourceReaders({
+    appOrigin: "http://127.0.0.1",
+    allowLoopbackForTests: true,
+    fetch: transport,
+  });
+  expect(local.errors).toEqual([]);
+  expect(local.readers.some((reader) => reader.kind === "http-readiness")).toBe(
+    true,
+  );
+  expect(transport).not.toHaveBeenCalled();
+});

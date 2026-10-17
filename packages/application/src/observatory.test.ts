@@ -1,7 +1,7 @@
 import { describe, expect, it, vi } from "vitest";
-import { FoundationError } from "../../domain/src/agent-foundation";
-import type { FoundationOperation } from "../../domain/src/agent-foundation";
-import type { ObservatoryInput } from "../../domain/src/observatory";
+import { FoundationError } from "@commandry/domain";
+import type { FoundationOperation } from "@commandry/domain";
+import type { ObservatoryInput } from "@commandry/domain";
 import { createObservatoryReadService } from "./observatory";
 import type {
   ObservatoryReadAccess,
@@ -13,13 +13,13 @@ import {
   operationalObservatoryFixture,
   observatoryFixtureId,
   scaleObservatoryFixture,
-} from "../../../tests/fixtures/observatory";
-import { observatoryOperationalEvidenceResultSchema } from "../../contracts/src/observatory-operational";
-import { observatoryRepositoryEvidenceSchema } from "../../contracts/src/observatory-repository";
+} from "@commandry/test-support";
+import { observatoryOperationalEvidenceResultSchema } from "@commandry/contracts";
+import { observatoryRepositoryEvidenceSchema } from "@commandry/contracts";
 import {
   observatoryCatalogueResultSchema,
   type ObservatoryCatalogueQuery,
-} from "../../contracts/src/observatory-catalogue";
+} from "@commandry/contracts";
 
 const allOperations: FoundationOperation[] = [
   "observatory.read",
@@ -813,6 +813,41 @@ function operationalFixture() {
   f.records.readOperationalEvidence = auxiliary;
   return { ...f, serviceId, repositoryId, rows, auxiliary };
 }
+
+describe("fixed readiness evidence", () => {
+  it("uses the same availability facet with explicit direct-check identity and preserves expiry", async () => {
+    const f = operationalFixture();
+    f.rows.push(
+      sourceRecord(f.serviceId, "http-readiness", {
+        ...availabilitySnapshot(),
+        monitorId: "commandry-web-readiness",
+        openIncident: null,
+      }),
+    );
+    const query = { resourceId: f.serviceId, facet: "availability" };
+    const first = await f.service.operationalEvidence("first", query);
+    expect(first.facet).toBe("availability");
+    expect(first.items[0]).toMatchObject({
+      kind: "http-readiness",
+      freshness: "fresh",
+      payload: { monitorId: "commandry-web-readiness" },
+    });
+    f.state.now = "2026-10-16T13:00:00Z";
+    const expired = await f.service.operationalEvidence("expired", query);
+    expect(expired.items[0]?.freshness).toBe("stale");
+    expect(expired.items[0]?.observedAt).toBe(first.items[0]?.observedAt);
+  });
+  it("rejects an unrelated normalized check identity for the fixed readiness source", async () => {
+    const f = operationalFixture();
+    f.rows.push(sourceRecord(f.serviceId, "http-readiness"));
+    await expect(
+      f.service.operationalEvidence("wrong check", {
+        resourceId: f.serviceId,
+        facet: "availability",
+      }),
+    ).rejects.toMatchObject({ code: "INVALID_REFERENCE" });
+  });
+});
 
 describe("canonical source project authorization on shared resources", () => {
   const foreignProjectId = observatoryFixtureId(80002);

@@ -155,7 +155,7 @@ export const observatorySource = pgTable(
     index("observatory_source_due").on(t.enabled, t.nextAttemptAt),
     check(
       "observatory_source_valid",
-      sql`${t.version} > 0 and ${t.kind} in ('infraagent-monitor','github-repository') and ${t.freshnessSeconds} between 30 and 86400 and ${t.failures} >= 0`,
+      sql`${t.version} > 0 and ${t.kind} in ('infraagent-monitor','github-repository','http-readiness') and (${t.kind} <> 'http-readiness' or ${t.externalId} = 'commandry-web-readiness') and ${t.freshnessSeconds} between 30 and 86400 and ${t.failures} >= 0`,
     ),
   ],
 );

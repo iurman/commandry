@@ -7,8 +7,8 @@ import {
   type PropsWithChildren,
 } from "react";
 import InfrastructureOverviewScreen from "./InfrastructureOverviewScreen";
-import { projectObservatory } from "../../../../packages/domain/src/observatory";
-import { scaleObservatoryFixture } from "../../../../tests/fixtures/observatory";
+import { projectObservatory } from "@commandry/domain";
+import { scaleObservatoryFixture } from "@commandry/test-support";
 import type { InfrastructureOverview } from "@commandry/contracts";
 import type {
   FoundationProjectWorkCursor,
@@ -291,7 +291,7 @@ vi.mock("next/navigation", () => ({
 }));
 vi.mock("next/dynamic", async () => {
   const { OperationalObservatory } =
-    await import("../../../../packages/ui/src/components/OperationalObservatory");
+    await import("@commandry/ui/operational-observatory");
   return { default: () => OperationalObservatory };
 });
 vi.mock("@commandry/ui", async () => {
@@ -307,7 +307,7 @@ vi.mock("@commandry/ui", async () => {
     isInfrastructureHost: () => false,
   };
 });
-vi.mock("../../../../packages/ui/src/gravity/renderer", () => ({
+vi.mock("@commandry/ui/gravity/renderer", () => ({
   ObservatoryRenderer: class {
     constructor() {
       throw new Error("Synthetic unsupported WebGL");

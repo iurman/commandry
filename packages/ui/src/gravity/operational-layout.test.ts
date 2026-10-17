@@ -18,13 +18,13 @@ import type {
 import type { Well } from "./model";
 import type { RendererHooks, RendererSettings } from "./renderer";
 import { OperationalObservatory } from "../components/OperationalObservatory";
-import { projectObservatory } from "../../../domain/src/observatory";
+import { projectObservatory } from "@commandry/test-support";
 import {
   mixedObservatoryFixture,
   operationalObservatoryFixture,
   scaleObservatoryFixture,
   observatoryFixtureResource,
-} from "../../../../tests/fixtures/observatory";
+} from "@commandry/test-support";
 import {
   mapOperationalEvents,
   observedTotalRam,

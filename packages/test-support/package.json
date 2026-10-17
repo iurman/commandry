@@ -1,0 +1,14 @@
+{
+  "name": "@commandry/test-support",
+  "private": true,
+  "type": "module",
+  "exports": {
+    ".": "./src/observatory.ts"
+  },
+  "scripts": {
+    "typecheck": "tsc --noEmit -p tsconfig.json"
+  },
+  "dependencies": {
+    "@commandry/domain": "workspace:*"
+  }
+}

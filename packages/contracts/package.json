@@ -17,6 +17,8 @@
     "zod": "4.6.5"
   },
   "devDependencies": {
-    "@apidevtools/swagger-parser": "13.1.0"
+    "@apidevtools/swagger-parser": "13.1.0",
+    "@commandry/test-support": "workspace:*",
+    "@commandry/domain": "workspace:*"
   }
 }

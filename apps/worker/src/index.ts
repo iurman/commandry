@@ -633,6 +633,9 @@ const providerStatusTimer = setInterval(() => void pollProviderStatus(), 5_000);
 providerStatusTimer.unref();
 const operationalReaders = config.operationalSourcePolling
   ? await createOperationalSourceReaders({
+      appOrigin: config.appOrigin,
+      allowLoopbackForTests:
+        config.appEnv === "local" || config.appEnv === "test",
       ...(config.observatoryGitHubTokenFile
         ? { githubTokenFile: config.observatoryGitHubTokenFile }
         : {}),
