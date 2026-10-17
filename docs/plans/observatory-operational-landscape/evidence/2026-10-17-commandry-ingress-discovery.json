@@ -1,0 +1,70 @@
+{
+  "status": "predeploy-discovery-not-applied",
+  "observedAt": "2026-10-17T20:16:09.148802+00:00",
+  "method": "root-observed authenticated Cloudflare Tunnel UI, separate allowlisted read-only VPS inventory, and separate unauthenticated public Node HTTP reads",
+  "productionSqlUsed": false,
+  "configurationChanged": false,
+  "canonicalMappingCreated": false,
+  "privateTunnelReceiptSha256": "46db7cd66d720e27801bbe0b34f892e08c245384f6e232dc71109d38e3444219",
+  "privateContainerReceiptSha256": "0262cdd4cb1e9c2dc1ffa76356a033b48eba635fa32f032aa0d7d5a3d9bda5d6",
+  "privatePublicHttpReceiptSha256": "45e721c929a0b69a6cf946d28494e3a40acee98b5da97853dbd8a2c5d8882d13",
+  "tunnel": {
+    "statusLabel": "Healthy",
+    "activeReplicas": 1,
+    "publishedApplication": "commandry.site",
+    "service": "http://caddy:80",
+    "locallyManaged": true,
+    "routeMutationControlsDisabled": true
+  },
+  "publicRead": {
+    "origin": "https://commandry.site",
+    "observations": [
+      {
+        "path": "/version",
+        "observedAt": "2026-10-17T20:15:49.855Z",
+        "status": 200,
+        "server": "cloudflare",
+        "contentType": "application/json",
+        "body": {
+          "sha": "507303ca1e82b8b15cc8d94864b61db1de86ed7e",
+          "imageDigest": "ghcr.io/iurman/commandry@sha256:afaa2f9235440fa24bcb8a7d9dd5a36d3b982c35b13f99b48c5a5d893d7f79e9",
+          "buildTime": "2026-10-16T21:26:55Z",
+          "schemaCompatibility": "1",
+          "environment": "production"
+        }
+      },
+      {
+        "path": "/health/ready",
+        "observedAt": "2026-10-17T20:15:49.884Z",
+        "status": 200,
+        "server": "cloudflare",
+        "contentType": "application/json",
+        "body": {
+          "status": "ready",
+          "service": "web",
+          "database": "ready"
+        }
+      }
+    ],
+    "credentialUsed": false,
+    "activationPerformed": false
+  },
+  "conditionalMapping": {
+    "consumer": "the live-rechecked existing canonical Commandry web service",
+    "provider": "an actual reused or intentionally created canonical Cloudflare provider",
+    "componentId": "y98zlwj1d7zh",
+    "environment": "production only after matching post-deployment ingress/source context",
+    "plane": "data only for the proven request-carrying dependency",
+    "geography": null,
+    "state": "not submitted; current canonical identities, stored component and optimistic version still require readback"
+  },
+  "limits": [
+    "This records predeployment evidence at the old production revision; repeat scoped current checks after exact-image deployment.",
+    "Tunnel status, application readiness and provider incident relevance remain separate observations.",
+    "The published route and independent HTTP response support a request-path dependency candidate; they do not prove continuous user availability or provider causation.",
+    "Edge connection labels are not incident geography, and no geographic wildcard is inferred.",
+    "A normal host Caddyfile read was permission-denied; its internal reverse-proxy directive was not inspected or inferred by that read, and the denial was not bypassed.",
+    "Account IDs, tunnel/replica IDs, origin IP, connector hostname, raw inventory and credentials are excluded from this public receipt.",
+    "Console observations are root-recorded, not independently replayed by a static reviewer."
+  ]
+}
