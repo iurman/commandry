@@ -1673,9 +1673,9 @@ function OperationalObservatoryView({
                       setCamera("manual");
                       return;
                     }
-                    const index = history.current.findLastIndex(
-                      (previous) => previous.focusId === id,
-                    );
+                    let index = history.current.length - 1;
+                    while (index >= 0 && history.current[index]!.focusId !== id)
+                      index--;
                     if (index < 0) activate(id);
                     else {
                       const previous = history.current[index];

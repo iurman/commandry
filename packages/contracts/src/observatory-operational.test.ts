@@ -2,6 +2,7 @@ import { describe, expect, it } from "vitest";
 import {
   observatoryAvailabilityEvidenceSchema,
   observatoryOperationalEvidenceQuerySchema,
+  observatoryOperationalEvidenceToolQuerySchema,
   observatoryOperationalEvidenceResultSchema,
   observatoryOperationalRepositoryDetailsSchema,
   observatoryOperationalSourceRecordSchema,
@@ -14,6 +15,110 @@ const at = "2026-10-17T12:00:00.000Z";
 const sourceId = "00000000-0000-4000-8000-000000000001";
 const resourceId = "00000000-0000-4000-8000-000000000002";
 const projectId = "00000000-0000-4000-8000-000000000003";
+
+describe("shared owner and project-free operational tool queries", () => {
+  it("retains every scene field and default while excluding project input from tools", () => {
+    const scope = {
+      schemaVersion: 1,
+      grouping: "providers",
+      environment: "production",
+      expandedRepresentationIds: ["repository:expanded"],
+      search: " exact head ",
+      sectors: [],
+      viewRevision: "review-2",
+      resourceId,
+      facet: "pull_requests",
+    };
+    for (const option of [
+      {},
+      { includePullRequestChecks: false },
+      { includePullRequestChecks: true },
+    ]) {
+      const tool = observatoryOperationalEvidenceToolQuerySchema.parse({
+        ...scope,
+        ...option,
+      });
+      expect(tool).toEqual({ ...scope, search: "exact head", ...option });
+      expect(
+        observatoryOperationalEvidenceQuerySchema.parse({
+          ...scope,
+          ...option,
+          projectId,
+        }),
+      ).toEqual({ ...tool, projectId });
+    }
+    const tool = observatoryOperationalEvidenceToolQuerySchema.parse({
+      resourceId,
+      facet: "pull_requests",
+    });
+    expect(tool).toEqual(
+      observatoryOperationalEvidenceQuerySchema.parse({
+        resourceId,
+        facet: "pull_requests",
+      }),
+    );
+    expect(tool).not.toHaveProperty("projectId");
+    expect(tool).not.toHaveProperty("includePullRequestChecks");
+  });
+
+  it("uses the same PR-only opt-in validation for owner and project-free inputs", () => {
+    for (const facet of ["availability", "pull_requests", "security"]) {
+      for (const includePullRequestChecks of [
+        undefined,
+        false,
+        true,
+        "true",
+        1,
+        null,
+      ]) {
+        const query = {
+          resourceId,
+          facet,
+          ...(includePullRequestChecks === undefined
+            ? {}
+            : { includePullRequestChecks }),
+        };
+        const owner = observatoryOperationalEvidenceQuerySchema.safeParse({
+          ...query,
+          projectId,
+        });
+        const tool =
+          observatoryOperationalEvidenceToolQuerySchema.safeParse(query);
+        const valid =
+          includePullRequestChecks === undefined ||
+          includePullRequestChecks === false ||
+          (includePullRequestChecks === true && facet === "pull_requests");
+        expect(owner.success).toBe(valid);
+        expect(tool.success).toBe(valid);
+        if (!owner.success && !tool.success)
+          expect(tool.error.issues).toEqual(owner.error.issues);
+      }
+    }
+  });
+
+  it("rejects project and authority injection without losing strict scene validation", () => {
+    for (const extra of [
+      { projectId },
+      { owner: true },
+      { operations: ["work.read"] },
+      { grants: ["observatory.read"] },
+      { sourceId: resourceId },
+      { now: at },
+      { limit: 100 },
+      { schemaVersion: 2 },
+      { resourceId: "invalid" },
+      { facet: "work" },
+    ])
+      expect(
+        observatoryOperationalEvidenceToolQuerySchema.safeParse({
+          resourceId,
+          facet: "pull_requests",
+          ...extra,
+        }).success,
+      ).toBe(false);
+  });
+});
+
 function availability() {
   return {
     monitorId: "synthetic-monitor",
