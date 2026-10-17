@@ -1,5 +1,5 @@
-import { foundationActorSchema } from "../../contracts/src/agent-foundation";
-import { infrastructureResourceSchema } from "../../contracts/src/infrastructure-overview";
+import { foundationActorSchema } from "@commandry/contracts";
+import { infrastructureResourceSchema } from "@commandry/contracts";
 import {
   observatoryFacetAccessSchema,
   observatoryFacetSchema,
@@ -11,7 +11,7 @@ import {
   observatoryRelationSchema,
   observatoryRequirementSchema,
   observatorySignalSchema,
-} from "../../contracts/src/observatory";
+} from "@commandry/contracts";
 import {
   observatoryMembershipQuerySchema,
   observatoryProviderExplanationQuerySchema,
@@ -23,13 +23,13 @@ import {
   observatorySignalEvidenceQuerySchema,
   observatorySignalEvidenceResultSchema,
   type ObservatorySceneQuery,
-} from "../../contracts/src/observatory-queries";
+} from "@commandry/contracts";
 import {
   FoundationError,
   foundationDigest,
   type FoundationEnvironment,
   type FoundationOperation,
-} from "../../domain/src/agent-foundation";
+} from "@commandry/domain";
 import {
   observatoryFreshness,
   projectObservatory,
@@ -37,7 +37,7 @@ import {
   type ObservatoryFacet,
   type ObservatoryInput,
   type ObservatoryResource,
-} from "../../domain/src/observatory";
+} from "@commandry/domain";
 
 /** Server-established scope, never public request JSON or a new credential system. */
 export interface ObservatoryReadAccess {

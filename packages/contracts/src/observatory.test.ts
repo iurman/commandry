@@ -89,6 +89,20 @@ describe("versioned Observatory DTO", () => {
     const scene = projectObservatory(mixedObservatoryFixture());
     const mutations: ((copy: typeof scene) => void)[] = [
       (copy) => {
+        copy.visibleRepresentationIds = [];
+      },
+      (copy) => {
+        copy.rootRepresentationIds.push("missing-root");
+      },
+      (copy) => {
+        copy.visibleRepresentationIds.push(...copy.visibleRepresentationIds);
+      },
+      (copy) => {
+        copy.visibleRepresentationIds = copy.visibleRepresentationIds.filter(
+          (id) => id !== copy.rootRepresentationIds[0],
+        );
+      },
+      (copy) => {
         copy.schemaVersion = 2 as 1;
       },
       (copy) => {

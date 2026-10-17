@@ -1,5 +1,7 @@
 import { z } from "zod";
 export * from "./observatory";
+export * from "./observatory-management";
+export * from "./observatory-queries";
 import {
   resourceSummarySchema,
   projectResourceRelationshipTypeSchema,

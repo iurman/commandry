@@ -80,3 +80,6 @@ export { createFoundationOnboardingAccessRepository } from "./foundation-onboard
 export * as foundationOnboardingSchema from "./foundation-onboarding-schema";
 
 export * from "./observatory-provider-repository";
+
+export * from "./observatory-read-repository";
+export * from "./observatory-management-repository";

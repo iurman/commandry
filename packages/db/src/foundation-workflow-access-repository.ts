@@ -36,9 +36,12 @@ export type FoundationWorkflowRecordFactory<Records extends object> = (
 /** Only a trusted HTTP adapter supplies sessionId. Lock its actual canonical row
  * through the operation/allowed audit/COMMIT; a body-supplied owner marker is not
  * authority. No cookie, token, email or session identifier enters audit payloads. */
-async function requireWorkflowOwnerSession(
+export async function requireWorkflowOwnerSession(
   database: Pick<CommandryDatabase, "select">,
-  request: FoundationOwnerRequest,
+  request: Pick<
+    FoundationOwnerRequest,
+    "principalId" | "expiresAt" | "sessionId"
+  >,
   now: Date,
   lock: boolean,
 ) {

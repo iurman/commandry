@@ -77,3 +77,7 @@ export * from "./foundation-finding-proposal";
 export * from "./foundation-onboarding";
 
 export * from "./provider-status";
+
+export * from "./observatory-management";
+
+export * from "./observatory";

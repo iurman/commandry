@@ -335,7 +335,10 @@ export function createFoundationProjectReadAccessRepository<Records>(
     now: () => Date,
     retainApprovalDeadline: (expiry: Date) => void,
   ) => Records,
-  options: { now?: () => Date } = {},
+  options: {
+    now?: () => Date;
+    isolationLevel?: "repeatable read" | "read committed";
+  } = {},
 ) {
   if (
     requiredOperation !== "foundation.read" &&
@@ -375,83 +378,86 @@ export function createFoundationProjectReadAccessRepository<Records>(
         throw new FoundationError("FORBIDDEN");
       if (!/^[a-f0-9]{64}$/.test(request.tokenDigest))
         throw new FoundationError("INVALID_CREDENTIAL");
-      const outcome = await db.transaction(async (tx) => {
-        const [row] = await tx
-          .select()
-          .from(foundationClient)
-          .where(eq(foundationClient.tokenDigest, request.tokenDigest))
-          .for("share");
-        if (!row) throw new FoundationError("INVALID_CREDENTIAL");
-        const client = clientRecord(row);
-        const principalId = "foundation-client:" + client.id;
-        const authorize = () =>
-          requireFoundationGrant(client, { ...request, now: now() });
-        const audit = async (
-          transaction: FoundationTransaction,
-          decision: "allowed" | "denied",
-          code: string,
-        ) => {
-          await transaction.insert(foundationAudit).values({
-            id: randomUUID(),
-            projectId: client.projectId,
-            environment: client.environment,
-            principalId,
-            clientId: client.id,
-            operation: requiredOperation,
-            targetId: null,
-            correlationId: request.correlationId,
-            decision,
-            code,
-          });
-        };
-        let failure: FoundationError | null = null;
-        let value: T | undefined;
-        let contextExpiry = Infinity;
-        const requireCurrentContext = () => {
-          authorize();
-          if (contextExpiry <= now().getTime())
-            throw new FoundationError("EXPIRED");
-        };
-        try {
-          value = await tx.transaction(async (operation) => {
+      const outcome = await db.transaction(
+        async (tx) => {
+          const [row] = await tx
+            .select()
+            .from(foundationClient)
+            .where(eq(foundationClient.tokenDigest, request.tokenDigest))
+            .for("share");
+          if (!row) throw new FoundationError("INVALID_CREDENTIAL");
+          const client = clientRecord(row);
+          const principalId = "foundation-client:" + client.id;
+          const authorize = () =>
+            requireFoundationGrant(client, { ...request, now: now() });
+          const audit = async (
+            transaction: FoundationTransaction,
+            decision: "allowed" | "denied",
+            code: string,
+          ) => {
+            await transaction.insert(foundationAudit).values({
+              id: randomUUID(),
+              projectId: client.projectId,
+              environment: client.environment,
+              principalId,
+              clientId: client.id,
+              operation: requiredOperation,
+              targetId: null,
+              correlationId: request.correlationId,
+              decision,
+              code,
+            });
+          };
+          let failure: FoundationError | null = null;
+          let value: T | undefined;
+          let contextExpiry = Infinity;
+          const requireCurrentContext = () => {
             authorize();
-            const [exists] = await operation
-              .select({ id: project.id })
-              .from(project)
-              .where(eq(project.id, request.projectId))
-              .for("share");
-            if (!exists) throw new FoundationError("NOT_FOUND");
-            authorize();
-            await operation.execute(
-              sql`select pg_advisory_xact_lock(hashtextextended(${"foundation-memory:" + request.projectId}, 0))`,
-            );
-            authorize();
-            const result = await callback(
-              client,
-              makeRecords(operation, request, principalId, now, (expiry) => {
-                contextExpiry = Math.min(contextExpiry, expiry.getTime());
-              }),
-            );
-            requireCurrentContext();
-            await audit(operation, "allowed", "OK");
-            requireCurrentContext();
-            return result;
-          });
-        } catch (error) {
-          if (!(error instanceof FoundationError)) throw error;
-          failure = new FoundationError(error.code);
-        }
-        if (failure) {
+            if (contextExpiry <= now().getTime())
+              throw new FoundationError("EXPIRED");
+          };
           try {
-            authorize();
+            value = await tx.transaction(async (operation) => {
+              authorize();
+              const [exists] = await operation
+                .select({ id: project.id })
+                .from(project)
+                .where(eq(project.id, request.projectId))
+                .for("share");
+              if (!exists) throw new FoundationError("NOT_FOUND");
+              authorize();
+              await operation.execute(
+                sql`select pg_advisory_xact_lock(hashtextextended(${"foundation-memory:" + request.projectId}, 0))`,
+              );
+              authorize();
+              const result = await callback(
+                client,
+                makeRecords(operation, request, principalId, now, (expiry) => {
+                  contextExpiry = Math.min(contextExpiry, expiry.getTime());
+                }),
+              );
+              requireCurrentContext();
+              await audit(operation, "allowed", "OK");
+              requireCurrentContext();
+              return result;
+            });
           } catch (error) {
             if (!(error instanceof FoundationError)) throw error;
             failure = new FoundationError(error.code);
           }
-          await audit(tx, "denied", failure.code);
-        }
-        return { value, failure, requireCurrentContext };
-      });
+          if (failure) {
+            try {
+              authorize();
+            } catch (error) {
+              if (!(error instanceof FoundationError)) throw error;
+              failure = new FoundationError(error.code);
+            }
+            await audit(tx, "denied", failure.code);
+          }
+          return { value, failure, requireCurrentContext };
+        },
+        { isolationLevel: options.isolationLevel ?? "read committed" },
+      );
       if (outcome.failure) throw outcome.failure;
       // A slow commit can cross either deadline after the transaction callback.
       // The completed read audit remains historical evidence; withhold delivery.

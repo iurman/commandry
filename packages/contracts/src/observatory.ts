@@ -428,11 +428,32 @@ export const observatorySceneSchema = z
     if (Date.parse(scene.readCompletedAt) < Date.parse(scene.readStartedAt))
       fail("Read completion predates read start");
     const roots = new Set(scene.rootRepresentationIds);
+    const visible = new Set(scene.visibleRepresentationIds);
     if (
       roots.size !== scene.rootRepresentationIds.length ||
+      visible.size !== scene.visibleRepresentationIds.length ||
+      [...roots].some((id) => !nodes.has(id) || !visible.has(id)) ||
       scene.visibleRepresentationIds.some((id) => !nodes.has(id))
     )
       fail("Invalid root or visible identity");
+    const visibleMembers = new Set<string>();
+    const represented = new Set<string>();
+    const pendingVisible = [...visible];
+    while (pendingVisible.length) {
+      const current = pendingVisible.pop()!;
+      if (represented.has(current)) continue;
+      represented.add(current);
+      for (const member of scene.membershipIndex.directMembers[current] ?? [])
+        visibleMembers.add(member);
+      const reference = nodes.get(current)?.referenceTo;
+      if (reference) pendingVisible.push(reference);
+      pendingVisible.push(...(scene.membershipIndex.children[current] ?? []));
+    }
+    if (
+      visibleMembers.size !== resources.size ||
+      [...visibleMembers].some((id) => !resources.has(id))
+    )
+      fail("Visible representation membership is incomplete");
     for (const [groupId, members] of Object.entries(
       scene.membershipIndex.directMembers,
     ))
