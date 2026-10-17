@@ -38,6 +38,14 @@ import {
   type ObservatoryInput,
   type ObservatoryResource,
 } from "@commandry/domain";
+import {
+  observatoryAvailabilityEvidenceSchema,
+  observatoryOperationalEvidenceQuerySchema,
+  observatoryOperationalEvidenceResultSchema,
+  observatoryOperationalRepositoryDetailsSchema,
+  observatoryOperationalSourceRecordSchema,
+  type ObservatoryOperationalEvidenceQuery,
+} from "../../contracts/src/observatory-operational";
 
 /** Server-established scope, never public request JSON or a new credential system. */
 export interface ObservatoryReadAccess {
@@ -52,6 +60,9 @@ export interface ObservatoryReadAccess {
 export interface ObservatoryReadRecords {
   /** Complete candidate population after every continuation; never a capped first page. */
   readObservatory(): Promise<ObservatoryInput>;
+  /** Complete current sources for this subject in the same authorized transaction.
+   * Derived details only; never include raw originals, credentials or configuration. */
+  readOperationalEvidence?(resourceId: string): Promise<unknown[]>;
 }
 /**
  * The adapter reuses createFoundationProjectReadAccessRepository. Authenticate
@@ -449,6 +460,168 @@ function authorizedInput(
   }
 }
 
+type OperationalEvidenceRecords = { available: boolean; rows: unknown[] };
+function operationalEvidenceItems(
+  input: AuthorizedInput,
+  query: ObservatoryOperationalEvidenceQuery,
+  records: OperationalEvidenceRecords,
+  access: ObservatoryReadAccess,
+) {
+  if (!Array.isArray(records.rows)) invalid();
+  // Inspect only data-property project identities before touching hidden details.
+  // A shared canonical resource does not grant access to another project's source.
+  const descriptors = Object.getOwnPropertyDescriptors(records.rows);
+  if (
+    Object.getOwnPropertySymbols(records.rows).length ||
+    Object.keys(descriptors).length !== records.rows.length + 1
+  )
+    invalid();
+  const scoped: unknown[] = [];
+  for (let index = 0; index < records.rows.length; index++) {
+    const entry = descriptors[String(index)];
+    if (!entry?.enumerable || !Object.hasOwn(entry, "value")) invalid();
+    const row: unknown = entry.value;
+    if (
+      !row ||
+      typeof row !== "object" ||
+      Array.isArray(row) ||
+      (Object.getPrototypeOf(row) !== Object.prototype &&
+        Object.getPrototypeOf(row) !== null)
+    )
+      invalid();
+    const descriptor = Object.getOwnPropertyDescriptor(row, "projectId");
+    if (!descriptor?.enumerable || !Object.hasOwn(descriptor, "value"))
+      invalid();
+    const projectId =
+      observatoryOperationalSourceRecordSchema.shape.projectId.parse(
+        descriptor.value,
+      );
+    if (
+      (!query.projectId || projectId === query.projectId) &&
+      (access.owner || access.projectIds.includes(projectId))
+    )
+      scoped.push(row);
+  }
+  digest(scoped);
+  const rows = scoped.map((row) =>
+    observatoryOperationalSourceRecordSchema.parse(row),
+  );
+  unique(rows.map((row) => row.id));
+  if (rows.some((row) => row.resourceId !== query.resourceId)) invalid();
+  const kind =
+    query.facet === "availability" ? "infraagent-monitor" : "github-repository";
+  const latest = (values: readonly (string | null)[]) => {
+    let result: string | null = null;
+    for (const value of values)
+      if (
+        value !== null &&
+        (result === null || Date.parse(value) > Date.parse(result))
+      )
+        result = value;
+    return result === null ? null : new Date(result).toISOString();
+  };
+  return rows
+    .filter(
+      (row) =>
+        row.kind === kind &&
+        (query.environment === null || row.environment === query.environment),
+    )
+    .sort((left, right) => left.id.localeCompare(right.id))
+    .map((row) => {
+      let payload: unknown = null;
+      let observedAt = row.observedAt;
+      const missing =
+        row.details === null ||
+        (typeof row.details === "object" &&
+          !Array.isArray(row.details) &&
+          Object.keys(row.details).length === 0);
+      if (!missing) {
+        if (query.facet === "availability") {
+          const snapshot = observatoryAvailabilityEvidenceSchema.parse(
+            row.details,
+          );
+          payload = snapshot;
+          observedAt = snapshot.lastCheckedAt;
+        } else {
+          // Validate the full accepted snapshot, including identity/link invariants,
+          // before projecting only the independently granted facet.
+          const snapshot = observatoryOperationalRepositoryDetailsSchema.parse(
+            row.details,
+          ).repository;
+          if (query.facet === "pull_requests") {
+            payload = {
+              repository: snapshot.repository,
+              readAt: snapshot.readAt,
+              pullRequests: snapshot.pullRequests,
+            };
+            observedAt = latest(
+              snapshot.pullRequests.items.map((item) => item.updatedAt),
+            );
+          } else {
+            const security = {
+              ...snapshot.security,
+              codeScanning: {
+                ...snapshot.security.codeScanning,
+                analyses: {
+                  ...snapshot.security.codeScanning.analyses,
+                  items: snapshot.security.codeScanning.analyses.items.map(
+                    (analysis) => ({
+                      ...analysis,
+                      freshness: observatoryFreshness(
+                        analysis.createdAt,
+                        row.freshnessSeconds * 1000,
+                        input.now,
+                      ),
+                    }),
+                  ),
+                },
+              },
+            };
+            payload = {
+              repository: snapshot.repository,
+              readAt: snapshot.readAt,
+              security,
+            };
+            observedAt = latest([
+              ...security.codeScanning.analyses.items.map(
+                (item) => item.createdAt,
+              ),
+              ...[
+                security.codeScanning.alerts,
+                security.dependabot,
+                security.secretScanning,
+              ].flatMap((source) =>
+                source.items.map((item) => item.updatedAt ?? item.createdAt),
+              ),
+            ]);
+          }
+        }
+      }
+      return {
+        sourceId: row.id,
+        projectId: row.projectId,
+        resourceId: row.resourceId,
+        kind: row.kind,
+        version: row.version,
+        environment: row.environment,
+        enabled: row.enabled,
+        lastAttemptAt: row.lastAttemptAt,
+        lastSuccessAt: row.lastSuccessAt,
+        lastError: row.lastError,
+        observedAt,
+        freshness:
+          observedAt === null
+            ? ("unknown" as const)
+            : observatoryFreshness(
+                observedAt,
+                row.freshnessSeconds * 1000,
+                input.now,
+              ),
+        payload,
+      };
+    });
+}
+
 export function createObservatoryReadService<Request>(
   port: ObservatoryReadPort<Request>,
   options: { environment: FoundationEnvironment; now?: () => Date },
@@ -457,11 +630,19 @@ export function createObservatoryReadService<Request>(
     options.environment,
   );
   const clock = options.now ?? (() => new Date());
-  async function read<T>(
+  async function read<T, Auxiliary = undefined>(
     request: Request,
     query: ObservatorySceneQuery,
     extra: FoundationOperation | null,
-    select: (input: AuthorizedInput) => T,
+    select: (
+      input: AuthorizedInput,
+      auxiliary: Auxiliary,
+      access: ObservatoryReadAccess,
+    ) => T,
+    load?: (
+      input: AuthorizedInput,
+      records: ObservatoryReadRecords,
+    ) => Promise<Auxiliary>,
   ): Promise<T> {
     let callbacks = 0,
       expectedDigest: string | undefined,
@@ -493,16 +674,30 @@ export function createObservatoryReadService<Request>(
       const time = clock();
       if (!(time instanceof Date) || !Number.isFinite(time.getTime()))
         forbidden();
+      const input = authorizedInput(
+        candidate,
+        accessContext(rawAccess, environment),
+        query,
+        time.toISOString(),
+      );
+      // Adapter failures retain their identity, like readObservatory failures.
+      // Only data selection/validation errors are converted to INVALID_REFERENCE.
+      const auxiliary = load
+        ? await load(input, records)
+        : (undefined as Auxiliary);
+      recheck();
+      if (load) {
+        const selectedAt = clock();
+        if (
+          !(selectedAt instanceof Date) ||
+          !Number.isFinite(selectedAt.getTime())
+        )
+          forbidden();
+        input.now = selectedAt.toISOString();
+      }
       let value: T;
       try {
-        value = select(
-          authorizedInput(
-            candidate,
-            accessContext(rawAccess, environment),
-            query,
-            time.toISOString(),
-          ),
-        );
+        value = select(input, auxiliary, accessContext(rawAccess, environment));
       } catch (error) {
         if (error instanceof FoundationError) throw error;
         return invalid();
@@ -527,6 +722,57 @@ export function createObservatoryReadService<Request>(
       invalid();
   }
   return {
+    async operationalEvidence(request: Request, rawQuery: unknown) {
+      const query = observatoryOperationalEvidenceQuerySchema.parse(rawQuery);
+      const extra: FoundationOperation =
+        query.facet === "availability"
+          ? "observatory.signals.read"
+          : query.facet === "pull_requests"
+            ? "work.read"
+            : "observatory.security.read";
+      return read(
+        request,
+        query,
+        extra,
+        (input, records: OperationalEvidenceRecords, sourceAccess) => {
+          const items = operationalEvidenceItems(
+            input,
+            query,
+            records,
+            sourceAccess,
+          );
+          const enabled = items.filter((item) => item.enabled);
+          const access = !records.available
+            ? "unavailable"
+            : !items.length
+              ? "unsupported"
+              : !enabled.length
+                ? "disabled"
+                : enabled.some(
+                      (item) =>
+                        item.payload === null || item.lastError !== null,
+                    )
+                  ? "unavailable"
+                  : "available";
+          return observatoryOperationalEvidenceResultSchema.parse({
+            ...envelope(projectAuthorized(input)),
+            resourceId: query.resourceId,
+            facet: query.facet,
+            access,
+            items,
+          });
+        },
+        async (input, records) => {
+          requireSubject(input, query.resourceId);
+          return records.readOperationalEvidence
+            ? {
+                available: true,
+                rows: await records.readOperationalEvidence(query.resourceId),
+              }
+            : { available: false, rows: [] };
+        },
+      );
+    },
     async scene(request: Request, rawQuery: unknown) {
       const query = observatorySceneQuerySchema.parse(rawQuery);
       return read(request, query, null, (input) =>
