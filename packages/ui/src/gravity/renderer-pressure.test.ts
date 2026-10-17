@@ -1,7 +1,11 @@
 // @vitest-environment jsdom
 import { afterEach, describe, expect, it, vi } from "vitest";
 import { BufferGeometry, PerspectiveCamera, Vector3 } from "three";
-import { ObservatoryRenderer, type RendererSettings } from "./renderer";
+import {
+  ObservatoryRenderer,
+  type RendererSettings,
+  type RendererHooks,
+} from "./renderer";
 import { surfaceHeight, type Well } from "./model";
 import * as basinPlanning from "./basin-geometry";
 
@@ -65,6 +69,8 @@ const settings: RendererSettings = {
 };
 type Internals = {
   camera: PerspectiveCamera;
+  presentationElapsed: number;
+  presentationInterrupted: boolean;
   controls: { target: Vector3; update(): void };
   geometry: BufferGeometry;
   geometryRevision: number;
@@ -88,6 +94,7 @@ function setup(
   width = 1200,
   height = 900,
   viewportHeight = height,
+  extraHooks: Partial<RendererHooks> = {},
 ) {
   let callback: FrameRequestCallback = () => {};
   vi.stubGlobal("requestAnimationFrame", (next: FrameRequestCallback) => {
@@ -142,6 +149,7 @@ function setup(
     lens() {},
     activity() {},
     visibility() {},
+    ...extraHooks,
   });
   renderer.update(population, settings);
   const frame = (now: number) => callback(now);
@@ -661,5 +669,218 @@ it("retains a usable mesh and disposes an exhausted local request without retryi
     expect(canvas.dataset.gravityRefinementRejected).toBe("false");
   } finally {
     renderer.dispose();
+  }
+});
+
+const tourWells: Well[] = [
+  { ...wells[0]!, x: -12, z: -5 },
+  { ...wells[1]!, x: 16, z: 9 },
+  { ...wells[2]!, kind: "project", x: 8, z: -10 },
+];
+describe("natural guided-tour feature lifecycle", () => {
+  it("naturally features distinct valid hosts without direct activation and keeps progression across unchanged refresh", () => {
+    let state: RendererSettings = {
+      ...settings,
+      motion: true,
+      cameraMode: "tour",
+    };
+    const direct = vi.fn((id: string) => {
+      state = { ...state, selected: id, cameraMode: "manual" };
+      fixture.renderer.update(tourWells, state);
+    });
+    const featured = vi.fn((id: string) => {
+      state = { ...state, selected: id };
+      fixture.renderer.update(tourWells, state);
+    });
+    const fixture = setup(tourWells, 1200, 900, 900, {
+      select: direct,
+      featured,
+    });
+    try {
+      fixture.renderer.update(tourWells, state);
+      for (let now = 50; now <= 9000; now += 50) fixture.frame(now);
+      expect(featured).toHaveBeenCalledTimes(1);
+      const first = featured.mock.calls[0]![0];
+      expect(tourWells.find((well) => well.id === first)?.kind).toBe("host");
+      expect(state.cameraMode).toBe("tour");
+      expect(state.selected).toBe(first);
+      expect(direct).not.toHaveBeenCalled();
+      const elapsed = fixture.access.presentationElapsed,
+        position = fixture.access.camera.position.clone();
+      fixture.renderer.update(
+        tourWells.map((well) => ({ ...well })),
+        { ...state },
+      );
+      expect(fixture.access.presentationElapsed).toBe(elapsed);
+      for (let now = 9050; now <= 22000; now += 50) fixture.frame(now);
+      expect(featured).toHaveBeenCalledTimes(2);
+      const later = featured.mock.calls[1]![0];
+      expect(later).not.toBe(first);
+      expect(tourWells.find((well) => well.id === later)?.kind).toBe("host");
+      expect(state.cameraMode).toBe("tour");
+      expect(state.selected).toBe(later);
+      expect(direct).not.toHaveBeenCalled();
+      expect(fixture.access.presentationElapsed).toBeGreaterThan(21);
+      expect(fixture.access.presentationInterrupted).toBe(false);
+      expect(
+        fixture.access.camera.position.distanceTo(position),
+      ).toBeGreaterThan(1);
+      expect(fixture.canvas.dataset.gravitySelected).toBe(later);
+    } finally {
+      fixture.renderer.dispose();
+    }
+  });
+});
+
+describe("deliberate presentation interruption and compatibility", () => {
+  it("stops on actual control drag and never restarts until a deliberate mode transition", () => {
+    let state: RendererSettings = {
+      ...settings,
+      motion: true,
+      cameraMode: "tour",
+    };
+    const featured = vi.fn();
+    const interrupted = vi.fn(() => {
+      state = { ...state, cameraMode: "manual" };
+      fixture.renderer.update(tourWells, state);
+    });
+    const fixture = setup(tourWells, 1200, 900, 900, { featured, interrupted });
+    const pointer = (type: string, x: number, y: number) =>
+      fixture.canvas.dispatchEvent(
+        Object.assign(
+          new MouseEvent(type, {
+            clientX: x,
+            clientY: y,
+            button: 0,
+            buttons: type === "pointerup" ? 0 : 1,
+            bubbles: true,
+          }),
+          { pointerId: 1, pointerType: "mouse" },
+        ),
+      );
+    try {
+      fixture.renderer.update(tourWells, state);
+      for (let now = 50; now <= 4000; now += 50) fixture.frame(now);
+      expect(featured).toHaveBeenCalledTimes(1);
+      pointer("pointerdown", 300, 200);
+      pointer("pointermove", 350, 230);
+      pointer("pointerup", 350, 230);
+      expect(interrupted).toHaveBeenCalled();
+      expect(state.cameraMode).toBe("manual");
+      const calls = featured.mock.calls.length;
+      for (let now = 4050; now <= 22000; now += 50) fixture.frame(now);
+      fixture.renderer.update([...tourWells], { ...state });
+      for (let now = 22050; now <= 25000; now += 50) fixture.frame(now);
+      expect(featured).toHaveBeenCalledTimes(calls);
+      state = { ...state, cameraMode: "tour" };
+      fixture.renderer.update(tourWells, state);
+      expect(fixture.access.presentationElapsed).toBe(0);
+      for (let now = 25050; now <= 29000; now += 50) fixture.frame(now);
+      expect(featured).toHaveBeenCalledTimes(calls + 1);
+      expect(fixture.access.presentationInterrupted).toBe(false);
+    } finally {
+      fixture.renderer.dispose();
+    }
+  });
+  it("keeps direct subject focus interrupting a tour through refresh without silently resuming", () => {
+    const featured = vi.fn(),
+      fixture = setup(tourWells, 1200, 900, 900, { featured });
+    const tour: RendererSettings = {
+      ...settings,
+      motion: true,
+      cameraMode: "tour",
+    };
+    try {
+      fixture.renderer.update(tourWells, tour);
+      for (let now = 50; now <= 4000; now += 50) fixture.frame(now);
+      expect(featured).toHaveBeenCalledTimes(1);
+      expect(
+        fixture.renderer.focusSubject(tourWells[1]!.id, { immediate: true }),
+      ).toBe(true);
+      const elapsed = fixture.access.presentationElapsed;
+      fixture.renderer.update([...tourWells], {
+        ...tour,
+        selected: tourWells[1]!.id,
+      });
+      for (let now = 4050; now <= 22000; now += 50) fixture.frame(now);
+      expect(fixture.access.presentationElapsed).toBe(elapsed);
+      expect(fixture.access.presentationInterrupted).toBe(true);
+      expect(featured).toHaveBeenCalledTimes(1);
+    } finally {
+      fixture.renderer.dispose();
+    }
+  });
+  it("keeps motion-disabled tour static and preserves legacy one-argument selection consumers", () => {
+    const fixture = setup(tourWells),
+      tour: RendererSettings = {
+        ...settings,
+        cameraMode: "tour",
+        motion: false,
+      };
+    try {
+      fixture.renderer.update(tourWells, tour);
+      for (let now = 50; now <= 5000; now += 50) fixture.frame(now);
+      expect(fixture.select).not.toHaveBeenCalled();
+      expect(fixture.access.presentationElapsed).toBe(0);
+      fixture.renderer.update(tourWells, { ...tour, motion: true });
+      for (let now = 5050; now <= 9000; now += 50) fixture.frame(now);
+      expect(fixture.select).toHaveBeenCalledTimes(1);
+      expect(fixture.select.mock.calls[0]).toHaveLength(1);
+      expect(
+        tourWells.find((well) => well.id === fixture.select.mock.calls[0]![0])
+          ?.kind,
+      ).toBe("host");
+    } finally {
+      fixture.renderer.dispose();
+    }
+  });
+});
+
+it("refocuses an already-selected host after automatic camera movement when the same direct request is repeated", () => {
+  const featured = vi.fn(),
+    fixture = setup(tourWells, 1200, 900, 900, { featured }),
+    subject = tourWells[0]!;
+  try {
+    fixture.renderer.update(tourWells, {
+      ...settings,
+      motion: true,
+      selected: subject.id,
+    });
+    fixture.renderer.focusSubject(subject.id, { immediate: true });
+    const position = fixture.access.camera.position.clone(),
+      target = fixture.access.controls.target.clone();
+    fixture.renderer.update(tourWells, {
+      ...settings,
+      motion: true,
+      cameraMode: "tour",
+      selected: subject.id,
+    });
+    for (let now = 50; now <= 22000; now += 50) fixture.frame(now);
+    expect(featured.mock.calls.length).toBeGreaterThanOrEqual(2);
+    expect(fixture.access.controls.target.distanceTo(target)).toBeGreaterThan(
+      1,
+    );
+    fixture.renderer.update(tourWells, {
+      ...settings,
+      motion: true,
+      cameraMode: "manual",
+      selected: subject.id,
+    });
+    expect(fixture.renderer.focusSubject(subject.id, { immediate: true })).toBe(
+      true,
+    );
+    expect(fixture.access.camera.position.distanceTo(position)).toBeLessThan(
+      1e-8,
+    );
+    expect(fixture.access.controls.target.distanceTo(target)).toBeLessThan(
+      1e-8,
+    );
+    const elapsed = fixture.access.presentationElapsed,
+      calls = featured.mock.calls.length;
+    for (let now = 22050; now <= 26000; now += 50) fixture.frame(now);
+    expect(featured).toHaveBeenCalledTimes(calls);
+    expect(fixture.access.presentationElapsed).toBe(elapsed);
+  } finally {
+    fixture.renderer.dispose();
   }
 });
