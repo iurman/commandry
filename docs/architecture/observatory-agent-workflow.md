@@ -53,6 +53,16 @@ Relations, reviewed configuration, signal and operational-source results declare
 
 Follow its `{projectId,afterId}` cursor to null; limit defaults to25. The project in a cursor grants no access. Pages are live reads, not a fixed historical snapshot, and `selectedAt` is read time. Restart on `INVALID_REFERENCE`. Canonical Work is not an execution-runtime record. Missing AgentRun data remains unknown.
 
+## Current-head pull-request evidence
+
+Use `get_observatory_operational_evidence` with `facet:"pull_requests"` and an exact authorized canonical repository resource ID from the scene. Both `observatory.read` and `work.read` are required. The same persisted safe payload feeds owner HTTP and the inspector. This read grants no rerun, merge, branch-protection, credential or runtime authority.
+
+Each supported PR records its exact head SHA and independently qualified check-run and commit-status components. Follow complete server results; do not truncate the returned lists. Checks use GitHub's `filter=latest`; commit statuses retain dated status history, including earlier states for the same context. Source completeness describes the supported endpoint/filter and its upstream limits. It does not establish all historical suites or all required checks. Required-check coverage remains explicitly unknown, and successful or empty components cannot declare branch protection satisfied.
+
+Preserve component `readAt`, original started/completed/created/updated times and derived freshness separately. Every row's freshness is assessed at its completed component read time, after all pages validate. This does not refresh the security observation clock. Missing legacy head/components remain unknown; inaccessible, unsupported and unavailable components retain their own safe errors without discarding independent scanner evidence. CI evidence never creates service availability, AgentRun or active execution.
+
+Only server-computed configured-repository PR/run/commit links are exposed. Provider text and fork/check target URLs cannot authorize arbitrary fetches. New schema consumers and the generated OpenAPI contract must roll forward together before enabling a source: the new reader accepts old stored payloads, while older strict consumers reject the new optional evidence fields. Live source credentials and production activation remain separately verified release steps.
+
 ## Owner handoff and API parity
 
 The owner UI uses POST `/api/v1/infrastructure/observatory/{operation}` for `scene`, `members`, `relations`, `signals`, `providers`, `operational`, `catalogue` and `provider-feed`. Its optional project is constrained by the actual owner context. Owner catalogue may include `kind:"source"`; the machine catalogue schema deliberately excludes it. Owner Observatory reads are low risk and audited through `observatory.read`. The owner Work adapter records `observatory.work.read`; the separately authorized MCP Work operation is `work.read`.
