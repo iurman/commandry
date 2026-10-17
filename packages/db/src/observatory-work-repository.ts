@@ -5,7 +5,7 @@ import {
   foundationProjectWorkQuerySchema,
 } from "@commandry/contracts";
 import type { ObservatoryOwnerIdentity } from "@commandry/application";
-import type { ObservatoryOwnerWorkReadPort } from "../../application/src/observatory-work";
+import type { ObservatoryOwnerWorkReadPort } from "@commandry/application";
 import {
   FoundationError,
   foundationDigest,

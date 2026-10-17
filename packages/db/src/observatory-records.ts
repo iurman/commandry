@@ -24,7 +24,13 @@ import {
   observatoryRelation,
   observatorySource,
 } from "./observatory-schema";
-import { normalizedEvent, sourceEnvelope, integrationInstance } from "./schema";
+import {
+  normalizedEvent,
+  sourceEnvelope,
+  integrationInstance,
+  resource,
+  projectResourceLink,
+} from "./schema";
 
 type Transaction = Parameters<
   Parameters<CommandryDatabase["transaction"]>[0]
@@ -390,6 +396,22 @@ export async function collectObservatoryProviderFeedRecords(
   input: { afterId?: string; limit: number },
   now: Date,
 ): Promise<unknown> {
+  if (input.afterId) {
+    const [anchor] = await tx
+      .select({ id: observatoryProviderNotice.id })
+      .from(observatoryProviderNotice)
+      .where(
+        and(
+          eq(observatoryProviderNotice.providerId, "cloudflare"),
+          eq(observatoryProviderNotice.id, input.afterId),
+        ),
+      );
+    if (!anchor)
+      throw new FoundationError(
+        "INVALID_REFERENCE",
+        "Provider cursor is unavailable",
+      );
+  }
   const page = await readObservatoryProviderFeedRecords(tx, input, now);
   return {
     ...page,
@@ -400,4 +422,83 @@ export async function collectObservatoryProviderFeedRecords(
       lastSeenAt: notice.lastSeenAt.toISOString(),
     })),
   };
+}
+
+/** Safe canonical configuration only. Population scope is applied in SQL before
+ * reading records; the shared service applies per-kind authority and validation. */
+export async function readObservatoryCatalogueRecords(
+  tx: Transaction,
+  scope: ObservatoryRecordScope,
+): Promise<unknown[]> {
+  const eligible = await tx
+    .select({ id: resource.id })
+    .from(resource)
+    .where(
+      and(
+        scope.resourceIds !== null
+          ? scope.resourceIds.length
+            ? inArray(resource.id, scope.resourceIds)
+            : sql`false`
+          : undefined,
+        scope.projectId
+          ? sql`exists (select 1 from ${projectResourceLink} where ${projectResourceLink.resourceId} = ${resource.id} and ${projectResourceLink.projectId} = ${scope.projectId} and ${projectResourceLink.lifecycle} = 'active')`
+          : undefined,
+      ),
+    );
+  const ids = eligible.map((item) => item.id);
+  if (!ids.length) return [];
+  const annotations = await tx
+    .select()
+    .from(observatoryAnnotation)
+    .where(inArray(observatoryAnnotation.resourceId, ids));
+  const relations = await tx
+    .select()
+    .from(observatoryRelation)
+    .where(
+      and(
+        inArray(observatoryRelation.sourceId, ids),
+        inArray(observatoryRelation.targetId, ids),
+      ),
+    );
+  const mappings = await tx
+    .select()
+    .from(observatoryProviderMapping)
+    .where(
+      and(
+        inArray(observatoryProviderMapping.resourceId, ids),
+        inArray(observatoryProviderMapping.providerResourceId, ids),
+      ),
+    );
+  const sources = await tx
+    .select({
+      id: observatorySource.id,
+      resourceId: observatorySource.resourceId,
+      projectId: observatorySource.projectId,
+      environment: observatorySource.environment,
+      version: observatorySource.version,
+      sourceKind: observatorySource.kind,
+      externalId: observatorySource.externalId,
+      enabled: observatorySource.enabled,
+      freshnessSeconds: observatorySource.freshnessSeconds,
+      provenance: observatorySource.provenance,
+    })
+    .from(observatorySource)
+    .where(
+      and(
+        inArray(observatorySource.resourceId, ids),
+        scope.projectId
+          ? eq(observatorySource.projectId, scope.projectId)
+          : undefined,
+      ),
+    );
+  return [
+    ...annotations.map((item) => ({
+      kind: "annotation",
+      id: item.resourceId,
+      ...item,
+    })),
+    ...relations.map((item) => ({ kind: "relation", ...item })),
+    ...mappings.map((item) => ({ kind: "provider", ...item })),
+    ...sources.map((item) => ({ kind: "source", ...item })),
+  ];
 }

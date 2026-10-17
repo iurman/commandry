@@ -23,6 +23,8 @@ export async function POST(
         "signals",
         "providers",
         "operational",
+        "catalogue",
+        "provider-feed",
       ].includes(operation)
     )
       throw new FoundationError("NOT_FOUND");
@@ -37,17 +39,21 @@ export async function POST(
       scope.projectId,
     );
     const result =
-      operation === "scene"
-        ? await service.scene(owner, input)
-        : operation === "members"
-          ? await service.members(owner, input)
-          : operation === "relations"
-            ? await service.relations(owner, input)
-            : operation === "signals"
-              ? await service.signalEvidence(owner, input)
-              : operation === "operational"
-                ? await service.operationalEvidence(owner, input)
-                : await service.providerExplanation(owner, input);
+      operation === "catalogue"
+        ? await service.catalogue(owner, input)
+        : operation === "provider-feed"
+          ? await service.providerFeed(owner, input)
+          : operation === "scene"
+            ? await service.scene(owner, input)
+            : operation === "members"
+              ? await service.members(owner, input)
+              : operation === "relations"
+                ? await service.relations(owner, input)
+                : operation === "signals"
+                  ? await service.signalEvidence(owner, input)
+                  : operation === "operational"
+                    ? await service.operationalEvidence(owner, input)
+                    : await service.providerExplanation(owner, input);
     return jsonResponse(
       request,
       result,

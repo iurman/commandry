@@ -454,6 +454,29 @@ test(
             }),
             { environment: "test" },
           );
+          const configured = await ownerRead.catalogue(
+            { identity: owner, projectId },
+            { projectId, resourceId: subject, kind: "source" },
+          );
+          assert.equal(configured.items.length, 137);
+          assert.deepEqual(
+            configured.items.map((item) => item.id).sort(),
+            ownIds.sort(),
+          );
+          assert.ok(
+            configured.items.every(
+              (item) =>
+                item.kind === "source" &&
+                item.version === 1 &&
+                item.projectId === projectId,
+            ),
+          );
+          assert.ok(!JSON.stringify(configured).includes("PRIVATE_ORIGINAL"));
+          const allConfigured = await ownerRead.catalogue(
+            { identity: owner },
+            { resourceId: subject, kind: "source" },
+          );
+          assert.equal(allConfigured.items.length, 138);
           assert.equal(
             (
               await ownerRead.operationalEvidence(
@@ -511,24 +534,20 @@ test(
         async () => {
           const providerId = randomUUID(),
             mappingId = randomUUID();
-          await admin.db
-            .insert(resource)
-            .values({
-              id: providerId,
-              kind: "provider",
-              name: "Cloudflare fixture",
-            });
-          await admin.db
-            .insert(projectResourceLink)
-            .values({
-              id: randomUUID(),
-              projectId,
-              resourceId: providerId,
-              type: "relates_to",
-              sourceKind: "project",
-              targetKind: "resource",
-              lifecycle: "active",
-            });
+          await admin.db.insert(resource).values({
+            id: providerId,
+            kind: "provider",
+            name: "Cloudflare fixture",
+          });
+          await admin.db.insert(projectResourceLink).values({
+            id: randomUUID(),
+            projectId,
+            resourceId: providerId,
+            type: "relates_to",
+            sourceKind: "project",
+            targetKind: "resource",
+            lifecycle: "active",
+          });
           const repo = createObservatoryProviderRepository(runtime.db, {
             now: () => now,
             jitterSeconds: () => 0,
@@ -619,6 +638,50 @@ test(
             tokenDigest: foundationTokenDigest(providerClient.token),
           };
           const current = await read.scene(providerRequest, { projectId });
+          const reached: string[] = [];
+          let cursor: Awaited<
+            ReturnType<typeof read.providerFeed>
+          >["nextCursor"] = null;
+          do {
+            const page = await read.providerFeed(providerRequest, {
+              projectId,
+              limit: 50,
+              cursor,
+            });
+            assert.equal(page.feed.state, "current");
+            reached.push(...page.items.map((item) => item.id));
+            cursor = page.nextCursor;
+          } while (cursor);
+          assert.equal(new Set(reached).size, 137);
+          await assert.rejects(
+            () =>
+              read.providerFeed(providerRequest, {
+                projectId,
+                cursor: {
+                  afterId: "absent",
+                  revision: 1,
+                  scopeDigest: current.scene.scopeDigest,
+                },
+              }),
+            denied("INVALID_REFERENCE"),
+          );
+          const reviewed = await read.catalogue(providerRequest, {
+            projectId,
+            kind: "provider",
+            resourceId: serviceId,
+          });
+          assert.equal(reviewed.items.length, 1);
+          assert.equal(reviewed.items[0]!.version, 1);
+          assert.equal(reviewed.items[0]!.kind, "provider");
+          await assert.rejects(
+            () => read.catalogue(request(), { projectId, kind: "provider" }),
+            denied("FORBIDDEN"),
+          );
+          await assert.rejects(
+            () =>
+              read.catalogue(providerRequest, { projectId, kind: "source" }),
+            denied("FORBIDDEN"),
+          );
           assert.equal(current.scene.providerExposures.length, 137);
           assert.ok(
             current.scene.providerExposures.every(

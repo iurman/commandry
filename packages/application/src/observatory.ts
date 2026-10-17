@@ -52,7 +52,12 @@ import {
   observatoryCatalogueQuerySchema,
   observatoryCatalogueResultSchema,
   type ObservatoryCatalogueQuery,
-} from "../../contracts/src/observatory-catalogue";
+} from "@commandry/contracts";
+import {
+  observatoryProviderFeedQuerySchema,
+  observatoryProviderFeedRecordsSchema,
+  observatoryProviderFeedResultSchema,
+} from "@commandry/contracts";
 
 /** Server-established scope, never public request JSON or a new credential system. */
 export interface ObservatoryReadAccess {
@@ -73,6 +78,11 @@ export interface ObservatoryReadRecords {
   /** Complete scoped canonical configuration, including inactive records.
    * No raw source payloads, credentials, sessions or secret configuration. */
   readCatalogue?(): Promise<unknown[]>;
+  /** Recorded public status only, within the same authorized transaction. */
+  readProviderFeed?(input: {
+    afterId?: string;
+    limit: number;
+  }): Promise<unknown>;
 }
 /**
  * The adapter reuses createFoundationProjectReadAccessRepository. Authenticate
@@ -837,6 +847,53 @@ export function createObservatoryReadService<Request>(
       invalid();
   }
   return {
+    async providerFeed(request: Request, rawQuery: unknown) {
+      const query = observatoryProviderFeedQuerySchema.parse(rawQuery);
+      return read(
+        request,
+        query,
+        "observatory.providers.read",
+        (input, raw: unknown) => {
+          digest(raw);
+          const page = observatoryProviderFeedRecordsSchema.parse(raw);
+          const scene = projectAuthorized(input);
+          if (
+            page.notices.length > query.limit ||
+            (page.nextCursor !== null && page.notices.length !== query.limit) ||
+            (query.cursor !== null &&
+              (query.cursor.scopeDigest !== scene.scopeDigest ||
+                query.cursor.revision !== page.revision ||
+                page.notices.some((item) => item.id === query.cursor!.afterId)))
+          )
+            invalid();
+          const { notices, nextCursor, ...feed } = page;
+          return observatoryProviderFeedResultSchema.parse({
+            schemaVersion: 1,
+            scopeDigest: scene.scopeDigest,
+            projectionRevision: scene.projectionRevision,
+            population: "recorded_provider_notices",
+            feed,
+            items: notices,
+            nextCursor:
+              nextCursor === null
+                ? null
+                : {
+                    afterId: nextCursor,
+                    revision: page.revision,
+                    scopeDigest: scene.scopeDigest,
+                  },
+          });
+        },
+        async (_input, records) => {
+          if (!records.readProviderFeed)
+            throw new Error("Provider feed is unavailable");
+          return records.readProviderFeed({
+            limit: query.limit,
+            ...(query.cursor ? { afterId: query.cursor.afterId } : {}),
+          });
+        },
+      );
+    },
     async catalogue(request: Request, rawQuery: unknown) {
       const query = observatoryCatalogueQuerySchema.parse(rawQuery);
       return read(

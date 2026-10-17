@@ -10,7 +10,7 @@ import type {
 } from "@commandry/contracts";
 import { foundationProjectWorkQuerySchema } from "@commandry/contracts";
 import { FoundationError, foundationDigest } from "@commandry/domain";
-import { createObservatoryOwnerWorkService } from "../../application/src/observatory-work";
+import { createObservatoryOwnerWorkService } from "@commandry/application";
 import { createDatabase } from "./client";
 import { createLocalAgentRepository } from "./local-agent-repository";
 import { createWorkAssignmentRepository } from "./work-assignment-repository";

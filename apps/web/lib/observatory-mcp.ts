@@ -42,6 +42,18 @@ export function createObservatoryMcpReads(
     projectId: context.projectId,
   });
   return {
+    catalogue: (input) => {
+      const operation: Operation =
+        input.kind === "provider"
+          ? "observatory.providers.read"
+          : "observatory.read";
+      return service(operation).catalogue(request(operation), query(input));
+    },
+    providerFeed: (input) =>
+      service("observatory.providers.read").providerFeed(
+        request("observatory.providers.read"),
+        query(input),
+      ),
     operationalEvidence: (input) => {
       const operation: Operation =
         input.facet === "security"

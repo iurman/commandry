@@ -73,7 +73,20 @@ async function fixture(grants = operations) {
           requests.push(request);
           if (!access.operations.includes(operation))
             throw new FoundationError("FORBIDDEN");
-          return callback(access, { readObservatory: async () => input });
+          return callback(access, {
+            readObservatory: async () => input,
+            readCatalogue: async () => [],
+            readProviderFeed: async () => ({
+              state: "unknown",
+              lastSuccessAt: null,
+              lastAttemptAt: null,
+              lastError: null,
+              revision: 0,
+              snapshot: null,
+              notices: [],
+              nextCursor: null,
+            }),
+          });
         },
       },
       { environment: "test", now: () => new Date(input.now) },
@@ -120,14 +133,18 @@ describe("Observatory discovery and reads over the actual MCP SDK", () => {
     const f = await fixture();
     try {
       const tools = (await f.client.listTools()).tools;
-      expect(tools.map((t) => t.name).sort()).toEqual([
-        "get_observatory_operational_evidence",
-        "get_observatory_provider_explanation",
-        "get_observatory_scene",
-        "get_observatory_signal_evidence",
-        "list_observatory_members",
-        "list_observatory_relations",
-      ]);
+      expect(tools.map((t) => t.name).sort()).toEqual(
+        [
+          "get_observatory_operational_evidence",
+          "get_observatory_provider_explanation",
+          "get_observatory_scene",
+          "get_observatory_signal_evidence",
+          "list_observatory_members",
+          "list_observatory_relations",
+          "list_observatory_provider_notices",
+          "list_observatory_reviewed_configuration",
+        ].sort(),
+      );
       for (const tool of tools) {
         expect(tool.inputSchema.additionalProperties).toBe(false);
         expect(tool.inputSchema.properties).not.toHaveProperty("projectId");
@@ -146,6 +163,27 @@ describe("Observatory discovery and reads over the actual MCP SDK", () => {
         f.input.resources.map((r) => r.id).sort(),
       );
       expect(dto).toEqual(await f.reads.scene({}));
+      const catalogue = await f.client.callTool({
+        name: "list_observatory_reviewed_configuration",
+        arguments: { kind: "relation" },
+      });
+      expect(catalogue.isError).not.toBe(true);
+      expect(catalogue.structuredContent).toMatchObject({
+        completeness: "complete",
+        kind: "relation",
+        items: [],
+      });
+      const feed = await f.client.callTool({
+        name: "list_observatory_provider_notices",
+        arguments: {},
+      });
+      expect(feed.isError).not.toBe(true);
+      expect(feed.structuredContent).toMatchObject({
+        population: "recorded_provider_notices",
+        feed: { state: "unknown", snapshot: null },
+        items: [],
+        nextCursor: null,
+      });
       expect(result.content).toEqual([
         { type: "text", text: JSON.stringify(result.structuredContent) },
       ]);
@@ -197,6 +235,20 @@ describe("Observatory discovery and reads over the actual MCP SDK", () => {
     try {
       const tools = (await f.client.listTools()).tools.map((t) => t.name);
       expect(tools).not.toContain("get_observatory_provider_explanation");
+      expect(tools).not.toContain("list_observatory_provider_notices");
+      expect(tools).toContain("list_observatory_reviewed_configuration");
+      const protectedCatalogue = await f.client.callTool({
+        name: "list_observatory_reviewed_configuration",
+        arguments: { kind: "provider" },
+      });
+      expect(protectedCatalogue.structuredContent).toEqual({
+        code: "FORBIDDEN",
+      });
+      const ownerOnly = await f.client.callTool({
+        name: "list_observatory_reviewed_configuration",
+        arguments: { kind: "source" },
+      });
+      expect(ownerOnly.structuredContent).toEqual({ code: "INVALID_INPUT" });
       const resourceId = f.input.resources[0]!.id;
       const denied = await f.client.callTool({
         name: "get_observatory_signal_evidence",

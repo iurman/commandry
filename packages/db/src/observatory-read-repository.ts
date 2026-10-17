@@ -19,6 +19,8 @@ import { auditEvent } from "./schema";
 import {
   collectObservatoryRecords,
   readObservatoryOperationalRecords,
+  readObservatoryCatalogueRecords,
+  collectObservatoryProviderFeedRecords,
 } from "./observatory-records";
 
 type ReadOperation =
@@ -61,6 +63,13 @@ export function createObservatoryMachineReadRepository(
         })());
       return {
         scope,
+        readCatalogue: async () =>
+          readObservatoryCatalogueRecords(tx, {
+            projectId: request.projectId,
+            ...(await scope()),
+          }),
+        readProviderFeed: (input: { afterId?: string; limit: number }) =>
+          collectObservatoryProviderFeedRecords(tx, input, now()),
         readOperationalEvidence: async (resourceId: string) =>
           readObservatoryOperationalRecords(tx, resourceId, {
             projectId: request.projectId,
@@ -135,6 +144,14 @@ export function createObservatoryOwnerReadRepository(
             environment: options.environment,
           };
           const result = await callback(access, {
+            readCatalogue: () =>
+              readObservatoryCatalogueRecords(tx, {
+                ...(request.projectId ? { projectId: request.projectId } : {}),
+                resourceIds: null,
+                scopeDigest,
+              }),
+            readProviderFeed: (input: { afterId?: string; limit: number }) =>
+              collectObservatoryProviderFeedRecords(tx, input, now()),
             readOperationalEvidence: (resourceId: string) =>
               readObservatoryOperationalRecords(tx, resourceId, {
                 ...(request.projectId ? { projectId: request.projectId } : {}),
