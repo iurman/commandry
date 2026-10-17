@@ -228,9 +228,28 @@ export function createObservatoryManagementRepository(
                   : !["service", "deployment", "host"].includes(r.kind))
               )
                 throw new FoundationError("INVALID_REFERENCE");
+              const [binding] = await write
+                .select({ id: projectResourceLink.id })
+                .from(projectResourceLink)
+                .where(
+                  and(
+                    eq(projectResourceLink.projectId, v.projectId),
+                    eq(projectResourceLink.resourceId, v.resourceId),
+                    eq(projectResourceLink.lifecycle, "active"),
+                  ),
+                )
+                .for("share")
+                .limit(1);
+              if (!binding)
+                throw new FoundationError(
+                  "INVALID_REFERENCE",
+                  "Source requires an active project resource binding",
+                );
               const row = {
                 id,
                 resourceId: v.resourceId,
+                projectId: v.projectId,
+                environment: v.environment,
                 kind: v.kind,
                 externalId: v.externalId,
                 enabled: v.enabled,
@@ -302,6 +321,7 @@ export function createObservatoryManagementRepository(
                 note: value.review.note,
               },
             });
+            await requireWorkflowOwnerSession(write, owner, clock(), false);
             return next;
           });
         } catch (error) {

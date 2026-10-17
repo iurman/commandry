@@ -498,6 +498,13 @@
       "when": 1792194343561,
       "tag": "0070_observatory_canonical_records",
       "breakpoints": true
+    },
+    {
+      "idx": 71,
+      "version": "7",
+      "when": 1792194343562,
+      "tag": "0071_observatory_source_scope",
+      "breakpoints": true
     }
   ]
 }

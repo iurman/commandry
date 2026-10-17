@@ -9,7 +9,18 @@ import {
 const id = z.uuid().toLowerCase();
 const expectedVersion = z.number().int().nonnegative();
 const review = z.strictObject({
-  evidenceRefs: z.array(z.string().min(1).max(2000)).min(1),
+  evidenceRefs: z
+    .array(
+      z
+        .string()
+        .min(1)
+        .max(2000)
+        .refine(
+          (value) => value.trim().length > 0,
+          "Evidence reference must not be blank",
+        ),
+    )
+    .min(1),
   note: z.string().trim().min(1).max(4000),
 });
 export const observatoryAnnotationChangeSchema = z.strictObject({
@@ -71,6 +82,8 @@ export const observatorySourceBindingChangeSchema = z
     id,
     expectedVersion,
     resourceId: id,
+    projectId: id,
+    environment: z.string().trim().min(1).max(100).nullable(),
     kind: z.enum(["infraagent-monitor", "github-repository"]),
     externalId: z.string().trim().min(1).max(250),
     enabled: z.boolean(),

@@ -43,6 +43,17 @@ export async function readInfrastructureOverviewRecords(
     projectIds?: readonly string[];
   } = {},
 ) {
+  const sourceProject = (
+    column:
+      | typeof integrationInstance.projectId
+      | typeof normalizedEvent.projectId
+      | typeof metricSample.projectId,
+  ) =>
+    scope.projectIds
+      ? scope.projectIds.length
+        ? inArray(column, [...scope.projectIds])
+        : sql`false`
+      : undefined;
   const term = query.q.replace(/[\\%_]/g, "\\$&");
   const population = and(
     scope.resourceIds
@@ -126,7 +137,12 @@ export async function readInfrastructureOverviewRecords(
       realIntegrationState,
       eq(realIntegrationState.integrationInstanceId, integrationInstance.id),
     )
-    .where(inArray(integrationInstance.resourceId, ids))
+    .where(
+      and(
+        inArray(integrationInstance.resourceId, ids),
+        sourceProject(integrationInstance.projectId),
+      ),
+    )
     .orderBy(integrationInstance.id);
   const dependencies = await tx
     .select()
@@ -147,9 +163,16 @@ export async function readInfrastructureOverviewRecords(
       sourceEnvelope,
       eq(sourceEnvelope.id, normalizedEvent.sourceEnvelopeId),
     )
+    .innerJoin(
+      integrationInstance,
+      eq(integrationInstance.id, sourceEnvelope.integrationInstanceId),
+    )
     .where(
       and(
         inArray(normalizedEvent.resourceId, ids),
+        sourceProject(normalizedEvent.projectId),
+        sourceProject(integrationInstance.projectId),
+        eq(normalizedEvent.projectId, integrationInstance.projectId),
         eq(normalizedEvent.isSynthetic, false),
         eq(normalizedEvent.sourceKind, "linux-host"),
       ),
@@ -170,16 +193,35 @@ export async function readInfrastructureOverviewRecords(
               latest.map((row) => row.id),
             ),
             eq(metricSample.isSynthetic, false),
+            sourceProject(metricSample.projectId),
           ),
         )
         .orderBy(metricSample.name)
     : [];
   const events = await tx
-    .select()
+    .select({
+      id: normalizedEvent.id,
+      resourceId: normalizedEvent.resourceId,
+      summary: normalizedEvent.summary,
+      occurredAt: normalizedEvent.occurredAt,
+      sourceLabel: normalizedEvent.sourceLabel,
+      sourceEnvelopeId: normalizedEvent.sourceEnvelopeId,
+    })
     .from(normalizedEvent)
+    .innerJoin(
+      sourceEnvelope,
+      eq(sourceEnvelope.id, normalizedEvent.sourceEnvelopeId),
+    )
+    .innerJoin(
+      integrationInstance,
+      eq(integrationInstance.id, sourceEnvelope.integrationInstanceId),
+    )
     .where(
       and(
         inArray(normalizedEvent.resourceId, ids),
+        sourceProject(normalizedEvent.projectId),
+        sourceProject(integrationInstance.projectId),
+        eq(normalizedEvent.projectId, integrationInstance.projectId),
         eq(normalizedEvent.isSynthetic, false),
       ),
     )

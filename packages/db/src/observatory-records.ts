@@ -6,6 +6,7 @@ import {
   foundationDigest,
   type ObservatoryInput,
   type ObservatoryResource,
+  combineObservatorySourceAccess,
 } from "@commandry/domain";
 import type { CommandryDatabase } from "./client";
 import { readInfrastructureOverviewRecords } from "./infrastructure-overview-repository";
@@ -15,7 +16,7 @@ import {
   observatoryRelation,
   observatorySource,
 } from "./observatory-schema";
-import { normalizedEvent, sourceEnvelope } from "./schema";
+import { normalizedEvent, sourceEnvelope, integrationInstance } from "./schema";
 
 type Transaction = Parameters<
   Parameters<CommandryDatabase["transaction"]>[0]
@@ -121,7 +122,14 @@ export async function collectObservatoryRecords(
   const sources = await tx
     .select()
     .from(observatorySource)
-    .where(inArray(observatorySource.resourceId, ids))
+    .where(
+      and(
+        inArray(observatorySource.resourceId, ids),
+        scope.projectId
+          ? eq(observatorySource.projectId, scope.projectId)
+          : undefined,
+      ),
+    )
     .orderBy(asc(observatorySource.id));
   // Total RAM comes from the validated original host sample, never utilization.
   const hostSamples = await tx
@@ -135,9 +143,20 @@ export async function collectObservatoryRecords(
       sourceEnvelope,
       eq(sourceEnvelope.id, normalizedEvent.sourceEnvelopeId),
     )
+    .innerJoin(
+      integrationInstance,
+      eq(integrationInstance.id, sourceEnvelope.integrationInstanceId),
+    )
     .where(
       and(
         inArray(normalizedEvent.resourceId, ids),
+        scope.projectId
+          ? eq(normalizedEvent.projectId, scope.projectId)
+          : undefined,
+        scope.projectId
+          ? eq(integrationInstance.projectId, scope.projectId)
+          : undefined,
+        eq(normalizedEvent.projectId, integrationInstance.projectId),
         eq(normalizedEvent.isSynthetic, false),
         eq(normalizedEvent.sourceKind, "linux-host"),
       ),
@@ -149,7 +168,17 @@ export async function collectObservatoryRecords(
     );
   const inputResources = resources.map((r) => {
     const sample = hostSamples.find((s) => s.resourceId === r.id);
-    const parsed = sample ? linuxHostSampleSchema.safeParse(sample.raw) : null;
+    let original: unknown = null;
+    // Real integrations retain the exact original JSON text in payload.
+    // Never treat the storage envelope itself as a host observation.
+    if (sample && typeof sample.raw.payload === "string") {
+      try {
+        original = JSON.parse(sample.raw.payload);
+      } catch {
+        original = null;
+      }
+    }
+    const parsed = sample ? linuxHostSampleSchema.safeParse(original) : null;
     return {
       ...r,
       parentResourceId:
@@ -176,7 +205,12 @@ export async function collectObservatoryRecords(
   });
   const signals = sources.flatMap((source) => {
     const value = source.snapshot?.signals;
-    return source.enabled && Array.isArray(value)
+    const state = source.snapshot?.details as
+      Record<string, unknown> | undefined;
+    return source.enabled &&
+      source.projectId &&
+      state?.sourceState !== "disabled" &&
+      Array.isArray(value)
       ? (value as NonNullable<ObservatoryInput["signals"]>[number][])
       : [];
   });
@@ -190,11 +224,16 @@ export async function collectObservatoryRecords(
       facet,
       state: !source.enabled
         ? "disabled"
-        : source.lastError
+        : !source.projectId
           ? "unavailable"
-          : source.snapshot
-            ? "available"
-            : "unavailable",
+          : (source.snapshot?.details as Record<string, unknown> | undefined)
+                ?.sourceState === "disabled"
+            ? "disabled"
+            : source.lastError
+              ? "unavailable"
+              : source.snapshot
+                ? "available"
+                : "unavailable",
     });
   }
   return {
@@ -219,6 +258,6 @@ export async function collectObservatoryRecords(
     relations: relations.map((r) => r.record),
     providerDependencies: mappings.map((m) => m.record),
     signals,
-    facetAccess,
+    facetAccess: combineObservatorySourceAccess(facetAccess),
   };
 }

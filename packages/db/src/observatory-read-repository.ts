@@ -147,14 +147,19 @@ export function createObservatoryOwnerReadRepository(
               now(),
               false,
             );
-          await tx
-            .insert(auditEvent)
-            .values({
-              id: randomUUID(),
-              actor: request.identity?.principalId ?? "local-owner",
-              operation: "observatory.read",
-              details: { scopeDigest, environment: options.environment },
-            });
+          await tx.insert(auditEvent).values({
+            id: randomUUID(),
+            actor: request.identity?.principalId ?? "local-owner",
+            operation: "observatory.read",
+            details: { scopeDigest, environment: options.environment },
+          });
+          if (request.identity)
+            await requireWorkflowOwnerSession(
+              tx,
+              request.identity,
+              now(),
+              false,
+            );
           return result;
         },
         { isolationLevel: "repeatable read" },

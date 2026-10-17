@@ -17,7 +17,7 @@ import type {
   ObservatoryRelation,
   ObservatorySignal,
 } from "@commandry/domain";
-import { resource } from "./schema";
+import { project, resource } from "./schema";
 import { foundationClient } from "./foundation-schema";
 const at = (name: string) => timestamp(name, { withTimezone: true });
 
@@ -126,6 +126,10 @@ export const observatorySource = pgTable(
   "observatory_source",
   {
     id: uuid("id").primaryKey(),
+    projectId: uuid("project_id").references(() => project.id, {
+      onDelete: "restrict",
+    }),
+    environment: text("environment"),
     resourceId: uuid("resource_id")
       .notNull()
       .references(() => resource.id, { onDelete: "restrict" }),

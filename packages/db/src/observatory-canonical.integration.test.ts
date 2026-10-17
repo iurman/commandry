@@ -55,21 +55,17 @@ test(
       serviceId = randomUUID(),
       repoId = randomUUID(),
       foreignId = randomUUID();
-    await admin.db
-      .insert(user)
-      .values({
-        id: userId,
-        name: "Observatory owner",
-        email: userId + "@example.test",
-      });
-    await admin.db
-      .insert(session)
-      .values({
-        id: sessionId,
-        userId,
-        token: randomUUID(),
-        expiresAt: new Date(expiresAt),
-      });
+    await admin.db.insert(user).values({
+      id: userId,
+      name: "Observatory owner",
+      email: userId + "@example.test",
+    });
+    await admin.db.insert(session).values({
+      id: sessionId,
+      userId,
+      token: randomUUID(),
+      expiresAt: new Date(expiresAt),
+    });
     await admin.db.insert(project).values([
       { id: projectId, name: "Authorized scene" },
       { id: otherProjectId, name: "Private project" },
@@ -85,30 +81,26 @@ test(
       { id: repoId, name: "Known repository", kind: "repository" },
       { id: foreignId, name: "Hidden", kind: "host" },
     ]);
-    await admin.db
-      .insert(projectResourceLink)
-      .values(
-        [hostId, serviceId, repoId].map((resourceId) => ({
-          id: randomUUID(),
-          projectId,
-          resourceId,
-          type: "relates_to" as const,
-          sourceKind: "project" as const,
-          targetKind: "resource" as const,
-          lifecycle: "active" as const,
-        })),
-      );
-    await admin.db
-      .insert(projectResourceLink)
-      .values({
+    await admin.db.insert(projectResourceLink).values(
+      [hostId, serviceId, repoId].map((resourceId) => ({
         id: randomUUID(),
-        projectId: otherProjectId,
-        resourceId: foreignId,
-        type: "relates_to",
-        sourceKind: "project",
-        targetKind: "resource",
-        lifecycle: "active",
-      });
+        projectId,
+        resourceId,
+        type: "relates_to" as const,
+        sourceKind: "project" as const,
+        targetKind: "resource" as const,
+        lifecycle: "active" as const,
+      })),
+    );
+    await admin.db.insert(projectResourceLink).values({
+      id: randomUUID(),
+      projectId: otherProjectId,
+      resourceId: foreignId,
+      type: "relates_to",
+      sourceKind: "project",
+      targetKind: "resource",
+      lifecycle: "active",
+    });
     const owner = { principalId: "user:" + userId, sessionId, expiresAt };
     const service = createObservatoryManagementService(
       createObservatoryManagementRepository(runtime.db),
@@ -223,6 +215,8 @@ test(
             id,
             expectedVersion: 0,
             resourceId: repoId,
+            projectId,
+            environment: "test",
             kind: "github-repository",
             externalId: "example/project",
             enabled: false,
@@ -242,6 +236,8 @@ test(
             id,
             expectedVersion: 1,
             resourceId: repoId,
+            projectId,
+            environment: "test",
             kind: "github-repository",
             externalId: "example/new-project",
             enabled: false,
@@ -313,19 +309,17 @@ test(
             kind: "repository",
           }));
           await admin.db.insert(resource).values(extra);
-          await admin.db
-            .insert(projectResourceLink)
-            .values(
-              extra.map((r) => ({
-                id: randomUUID(),
-                projectId,
-                resourceId: r.id,
-                type: "relates_to" as const,
-                sourceKind: "project" as const,
-                targetKind: "resource" as const,
-                lifecycle: "active" as const,
-              })),
-            );
+          await admin.db.insert(projectResourceLink).values(
+            extra.map((r) => ({
+              id: randomUUID(),
+              projectId,
+              resourceId: r.id,
+              type: "relates_to" as const,
+              sourceKind: "project" as const,
+              targetKind: "resource" as const,
+              lifecycle: "active" as const,
+            })),
+          );
           const input = await runtime.db.transaction(
             (tx) =>
               collectObservatoryRecords(tx, {
