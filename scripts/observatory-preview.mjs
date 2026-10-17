@@ -59,23 +59,27 @@ let web,
   admin,
   started = false,
   stopping = false;
-async function stop() {
-  if (stopping) return;
+let stopPromise;
+function stop() {
+  if (stopPromise) return stopPromise;
   stopping = true;
-  if (web && web.exitCode === null) {
-    web.kill("SIGTERM");
-    await Promise.race([
-      new Promise((done) => web.once("exit", done)),
-      delay(5000).then(() => web.kill("SIGKILL")),
-    ]);
-  }
-  await admin?.close();
-  if (started) await postgres.stop();
-  await rm(directory, { recursive: true, force: true });
-  await writeFile(
-    join(evidence, "stopped.json"),
-    JSON.stringify({ stoppedAt: new Date().toISOString(), origin }),
-  );
+  stopPromise = (async () => {
+    if (web && web.exitCode === null) {
+      web.kill("SIGTERM");
+      await Promise.race([
+        new Promise((done) => web.once("exit", done)),
+        delay(5000).then(() => web.kill("SIGKILL")),
+      ]);
+    }
+    await admin?.close();
+    if (started) await postgres.stop();
+    await rm(directory, { recursive: true, force: true });
+    await writeFile(
+      join(evidence, "stopped.json"),
+      JSON.stringify({ stoppedAt: new Date().toISOString(), origin }),
+    );
+  })();
+  return stopPromise;
 }
 process.once("SIGTERM", () => void stop().then(() => process.exit()));
 process.once("SIGINT", () => void stop().then(() => process.exit()));
@@ -202,7 +206,13 @@ try {
     JSON.stringify({ email, password: ownerPassword, origin }),
     { mode: 0o600 },
   );
-  const standalone = join(root, "apps/web/.next/standalone/apps/web");
+  // Each preview serves a private copy so later checks cannot replace its assets.
+  const standaloneRoot = join(directory, "standalone");
+  await cp(join(root, "apps/web/.next/standalone"), standaloneRoot, {
+    recursive: true,
+    verbatimSymlinks: true,
+  });
+  const standalone = join(standaloneRoot, "apps/web");
   await mkdir(join(standalone, ".next"), { recursive: true });
   await cp(
     join(root, "apps/web/.next/static"),
@@ -265,6 +275,7 @@ try {
     webPid: web.pid,
     startedAt: new Date().toISOString(),
     externalPolling: false,
+    runtimeAssets: "Private copy of the built Next standalone output",
   };
   await writeFile(
     join(evidence, "receipt.json"),
@@ -273,7 +284,9 @@ try {
   console.log(JSON.stringify(receipt));
   await new Promise((done, reject) => {
     web.once("exit", (code) =>
-      code === 0 ? done() : reject(new Error("Preview stopped unexpectedly")),
+      stopping || code === 0
+        ? done()
+        : reject(new Error("Preview stopped unexpectedly")),
     );
   });
 } finally {

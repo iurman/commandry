@@ -42,6 +42,33 @@ test(
         jitterSeconds: () => 0,
       });
     const poll = repo();
+    // Earlier integration scenarios retain immutable provider history in this DB.
+    // Traverse every page so an inactive earlier notice cannot hide this fixture.
+    const readComplete = async (reader = poll) => {
+      const notices: Awaited<ReturnType<typeof reader.read>>["notices"] = [];
+      const cursors = new Set<string>();
+      let first: Awaited<ReturnType<typeof reader.read>> | undefined;
+      let cursor: string | undefined;
+      do {
+        const page = await reader.read({
+          limit: 100,
+          ...(cursor ? { afterId: cursor } : {}),
+        });
+        first ??= page;
+        notices.push(...page.notices);
+        cursor = page.nextCursor ?? undefined;
+        if (cursor) {
+          assert.equal(
+            cursors.has(cursor),
+            false,
+            "Provider cursor must advance",
+          );
+          cursors.add(cursor);
+        }
+      } while (cursor);
+      assert.equal(new Set(notices.map((row) => row.id)).size, notices.length);
+      return { ...first!, notices, nextCursor: null };
+    };
     const id = `incident-${crypto.randomUUID()}`;
     const record = (updatedAt = now().toISOString()): ProviderNotice => ({
       id,
@@ -128,10 +155,15 @@ test(
             claims.find(Boolean)!,
             result(snapshot([stableRecord])),
           );
-          const read = await repo().read();
+          const read = await readComplete(repo());
           assert.equal(read.state, "current");
           assert.equal(read.notices.filter((row) => row.id === id).length, 1);
-          const [raw] = await runtime.db.select().from(envelope);
+          const [raw] = await runtime.db
+            .select()
+            .from(envelope)
+            .where(
+              sql`${envelope.rawPayload}->'notices' @> ${JSON.stringify([{ id }])}::jsonb`,
+            );
           assert.equal(
             raw?.rawPayload.originalProviderField,
             "Preserve exact source extras",
@@ -141,10 +173,10 @@ test(
       await t.test(
         "duplicate delivery and repository restart keep notice, update and structural revision identities",
         async () => {
-          const before = await poll.read();
+          const before = await readComplete();
           const claim = await due();
           await repo().complete(claim, result(snapshot([stableRecord])));
-          const after = await repo().read();
+          const after = await readComplete(repo());
           assert.equal(after.revision, before.revision);
           const updates = await runtime.db
             .select()
@@ -161,13 +193,13 @@ test(
       await t.test(
         "out-of-order source snapshots cannot resolve or regress current incidents",
         async () => {
-          const previous = await poll.read();
+          const previous = await readComplete();
           const claim = await due();
           await poll.complete(
             claim,
             result(snapshot([], "2020-01-01T00:00:00Z")),
           );
-          const after = await poll.read();
+          const after = await readComplete();
           assert.equal(after.revision, previous.revision);
           assert.equal(after.lastError, "PROVIDER_OUT_OF_ORDER");
           assert.equal(
@@ -179,10 +211,10 @@ test(
       await t.test(
         "failed reads retain last-known notices and source timestamps, then honor retry delay",
         async () => {
-          const before = await poll.read();
+          const before = await readComplete();
           const claim = await due();
           await poll.fail(claim, "PROVIDER_RATE_LIMITED", 600);
-          const after = await poll.read();
+          const after = await readComplete();
           assert.equal(after.state, "unavailable");
           assert.equal(after.lastSuccessAt, before.lastSuccessAt);
           assert.equal(
@@ -206,7 +238,7 @@ test(
           assert.ok(current);
           await poll.complete(expired, result(snapshot([])));
           assert.equal(
-            (await poll.read()).notices.find((row) => row.id === id)?.active,
+            (await readComplete()).notices.find((row) => row.id === id)?.active,
             true,
           );
           await poll.complete(current, result(snapshot([stableRecord])));
@@ -217,7 +249,7 @@ test(
         async () => {
           const claim = await due();
           await poll.complete(claim, result(snapshot([])));
-          const current = await poll.read();
+          const current = await readComplete();
           const old = current.notices.find((row) => row.id === id);
           assert.equal(old?.active, false);
           assert.ok(old?.reconciledAt);
@@ -239,7 +271,12 @@ test(
               error.cause instanceof Error &&
               error.cause.message === "Provider source history is immutable",
           );
-          const [raw] = await runtime.db.select().from(envelope);
+          const [raw] = await runtime.db
+            .select()
+            .from(envelope)
+            .where(
+              sql`${envelope.rawPayload}->'notices' @> ${JSON.stringify([{ id }])}::jsonb`,
+            );
           assert.ok(raw);
           await assert.rejects(
             runtime.db.delete(envelope).where(eq(envelope.id, raw.id)),
@@ -260,15 +297,15 @@ test(
             etag: claim.etag,
             retrySeconds: 120,
           });
-          const before = await poll.read();
+          const before = await readComplete();
           assert.equal(before.state, "current");
           time += 601_000;
-          assert.equal((await poll.read()).state, "stale");
+          assert.equal((await readComplete()).state, "stale");
           await runtime.db
             .update(feed)
             .set({ enabled: false })
             .where(eq(feed.id, "cloudflare"));
-          assert.equal((await poll.read()).state, "disabled");
+          assert.equal((await readComplete()).state, "disabled");
           assert.equal(await poll.claim(), null);
           await runtime.db
             .update(feed)

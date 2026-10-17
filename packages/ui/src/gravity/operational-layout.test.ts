@@ -435,6 +435,84 @@ describe("operational component interactions with the real semantic scene", () =
       nextCursor: cursor === null ? { projectId, afterId: firstId } : null,
     };
   }
+  it("retargets operational evidence and review controls without retaining prior panels", async () => {
+    const { input, scene, props } = setup();
+    const snapshot: InfrastructureOverview = {
+      ...props.snapshot,
+      items: input.resources.map((resource) => ({
+        ...resource,
+        health: "unknown" as const,
+        projects: resource.projects.map((project) => ({ ...project })),
+        sources: resource.sources.map((source) => ({
+          ...source,
+          name: "Synthetic source",
+          kind: "linux-host",
+        })),
+        metrics: resource.metrics.map((metric) => ({ ...metric })),
+      })),
+    };
+    const clientProps = {
+      ...props,
+      snapshot,
+      workProjectIds: input.projects.map((project) => project.id),
+      evidenceClient: async (resourceId: string, facet: string) => ({
+        schemaVersion: 1,
+        scopeDigest: scene.scopeDigest,
+        projectionRevision: scene.projectionRevision,
+        completeness: "complete",
+        resourceId,
+        facet,
+        access: "unsupported",
+        items: [],
+      }),
+      reviewClient: {
+        loadCatalogue: vi.fn(async () => ({})),
+        review: vi.fn(async () => ({})),
+      },
+      onReviewed: vi.fn(),
+    };
+    const view = render(createElement(OperationalObservatory, clientProps));
+    const hosts = input.resources.filter(
+      (resource) => resource.kind === "host",
+    );
+    for (const resource of [hosts[0]!, hosts[1]!, hosts[2]!, hosts[0]!]) {
+      view.rerender(
+        createElement(OperationalObservatory, {
+          ...clientProps,
+          selectedId: resource.id,
+        }),
+      );
+      await waitFor(() => {
+        expect(
+          screen.getAllByRole("complementary", {
+            name: "Observatory inspector",
+          }),
+        ).toHaveLength(1);
+        expect(
+          screen.getAllByRole("heading", { name: /^Operational evidence$/ }),
+        ).toHaveLength(1);
+        expect(
+          screen.getAllByRole("region", { name: "Operational source details" }),
+        ).toHaveLength(1);
+      });
+      expect(
+        screen.getByRole("complementary", { name: "Observatory inspector" }),
+      ).toHaveTextContent(resource.id);
+    }
+    fireEvent.click(
+      within(
+        screen.getByRole("navigation", { name: "Observatory breadcrumbs" }),
+      ).getByRole("button", { name: /^Overview$/ }),
+    );
+    await waitFor(() => {
+      expect(
+        screen.queryAllByRole("heading", { name: /^Operational evidence$/ }),
+      ).toHaveLength(0);
+      expect(
+        screen.queryAllByRole("region", { name: "Operational source details" }),
+      ).toHaveLength(0);
+    });
+  });
   it("keeps canonical Work explicitly unavailable without a client in a collapsed panel below recorded observations", async () => {
     const { props } = setup();
     render(createElement(OperationalObservatory, props));

@@ -1719,7 +1719,7 @@ function OperationalObservatoryView({
           ) : null}
           {selected?.resourceId && evidenceClient && (
             <ObservatoryOperationalEvidence
-              key={`${scene.scopeDigest}:${selected.resourceId}`}
+              key={`evidence:${scene.scopeDigest}:${selected.resourceId}`}
               resourceId={selected.resourceId}
               scopeKey={scene.scopeDigest}
               repository={selected.kind === "repository"}
@@ -1733,7 +1733,7 @@ function OperationalObservatoryView({
             workProjectIds !== undefined &&
             reviewResources.some((item) => item.id === selected.resourceId) ? (
               <ObservatoryReviewControls
-                key={`${scene.scopeDigest}:${selected.resourceId}`}
+                key={`review:${scene.scopeDigest}:${selected.resourceId}`}
                 resource={reviewResources.find(
                   (item) => item.id === selected.resourceId,
                 )!}

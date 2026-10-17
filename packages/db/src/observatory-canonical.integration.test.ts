@@ -2,7 +2,7 @@ import assert from "node:assert/strict";
 import { randomUUID } from "node:crypto";
 import { readFile } from "node:fs/promises";
 import { test } from "node:test";
-import { eq, sql } from "drizzle-orm";
+import { eq, sql, inArray } from "drizzle-orm";
 import {
   createFoundationOwnerService,
   createObservatoryManagementService,
@@ -396,6 +396,13 @@ test(
         },
       );
     } finally {
+      // Release only this fixture's scheduled sources; immutable evidence stays intact.
+      await admin.db
+        .update(observatorySource)
+        .set({ enabled: false, leaseId: null, leaseUntil: null })
+        .where(
+          inArray(observatorySource.projectId, [projectId, otherProjectId]),
+        );
       await runtime.close();
       await admin.close();
     }
