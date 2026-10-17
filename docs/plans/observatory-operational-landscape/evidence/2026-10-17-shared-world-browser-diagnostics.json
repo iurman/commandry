@@ -331,7 +331,8 @@
     "all220PriorIdsConserved": true,
     "observedWorkSurface": "Work unavailable; complete authorized read and totals unavailable",
     "observedProviderFeed": "Feed unknown; last successful fetch and attempt never",
-    "consoleStatusAssociation": "not established; no request paths captured for401s"
+    "consoleStatusAssociation": "not established; no request paths captured for401s",
+    "staticAuthQualification": "Work explicitly requires password owner even in test; anonymous-local-off deterministically denies it before session lookup. Provider-feed uses general Observatory read boundary; unknown can be a valid recorded state. This does not assign any of the31console401paths or prove the recorded actual feed response."
   },
   "cleanup": {
     "normalHelperExit": 0,

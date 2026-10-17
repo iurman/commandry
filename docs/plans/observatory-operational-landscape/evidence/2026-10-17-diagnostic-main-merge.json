@@ -1,0 +1,14 @@
+{
+  "pr": "https://github.com/iurman/commandry/pull/26",
+  "previousMain": "74d41481dfbcfdfb4faa2730c60078d81151079b",
+  "reviewedHead": "8343599a3c184ac690057301aa03d8494766a5e6",
+  "mergedMain": "a1c760aa161dba3c225f030d9597a99f6b295129",
+  "normalMerge": true,
+  "priorMainIsAncestor": true,
+  "reviewedHeadIsAncestor": true,
+  "mergedTreeEqualsReviewedTree": true,
+  "requiredChecks": [],
+  "actualReview": "Independent Astra source/helper/workflow/executed evidence ACCEPT; root packet rechecks and shared-world15PASS",
+  "publication": false,
+  "deployment": false
+}

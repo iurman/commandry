@@ -12,8 +12,17 @@ controls and 12 passing built browser cases across desktop and phone layouts,
 including full-inventory 4K presentation. Corrective PR25 is normally merged;
 full hosted release39047712252 passed container startup and failed two desktop
 browser cases. T37 diagnostics now pass fifteen shared-world browser cases with
-independent review; the full hosted boundary still needs its instrumented main run
-before publication and deployment. The
+independent review; diagnostic PR26 is normally merged and the instrumented full
+main run39051075901 completes with 200 passes, five original skips and two
+failures, with diagnostic artifacts retained. Independent trace reviews support
+bounded test-observation controls. Their real four-CPU candidate still passes
+13 of 15 cases and is rejected for release convergence. Matched native profiling
+retains those failures and supports a bounded aggregate-budget calibration.
+The exact two-literal candidate now passes all 15 original cases without
+profiling, retries or skips, with independent source/execution acceptance and
+strict physical cleanup. Explicit guards remain; implicit waits can grow.
+Full 207-case main release, publication, genuine approval, deployment and live
+activation remain unfinished. The
 [58-scenario completion ledger](../plans/observatory-operational-landscape/COVERAGE.md)
 records 53 local passes, five explicit limitations and the remaining deployment
 and source-activation gates.

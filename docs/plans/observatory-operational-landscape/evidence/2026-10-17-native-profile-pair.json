@@ -1,0 +1,944 @@
+{
+  "status": "Actual matched diagnostic execution; original application acceptance failed in both trials",
+  "sourceRevision": "e3d370413fba4da29a9caf5dbed91b621e61c535",
+  "sameFifteenTitleProjectIds": true,
+  "sameSourceAndHelperHashes": true,
+  "runtime": "Fresh private built Next.js assets and disposable PostgreSQL18 per run; external polling false; local test auth off",
+  "pair": {
+    "off": {
+      "runId": "run-4cb1802f-9286-4ff7-8271-1e294c501c07",
+      "profileFlag": "0",
+      "buildId": "9Aqc8NQne5u7rNYiofiMq",
+      "sourceRevision": "e3d370413fba4da29a9caf5dbed91b621e61c535",
+      "sourceClean": true,
+      "controllerAffinity": [0, 1, 2, 3],
+      "workers": 2,
+      "testExitCode": 1,
+      "stats": {
+        "startTime": "2026-10-17T18:41:52.800Z",
+        "duration": 265022.352,
+        "expected": 13,
+        "skipped": 0,
+        "unexpected": 2,
+        "flaky": 0
+      },
+      "cases": [
+        {
+          "id": "6f37ed144ac7e3e7d70f-2c8d6dcc018616c3b975",
+          "title": "one master scene renders and inspects the complete multi-page inventory",
+          "project": "desktop",
+          "status": "unexpected",
+          "results": [
+            {
+              "status": "timedOut",
+              "durationMs": 182800,
+              "errors": [
+                "\u001b[31mTest timeout of 180000ms exceeded.\u001b[39m",
+                "Error: locator.click: Test timeout of 180000ms exceeded.\nCall log:\n\u001b[2m  - waiting for getByRole('region', { name: 'Operational Observatory', exact: true }).locator('.cmd-op-outline').locator('li[data-representation-id=\"resource\\\\:ac2680e9-b49a-45f5-9b9f-a05f87a30650\"] > .cmd-op-outline-row > button.cmd-op-expand')\u001b[22m\n\u001b[2m    - locator resolved to <button type=\"button\" class=\"cmd-op-expand\" aria-expanded=\"false\" aria-label=\"Expand Gravity fleet c14d17bf 070\">+</button>\u001b[22m\n\u001b[2m  - attempting click action\u001b[22m\n\u001b[2m    - waiting for element to be visible, enabled and stable\u001b[22m\n\n\n  384 |             const actionStarted = performance.now();\n  385 |             try {\n> 386 |               await outline.locator(target.selector).click();\n      |                                                      ^\n  387 |             } finally {\n  388 |               receipt(\"outline-pointer\", {\n  389 |                 pass,\n    at expandCompleteOutline (/home/urmani/.codex/worktrees/bbbf/commandry/.agent/worktrees/T41/tests/e2e/gravity-master-scene.spec.ts:386:54)\n    at /home/urmani/.codex/worktrees/bbbf/commandry/.agent/worktrees/T41/tests/e2e/gravity-master-scene.spec.ts:641:9"
+              ]
+            }
+          ]
+        },
+        {
+          "id": "6f37ed144ac7e3e7d70f-a9ee4c8487c0c080cc36",
+          "title": "one master scene renders and inspects the complete multi-page inventory",
+          "project": "phone-390",
+          "status": "expected",
+          "results": [
+            {
+              "status": "passed",
+              "durationMs": 73268,
+              "errors": []
+            }
+          ]
+        },
+        {
+          "id": "6f37ed144ac7e3e7d70f-d80fa7b53ce8b4c3df2d",
+          "title": "one master scene renders and inspects the complete multi-page inventory",
+          "project": "phone-320",
+          "status": "expected",
+          "results": [
+            {
+              "status": "passed",
+              "durationMs": 58758,
+              "errors": []
+            }
+          ]
+        },
+        {
+          "id": "fcf0b1ba6103123c426e-367fc263ec528c74a938",
+          "title": "map, list, evidence, project focus and wallboard work across themes and viewports",
+          "project": "desktop",
+          "status": "expected",
+          "results": [
+            {
+              "status": "passed",
+              "durationMs": 3907,
+              "errors": []
+            }
+          ]
+        },
+        {
+          "id": "fcf0b1ba6103123c426e-c54934dc16291ddcab2f",
+          "title": "scope is complete beyond the first page and delayed refresh retains labeled evidence",
+          "project": "desktop",
+          "status": "expected",
+          "results": [
+            {
+              "status": "passed",
+              "durationMs": 1221,
+              "errors": []
+            }
+          ]
+        },
+        {
+          "id": "fcf0b1ba6103123c426e-77feb0f21183f7fb64b6",
+          "title": "new persisted observations cue once and wallboard rotation stops for manual inspection",
+          "project": "desktop",
+          "status": "expected",
+          "results": [
+            {
+              "status": "passed",
+              "durationMs": 1733,
+              "errors": []
+            }
+          ]
+        },
+        {
+          "id": "fcf0b1ba6103123c426e-d7009507afd1067100b5",
+          "title": "Gravity uses canonical resources, persisted appearance, focus and truthful source evidence",
+          "project": "desktop",
+          "status": "unexpected",
+          "results": [
+            {
+              "status": "timedOut",
+              "durationMs": 122734,
+              "errors": [
+                "\u001b[31mTest timeout of 120000ms exceeded.\u001b[39m",
+                "Error: locator.focus: Test timeout of 120000ms exceeded.\nCall log:\n\u001b[2m  - waiting for getByRole('region', { name: 'Operational Observatory', exact: true }).locator('.cmd-op-canonical-work > summary')\u001b[22m\n\n\n  2116 |     await workSummary.click();\n  2117 |     await expect(workSummary).toBeInViewport();\n> 2118 |     await workSummary.focus();\n       |                       ^\n  2119 |     await workSummary.press(\"Enter\");\n  2120 |     await expect(gravity.locator(\".cmd-op-canonical-work\")).not.toHaveAttribute(\n  2121 |       \"open\",\n    at /home/urmani/.codex/worktrees/bbbf/commandry/.agent/worktrees/T41/tests/e2e/infrastructure-overview.spec.ts:2118:23"
+              ]
+            }
+          ]
+        },
+        {
+          "id": "fcf0b1ba6103123c426e-5d79cf15579b414f4a57",
+          "title": "map, list, evidence, project focus and wallboard work across themes and viewports",
+          "project": "phone-390",
+          "status": "expected",
+          "results": [
+            {
+              "status": "passed",
+              "durationMs": 4894,
+              "errors": []
+            }
+          ]
+        },
+        {
+          "id": "fcf0b1ba6103123c426e-c604338cb0fa454262b0",
+          "title": "scope is complete beyond the first page and delayed refresh retains labeled evidence",
+          "project": "phone-390",
+          "status": "expected",
+          "results": [
+            {
+              "status": "passed",
+              "durationMs": 1288,
+              "errors": []
+            }
+          ]
+        },
+        {
+          "id": "fcf0b1ba6103123c426e-99322d7a3dd676b0ea45",
+          "title": "new persisted observations cue once and wallboard rotation stops for manual inspection",
+          "project": "phone-390",
+          "status": "expected",
+          "results": [
+            {
+              "status": "passed",
+              "durationMs": 1119,
+              "errors": []
+            }
+          ]
+        },
+        {
+          "id": "fcf0b1ba6103123c426e-d98323494f2aa8849fe6",
+          "title": "Gravity uses canonical resources, persisted appearance, focus and truthful source evidence",
+          "project": "phone-390",
+          "status": "expected",
+          "results": [
+            {
+              "status": "passed",
+              "durationMs": 25655,
+              "errors": []
+            }
+          ]
+        },
+        {
+          "id": "fcf0b1ba6103123c426e-d3a1fc7a273a5a391b45",
+          "title": "map, list, evidence, project focus and wallboard work across themes and viewports",
+          "project": "phone-320",
+          "status": "expected",
+          "results": [
+            {
+              "status": "passed",
+              "durationMs": 5145,
+              "errors": []
+            }
+          ]
+        },
+        {
+          "id": "fcf0b1ba6103123c426e-6f341a159157d8949c4b",
+          "title": "scope is complete beyond the first page and delayed refresh retains labeled evidence",
+          "project": "phone-320",
+          "status": "expected",
+          "results": [
+            {
+              "status": "passed",
+              "durationMs": 1322,
+              "errors": []
+            }
+          ]
+        },
+        {
+          "id": "fcf0b1ba6103123c426e-4d40f60cbd482c80c2dd",
+          "title": "new persisted observations cue once and wallboard rotation stops for manual inspection",
+          "project": "phone-320",
+          "status": "expected",
+          "results": [
+            {
+              "status": "passed",
+              "durationMs": 1182,
+              "errors": []
+            }
+          ]
+        },
+        {
+          "id": "fcf0b1ba6103123c426e-c836a31912f9f217b47d",
+          "title": "Gravity uses canonical resources, persisted appearance, focus and truthful source evidence",
+          "project": "phone-320",
+          "status": "expected",
+          "results": [
+            {
+              "status": "passed",
+              "durationMs": 25402,
+              "errors": []
+            }
+          ]
+        }
+      ],
+      "cleanup": {
+        "helperErrors": [],
+        "controllerExitCode": 1,
+        "samplerExitCode": 0,
+        "retainedIdentityCount": 121,
+        "retainedGroupCount": 43,
+        "remainingKnownIdentities": [],
+        "remainingKnownGroups": [],
+        "remainingExclusiveCwdPopulation": [],
+        "runtimeDirectoryAbsent": true,
+        "originPortOpen": false,
+        "sameSourceAndHashes": true
+      },
+      "testAndHelperSha256": {
+        "tests/e2e/gravity-master-scene.spec.ts": "1fba77e2f32fcec251b6b7521fdc06608ea5537c3ee2bac736ea44ac14cc08e6",
+        "tests/e2e/infrastructure-overview.spec.ts": "af7c94735f9d9568d4880e12b2032e5b7b05532d1ded3dd139dc53a1002d0ddf",
+        "tests/e2e/observatory-outline-observer.ts": "27691659cede43161d9b126b1d585d2d77014e4808b42f036fe6ff871df66969",
+        "tests/e2e/observatory-diagnostic-profile.ts": "b75f382f0221c7c1db072a11178738d7c7c65762fa672d78bbfca581afa5f385",
+        ".agent/context/T39-control/preview.mjs": "4281f3dc0b200834e128b8c626bc81ec94ac40524a4440f39fe8bd93612ca353",
+        ".agent/context/T39-control/verify-pair.mjs": "720507a13bc33bed57f26829e3aecd998024aaf0a9a8d36cee20ef9ba153dc0b"
+      },
+      "projectRetries": {
+        "desktop": 0,
+        "phone-390": 0,
+        "phone-320": 0
+      }
+    },
+    "on": {
+      "runId": "run-504ca859-a26e-41eb-b650-382f021a9ad3",
+      "profileFlag": "1",
+      "buildId": "fi57HKH78wSjzV-GBHzXM",
+      "sourceRevision": "e3d370413fba4da29a9caf5dbed91b621e61c535",
+      "sourceClean": true,
+      "controllerAffinity": [0, 1, 2, 3],
+      "workers": 2,
+      "testExitCode": 1,
+      "stats": {
+        "startTime": "2026-10-17T18:48:41.891Z",
+        "duration": 277097.405,
+        "expected": 13,
+        "skipped": 0,
+        "unexpected": 2,
+        "flaky": 0
+      },
+      "cases": [
+        {
+          "id": "6f37ed144ac7e3e7d70f-2c8d6dcc018616c3b975",
+          "title": "one master scene renders and inspects the complete multi-page inventory",
+          "project": "desktop",
+          "status": "unexpected",
+          "results": [
+            {
+              "status": "failed",
+              "durationMs": 181970,
+              "errors": [
+                "Error: Test timeout of 180000ms exceeded\n\n  498 |           Number(await canvas.getAttribute(\"data-gravity-contributions\")),\n  499 |         )\n> 500 |         .toBe(scene.visibleRepresentationIds.length);\n      |          ^\n  501 |       end(\"grouping-conservation\", {\n  502 |         key: sceneKey(scene),\n  503 |         cursorPages: overviewPages.size,\n    at submittedFieldsMatchMeaning (/home/urmani/.codex/worktrees/bbbf/commandry/.agent/worktrees/T41/tests/e2e/gravity-master-scene.spec.ts:500:10)\n    at /home/urmani/.codex/worktrees/bbbf/commandry/.agent/worktrees/T41/tests/e2e/gravity-master-scene.spec.ts:642:9"
+              ]
+            }
+          ]
+        },
+        {
+          "id": "6f37ed144ac7e3e7d70f-a9ee4c8487c0c080cc36",
+          "title": "one master scene renders and inspects the complete multi-page inventory",
+          "project": "phone-390",
+          "status": "expected",
+          "results": [
+            {
+              "status": "passed",
+              "durationMs": 78919,
+              "errors": []
+            }
+          ]
+        },
+        {
+          "id": "6f37ed144ac7e3e7d70f-d80fa7b53ce8b4c3df2d",
+          "title": "one master scene renders and inspects the complete multi-page inventory",
+          "project": "phone-320",
+          "status": "expected",
+          "results": [
+            {
+              "status": "passed",
+              "durationMs": 59754,
+              "errors": []
+            }
+          ]
+        },
+        {
+          "id": "fcf0b1ba6103123c426e-367fc263ec528c74a938",
+          "title": "map, list, evidence, project focus and wallboard work across themes and viewports",
+          "project": "desktop",
+          "status": "expected",
+          "results": [
+            {
+              "status": "passed",
+              "durationMs": 4416,
+              "errors": []
+            }
+          ]
+        },
+        {
+          "id": "fcf0b1ba6103123c426e-c54934dc16291ddcab2f",
+          "title": "scope is complete beyond the first page and delayed refresh retains labeled evidence",
+          "project": "desktop",
+          "status": "expected",
+          "results": [
+            {
+              "status": "passed",
+              "durationMs": 1466,
+              "errors": []
+            }
+          ]
+        },
+        {
+          "id": "fcf0b1ba6103123c426e-77feb0f21183f7fb64b6",
+          "title": "new persisted observations cue once and wallboard rotation stops for manual inspection",
+          "project": "desktop",
+          "status": "expected",
+          "results": [
+            {
+              "status": "passed",
+              "durationMs": 2137,
+              "errors": []
+            }
+          ]
+        },
+        {
+          "id": "fcf0b1ba6103123c426e-d7009507afd1067100b5",
+          "title": "Gravity uses canonical resources, persisted appearance, focus and truthful source evidence",
+          "project": "desktop",
+          "status": "unexpected",
+          "results": [
+            {
+              "status": "timedOut",
+              "durationMs": 126812,
+              "errors": [
+                "\u001b[31mTest timeout of 120000ms exceeded.\u001b[39m",
+                "Error: locator.scrollIntoViewIfNeeded: Test timeout of 120000ms exceeded.\nCall log:\n\u001b[2m  - waiting for getByRole('region', { name: 'Operational Observatory', exact: true }).locator('.cmd-op-canvas canvas')\u001b[22m\n\u001b[2m    - locator resolved to visible <canvas role=\"img\" width=\"3464\" height=\"1356\" data-gravity-selected=\"\" data-gravity-textures=\"1\" data-gravity-main-focus=\"\" data-engine=\"three.js r186\" data-gravity-draw-calls=\"2\" data-gravity-geometries=\"2\" data-gravity-lens-amount=\"0\" data-gravity-contributions=\"3\" data-gravity-active-basins=\"3\" data-gravity-field-bytes=\"192\" data-gravity-rendered-frames=\"2\" data-gravity-field-texture=\"6x2\" data-gravity-planning-passes=\"1\" data-gravity-focus-requested=\"false\" data-gravity-planning-visits=\"31393\" dat\u2026></canvas>\u001b[22m\n\n\n  1085 |     }\n  1086 |     expect([...represented].sort()).toEqual(expectedIds);\n> 1087 |     await canvas.scrollIntoViewIfNeeded();\n       |                  ^\n  1088 |     await expect\n  1089 |       .poll(async () =>\n  1090 |         Number(await canvas.getAttribute(\"data-gravity-contributions\")),\n    at applied (/home/urmani/.codex/worktrees/bbbf/commandry/.agent/worktrees/T41/tests/e2e/infrastructure-overview.spec.ts:1087:18)\n    at /home/urmani/.codex/worktrees/bbbf/commandry/.agent/worktrees/T41/tests/e2e/infrastructure-overview.spec.ts:2152:5"
+              ]
+            }
+          ]
+        },
+        {
+          "id": "fcf0b1ba6103123c426e-5d79cf15579b414f4a57",
+          "title": "map, list, evidence, project focus and wallboard work across themes and viewports",
+          "project": "phone-390",
+          "status": "expected",
+          "results": [
+            {
+              "status": "passed",
+              "durationMs": 7300,
+              "errors": []
+            }
+          ]
+        },
+        {
+          "id": "fcf0b1ba6103123c426e-c604338cb0fa454262b0",
+          "title": "scope is complete beyond the first page and delayed refresh retains labeled evidence",
+          "project": "phone-390",
+          "status": "expected",
+          "results": [
+            {
+              "status": "passed",
+              "durationMs": 1309,
+              "errors": []
+            }
+          ]
+        },
+        {
+          "id": "fcf0b1ba6103123c426e-99322d7a3dd676b0ea45",
+          "title": "new persisted observations cue once and wallboard rotation stops for manual inspection",
+          "project": "phone-390",
+          "status": "expected",
+          "results": [
+            {
+              "status": "passed",
+              "durationMs": 1533,
+              "errors": []
+            }
+          ]
+        },
+        {
+          "id": "fcf0b1ba6103123c426e-d98323494f2aa8849fe6",
+          "title": "Gravity uses canonical resources, persisted appearance, focus and truthful source evidence",
+          "project": "phone-390",
+          "status": "expected",
+          "results": [
+            {
+              "status": "passed",
+              "durationMs": 28161,
+              "errors": []
+            }
+          ]
+        },
+        {
+          "id": "fcf0b1ba6103123c426e-d3a1fc7a273a5a391b45",
+          "title": "map, list, evidence, project focus and wallboard work across themes and viewports",
+          "project": "phone-320",
+          "status": "expected",
+          "results": [
+            {
+              "status": "passed",
+              "durationMs": 5022,
+              "errors": []
+            }
+          ]
+        },
+        {
+          "id": "fcf0b1ba6103123c426e-6f341a159157d8949c4b",
+          "title": "scope is complete beyond the first page and delayed refresh retains labeled evidence",
+          "project": "phone-320",
+          "status": "expected",
+          "results": [
+            {
+              "status": "passed",
+              "durationMs": 1432,
+              "errors": []
+            }
+          ]
+        },
+        {
+          "id": "fcf0b1ba6103123c426e-4d40f60cbd482c80c2dd",
+          "title": "new persisted observations cue once and wallboard rotation stops for manual inspection",
+          "project": "phone-320",
+          "status": "expected",
+          "results": [
+            {
+              "status": "passed",
+              "durationMs": 1139,
+              "errors": []
+            }
+          ]
+        },
+        {
+          "id": "fcf0b1ba6103123c426e-c836a31912f9f217b47d",
+          "title": "Gravity uses canonical resources, persisted appearance, focus and truthful source evidence",
+          "project": "phone-320",
+          "status": "expected",
+          "results": [
+            {
+              "status": "passed",
+              "durationMs": 26535,
+              "errors": []
+            }
+          ]
+        }
+      ],
+      "cleanup": {
+        "helperErrors": [],
+        "controllerExitCode": 1,
+        "samplerExitCode": 0,
+        "retainedIdentityCount": 106,
+        "retainedGroupCount": 31,
+        "remainingKnownIdentities": [],
+        "remainingKnownGroups": [],
+        "remainingExclusiveCwdPopulation": [],
+        "runtimeDirectoryAbsent": true,
+        "originPortOpen": false,
+        "sameSourceAndHashes": true
+      },
+      "testAndHelperSha256": {
+        "tests/e2e/gravity-master-scene.spec.ts": "1fba77e2f32fcec251b6b7521fdc06608ea5537c3ee2bac736ea44ac14cc08e6",
+        "tests/e2e/infrastructure-overview.spec.ts": "af7c94735f9d9568d4880e12b2032e5b7b05532d1ded3dd139dc53a1002d0ddf",
+        "tests/e2e/observatory-outline-observer.ts": "27691659cede43161d9b126b1d585d2d77014e4808b42f036fe6ff871df66969",
+        "tests/e2e/observatory-diagnostic-profile.ts": "b75f382f0221c7c1db072a11178738d7c7c65762fa672d78bbfca581afa5f385",
+        ".agent/context/T39-control/preview.mjs": "4281f3dc0b200834e128b8c626bc81ec94ac40524a4440f39fe8bd93612ca353",
+        ".agent/context/T39-control/verify-pair.mjs": "720507a13bc33bed57f26829e3aecd998024aaf0a9a8d36cee20ef9ba153dc0b"
+      },
+      "projectRetries": {
+        "desktop": 0,
+        "phone-390": 0,
+        "phone-320": 0
+      }
+    }
+  },
+  "observedDurationDifferenceMs": 12075.053000000014,
+  "durationQualification": "One sequential OFF/ON pair. Variance, queueing, profiler and changed scheduling are not isolated; no causal overhead estimate or benchmark improvement.",
+  "nativeCapture": {
+    "directories": 15,
+    "profiles": 68,
+    "indexStatuses": {
+      "stopped": 14,
+      "partial": 1
+    },
+    "indexFinalizationLinkedCount": 15,
+    "callerReceiptCount": 15,
+    "callerFinalReceiptAcknowledgedCount": 15,
+    "cases": [
+      {
+        "test": "one master scene renders and inspects the complete multi-page inventory",
+        "project": "desktop",
+        "status": "stopped",
+        "profileCount": 18,
+        "errors": [],
+        "cleanup": {
+          "timerCleared": true,
+          "runnerDisconnected": true,
+          "browserDetachRequested": true,
+          "browserDetached": true,
+          "browserAttachmentAbandoned": false,
+          "browserAttachmentPending": false
+        },
+        "callerCleanup": [
+          {
+            "timerCleared": true,
+            "runnerDisconnected": true,
+            "browserDetachRequested": true,
+            "browserDetached": true,
+            "browserAttachmentAbandoned": false,
+            "browserAttachmentPending": false
+          }
+        ]
+      },
+      {
+        "test": "one master scene renders and inspects the complete multi-page inventory",
+        "project": "phone-320",
+        "status": "stopped",
+        "profileCount": 6,
+        "errors": [],
+        "cleanup": {
+          "timerCleared": true,
+          "runnerDisconnected": true,
+          "browserDetachRequested": true,
+          "browserDetached": true,
+          "browserAttachmentAbandoned": false,
+          "browserAttachmentPending": false
+        },
+        "callerCleanup": [
+          {
+            "timerCleared": true,
+            "runnerDisconnected": true,
+            "browserDetachRequested": true,
+            "browserDetached": true,
+            "browserAttachmentAbandoned": false,
+            "browserAttachmentPending": false
+          }
+        ]
+      },
+      {
+        "test": "one master scene renders and inspects the complete multi-page inventory",
+        "project": "phone-390",
+        "status": "stopped",
+        "profileCount": 8,
+        "errors": [],
+        "cleanup": {
+          "timerCleared": true,
+          "runnerDisconnected": true,
+          "browserDetachRequested": true,
+          "browserDetached": true,
+          "browserAttachmentAbandoned": false,
+          "browserAttachmentPending": false
+        },
+        "callerCleanup": [
+          {
+            "timerCleared": true,
+            "runnerDisconnected": true,
+            "browserDetachRequested": true,
+            "browserDetached": true,
+            "browserAttachmentAbandoned": false,
+            "browserAttachmentPending": false
+          }
+        ]
+      },
+      {
+        "test": "Gravity uses canonical resources, persisted appearance, focus and truthful source evidence",
+        "project": "desktop",
+        "status": "partial",
+        "profileCount": 10,
+        "errors": [
+          {
+            "stage": "final-checkpoint",
+            "clock": {
+              "utc": "2026-10-17T18:50:53.653Z",
+              "unixMs": 1792263053653,
+              "monotonicBeforeMs": 131595.704012,
+              "monotonicAfterMs": 131595.719841
+            },
+            "message": "final-capture: diagnostic wait exceeded 3000ms"
+          },
+          {
+            "stage": "browser:detach",
+            "clock": {
+              "utc": "2026-10-17T18:50:55.654Z",
+              "unixMs": 1792263055654,
+              "monotonicBeforeMs": 133596.429016,
+              "monotonicAfterMs": 133596.444305
+            },
+            "message": "browser:detach: diagnostic wait exceeded 2000ms"
+          }
+        ],
+        "cleanup": {
+          "timerCleared": true,
+          "runnerDisconnected": true,
+          "browserDetachRequested": true,
+          "browserDetached": false,
+          "browserAttachmentAbandoned": false,
+          "browserAttachmentPending": false
+        },
+        "callerCleanup": [
+          {
+            "timerCleared": true,
+            "runnerDisconnected": true,
+            "browserDetachRequested": true,
+            "browserDetached": false,
+            "browserAttachmentAbandoned": false,
+            "browserAttachmentPending": false
+          }
+        ]
+      },
+      {
+        "test": "Gravity uses canonical resources, persisted appearance, focus and truthful source evidence",
+        "project": "phone-320",
+        "status": "stopped",
+        "profileCount": 4,
+        "errors": [],
+        "cleanup": {
+          "timerCleared": true,
+          "runnerDisconnected": true,
+          "browserDetachRequested": true,
+          "browserDetached": true,
+          "browserAttachmentAbandoned": false,
+          "browserAttachmentPending": false
+        },
+        "callerCleanup": [
+          {
+            "timerCleared": true,
+            "runnerDisconnected": true,
+            "browserDetachRequested": true,
+            "browserDetached": true,
+            "browserAttachmentAbandoned": false,
+            "browserAttachmentPending": false
+          }
+        ]
+      },
+      {
+        "test": "Gravity uses canonical resources, persisted appearance, focus and truthful source evidence",
+        "project": "phone-390",
+        "status": "stopped",
+        "profileCount": 4,
+        "errors": [],
+        "cleanup": {
+          "timerCleared": true,
+          "runnerDisconnected": true,
+          "browserDetachRequested": true,
+          "browserDetached": true,
+          "browserAttachmentAbandoned": false,
+          "browserAttachmentPending": false
+        },
+        "callerCleanup": [
+          {
+            "timerCleared": true,
+            "runnerDisconnected": true,
+            "browserDetachRequested": true,
+            "browserDetached": true,
+            "browserAttachmentAbandoned": false,
+            "browserAttachmentPending": false
+          }
+        ]
+      },
+      {
+        "test": "map, list, evidence, project focus and wallboard work across themes and viewports",
+        "project": "desktop",
+        "status": "stopped",
+        "profileCount": 2,
+        "errors": [],
+        "cleanup": {
+          "timerCleared": true,
+          "runnerDisconnected": true,
+          "browserDetachRequested": true,
+          "browserDetached": true,
+          "browserAttachmentAbandoned": false,
+          "browserAttachmentPending": false
+        },
+        "callerCleanup": [
+          {
+            "timerCleared": true,
+            "runnerDisconnected": true,
+            "browserDetachRequested": true,
+            "browserDetached": true,
+            "browserAttachmentAbandoned": false,
+            "browserAttachmentPending": false
+          }
+        ]
+      },
+      {
+        "test": "map, list, evidence, project focus and wallboard work across themes and viewports",
+        "project": "phone-320",
+        "status": "stopped",
+        "profileCount": 2,
+        "errors": [],
+        "cleanup": {
+          "timerCleared": true,
+          "runnerDisconnected": true,
+          "browserDetachRequested": true,
+          "browserDetached": true,
+          "browserAttachmentAbandoned": false,
+          "browserAttachmentPending": false
+        },
+        "callerCleanup": [
+          {
+            "timerCleared": true,
+            "runnerDisconnected": true,
+            "browserDetachRequested": true,
+            "browserDetached": true,
+            "browserAttachmentAbandoned": false,
+            "browserAttachmentPending": false
+          }
+        ]
+      },
+      {
+        "test": "map, list, evidence, project focus and wallboard work across themes and viewports",
+        "project": "phone-390",
+        "status": "stopped",
+        "profileCount": 2,
+        "errors": [],
+        "cleanup": {
+          "timerCleared": true,
+          "runnerDisconnected": true,
+          "browserDetachRequested": true,
+          "browserDetached": true,
+          "browserAttachmentAbandoned": false,
+          "browserAttachmentPending": false
+        },
+        "callerCleanup": [
+          {
+            "timerCleared": true,
+            "runnerDisconnected": true,
+            "browserDetachRequested": true,
+            "browserDetached": true,
+            "browserAttachmentAbandoned": false,
+            "browserAttachmentPending": false
+          }
+        ]
+      },
+      {
+        "test": "new persisted observations cue once and wallboard rotation stops for manual inspection",
+        "project": "desktop",
+        "status": "stopped",
+        "profileCount": 2,
+        "errors": [],
+        "cleanup": {
+          "timerCleared": true,
+          "runnerDisconnected": true,
+          "browserDetachRequested": true,
+          "browserDetached": true,
+          "browserAttachmentAbandoned": false,
+          "browserAttachmentPending": false
+        },
+        "callerCleanup": [
+          {
+            "timerCleared": true,
+            "runnerDisconnected": true,
+            "browserDetachRequested": true,
+            "browserDetached": true,
+            "browserAttachmentAbandoned": false,
+            "browserAttachmentPending": false
+          }
+        ]
+      },
+      {
+        "test": "new persisted observations cue once and wallboard rotation stops for manual inspection",
+        "project": "phone-320",
+        "status": "stopped",
+        "profileCount": 2,
+        "errors": [],
+        "cleanup": {
+          "timerCleared": true,
+          "runnerDisconnected": true,
+          "browserDetachRequested": true,
+          "browserDetached": true,
+          "browserAttachmentAbandoned": false,
+          "browserAttachmentPending": false
+        },
+        "callerCleanup": [
+          {
+            "timerCleared": true,
+            "runnerDisconnected": true,
+            "browserDetachRequested": true,
+            "browserDetached": true,
+            "browserAttachmentAbandoned": false,
+            "browserAttachmentPending": false
+          }
+        ]
+      },
+      {
+        "test": "new persisted observations cue once and wallboard rotation stops for manual inspection",
+        "project": "phone-390",
+        "status": "stopped",
+        "profileCount": 2,
+        "errors": [],
+        "cleanup": {
+          "timerCleared": true,
+          "runnerDisconnected": true,
+          "browserDetachRequested": true,
+          "browserDetached": true,
+          "browserAttachmentAbandoned": false,
+          "browserAttachmentPending": false
+        },
+        "callerCleanup": [
+          {
+            "timerCleared": true,
+            "runnerDisconnected": true,
+            "browserDetachRequested": true,
+            "browserDetached": true,
+            "browserAttachmentAbandoned": false,
+            "browserAttachmentPending": false
+          }
+        ]
+      },
+      {
+        "test": "scope is complete beyond the first page and delayed refresh retains labeled evidence",
+        "project": "desktop",
+        "status": "stopped",
+        "profileCount": 2,
+        "errors": [],
+        "cleanup": {
+          "timerCleared": true,
+          "runnerDisconnected": true,
+          "browserDetachRequested": true,
+          "browserDetached": true,
+          "browserAttachmentAbandoned": false,
+          "browserAttachmentPending": false
+        },
+        "callerCleanup": [
+          {
+            "timerCleared": true,
+            "runnerDisconnected": true,
+            "browserDetachRequested": true,
+            "browserDetached": true,
+            "browserAttachmentAbandoned": false,
+            "browserAttachmentPending": false
+          }
+        ]
+      },
+      {
+        "test": "scope is complete beyond the first page and delayed refresh retains labeled evidence",
+        "project": "phone-320",
+        "status": "stopped",
+        "profileCount": 2,
+        "errors": [],
+        "cleanup": {
+          "timerCleared": true,
+          "runnerDisconnected": true,
+          "browserDetachRequested": true,
+          "browserDetached": true,
+          "browserAttachmentAbandoned": false,
+          "browserAttachmentPending": false
+        },
+        "callerCleanup": [
+          {
+            "timerCleared": true,
+            "runnerDisconnected": true,
+            "browserDetachRequested": true,
+            "browserDetached": true,
+            "browserAttachmentAbandoned": false,
+            "browserAttachmentPending": false
+          }
+        ]
+      },
+      {
+        "test": "scope is complete beyond the first page and delayed refresh retains labeled evidence",
+        "project": "phone-390",
+        "status": "stopped",
+        "profileCount": 2,
+        "errors": [],
+        "cleanup": {
+          "timerCleared": true,
+          "runnerDisconnected": true,
+          "browserDetachRequested": true,
+          "browserDetached": true,
+          "browserAttachmentAbandoned": false,
+          "browserAttachmentPending": false
+        },
+        "callerCleanup": [
+          {
+            "timerCleared": true,
+            "runnerDisconnected": true,
+            "browserDetachRequested": true,
+            "browserDetached": true,
+            "browserAttachmentAbandoned": false,
+            "browserAttachmentPending": false
+          }
+        ]
+      }
+    ],
+    "invalidWeightedProfiles": [
+      {
+        "test": "one master scene renders and inspects the complete multi-page inventory",
+        "project": "desktop",
+        "file": "observatory-diagnostic-profile-browser-000.cpuprofile",
+        "rawSampleCount": 3611,
+        "qualityErrors": [
+          "Native delta attribution unavailable or invalid; weighted fields are null"
+        ],
+        "sumAttributedElapsedUs": null
+      }
+    ]
+  },
+  "qualifications": [
+    "The original desktop180000ms master-scene and120000ms canonical-resource journey deadlines remained unchanged. All original assertions, three projects, two workers, zero retries and zero skips remained.",
+    "Both trials failed two desktop journeys; profiling is not release acceptance. All13 other cases passed.",
+    "One profiled desktop canonical-resource capture is partial: final capture and browser detach exceeded diagnostic bounds. Saved periodic chunks remain evidence, but final interval and owned CDP detach are unconfirmed in that capture.",
+    "All15 index/finalization links and actual caller final receipt acknowledgments are present; that does not erase partial cleanup/capture errors.",
+    "Known process/group and exclusive cwd absence are actual post-run observations; sampling can miss short-lived processes.",
+    "Native sample weights include program/idle/native/GC elapsed stacks. They are not process CPU seconds, GPU time or shader-stage duration.",
+    "Chromium role flags and process CPU tick deltas are separate observations; they do not identify an ambient or field-loop cause.",
+    "No product performance change, image publication, approval, deployment or source activation was performed by these trials.",
+    "A stopped capture index is not proof of valid sample weights. Invalid native delta lists remain raw evidence with null weighted attribution and explicit quality errors; weighted summaries use only admitted profiles."
+  ],
+  "privateEvidenceSha256": {
+    ".agent/T41-off-cleanup-proof.json": "cc5ab3fb7fa89480da0f99b3466920dd4248afe3fdf3fc2c46d7b234b1d910d2",
+    ".agent/T41-on-cleanup-proof.json": "b2d2672265768a4c73b3fe750c14ac04552da6c4fd645a72aca1bcf88d8b443c",
+    ".agent/T41-off-processes.jsonl": "61e267ffc7a25d1ec67b3694b7a02e630012147d0458ac391b923ca848f412d4",
+    ".agent/T41-on-processes.jsonl": "5b22ef0ae029251a4038633f47cbe706556a80a6247dd4d9d107c3f27cc73630",
+    ".agent/T41-on-browser-process-role-observation.json": "8a698686041839ecab4bc25cf1bd07b32b1f939e63ce7bab62d17456719edc12",
+    ".agent/T41-native-stack-summary.json": "74f1d078d475c04b1ed058f7851351ac9fedb32528f98cb67be76b6ba1c9b90e"
+  }
+}

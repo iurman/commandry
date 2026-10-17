@@ -1,0 +1,21 @@
+{
+  "baseline": "07d833bab5f2c8f85fe59b3666241f0a11ccf9e0",
+  "hosted": "a1c760aa161dba3c225f030d9597a99f6b295129",
+  "differingPaths": [
+    ".github/workflows/release-candidate.yml",
+    "docs/plans/observatory-operational-landscape/COVERAGE.md",
+    "docs/plans/observatory-operational-landscape/EXECUTION.md",
+    "docs/plans/observatory-operational-landscape/T37.md",
+    "docs/plans/observatory-operational-landscape/evidence/2026-10-17-diagnostic-review-controls.json",
+    "docs/plans/observatory-operational-landscape/evidence/2026-10-17-diagnostic-source-transfer.json",
+    "docs/plans/observatory-operational-landscape/evidence/2026-10-17-shared-world-browser-diagnostics.json",
+    "docs/project/status.md"
+  ],
+  "allRuntimeTestConfigPathsByteEquivalent": true,
+  "baselineChildClean": true,
+  "helpers": {
+    "preview.mjs": "4281f3dc0b200834e128b8c626bc81ec94ac40524a4440f39fe8bd93612ca353",
+    "verify-pair.mjs": "720507a13bc33bed57f26829e3aecd998024aaf0a9a8d36cee20ef9ba153dc0b"
+  },
+  "rootSourceUnchangedDuringBaselineNotRequired": "baseline has its own clean completed exclusive child HEAD; root may continue tracked documentation/planning independently"
+}

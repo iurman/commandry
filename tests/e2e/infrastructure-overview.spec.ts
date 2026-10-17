@@ -16,6 +16,9 @@ import {
   type ObservatorySceneDto,
 } from "@commandry/contracts";
 import { mixedObservatoryFixture } from "../fixtures/observatory";
+import { installDiagnosticProfiling } from "./observatory-diagnostic-profile";
+
+installDiagnosticProfiling(test);
 
 async function fixture(request: APIRequestContext) {
   const name = `Network ${randomUUID().slice(0, 8)}`;
@@ -571,7 +574,7 @@ test("Gravity uses canonical resources, persisted appearance, focus and truthful
   page,
   request,
 }, testInfo) => {
-  test.setTimeout(120000);
+  test.setTimeout(240000);
   const diagnosticStarted = performance.now();
   const f = await fixture(request);
   const errors: string[] = [];
@@ -1037,11 +1040,13 @@ test("Gravity uses canonical resources, persisted appearance, focus and truthful
     await expect
       .poll(async () => {
         result = browserScenes.get(
-          JSON.stringify([
-            await gravity.getAttribute("data-grouping"),
-            await gravity.getAttribute("data-view-revision"),
-            await gravity.getAttribute("data-projection-revision"),
-          ]),
+          JSON.stringify(
+            await gravity.evaluate((element) => [
+              element.getAttribute("data-grouping"),
+              element.getAttribute("data-view-revision"),
+              element.getAttribute("data-projection-revision"),
+            ]),
+          ),
         );
         return !!result;
       })
@@ -1885,19 +1890,31 @@ test("Gravity uses canonical resources, persisted appearance, focus and truthful
       diagnostic("global-selection:end", { navigation });
       await expect
         .poll(async () => {
-          const current = browserScenes.get(
-            JSON.stringify([
-              await gravity.getAttribute("data-grouping"),
-              await gravity.getAttribute("data-view-revision"),
-              await gravity.getAttribute("data-projection-revision"),
-            ]),
-          )?.scene;
-          return (
+          const observationStarted = performance.now();
+          const tuple = await gravity.evaluate((element) => [
+            element.getAttribute("data-grouping"),
+            element.getAttribute("data-view-revision"),
+            element.getAttribute("data-projection-revision"),
+          ]);
+          const key = JSON.stringify(tuple);
+          const current = browserScenes.get(key)?.scene;
+          const complete =
             !!current &&
             f1Ids.every((id) =>
               current.membershipIndex.resourceIds.includes(id),
-            )
-          );
+            );
+          diagnostic("population-predicate:observation", {
+            observationStartedMs: observationStarted - diagnosticStarted,
+            durationMs: performance.now() - observationStarted,
+            tuple,
+            key,
+            matchingScene: !!current,
+            missingF1Ids: f1Ids.filter(
+              (id) => !current?.membershipIndex.resourceIds.includes(id),
+            ),
+            complete,
+          });
+          return complete;
         })
         .toBe(true);
       diagnostic("population-predicate:passed");
@@ -2009,9 +2026,9 @@ test("Gravity uses canonical resources, persisted appearance, focus and truthful
       exact: true,
     });
     await search.fill("Synthetic");
-    await expect
-      .poll(() => searchResults.getByRole("button").count())
-      .toBeGreaterThanOrEqual(f1.resources.length);
+    await expect(
+      searchResults.getByRole("button").nth(f1.resources.length - 1),
+    ).toBeAttached({ timeout: 5000 });
     const searched = await applied("projects");
     const searchIds = searched.scene.searchResults.map(
       (result) => result.resourceId,

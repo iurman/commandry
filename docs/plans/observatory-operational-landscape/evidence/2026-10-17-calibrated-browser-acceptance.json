@@ -1,0 +1,307 @@
+{
+  "status": "Actual local fifteen-case acceptance PASS; full main release and deployment remain pending",
+  "sourceRevision": "60921f5d8163aab6a4e0c93e015ebca2d481733e",
+  "sourceClean": true,
+  "buildId": "4SvqEZL7vAeejfcTDGr4G",
+  "runId": "run-6e5c42b6-39fb-4919-94fa-8ac8a08b6559",
+  "profileFlag": "0",
+  "nativeDiagnosticArtifactCount": 0,
+  "sameOriginalFifteenTitleProjectIds": true,
+  "runtime": {
+    "actualPrimaryAffinity": {
+      "controller": {
+        "pid": 2867702,
+        "actualAffinity": [0, 1, 2, 3]
+      },
+      "preview": {
+        "pid": 2868436,
+        "actualAffinity": [0, 1, 2, 3]
+      },
+      "web": {
+        "pid": 2868499,
+        "actualAffinity": [0, 1, 2, 3]
+      },
+      "postgres": {
+        "pid": 2868479,
+        "actualAffinity": [0, 1, 2, 3]
+      }
+    },
+    "realPostgreSQL": 18,
+    "privateBuiltAssets": true,
+    "authMode": "test-local-off",
+    "externalPolling": false,
+    "version": {
+      "sha": "60921f5d8163aab6a4e0c93e015ebca2d481733e",
+      "imageDigest": null,
+      "buildTime": null,
+      "schemaCompatibility": "1",
+      "environment": "test"
+    },
+    "fixture": "Synthetic F1 population:91 resources/15 projects/60 repositories/18 hosts/13 services/48 unlinked repositories/7 shared resources/4 recorded host observations; two explicit extra single-project source bindings"
+  },
+  "testExitCode": 0,
+  "stats": {
+    "startTime": "2026-10-17T19:08:24.144Z",
+    "duration": 247354.58,
+    "expected": 15,
+    "skipped": 0,
+    "unexpected": 0,
+    "flaky": 0
+  },
+  "workers": 2,
+  "projectRetries": {
+    "desktop": 0,
+    "phone-390": 0,
+    "phone-320": 0
+  },
+  "cases": [
+    {
+      "id": "6f37ed144ac7e3e7d70f-2c8d6dcc018616c3b975",
+      "title": "one master scene renders and inspects the complete multi-page inventory",
+      "project": "desktop",
+      "status": "expected",
+      "results": [
+        {
+          "status": "passed",
+          "durationMs": 180629,
+          "retry": 0
+        }
+      ]
+    },
+    {
+      "id": "6f37ed144ac7e3e7d70f-a9ee4c8487c0c080cc36",
+      "title": "one master scene renders and inspects the complete multi-page inventory",
+      "project": "phone-390",
+      "status": "expected",
+      "results": [
+        {
+          "status": "passed",
+          "durationMs": 70534,
+          "retry": 0
+        }
+      ]
+    },
+    {
+      "id": "6f37ed144ac7e3e7d70f-d80fa7b53ce8b4c3df2d",
+      "title": "one master scene renders and inspects the complete multi-page inventory",
+      "project": "phone-320",
+      "status": "expected",
+      "results": [
+        {
+          "status": "passed",
+          "durationMs": 56157,
+          "retry": 0
+        }
+      ]
+    },
+    {
+      "id": "fcf0b1ba6103123c426e-367fc263ec528c74a938",
+      "title": "map, list, evidence, project focus and wallboard work across themes and viewports",
+      "project": "desktop",
+      "status": "expected",
+      "results": [
+        {
+          "status": "passed",
+          "durationMs": 3432,
+          "retry": 0
+        }
+      ]
+    },
+    {
+      "id": "fcf0b1ba6103123c426e-c54934dc16291ddcab2f",
+      "title": "scope is complete beyond the first page and delayed refresh retains labeled evidence",
+      "project": "desktop",
+      "status": "expected",
+      "results": [
+        {
+          "status": "passed",
+          "durationMs": 984,
+          "retry": 0
+        }
+      ]
+    },
+    {
+      "id": "fcf0b1ba6103123c426e-77feb0f21183f7fb64b6",
+      "title": "new persisted observations cue once and wallboard rotation stops for manual inspection",
+      "project": "desktop",
+      "status": "expected",
+      "results": [
+        {
+          "status": "passed",
+          "durationMs": 1363,
+          "retry": 0
+        }
+      ]
+    },
+    {
+      "id": "fcf0b1ba6103123c426e-d7009507afd1067100b5",
+      "title": "Gravity uses canonical resources, persisted appearance, focus and truthful source evidence",
+      "project": "desktop",
+      "status": "expected",
+      "results": [
+        {
+          "status": "passed",
+          "durationMs": 113158,
+          "retry": 0
+        }
+      ]
+    },
+    {
+      "id": "fcf0b1ba6103123c426e-5d79cf15579b414f4a57",
+      "title": "map, list, evidence, project focus and wallboard work across themes and viewports",
+      "project": "phone-390",
+      "status": "expected",
+      "results": [
+        {
+          "status": "passed",
+          "durationMs": 4460,
+          "retry": 0
+        }
+      ]
+    },
+    {
+      "id": "fcf0b1ba6103123c426e-c604338cb0fa454262b0",
+      "title": "scope is complete beyond the first page and delayed refresh retains labeled evidence",
+      "project": "phone-390",
+      "status": "expected",
+      "results": [
+        {
+          "status": "passed",
+          "durationMs": 1260,
+          "retry": 0
+        }
+      ]
+    },
+    {
+      "id": "fcf0b1ba6103123c426e-99322d7a3dd676b0ea45",
+      "title": "new persisted observations cue once and wallboard rotation stops for manual inspection",
+      "project": "phone-390",
+      "status": "expected",
+      "results": [
+        {
+          "status": "passed",
+          "durationMs": 1180,
+          "retry": 0
+        }
+      ]
+    },
+    {
+      "id": "fcf0b1ba6103123c426e-d98323494f2aa8849fe6",
+      "title": "Gravity uses canonical resources, persisted appearance, focus and truthful source evidence",
+      "project": "phone-390",
+      "status": "expected",
+      "results": [
+        {
+          "status": "passed",
+          "durationMs": 24174,
+          "retry": 0
+        }
+      ]
+    },
+    {
+      "id": "fcf0b1ba6103123c426e-d3a1fc7a273a5a391b45",
+      "title": "map, list, evidence, project focus and wallboard work across themes and viewports",
+      "project": "phone-320",
+      "status": "expected",
+      "results": [
+        {
+          "status": "passed",
+          "durationMs": 4435,
+          "retry": 0
+        }
+      ]
+    },
+    {
+      "id": "fcf0b1ba6103123c426e-6f341a159157d8949c4b",
+      "title": "scope is complete beyond the first page and delayed refresh retains labeled evidence",
+      "project": "phone-320",
+      "status": "expected",
+      "results": [
+        {
+          "status": "passed",
+          "durationMs": 1311,
+          "retry": 0
+        }
+      ]
+    },
+    {
+      "id": "fcf0b1ba6103123c426e-4d40f60cbd482c80c2dd",
+      "title": "new persisted observations cue once and wallboard rotation stops for manual inspection",
+      "project": "phone-320",
+      "status": "expected",
+      "results": [
+        {
+          "status": "passed",
+          "durationMs": 1001,
+          "retry": 0
+        }
+      ]
+    },
+    {
+      "id": "fcf0b1ba6103123c426e-c836a31912f9f217b47d",
+      "title": "Gravity uses canonical resources, persisted appearance, focus and truthful source evidence",
+      "project": "phone-320",
+      "status": "expected",
+      "results": [
+        {
+          "status": "passed",
+          "durationMs": 23482,
+          "retry": 0
+        }
+      ]
+    }
+  ],
+  "scope": {
+    "numericLiteralChanges": 2,
+    "masterAggregateMs": 300000,
+    "canonicalResourceAggregateMs": 240000,
+    "everyOtherByteInBothFilesConserved": true,
+    "otherOverviewTotalsMs": 120000,
+    "explicitOperationGuardsUnchanged": true,
+    "implicitActionWaitsMayIncrease": true,
+    "renderingPopulationQualityFixturesConfigUnchanged": true
+  },
+  "fullDiscovery": {
+    "tests": 207,
+    "files": 63,
+    "kind": "Discovery only, not a full207 execution result"
+  },
+  "cleanup": {
+    "controllerExitCode": 0,
+    "samplerExitCode": 0,
+    "helperErrors": [],
+    "retainedIdentityCount": 116,
+    "retainedGroupCount": 38,
+    "remainingKnownIdentities": [],
+    "remainingKnownGroups": [],
+    "remainingExclusiveCwdPopulation": [],
+    "runtimeDirectoryAbsent": true,
+    "originPortOpen": false,
+    "sameCleanSourceAndHashes": true
+  },
+  "sourceAndHelperSha256": {
+    "tests/e2e/gravity-master-scene.spec.ts": "2b38c829688f7814c6572db553fa12bac4952ca6f1d7c47b7b3009e34b270253",
+    "tests/e2e/infrastructure-overview.spec.ts": "9127407d60173fd9a604bc1bcacf05a91a929abc4a20c5afe4755b1e9351e505",
+    "tests/e2e/observatory-outline-observer.ts": "27691659cede43161d9b126b1d585d2d77014e4808b42f036fe6ff871df66969",
+    "tests/e2e/observatory-diagnostic-profile.ts": "b75f382f0221c7c1db072a11178738d7c7c65762fa672d78bbfca581afa5f385",
+    ".agent/context/T39-control/preview.mjs": "4281f3dc0b200834e128b8c626bc81ec94ac40524a4440f39fe8bd93612ca353",
+    ".agent/context/T39-control/verify-pair.mjs": "720507a13bc33bed57f26829e3aecd998024aaf0a9a8d36cee20ef9ba153dc0b"
+  },
+  "qualifications": [
+    "This demonstrates completion under calibrated aggregate test budgets. It does not demonstrate faster rendering, optimal or minimum budgets, identical implicit action bounds or physical lower-power device performance.",
+    "All original assertions and explicit per-operation guards remain; two title-level totals also apply to their phone variants.",
+    "The separate T41 thirteen-of-fifteen failed trials and partial/invalid profiling evidence remain retained; these later passes do not change their historical outcomes.",
+    "Local test auth is off. Signed-in live behavior, exact published image/protected approval/constrained deployment and real source activation remain separate gates.",
+    "Work unavailable, Feed unknown and unknown-path401 local observations do not establish production health or a production authority defect.",
+    "Physical cleanup reconciles retained identities/groups and exclusive cwd populations. Sampling can miss short-lived processes; no universal process census.",
+    "Independent final semantic/timing interpretation remains a separate report; source/packet and full test reporter are not a comprehensive per-action latency measurement."
+  ],
+  "privateEvidenceSha256": {
+    ".agent/T42-source-before.json": "dd0d2f61e2cf9fbf709bd3081cedc7920d853bdb0126b658fcda8b23c64e144d",
+    ".agent/T42-runtime-observation.json": "22af5f6d44f6a078ceb18673d8d93a547227bcda7cd9b32ea17ddbdeafc11af7",
+    ".agent/T42-cleanup-proof.json": "3e6e23c19e20288c7843ff13a69a5554f7f2fec5676919cde7efa5f709bfe680",
+    ".agent/T42-full-discovery.log": "04b5f572eb589f330076ba19d80a3b8328eddb43ef51de01490529bc0c106606",
+    ".agent/T42-root-packet-check.log": "c26de83abdc9496cd1301470918ec39ecca1cf389ef0ae1c6504da1800d1c431",
+    ".agent/scratch/T42-source-review/report.md": "e72a18b950206701869fddf36cb7318c2cf3334eab1486a248711677b7a4c3a7"
+  }
+}

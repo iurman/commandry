@@ -1,0 +1,69 @@
+{
+  "status": "OBSERVATION_CANDIDATE_FAILED",
+  "runId": "run-fa9904f4-0106-43ee-91e3-c5b1b7cd8a66",
+  "source": "0264bac680465f129d8cc572ca178aa6e4fcd037",
+  "sourceClean": true,
+  "buildId": "9GlzrPFRA6iy3-w45sTml",
+  "browser": {
+    "startTime": "2026-10-17T17:56:10.087Z",
+    "duration": 263655.961,
+    "expected": 13,
+    "skipped": 0,
+    "unexpected": 2,
+    "flaky": 0
+  },
+  "testExitCode": 1,
+  "testSignal": null,
+  "controllerAffinity": [0, 1, 2, 3],
+  "testFilesSha256": {
+    "tests/e2e/gravity-master-scene.spec.ts": "294eaafc06f226bcc44aadd507c155ea61f7167fdd2718cd5723d467d4a61d2b",
+    "tests/e2e/infrastructure-overview.spec.ts": "cccb346cc20c59510a9208476983dba205a52b6a6db9df1c1ab5febc26608614"
+  },
+  "observerSha256": "27691659cede43161d9b126b1d585d2d77014e4808b42f036fe6ff871df66969",
+  "helpersSha256": {
+    ".agent/context/T39-control/preview.mjs": "4281f3dc0b200834e128b8c626bc81ec94ac40524a4440f39fe8bd93612ca353",
+    ".agent/context/T39-control/verify-pair.mjs": "720507a13bc33bed57f26829e3aecd998024aaf0a9a8d36cee20ef9ba153dc0b"
+  },
+  "semanticControls": {
+    "observer": 10,
+    "nativeAssertion": 7,
+    "allPassed": true
+  },
+  "desktopMaster": {
+    "deadlineMs": 180000,
+    "result": "timedOut",
+    "finalPointerStartElapsedMs": 178917.44877,
+    "remainingMs": 1082.55123,
+    "pointerAwaitTotalMs": 98242.423792,
+    "discoverySettlementAwaitTotalMs": 14620.642397,
+    "maxRetainedLocalCommitMs": 20.1,
+    "lastPointerDeliveryOrCommit": "not retained; never inferred",
+    "repairSelected": false
+  },
+  "desktopOverview": {
+    "deadlineMs": 120000,
+    "result": "timedOut",
+    "globalTransition": "passed",
+    "nativeSearch": "passed within native5000ms; later runner handoff retained separately",
+    "completeAuthorizedIds": 311,
+    "requiredF1Ids": 91,
+    "authorizedExtras": 220,
+    "enabledSearchControls": 182,
+    "inspectedCanonicalResources": 3,
+    "actualDeadlineBoundary": "Escape2145 begins with3997.757ms remaining and awaits5699.279ms; projectselect2148 and applied2149 start after the total deadline",
+    "scopeRestorationDefectEstablished": false
+  },
+  "cleanup": {
+    "strictNormalStoppedReceipt": true,
+    "errors": [],
+    "actualKnownPidAndPgidAbsence": true,
+    "remainingScopedPopulation": [],
+    "ownedDirectoryAbsent": true,
+    "sourceAndThreeTestModulesUnchanged": true,
+    "qualification": "Actual observed in-progress population and known controller/preview/web/PG absence plus complete exclusive checkout/runtime cwd absence. Already-finished build command PIDs were not serialized, and are not retrospectively invented."
+  },
+  "independentReview": "BOUNCE; source and cleanup accepted but13/15 cannot advance release",
+  "next": "Separately scoped renderer/runner/process profiling with same-source uninstrumented comparison; no selected product, CPU or GPU repair",
+  "publication": false,
+  "deployment": false
+}

@@ -7,12 +7,16 @@ import {
   type InfrastructureOverview,
   type ObservatorySceneDto,
 } from "@commandry/contracts";
+import { installOutlineObserver } from "./observatory-outline-observer";
+import { installDiagnosticProfiling } from "./observatory-diagnostic-profile";
+
+installDiagnosticProfiling(test);
 
 test("one master scene renders and inspects the complete multi-page inventory", async ({
   page,
   request,
 }, testInfo) => {
-  test.setTimeout(180000);
+  test.setTimeout(300000);
   const started = performance.now();
   const phasePath = testInfo.outputPath("master-scene-phases.jsonl");
   const summaryPath = testInfo.outputPath("master-scene-diagnostics.json");
@@ -358,25 +362,104 @@ test("one master scene renders and inspects the complete multi-page inventory", 
       )
         await outline.locator("summary").click();
       let expanded = 0;
-      while (await outline.locator('button[aria-expanded="false"]').count()) {
-        expect(++expanded).toBeLessThanOrEqual(103);
-        await outline.locator('button[aria-expanded="false"]').first().click();
+      const observer = await installOutlineObserver(outline, 103);
+      let mainSucceeded = false;
+      try {
+        let pass = 0;
+        const targetOrder: string[] = [];
+        while (true) {
+          const batchStarted = performance.now();
+          const batch = await observer.evaluate((probe) => probe.discover());
+          receipt("outline-mounted-pass", {
+            pass,
+            durationMs: performance.now() - batchStarted,
+            ...batch,
+          });
+          expect(batch.observation.violationCount).toBe(0);
+          expect(batch.observation.violations).toEqual([]);
+          if (!batch.targets.length) break;
+          for (const target of batch.targets) {
+            expect(++expanded).toBeLessThanOrEqual(103);
+            targetOrder.push(target.id);
+            const actionStarted = performance.now();
+            try {
+              await outline.locator(target.selector).click();
+            } finally {
+              receipt("outline-pointer", {
+                pass,
+                id: target.id,
+                durationMs: performance.now() - actionStarted,
+              });
+            }
+          }
+          const settlementStarted = performance.now();
+          const observation = await observer.evaluate((probe) =>
+            probe.settle(),
+          );
+          receipt("outline-pass-committed", {
+            pass,
+            durationMs: performance.now() - settlementStarted,
+            observation,
+          });
+          expect(observation.violationCount).toBe(0);
+          expect(observation.violations).toEqual([]);
+          expect(observation.pendingId).toBeNull();
+          expect(observation.dispatches.map((dispatch) => dispatch.id)).toEqual(
+            targetOrder,
+          );
+          expect(observation.committedIds).toEqual(targetOrder);
+          pass++;
+        }
+        await expect(
+          outline.locator("li[data-resource-id]:not([data-reference])"),
+        ).toHaveCount(103);
+        expect(
+          (
+            await outline
+              .locator("li[data-resource-id]:not([data-reference])")
+              .evaluateAll((elements) =>
+                elements.map((element) =>
+                  element.getAttribute("data-resource-id"),
+                ),
+              )
+          ).sort(),
+        ).toEqual(expectedIds);
+        end("outline-expansion", { expanded, targetOrder });
+        mainSucceeded = true;
+      } finally {
+        let cleanupFailed = false;
+        let cleanupError: unknown;
+        try {
+          const observation = await observer.evaluate((probe) =>
+            probe.dispose(),
+          );
+          receipt("outline-observer-disposed", { observation });
+          if (mainSucceeded) {
+            expect(observation.violationCount).toBe(0);
+            expect(observation.violations).toEqual([]);
+            expect(observation.pendingId).toBeNull();
+          }
+        } catch (error) {
+          cleanupFailed = true;
+          cleanupError = error;
+          if (!mainSucceeded)
+            console.error("Outline observation cleanup failed", String(error));
+        }
+        try {
+          await observer.dispose();
+        } catch (error) {
+          if (!mainSucceeded || cleanupFailed)
+            console.error(
+              "Outline observation handle disposal failed",
+              String(error),
+            );
+          if (!cleanupFailed) {
+            cleanupFailed = true;
+            cleanupError = error;
+          }
+        }
+        if (mainSucceeded && cleanupFailed) throw cleanupError;
       }
-      await expect(
-        outline.locator("li[data-resource-id]:not([data-reference])"),
-      ).toHaveCount(103);
-      expect(
-        (
-          await outline
-            .locator("li[data-resource-id]:not([data-reference])")
-            .evaluateAll((elements) =>
-              elements.map((element) =>
-                element.getAttribute("data-resource-id"),
-              ),
-            )
-        ).sort(),
-      ).toEqual(expectedIds);
-      end("outline-expansion", { expanded });
     }
     async function submittedFieldsMatchMeaning(grouping: string) {
       currentGrouping = grouping;
@@ -386,11 +469,13 @@ test("one master scene renders and inspects the complete multi-page inventory", 
       let applied: ObservatorySceneDto | undefined;
       await expect
         .poll(async () => {
-          const key = JSON.stringify([
-            await gravity.getAttribute("data-grouping"),
-            await gravity.getAttribute("data-view-revision"),
-            await gravity.getAttribute("data-projection-revision"),
-          ]);
+          const key = JSON.stringify(
+            await gravity.evaluate((element) => [
+              element.getAttribute("data-grouping"),
+              element.getAttribute("data-view-revision"),
+              element.getAttribute("data-projection-revision"),
+            ]),
+          );
           applied = browserScenes.get(key);
           return applied !== undefined;
         })
