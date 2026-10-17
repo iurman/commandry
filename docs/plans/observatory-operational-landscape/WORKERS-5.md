@@ -48,8 +48,6 @@ No production changes or expanded machine grants.
     "packages/contracts/src/observatory-queries.ts",
     "packages/db/src/observatory-schema.ts",
     "packages/db/src/observatory-management-repository.ts",
-    "packages/db/src/foundation-workflow-access-repository.ts",
-    "packages/db/src/client.ts",
     "packages/db/src/observatory-canonical.integration.test.ts",
     "packages/application/src/observatory-management.ts"
   ],
