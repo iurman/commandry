@@ -1,0 +1,65 @@
+{
+  "status": "read-only predeployment access evidence; no source activation",
+  "currentProductionSource": "507303ca1e82b8b15cc8d94864b61db1de86ed7e",
+  "workerRequestProfile": {
+    "appOrigin": "https://commandry.site",
+    "sourceSha": "507303ca1e82b8b15cc8d94864b61db1de86ed7e",
+    "status": 200,
+    "body": {
+      "status": "ready",
+      "service": "web",
+      "database": "ready"
+    },
+    "credentials": "omit",
+    "redirect": "error",
+    "observationsPersisted": false,
+    "observedAt": "2026-10-17T15:00:42.728139+00:00",
+    "readOnly": true,
+    "productionSqlUsed": false,
+    "context": "Current production worker container; exact native reader request options; no source creation or activation"
+  },
+  "vpsPublicEndpointAccess": [
+    {
+      "path": "/version",
+      "status": 200,
+      "contentType": "application/json",
+      "server": "cloudflare"
+    },
+    {
+      "path": "/health/live",
+      "status": 200,
+      "contentType": "application/json",
+      "server": "cloudflare"
+    },
+    {
+      "path": "/health/ready",
+      "status": 200,
+      "contentType": "application/json",
+      "server": "cloudflare"
+    }
+  ],
+  "earlierDesktopPublicAccess": {
+    "observedAt": "2026-10-17T14:11:36.282257+00:00",
+    "responses": [
+      {
+        "path": "/version",
+        "status": 403
+      },
+      {
+        "path": "/health/live",
+        "status": 403
+      },
+      {
+        "path": "/health/ready",
+        "status": 403
+      }
+    ],
+    "interpretation": "Different unauthenticated access vantage;403 is not an app outage observation"
+  },
+  "scope": "One web/database readiness boundary, not external-user availability or uptime history",
+  "limits": [
+    "New release not deployed",
+    "No canonical source binding or observation persisted",
+    "No InfraAgent dependency or account change"
+  ]
+}

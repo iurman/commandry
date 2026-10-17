@@ -1,0 +1,257 @@
+{
+  "status": "failed release, no publication",
+  "workflow": {
+    "conclusion": "failure",
+    "createdAt": "2026-10-17T13:55:05Z",
+    "databaseId": 39038533370,
+    "headBranch": "main",
+    "headSha": "6d3b91aadb25e4c7b0a05294a2d333b9be9f138f",
+    "jobs": [
+      {
+        "conclusion": "failure",
+        "name": "publish",
+        "status": "completed",
+        "steps": [
+          {
+            "completedAt": "2026-10-17T13:55:11Z",
+            "conclusion": "success",
+            "name": "Set up job",
+            "startedAt": "2026-10-17T13:55:08Z",
+            "status": "completed"
+          },
+          {
+            "completedAt": "2026-10-17T13:55:12Z",
+            "conclusion": "success",
+            "name": "Run actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1",
+            "startedAt": "2026-10-17T13:55:11Z",
+            "status": "completed"
+          },
+          {
+            "completedAt": "2026-10-17T13:55:12Z",
+            "conclusion": "success",
+            "name": "Verify the selected main commit",
+            "startedAt": "2026-10-17T13:55:12Z",
+            "status": "completed"
+          },
+          {
+            "completedAt": "2026-10-17T13:55:18Z",
+            "conclusion": "success",
+            "name": "Run pnpm/action-setup@0977fd99725f1db4007ccb2928dbb4e90d06cc86",
+            "startedAt": "2026-10-17T13:55:12Z",
+            "status": "completed"
+          },
+          {
+            "completedAt": "2026-10-17T13:55:23Z",
+            "conclusion": "success",
+            "name": "Run actions/setup-node@820762786026740c76f36085b0efc47a31fe5020",
+            "startedAt": "2026-10-17T13:55:18Z",
+            "status": "completed"
+          },
+          {
+            "completedAt": "2026-10-17T13:55:35Z",
+            "conclusion": "success",
+            "name": "Set up local test environment",
+            "startedAt": "2026-10-17T13:55:23Z",
+            "status": "completed"
+          },
+          {
+            "completedAt": "2026-10-17T13:57:57Z",
+            "conclusion": "success",
+            "name": "Check source, contracts, and workflow formatting",
+            "startedAt": "2026-10-17T13:55:35Z",
+            "status": "completed"
+          },
+          {
+            "completedAt": "2026-10-17T13:57:58Z",
+            "conclusion": "success",
+            "name": "Audit production dependencies",
+            "startedAt": "2026-10-17T13:57:57Z",
+            "status": "completed"
+          },
+          {
+            "completedAt": "2026-10-17T14:00:17Z",
+            "conclusion": "success",
+            "name": "Run unit and local tests",
+            "startedAt": "2026-10-17T13:57:58Z",
+            "status": "completed"
+          },
+          {
+            "completedAt": "2026-10-17T14:04:43Z",
+            "conclusion": "success",
+            "name": "Build and test the application",
+            "startedAt": "2026-10-17T14:00:17Z",
+            "status": "completed"
+          },
+          {
+            "completedAt": "2026-10-17T14:04:44Z",
+            "conclusion": "success",
+            "name": "Restore Next's generated declaration",
+            "startedAt": "2026-10-17T14:04:43Z",
+            "status": "completed"
+          },
+          {
+            "completedAt": "2026-10-17T14:04:44Z",
+            "conclusion": "success",
+            "name": "Check production Compose configuration",
+            "startedAt": "2026-10-17T14:04:44Z",
+            "status": "completed"
+          },
+          {
+            "completedAt": "2026-10-17T14:06:33Z",
+            "conclusion": "success",
+            "name": "Build and start the exact release image locally",
+            "startedAt": "2026-10-17T14:04:44Z",
+            "status": "completed"
+          },
+          {
+            "completedAt": "2026-10-17T14:19:49Z",
+            "conclusion": "failure",
+            "name": "Exercise desktop and phone screens",
+            "startedAt": "2026-10-17T14:06:33Z",
+            "status": "completed"
+          },
+          {
+            "completedAt": "2026-10-17T14:19:49Z",
+            "conclusion": "skipped",
+            "name": "Exercise governed owner workflows in disposable auth modes",
+            "startedAt": "2026-10-17T14:19:49Z",
+            "status": "completed"
+          },
+          {
+            "completedAt": "2026-10-17T14:19:49Z",
+            "conclusion": "skipped",
+            "name": "Rehearse production services with the exact image",
+            "startedAt": "2026-10-17T14:19:49Z",
+            "status": "completed"
+          },
+          {
+            "completedAt": "2026-10-17T14:19:49Z",
+            "conclusion": "skipped",
+            "name": "Confirm clean image provenance after tests",
+            "startedAt": "2026-10-17T14:19:49Z",
+            "status": "completed"
+          },
+          {
+            "completedAt": "2026-10-17T14:19:49Z",
+            "conclusion": "skipped",
+            "name": "Report all high and critical image findings",
+            "startedAt": "2026-10-17T14:19:49Z",
+            "status": "completed"
+          },
+          {
+            "completedAt": "2026-10-17T14:19:49Z",
+            "conclusion": "skipped",
+            "name": "Block fixable high and critical findings and secrets",
+            "startedAt": "2026-10-17T14:19:49Z",
+            "status": "completed"
+          },
+          {
+            "completedAt": "2026-10-17T14:19:49Z",
+            "conclusion": "success",
+            "name": "Summarize image findings without exposing matches",
+            "startedAt": "2026-10-17T14:19:49Z",
+            "status": "completed"
+          },
+          {
+            "completedAt": "2026-10-17T14:19:49Z",
+            "conclusion": "skipped",
+            "name": "Log in to GitHub Container Registry",
+            "startedAt": "2026-10-17T14:19:49Z",
+            "status": "completed"
+          },
+          {
+            "completedAt": "2026-10-17T14:19:49Z",
+            "conclusion": "skipped",
+            "name": "Publish and read back the tested image by digest",
+            "startedAt": "2026-10-17T14:19:49Z",
+            "status": "completed"
+          },
+          {
+            "completedAt": "2026-10-17T14:19:50Z",
+            "conclusion": "success",
+            "name": "Stop disposable local Compose services",
+            "startedAt": "2026-10-17T14:19:49Z",
+            "status": "completed"
+          },
+          {
+            "completedAt": "2026-10-17T14:19:50Z",
+            "conclusion": "skipped",
+            "name": "Post Run actions/setup-node@820762786026740c76f36085b0efc47a31fe5020",
+            "startedAt": "2026-10-17T14:19:50Z",
+            "status": "completed"
+          },
+          {
+            "completedAt": "2026-10-17T14:19:50Z",
+            "conclusion": "success",
+            "name": "Post Run pnpm/action-setup@0977fd99725f1db4007ccb2928dbb4e90d06cc86",
+            "startedAt": "2026-10-17T14:19:50Z",
+            "status": "completed"
+          },
+          {
+            "completedAt": "2026-10-17T14:19:50Z",
+            "conclusion": "success",
+            "name": "Post Run actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1",
+            "startedAt": "2026-10-17T14:19:50Z",
+            "status": "completed"
+          },
+          {
+            "completedAt": "2026-10-17T14:19:51Z",
+            "conclusion": "success",
+            "name": "Complete job",
+            "startedAt": "2026-10-17T14:19:50Z",
+            "status": "completed"
+          }
+        ]
+      }
+    ],
+    "status": "completed",
+    "updatedAt": "2026-10-17T14:19:53Z",
+    "url": "https://github.com/iurman/commandry/actions/runs/39038533370"
+  },
+  "browserSummary": {
+    "total": 207,
+    "passed": 196,
+    "skipped": 5,
+    "failed": 6,
+    "projects": ["desktop", "phone-390", "phone-320"],
+    "failedDefinitions": [
+      {
+        "file": "tests/e2e/infrastructure-overview.spec.ts",
+        "line": 71,
+        "reachedFailureLine": 184,
+        "reason": "Legacy outer Find a resource control is absent after wallboard remount returns to accepted Gravity default."
+      },
+      {
+        "file": "tests/e2e/infrastructure-overview.spec.ts",
+        "line": 360,
+        "reachedFailureLine": 422,
+        "reason": "Legacy Gravity grouping control was replaced by Observatory grouping; downstream assertions were not reached."
+      }
+    ]
+  },
+  "additionalSourceFindings": [
+    {
+      "task": "T35",
+      "state": "confirmed source dataflow; actual correction verification pending",
+      "finding": "Saved grouping and normalized sectors load into preferences but do not restore the active scene query on reload/navigation."
+    },
+    {
+      "task": "T36",
+      "state": "independent source finding; actual correction verification pending",
+      "finding": "Phone CSS max-width42percent shrinks the DOM lens ring while the shared renderer retains its full lensViewport diameter. Proved visual boundary disagreement, no canonical picking regression established."
+    }
+  ],
+  "preservedGuarantees": [
+    "Original fixture and actual host observation",
+    "120000ms test and5000ms expectation limits",
+    "All3browser projects and boththemes",
+    "Exact canonical identities and complete membership",
+    "Unknown availability despite fresh telemetry and service without a source",
+    "Initially false and subsequently withheld observer, clipping suspension/recovery",
+    "Measured lens geometry, persistence, focus, source evidence, pause and TV/phone fit"
+  ],
+  "productionDeploymentOccurred": false,
+  "imagePublished": false,
+  "sourceActivated": false,
+  "priorActualEvidenceRetained": true
+}

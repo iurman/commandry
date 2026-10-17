@@ -1,0 +1,61 @@
+{
+  "observedAt": "2026-10-17T14:43:30.488822+00:00",
+  "task": "T35",
+  "status": "component-acceptance-and-independent-source-review-passed",
+  "immutableBase": "473e3b1ba864092c624705f8bd37f028b793216d",
+  "manifestHash": "69adac6bd4257adf073dde0757d6385841efdd29ec8d3b5afd9f312cbe0ad20e",
+  "files": [
+    {
+      "path": "packages/ui/src/components/OperationalObservatory.tsx",
+      "sha256": "96e53d53c4931f75a1419764fccbe7a1c8486db0c5c3f4947af7c510178b7896"
+    },
+    {
+      "path": "packages/ui/src/gravity/operational-layout.test.ts",
+      "sha256": "e275126d9bc5c2d439fc609f394b3826979f614339ccbec84431d81d161245a3"
+    }
+  ],
+  "newFailingControls": [
+    {
+      "stage": "original-product",
+      "failed": 3,
+      "passed": 66,
+      "meaning": "Saved custom/projects active grouping and early explicit grouping ownership"
+    },
+    {
+      "stage": "first-correction",
+      "failed": 2,
+      "passed": 68,
+      "meaning": "Unchanged original incoming Projects alias-context controls exposed absent-storage fallback"
+    },
+    {
+      "stage": "independent-review-correction-baseline",
+      "failed": 1,
+      "passed": 76,
+      "meaning": "Unsupported legacy v1 operational must not override incoming Projects"
+    }
+  ],
+  "finalAcceptance": {
+    "componentAndPreferenceTests": 77,
+    "testFiles": 2,
+    "uiTypes": "passed",
+    "changedSourceFormatting": "passed",
+    "scopedLint": "passed-no-warnings",
+    "independentPacketReexecution": "PASS"
+  },
+  "independentSourceReview": {
+    "initial": "P2 invalid legacy fallback found; corrected by same exclusive worker",
+    "final": "ACCEPT: prior P2 resolved, no remaining actionable finding within exact T35 scope"
+  },
+  "unchangedGuarantees": [
+    "Existing test bytes retained with additive regressions and import",
+    "Existing preference normalizer unchanged",
+    "Authorized sector filtering and explicit query ownership retained",
+    "Default camera remains composed"
+  ],
+  "limits": [
+    "No built-app reload or wallboard navigation claim; T36 pending",
+    "No phone geometry closure, hosted release or production deployment claim"
+  ],
+  "sourceCommit": "7c8ef922e3b11b80a4c56e86f12af0751e0419f0",
+  "localMergeCommit": "4f1653455e1d23120da3f07e3b8ed9ec3982ee87"
+}

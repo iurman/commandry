@@ -1,14 +1,24 @@
 # Observatory execution record
 
-**Status: Operational. Implementation merged; release validation remains in progress.**
+**Status: Operational. Implementation and local browser corrections accepted; hosted release and constrained deployment remain in progress.**
 
-## Current release state, 2026-10-17
+## Current accepted local correction, 2026-10-17
+
+T35/T36 close all three reopened local cases: 53 PASS, 0 FAIL and five explicit partial/unrun limitations. Final worker 3b15e63, normally merged locally at d74e48f, retains original guarantees and passes 78 component controls plus all 12 built browser cases in 1.1 minutes. Root independently executes all five packet checks and verifies source hashes plus strict owned cleanup. Astra final source/evidence review accepts; exact prior failed attempts, final measurements and actual screenshots are in [T36](T36.md) and [sanitized final evidence](evidence/2026-10-17-browser-final.json). The subsequent prefer-const correction has a separately recorded hash and independent acceptance as preserving behavior. Repository checks and scoped browser lint pass; current final repository bytes still require the mandatory hosted release.
+
+The next authorized steps are the corrective normal PR/merge, a single full main release, exact immutable-image metadata verification, genuine protected approval, existing constrained deployment and signed-in live/source activation. No image was published or production modified by this local correction. Unchanged historical GPU/soak/database/MCP evidence retains its actual original source53827d6. Five explicit owner/device/source limitations remain; the entire workflow is unfinished.
+
+## Retained release history, 2026-10-17
 
 The implementation is normally merged through PR22 at922cc6d. Its product and test bytes match the actual built53827d6 feature evidence, apart from the subsequent test-runner ceiling. The first main release39035678643 failed one original pressure test at5026ms against the unchanged5000ms deadline. T33's numeric worker ceiling4to2 passed controlled original-suite comparisons, worker/coordinator full-test acceptance and independent Astra review, then normally merged through [PR23](https://github.com/iurman/commandry/pull/23) ate26d4a0.
 
 [Release39037231379](https://github.com/iurman/commandry/actions/runs/39037231379) verified corrected hosted unit/local success and passed source/audit/applicationbuild/integration/Compose. It then failed container worker-deps because Docker context excluded the test-support workspace manifest. No image was published. An unchanged exact-e26 local target build reproduces that error. T34's manifest-only context correction passes actual full image/stage/filesystem checks in the worker and coordinator packet rerun. Independent harness review accepts the checks; independent final source review ACCEPTS with no actionable findings; the next hosted release remains pending. See [T33 causal evidence](T33.md) and [T34 actual image evidence](T34.md).
 
-All58feature scenarios retain their recorded outcomes:53PASS and five explicit partial or unrun source, human or physical-device checks. The neutral F06 owner interpretation request is pending on the verified read-only synthetic preview. Protected exact-image approval, the existing constrained deployment and exact signed-in live verification remain outstanding. No production deployment, source activation, DNS change or production SQL has occurred.
+[Release39038533370](https://github.com/iurman/commandry/actions/runs/39038533370), exact main6d3b91a after normally merged PR24, verifies corrected container build/start and all preceding gates. Browser stage reports196PASS/5SKIP/6FAIL. Two original infrastructure tests fail at3viewports on replaced controls/context. Their full assertion audit also establishes a genuine saved-grouping restore gap and a phone DOM/GPU lens-boundary mismatch. No image was published. T35 owns the narrow persisted active-query correction; T36 must preserve/migrate all meaningful original browser assertions and align the phone lens boundary, with actual built verification. Original fixture, deadlines, observer negative controls, evidence truth and all viewports remain mandatory. See [actual failed release](evidence/2026-10-17-release-browser-failure.json).
+
+D07/G04 are temporarily reopened pending these corrections:51PASS and seven explicit partial/unrun clauses. Their earlier executed evidence remains retained. The five preexisting source, human and physical-device limits remain unchanged. The neutral F06 owner interpretation request is pending on the verified read-only synthetic preview. Protected exact-image approval, the existing constrained deployment and exact signed-in live verification remain outstanding. No production deployment, source activation, DNS change or production SQL has occurred.
+
+The first four-file T36 packet passes78component/preference controls, types, format and boundaries. Actual built run run-a4c4caa2-eaa6-4285-9ad4-9331e5988d0f at7ad54a5 with candidate changes, BUILD_ID rQChcXCBqjsBjdxhjXN26, reports11PASS/1FAIL: original1920x1080 TV vertical fit. Both phone cases pass; final source acceptance remains held. Cleanup separately passes strict matching receipt plus independently checked actual PID/group/directory absence. F03 is reopened alongside D07/G04 pending accepted final closure:50PASS/3FAIL/5partial-unrun. [Actual TV failure](evidence/2026-10-17-tv-layout-failure.json) is retained; no hosted release, publication, deployment or activation occurred.
 
 ## Authority and baseline
 
@@ -25,7 +35,7 @@ Fetched origin/main is 507303ca1e82b8b15cc8d94864b61db1de86ed7e. The isolated im
 | C Grouped scene and focus          | Verified | Complete91/1000-resource scene, authorization, grouping, search, detail, tours and breadcrumbs pass actual built controls. Actual final53827d6 label build, pixels and idle pass.      |
 | D Mappings and operational sources | Verified in disposable boundaries        | Canonical reviewed records, supported availability, provider/scanner/CI source history and owner/API/MCP parity pass. Exact production mappings and activation remain qualified until deployed and reviewed.         |
 | E Repository/work/views/TV         | Verified with explicit runtime limit     | Actual private views, repository/security/CI evidence,101canonical Work records and30minuteTVsoak pass. Unreleased AgentRun remains unknown.                                                                         |
-| F Review and release | In progress | Implementation and T33 normally merged; T34 actual local image/packet checks pass. T34 final source review passes; hosted publication, protected release controls, owner interpretation and signed-in live verification remain. |
+| F Review and release | In progress | PR22/23/24 merged; hosted container startup verified. T35/T36 corrections accepted locally; corrective normal PR/full hosted release, publication, protected controls and live verification remain pending. |
 
 ## Preserved resources
 
@@ -322,3 +332,32 @@ Final owner surface technical checks pass10/10 at1440light/390dark, including co
 The old b305bf8 bridge and preview were retired only after exact task ownership/source/process-parent/private-data checks. Their processes are gone and exact owned temporary storage removed, with copies of receipts and all evidence retained. Current39519private preview and38553read-only owner surface remain intentionally available. Owner3217 is unchanged. Authorized normal main merge and main-only release CI are next; actual protected backup/restore/recovery/approval/constrained deployment and signed-in live91inventory/evidence verification remain mandatory.
 
 The final native91fixture check also passes2/2 through actual disposable PostgreSQL, actual owner HTTP/client and the shipped UI, with no read-port interception or database mutation. All91canonical identities, visible non-overlap, original natural-refresh camera/fields/anchors/states/mesh detail and exact120rAFzero-draw idle remain intact. Two initial harness-setup failures are retained separately; no product assertion or tolerance was relaxed. Root inspected the actual native91screenshot.
+
+
+## 2026-10-17 accepted grouping restoration and pending browser closure
+
+T35 source commit7c8ef92 was independently accepted and normally merged locally. The original product failed three new component regressions; a first correction exposed two unchanged alias-context controls. A subsequent independent review found an unsupported legacy-v1 fallback collision, confirmed by a new1FAIL/76PASS component baseline. All failures remain preserved. The final selected-key/version/vocabulary correction passes77component/preference tests, UI types, formatting and scoped lint; root independently reran the exact-base packet and received PASS. Original tests and earlier regressions are byte-preserved with additive imports/cases. See [T35 result](T35.md) and [sanitized component evidence](evidence/2026-10-17-grouping-restoration.json).
+
+T36 now owns the complete migration of the two legacy browser workflows and the narrow measured phone lens-boundary correction. The plan passed P1-P10; its isolated checkout contains the accepted T35 source, frozen dependencies and byte-identical independently reviewed disposable-build helpers. No T36 built result is claimed yet. D07/G04 remain reopened and the formal QA disposition stays51PASS/7partial-unrun. No further release has run, no image was published and no production change or source activation occurred.
+
+
+## 2026-10-17 actual phone baseline and isolated harness failure
+
+The first T36 actual build ran12browser cases at422701f:9PASS/3FAIL. Both phones fail strict shared-viewport agreement with measured7.088px/5.694px ring shrinkage and byte-unchanged42percent CSS. Desktop independently reaches a wrong migrated sector locator. D07 is now a retained executed FAIL, giving51PASS/1FAIL/6partial-unrun. No original timeout, fixture or unrelated test was weakened.
+
+The root-owned helper separately failed shutdown with exit143, not a passing cleanup. Installed dependency hooks establish the SIGTERM race. Root verified and retired only its exact unique failed-build asset directory after actual owned PID/group/data absence; original receipts/errors remain. Independent Astra accepted the IPC correction statically, and the same T36 worker resumes for actual cleanup and browser evidence. The first run remains failed. See [sanitized baseline evidence](evidence/2026-10-17-browser-lens-baseline.json). No release, image publication, production change or source activation followed.
+
+
+## 2026-10-17 existing readiness access preflight
+
+Read-only checks from the existing VPS reached current507303c /version, /health/live and /health/ready withHTTP200. A second request from the actual production worker container used the new native reader's exact GET/Accept/no-store/credentials-omit/redirect-error/10second options and received the exact supported ready/web/database-ready body. This establishes server-side access to the existing readiness boundary. It does not persist a source observation, activate monitoring, prove external-user availability, or establish the new release. The earlier desktop unauthenticated403 is a different access vantage, not evidence of an application outage. No InfraAgent account or connector is required. See [sanitized access evidence](evidence/2026-10-17-current-readiness-access.json).
+
+
+## 2026-10-17 actual corrected helper cleanup
+
+A separate full T36 unchanged-CSS baseline at422701f/BUILD_ID0nCX3w0oQxLYjvB_-HqWb again reports9PASS/3FAIL. Its new IPC shutdown passes strict cleanup with a fresh matching stopped receipt; root independently verifies actual preview, web, PostgreSQL and process-group absence and exact temporary-directory removal. The original exit143 failure remains retained. Both phone geometry failures remain intentional pre-correction evidence; desktop advances to a remaining unmigrated Surface theme control. Source-only journey review will identify remaining control mismatches before the final full packet. This is cleanup acceptance only, not browser/source/release acceptance. Coverage stays51PASS/1FAIL/6partial-unrun.
+
+
+## 2026-10-17 implicit custom causal regression
+
+Astra preflight distinguishes the original omitted explicit-Custom step from a real alternate-path product defect. The explicit four-file replan was committed and the stopped child normally fast-forwarded with all working source/test bytes preserved. Its final manifest pins7ad54a5,53read files, four exclusive writes and all five acceptance commands. The new actual component regression then failed once while all77original controls passed: active Custom was nonpending but saved grouping remained Projects. [Causal evidence](evidence/2026-10-17-implicit-custom-baseline.json) is retained. The bounded writer and phone cap corrections and both built reload journeys are now in the final packet. Coverage is51PASS/2FAIL/5partial-unrun until actual corrected acceptance; no release or production change is implied.

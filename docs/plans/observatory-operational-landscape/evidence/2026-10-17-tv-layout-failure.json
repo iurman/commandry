@@ -1,0 +1,104 @@
+{
+  "status": "FAIL: actual desktop TV vertical-fit assertion; no final acceptance",
+  "observedAt": "2026-10-17T15:15:32.090Z",
+  "runId": "run-a4c4caa2-eaa6-4285-9ad4-9331e5988d0f",
+  "sourceSha": "7ad54a5d5e65875443950c91063165f4746ce577",
+  "sourceClean": false,
+  "buildId": "rQChcXCBqjsBjdxhjXN26",
+  "testFileSha256": "08475279519f1e2a3285867fc810fd3ccab9842849367f945f7616d78a2e98db",
+  "browser": {
+    "passed": 11,
+    "failed": 1,
+    "projects": [
+      "desktop",
+      "phone-390",
+      "phone-320"
+    ],
+    "failure": "1920x1080 document.documentElement.scrollHeight <= innerHeight + 1 is false",
+    "originalGuaranteeRetained": true
+  },
+  "otherPacketChecks": {
+    "componentPreferences": "78 passed",
+    "uiTypes": "PASS",
+    "fourFileFormat": "PASS",
+    "boundaries": "PASS"
+  },
+  "cleanup": {
+    "accepted": true,
+    "freshMatchingStoppedReceipt": true,
+    "actualPidGroupAndDirectoryAbsenceIndependentlyVerified": true,
+    "errors": []
+  },
+  "limits": [
+    "No complete built acceptance",
+    "No hosted release or publication",
+    "No deployment or source activation",
+    "Previous failures remain retained"
+  ],
+  "subsequentAttempt": {
+    "runId": "run-dbab8bff-69a1-4238-a55a-8a9efb7c96d9",
+    "buildId": "vLuv55YMP4S-PeYknMnr7",
+    "sourceSha": "7ad54a5d5e65875443950c91063165f4746ce577",
+    "sourceClean": false,
+    "browser": "11PASS/1FAIL",
+    "original1920Fit": "PASS",
+    "fourKMeasurement": "NOT REACHED",
+    "failure": "New recorder still requires original projectId and rejects successful all-project scene with projectId omitted",
+    "traceActualGlobalResponse": {
+      "status": 200,
+      "projectIdField": "omitted"
+    },
+    "retainedGeometry": [
+      {
+        "label": "1920x1080-gravity-wallboard reconciled",
+        "viewport": {
+          "width": 1920,
+          "height": 1080,
+          "scrollX": 0,
+          "scrollY": 0,
+          "visual": {
+            "width": 1920,
+            "height": 1080,
+            "scale": 1
+          }
+        },
+        "document": {
+          "scrollHeight": 1080,
+          "clientHeight": 1080,
+          "scrollWidth": 1920,
+          "clientWidth": 1920
+        },
+        "body": {
+          "scrollHeight": 1080,
+          "clientHeight": 1080,
+          "scrollWidth": 1920
+        },
+        "availableWidth": 1888,
+        "workspaceWidth": 1888,
+        "stage": {
+          "x": 18,
+          "y": 441.703125,
+          "width": 1544,
+          "height": 160,
+          "top": 441.703125,
+          "right": 1562,
+          "bottom": 601.703125,
+          "left": 18
+        },
+        "canvas": {
+          "x": 18,
+          "y": 441.703125,
+          "width": 1544,
+          "height": 160,
+          "top": 441.703125,
+          "right": 1562,
+          "bottom": 601.703125,
+          "left": 18
+        },
+        "ready": true
+      }
+    ],
+    "cleanup": "PASS: fresh matching receipt plus independently verified actual PID/group/directory absence",
+    "wholeAcceptance": "PENDING"
+  }
+}
