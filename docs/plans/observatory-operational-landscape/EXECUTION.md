@@ -1,6 +1,6 @@
 # Observatory execution record
 
-**Status: Operational. Implementation merged; release validation remains in progress.**
+**Status: Operational. Implementation merged; release browser corrections remain in progress.**
 
 ## Current release state, 2026-10-17
 
@@ -8,7 +8,9 @@ The implementation is normally merged through PR22 at922cc6d. Its product and te
 
 [Release39037231379](https://github.com/iurman/commandry/actions/runs/39037231379) verified corrected hosted unit/local success and passed source/audit/applicationbuild/integration/Compose. It then failed container worker-deps because Docker context excluded the test-support workspace manifest. No image was published. An unchanged exact-e26 local target build reproduces that error. T34's manifest-only context correction passes actual full image/stage/filesystem checks in the worker and coordinator packet rerun. Independent harness review accepts the checks; independent final source review ACCEPTS with no actionable findings; the next hosted release remains pending. See [T33 causal evidence](T33.md) and [T34 actual image evidence](T34.md).
 
-All58feature scenarios retain their recorded outcomes:53PASS and five explicit partial or unrun source, human or physical-device checks. The neutral F06 owner interpretation request is pending on the verified read-only synthetic preview. Protected exact-image approval, the existing constrained deployment and exact signed-in live verification remain outstanding. No production deployment, source activation, DNS change or production SQL has occurred.
+[Release39038533370](https://github.com/iurman/commandry/actions/runs/39038533370), exact main6d3b91a after normally merged PR24, verifies corrected container build/start and all preceding gates. Browser stage reports196PASS/5SKIP/6FAIL. Two original infrastructure tests fail at3viewports on replaced controls/context. Their full assertion audit also establishes a genuine saved-grouping restore gap and a phone DOM/GPU lens-boundary mismatch. No image was published. T35 owns the narrow persisted active-query correction; T36 must preserve/migrate all meaningful original browser assertions and align the phone lens boundary, with actual built verification. Original fixture, deadlines, observer negative controls, evidence truth and all viewports remain mandatory. See [actual failed release](evidence/2026-10-17-release-browser-failure.json).
+
+D07/G04 are temporarily reopened pending these corrections:51PASS and seven explicit partial/unrun clauses. Their earlier executed evidence remains retained. The five preexisting source, human and physical-device limits remain unchanged. The neutral F06 owner interpretation request is pending on the verified read-only synthetic preview. Protected exact-image approval, the existing constrained deployment and exact signed-in live verification remain outstanding. No production deployment, source activation, DNS change or production SQL has occurred.
 
 ## Authority and baseline
 
@@ -18,14 +20,14 @@ Fetched origin/main is 507303ca1e82b8b15cc8d94864b61db1de86ed7e. The isolated im
 
 ## Delivery phases
 
-| Phase                              | State                                    | Evidence or next action                                                                                                                                                                                              |
-| ---------------------------------- | ---------------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| A Meaning and baseline             | Verified                                 | Owner authority, accepted ADR0016, exact fixtures, failing baselines and58-scenario ledger are recorded.                                                                                                             |
-| B Controls and geometry            | Verified with stated limits              | Actual shared-surface, GPU geometry, phone picking and measured ordinary performance pass. Physical-device and expanded-stress limits remain explicit; final label replay passes.                                |
-| C Grouped scene and focus          | Verified | Complete91/1000-resource scene, authorization, grouping, search, detail, tours and breadcrumbs pass actual built controls. Actual final53827d6 label build, pixels and idle pass.      |
-| D Mappings and operational sources | Verified in disposable boundaries        | Canonical reviewed records, supported availability, provider/scanner/CI source history and owner/API/MCP parity pass. Exact production mappings and activation remain qualified until deployed and reviewed.         |
-| E Repository/work/views/TV         | Verified with explicit runtime limit     | Actual private views, repository/security/CI evidence,101canonical Work records and30minuteTVsoak pass. Unreleased AgentRun remains unknown.                                                                         |
-| F Review and release | In progress | Implementation and T33 normally merged; T34 actual local image/packet checks pass. T34 final source review passes; hosted publication, protected release controls, owner interpretation and signed-in live verification remain. |
+| Phase                              | State                                | Evidence or next action                                                                                                                                                                                      |
+| ---------------------------------- | ------------------------------------ | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
+| A Meaning and baseline             | Verified                             | Owner authority, accepted ADR0016, exact fixtures, failing baselines and58-scenario ledger are recorded.                                                                                                     |
+| B Controls and geometry            | Verified with stated limits          | Actual shared-surface, GPU geometry, phone picking and measured ordinary performance pass. Physical-device and expanded-stress limits remain explicit; final label replay passes.                            |
+| C Grouped scene and focus          | Verified                             | Complete91/1000-resource scene, authorization, grouping, search, detail, tours and breadcrumbs pass actual built controls. Actual final53827d6 label build, pixels and idle pass.                            |
+| D Mappings and operational sources | Verified in disposable boundaries    | Canonical reviewed records, supported availability, provider/scanner/CI source history and owner/API/MCP parity pass. Exact production mappings and activation remain qualified until deployed and reviewed. |
+| E Repository/work/views/TV         | Verified with explicit runtime limit | Actual private views, repository/security/CI evidence,101canonical Work records and30minuteTVsoak pass. Unreleased AgentRun remains unknown.                                                                 |
+| F Review and release               | In progress                          | PR22/23/24 merged; hosted container startup verified. Release browser6failures require T35/T36 behavior/test corrections before publication, protected controls and live verification.                       |
 
 ## Preserved resources
 
@@ -95,7 +97,6 @@ T09's first packet and78 tests passed, but independent review found two privacy/
 
 T10 source-persistence/cipher worker is active at050aa89. Its first actual integration attempt correctly escalated a missing platform package instead of installing or adding a dependency cycle. The approved test-only dynamic import of the two exact platform modules preserves production package boundaries. Cipher checks passed; the complete PostgreSQL source/evidence acceptance is still pending.
 
-
 ## Operational convergence and account discovery
 
 T09 privacy corrections passed 88 reader/contract tests, independent probes and packet rerun, then were normally merged. Complete 1,201-PR and 305-alert reads remain verified at the disposable HTTP boundary. The combined source reader suite passed 100 tests. No live credential was activated.
@@ -109,7 +110,6 @@ Canonical private-view controls, versioned routes and MCP scene/member/relation/
 The Cloudflare reader now passes both actual 10-second stalled-header and stalled-body controls, with safe errors preserved during stream cancellation. Its 14-test reader suite passes. Public feed joins and mapping interactions remain implementation work.
 
 The owner clarified that Ephemera is expected on Vercel and authorized discovery using existing browser and SSH access. Read-only SSH verified healthy Commandry containers and the separate Ephemera PostgreSQL container on Electra. The Ephemera checkout records the `iurman/ephemera` repository and Vercel project metadata. This supports a deployment lead but does not verify the current Vercel account deployment or DNS. Vercel and Cloudflare account tabs were opened for owner sign-in; discovery does not authorize DNS changes. Ephemera is not a blocker for independent Observatory work. Fresh origin/main and live container revision still match 507303ca1e82b8b15cc8d94864b61db1de86ed7e.
-
 
 ## Source transition closure and integrated details
 
@@ -157,7 +157,6 @@ Independent review of the master-scene E2E rewrite found two false-success gaps:
 
 The latest populated upgrade audit passes PostgreSQL18 schema67->73 and full repeat, preserving91 resource IDs/15 projects/16 metrics/4 sources/exact prior grant,74 migrations and runtime DDL denial, with no fabricated availability. T18 RR1 empty-chunk watchdog failure was reproduced independently and by the implementer; corrected80-test packet passes coordinator rerun, independent closure pending. Canonical feature/workflow documentation passed independent tool/grant/continuation/policy/link/JSON review after an Origin wording correction. Owner Work audit was additionally checked in the actual repository as observatory.work.read, distinct from machine work.read. The corrected CS1/CS2 browser assertion source passed14 independent event/cursor controls and all9 tests list; actual browser execution remains outstanding. Latest fetched main remains507303ca1e82b8b15cc8d94864b61db1de86ed7e.
 
-
 ## Native integration and full-suite convergence
 
 T18 was normally merged at 816e46b after independent RR1 closure: the unchanged empty-stream watchdog returned timeout/cancellation in31.6ms, all25 independent protocol controls and80 tracked cases passed. The original failing watchdog evidence remains available. The fixed reader still describes a single Commandry web/database readiness observation and does not establish external availability or complete uptime history.
@@ -170,7 +169,6 @@ The task's old40559 preview supervisor was positively identified by its receipt,
 
 Final convergence pnpm check passed format, lint (zero errors;71 warnings), every package typecheck, unchanged boundary checker, refreshed generated-contract validation and lab boundary checks. Independent test convergence review is closed with128 cases plus final Appearance3-case rerun and fixture/data/assertion preservation. The generated contract still lacks Observatory routes; authorized T19 documents existing owner HTTP operations while browser QA proceeds. It introduces no runtime authority.
 
-
 ## Built candidate and first browser findings
 
 The production worker/Next build at455aa15 passes. The actual built owner HTTP and MCP SDK against disposable PostgreSQL18 pass13 checks: exact selected-project scene meaning parity, complete membership continuation, discovery only for separately issued grants, canonical configuration/public-feed reads, denied Work/security/provider/signals, resources-only legacy grant isolation, owner-reviewed resource restriction before projection, project argument rejection, revocation after discovery, and actual60-second credential expiry. All91 original synthetic inventory identities remain unchanged. Helper corrections compare capability sets without assuming ordering and accept the real safe REVOKED error code; they do not change product behavior.
@@ -179,13 +177,11 @@ Independent built F1 review found Environment select overflow:356px document at3
 
 Fixture extraction exposed Node ESM interop at the legacy re-export shim, despite passing Vitest. Explicit named exports restore native Node imports; the actual populated67->73 upgrade and repeat passes again with91resources/15projects/16metrics/4sources/exactoldgrant. No product renderer or fixture data changed. The task TV-soak setup initially timed out after opening Appearance; both original failures are retained. Independent TV toggles at1920/3840 retained the dialog. No30-minute soak has completed; setup is being simplified to fresh default composed wallboard before restarting on the corrected candidate.
 
-
 Independent built retarget baseline confirms the second UI defect:6 evidence panels after selecting host61,9 after host62,12 after host63,14 after returning to host61 and15 after Overview, despite exactly one inspector. The new actual-component regression fails on old source with3 panels instead of1. Distinct evidence/review key prefixes retain per-resource/per-scope reset while preventing sibling-key collisions; all81 component cases and strict UI types pass. Its Overview locator was scoped to breadcrumbs because the product legitimately has two Overview buttons. Final built retarget acceptance remains pending.
 
 The full smoke reached real built web/worker and owner/MCP workflows, then exposed populated-provider test assumptions: earlier immutable notices hid this fixture beyond the first default page. The test now traverses every page and selects its own raw envelope by notice identity without deleting earlier evidence. A subsequent combined run exposed scheduled sources left enabled by earlier access/canonical fixtures. Their teardown disables only their own two synthetic projects and clears their leases, preserving immutable evidence. The corrected combined PostgreSQL bootstrap plus all seven Observatory integration files pass; the full smoke will rerun.
 
 The preview helper now serves a private copy of the exact standalone build, preserving symlinks, so subsequent check/build assets cannot replace a running preview's files. Shared shutdown callers await one cleanup promise and an intentional stop no longer throws before teardown completes. This tooling correction still requires actual start/stop verification; it does not change product rendering.
-
 
 ## Corrected built candidate and HTTP contract closure
 
@@ -198,7 +194,6 @@ Actual built HTTP and MCP SDK against disposable PostgreSQL18 now pass14controls
 Independent F2 browser review found a real environment remount defect: selecting production returned the correct4pass/1fail/1unknown summary, but the component reset its control to all environments and a subsequent expansion sent environment:null. The new regression fails on the prior implementation. The coordinator now supplies the authoritative current query when the scope-digest reset remounts the view, retaining environment/search and authorized sectors while still clearing private history/selection. All25interaction tests pass. Independent review and rebuilt F2 closure remain pending at this milestone.
 
 The30-minute TV soak is running on the unchanged75ea13c renderer/private assets, not yet complete. Actual hardware probes identify AMD Radeon890M through ANGLE OpenGL and RX7700S through ANGLE Vulkan. Initial actual890M composed/focused orbit and continuous pointer samples report p95 approximately16.7ms; complete resource-cycle and F2/F3 measurements are still pending. Earlier software rendering and harness setup failures remain distinct from hardware performance acceptance. No production deployment, operational source activation or provider setting change has occurred.
-
 
 ## Scale review corrections and bounded hardware evidence
 
@@ -221,7 +216,6 @@ The completed TV stability run lasted 1,800,017.6ms with 181 samples. Every samp
 Actual rebuilt13bd298 HTTP/MCP passes15controls including the previously failing restricted-parent boundary, real expiry/revocation and unchanged91IDs. Actual built zero-infrastructure-project Work passes8checks with100+1HTTPpages and exact101DOMidentities. The same existing101records independently pass5actual HTTP/MCP/dock parity controls, including every canonical field/contentdigest and both continuation pages, under separately issued work.read then revoked. Runtime coverage remains explicitly unavailable.
 
 The103-resource actual browser matrix reached all UI assertions at desktop390and320 but an observer incorrectly classified cancelled200-header reads as invalid successful bodies. Preserved desktop traces show exact net::ERR_ABORTED before bodycompletion. The test now skips only explicitly aborted body acquisition, validates completed JSON/schema unchanged, and drains already-started response checks before its final errors assertion. Independent review passes29captured strict scenes,6malformed controls and13exactcallback controls. A4pass/2intentional-phone-skip matrix passed after the abort correction; coherent final-source master-matrix rerun follows the additional observerdrain.
-
 
 ## Independently reviewed convergence and remaining acceptance
 
@@ -277,24 +271,19 @@ T29 source implementation passed 203 tests and independent packet validation, wi
 
 Independent T29 source review passed the original strict Zod compatibility, complete counts, current-age, nonmutation and authority controls. It retained one failed actual-parent recovery test: a successful same-revision refresh leaves the earlier leaf error visible. The expanded eight-file proposal failed the normal six-file worker limit and was split into the three-file T30 plan without changing a guard. T29 is frozen as source candidate d916ff1bc916083e9db85a81ec9362f8b3651959 and remains unmerged pending T30 and combined independent acceptance.
 
-
 ### Final retained-evidence recovery review
 
 The independent T29 review confirmed original strict default/false PR compatibility, complete explicit rich evidence, current-age freshness, authorization and canonical nonmutation. It also reproduced a transient HTTP503 followed by a successful identical manual refresh with an unchanged scene revision that left the old error visible. T30 isolates that correction to the evidence leaf and its existing source tests. Its 211 tests, typechecks, formatting and lint pass; independent combined source re-review and final built/HTTP/SDK validation are pending. T29 remains a frozen candidate until that re-review accepts both changes.
 
 The final compatible-read protocol is prepared with inert import/help verification. It requires an explicit immutable disposable target and has not executed. It will create at most one synthetic GitHub source and two project grants, retain original evidence clocks, verify old/default versus explicit rich API/SDK/built parity, age evidence with the real clock, and clean up its own source/grants. It does not substitute for production activation or the actual owner usability pass.
 
-
 Combined T29 and T30 source review subsequently passed. The retained original independent parent control now passes with unchanged assertions, all 211 scoped tests and UI/web typechecks pass, and five core source/test files are byte-identical to the reviewed compatibility/freshness/authority implementation. T29 and T30 are integrated by normal feature-branch merges. The only merge conflict was this chronological execution log; its entries were preserved. Actual final built, HTTP/SDK and release verification remain pending.
-
 
 ### Full-suite integration controls
 
 The first final candidate suite passed 2,886 unit tests and retained three actual MCP SDK initialization failures. The new owner query refinement prevented the existing project-field omission used to register the tool; a direct call reproduced the same unsupported refined-object operation. The full required check passed formatting and lint with 72 warnings and zero lint errors, then caught the breadcrumb reverse lookup using a method outside the web compiler's accepted library. T31 scopes both compatibility corrections to five source/test files, retains existing SDK and pose assertions, and requires the affected source tests and contracts/UI/web typechecks. No compiler target, authority, timestamp or test tolerance change is planned. Full checks, build and final actual protocols remain pending.
 
-
 T31 is independently accepted and integrated by normal merge. The correction preserves one shared strict owner/tool opt-in rule and actor project injection, and replaces only the unsupported reverse lookup with equivalent iteration. Independent checks pass 348 tests across 13 files plus contracts/UI/web typechecks; original SDK assertions, recovery controls and camera tolerances are unchanged. Generated OpenAPI remains valid. The first failures remain in the execution record; full repository checks, build and actual final target protocols are being rerun.
-
 
 ### Actual built b305bf8 closure and remaining stationary-label defect
 
@@ -309,7 +298,6 @@ The three superseded owned previews42101/42309/36931 were stopped only after exa
 T32 worker33d9aaa and normal merge83490c7 are accepted after exact immutable-base packet PASS and independent Astra review. The unchanged captured warm31-anchor/31-size/31-state/87-separation baseline fails the original600-call bound in both motion modes; corrected warm settles in2/56calls and cold in2/74. All101scoped tests and UI/web types pass. Original tests remain unchanged;13input invalidations, fresh metadata, live motion/dt,120replacement populations, eight collision passes and original collision/movement/opacity thresholds are verified. Root now owns the final fullcheck/test/build and unchanged actual D02 plus additive dense D04/idle replay. The prior actual failure remains retained and is not yet closed by source tests alone.
 
 The actual b305bf8 owner bridge additionally passes five native-browser groups each at1440light and390dark, with empty browser cookies and zero page errors. Root viewed the initial desktop surface and phone fullscreen controls. These are source-qualified technical checks, not F06 human feedback. Production dependency audit passes the high-severity threshold with one moderate advisory; example production Compose configuration passes. Protected operator access and production release controls remain pending.
-
 
 ## Final built software closure and owner task
 
