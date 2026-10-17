@@ -17,7 +17,7 @@ No product, database, API, renderer, source authority, population, timeout, retr
 ## Interfaces
 
 ```json
-[{"file":"apps/web/lib/load-infrastructure-scene.ts","symbol":"loadInfrastructureScene","kind":"function"}]
+[{"file":"packages/contracts/src/infrastructure-overview.ts","symbol":"InfrastructureOverview","kind":"type"}]
 ```
 
 ## Tasks
@@ -41,6 +41,7 @@ No product, database, API, renderer, source authority, population, timeout, retr
     "tests/e2e/gravity-master-scene.spec.ts",
     "tests/e2e/infrastructure-overview.spec.ts",
     "apps/web/lib/load-infrastructure-scene.ts",
+    "packages/contracts/src/infrastructure-overview.ts",
     "apps/web/app/infrastructure/InfrastructureOverviewScreen.tsx",
     ".agent/scratch/T37-master-scene-diagnosis/report.md",
     ".agent/scratch/T37-global-scene-diagnosis/report.md"
