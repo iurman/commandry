@@ -2,6 +2,8 @@
 
 **Status: Proposed design; operational research and handoff. Product implementation remains on hold until directly authorized by the owner.**
 
+The owner subsequently released this historical planning hold through the direct implementation request. Current authority, implementation and release facts are recorded in [EXECUTION.md](EXECUTION.md), the [completion ledger](COVERAGE.md) and the [verified release candidate](T43-RELEASE.md). The planning text below preserves its original preparation context; it is not a renewed hold.
+
 This packet is tracked in the Commandry repository on `feat/observatory-local-tuning`. A fresh checkout can obtain the complete plan from Git; it does not need the planning chat's worktree or ignored `.agent` files. The source baseline investigated was `507303ca1e82b8b15cc8d94864b61db1de86ed7e`, not a guarantee of current main or production state.
 
 ## Reading order
