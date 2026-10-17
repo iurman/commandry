@@ -8,6 +8,8 @@ PR22 was normally merged at `922cc6d2c4a3e4f3b0d3c345b75f57a707387c22`. The prev
 
 The first main-only release run [39035678643](https://github.com/iurman/commandry/actions/runs/39035678643) failed before image publication. Source checks, contracts, formatting, lint, types, lab checks and the production dependency audit passed. The unit suite passed 167 of 168 files and 2,916 of 2,917 tests. The only failure was the original 257-resource portrait pressure case at 390x844 for active-36 exceeding its five-second deadline. There was no assertion mismatch reported. The failure is preserved and is under controlled CPU/concurrency investigation. No timeout, fixture population or assertion may be relaxed to clear it, and no release success or image digest is claimed.
 
+The scoped T33 correction reduces only the existing Vitest ceiling from four workers to two. Matched original-suite runs on the same two assigned CPUs remove a reproduced geometry timeout, with no observed material wall-time cost. Worker acceptance, coordinator packet rerun and independent Astra review pass; every test, fixture, deadline and product byte remains unchanged. [Causal measurements and limits](T33.md) retain the actual hosted validation requirement.
+
 All 58 feature scenarios retain their recorded outcomes: 53 PASS and five explicit partial or unrun source, human or physical-device checks. The neutral F06 owner interpretation request is pending on the verified read-only synthetic preview. Protected exact-image approval, the existing constrained deployment, and exact signed-in live verification remain outstanding. No production deployment, source activation, DNS change or production SQL has occurred.
 
 

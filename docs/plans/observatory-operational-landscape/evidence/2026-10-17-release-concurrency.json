@@ -1,0 +1,167 @@
+{
+  "status": "Local causal measurement; corrected hosted release pending",
+  "sourceRevision": "922cc6d2c4a3e4f3b0d3c345b75f57a707387c22",
+  "originalHostedFailure": {
+    "run": 39035678643,
+    "url": "https://github.com/iurman/commandry/actions/runs/39035678643",
+    "case": "portrait390x844 active36",
+    "durationMs": 5026,
+    "deadlineMs": 5000,
+    "passedTests": 2916,
+    "totalTests": 2917,
+    "publishedImage": null
+  },
+  "localEnvironment": {
+    "node": "24.19.0",
+    "vitest": "4.1.11",
+    "assignedCpus": [
+      0,
+      1
+    ],
+    "quota": "unlimited",
+    "gpu": "WebGL mocked, CPU test only"
+  },
+  "invariants": [
+    "all257wells",
+    "all168unit files and2917cases in paired full runs",
+    "original5000ms deadline",
+    "unchanged test bodies/assertions/fixtures",
+    "non-overlapping test runs"
+  ],
+  "measurements": {
+    "isolated": {
+      "files": 1,
+      "total": 16,
+      "passed": 16,
+      "failed": 0,
+      "startTime": 1792243290421,
+      "endTime": 1792243301649.4001,
+      "cases": [
+        {
+          "file": "packages/ui/src/gravity/renderer-pressure.test.ts",
+          "name": "portrait pressure focus and lens retains useful local detail and actual visible-center picking at 390x844 for active-36",
+          "ms": 1643.6903890000003,
+          "status": "passed"
+        },
+        {
+          "file": "packages/ui/src/gravity/renderer-pressure.test.ts",
+          "name": "portrait pressure focus and lens retains useful local detail and actual visible-center picking at 390x844 for active-256",
+          "ms": 1541.0353300000006,
+          "status": "passed"
+        },
+        {
+          "file": "packages/ui/src/gravity/renderer-pressure.test.ts",
+          "name": "portrait pressure focus and lens retains useful local detail and actual visible-center picking at 320x720 for active-36",
+          "ms": 1631.2092389999998,
+          "status": "passed"
+        },
+        {
+          "file": "packages/ui/src/gravity/renderer-pressure.test.ts",
+          "name": "portrait pressure focus and lens retains useful local detail and actual visible-center picking at 320x720 for active-256",
+          "ms": 1517.9925279999998,
+          "status": "passed"
+        }
+      ]
+    },
+    "workers4": {
+      "files": 168,
+      "total": 2917,
+      "passed": 2916,
+      "failed": 1,
+      "startTime": 1792243302052,
+      "endTime": 1792243376734.1428,
+      "cases": [
+        {
+          "file": "packages/ui/src/gravity/basin-geometry.test.ts",
+          "name": "joined local basin geometry keeps a translating basin refined throughout its interpolation path",
+          "ms": 5295.7578920000005,
+          "status": "failed"
+        },
+        {
+          "file": "packages/ui/src/gravity/renderer-pressure.test.ts",
+          "name": "portrait pressure focus and lens retains useful local detail and actual visible-center picking at 390x844 for active-36",
+          "ms": 3640.619879,
+          "status": "passed"
+        },
+        {
+          "file": "packages/ui/src/gravity/renderer-pressure.test.ts",
+          "name": "portrait pressure focus and lens retains useful local detail and actual visible-center picking at 390x844 for active-256",
+          "ms": 3132.3731549999993,
+          "status": "passed"
+        },
+        {
+          "file": "packages/ui/src/gravity/renderer-pressure.test.ts",
+          "name": "portrait pressure focus and lens retains useful local detail and actual visible-center picking at 320x720 for active-36",
+          "ms": 3423.4088330000013,
+          "status": "passed"
+        },
+        {
+          "file": "packages/ui/src/gravity/renderer-pressure.test.ts",
+          "name": "portrait pressure focus and lens retains useful local detail and actual visible-center picking at 320x720 for active-256",
+          "ms": 2930.9445699999997,
+          "status": "passed"
+        }
+      ]
+    },
+    "workers2": {
+      "files": 168,
+      "total": 2917,
+      "passed": 2917,
+      "failed": 0,
+      "startTime": 1792243389187,
+      "endTime": 1792243464467.1497,
+      "cases": [
+        {
+          "file": "packages/ui/src/gravity/basin-geometry.test.ts",
+          "name": "joined local basin geometry keeps a translating basin refined throughout its interpolation path",
+          "ms": 2982.3270280000006,
+          "status": "passed"
+        },
+        {
+          "file": "packages/ui/src/gravity/renderer-pressure.test.ts",
+          "name": "portrait pressure focus and lens retains useful local detail and actual visible-center picking at 390x844 for active-36",
+          "ms": 2300.7547919999997,
+          "status": "passed"
+        },
+        {
+          "file": "packages/ui/src/gravity/renderer-pressure.test.ts",
+          "name": "portrait pressure focus and lens retains useful local detail and actual visible-center picking at 390x844 for active-256",
+          "ms": 1734.4662199999993,
+          "status": "passed"
+        },
+        {
+          "file": "packages/ui/src/gravity/renderer-pressure.test.ts",
+          "name": "portrait pressure focus and lens retains useful local detail and actual visible-center picking at 320x720 for active-36",
+          "ms": 1599.745954,
+          "status": "passed"
+        },
+        {
+          "file": "packages/ui/src/gravity/renderer-pressure.test.ts",
+          "name": "portrait pressure focus and lens retains useful local detail and actual visible-center picking at 320x720 for active-256",
+          "ms": 1643.1130229999999,
+          "status": "passed"
+        }
+      ]
+    }
+  },
+  "wallSeconds": {
+    "isolated": 11.78,
+    "workers4": 75.28,
+    "workers2": 75.86
+  },
+  "conclusion": "Reducing concurrent files from4to2 materially restores elapsed-time margin in the controlled local geometry workload. The hosted portrait timeout was not reproduced on this faster host; actual hosted cause remains qualified and the corrected full release must run. No product GPU or production-readiness claim.",
+  "correction": "Only existing vitest.config.mts maxWorkers4to2. Worker acceptance, exact-base root packet rerun and independent Astra source review PASS; corrected hosted release pending.",
+  "verification": {
+    "immutableBase": "7d862aa1a08e599558d7994ba4f1f0ba9d99bebb",
+    "workerPacket": "PASS",
+    "rootPacketRerun": "PASS",
+    "acceptance": "taskset -c 0,1 pnpm test; pnpm exec prettier --check vitest.config.mts",
+    "unitFiles": 168,
+    "unitTests": 2917,
+    "labTests": 33,
+    "localScriptCommand": "PASS",
+    "sourceDelta": "one numeric value in vitest.config.mts; all test and product bytes unchanged",
+    "hostedCorrectedResult": "pending",
+    "independentSourceReview": "ACCEPT, no actionable findings"
+  }
+}
