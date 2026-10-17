@@ -1,0 +1,11 @@
+# Root takeover of bounded T36 browser correction
+
+Status: Operational plan. Final acceptance remains pending.
+
+The third new generated-evidence escalation after the four-file replan stops the worker. Root now exclusively owns the same four candidate files in the existing T36 child at immutable7ad54a5. No other agent may edit them. Original source corrections, failed packets, traces and strict cleanup evidence remain retained.
+
+The latest actual run588e9e0f exhausts the original120000ms Gravity test while executing the newly added91resource inspection loop. Its original1920fit and both phone cases pass; this timeout is not a proven4K geometry failure. Root will preserve the original four tests, complete fixture, two unrelated bodies, all deadlines/negative observer controls/themes/screenshots and exact canonical/source/availability guarantees. No test deadline, tolerance, skip or retry is added.
+
+Root will narrow only the additional affected4K work to the required layout proof: full F1 canonical/alias union, complete91search/outline and enabled membership, representative repository/host/service selection and boundary keyboard/source reachability, actual1.5xtext/document fit/stage geometry. The original complete-scene guarantees remain intact. An independent static CI-fixture review precedes any fixture setup correction: the normal hosted application must not rely on the task-private preview having seeded deterministic F1 IDs. Reuse that complete seed when present; otherwise create the faithful F1 shape through existing authenticated disposable-test APIs and use returned canonical IDs, preserving all authorized extras. No production SQL, new framework, renderer change or helper bypass.
+
+Only existing component, component regression, CSS and browser files are owned; the current product writer and scoped CSS stay unchanged unless a concrete independent source defect is found. Existing five acceptance commands and exactbase7ad remain. After one corrected actual packet passes, root independently reexecutes all five and freezes source hashes/actualmetadata. Astra then reviews source, assertion preservation, executed evidence and pixels before normal convergence, PR and main release. Deployment/source activation remain pending their real gates.
