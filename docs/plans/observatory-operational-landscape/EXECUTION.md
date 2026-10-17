@@ -14,9 +14,9 @@ Fetched origin/main is 507303ca1e82b8b15cc8d94864b61db1de86ed7e. The isolated im
 | --- | --- | --- |
 | A Meaning and baseline | In progress | Owner approval recorded; ADR 0016; establish fixtures and scoped contracts. |
 | B Controls and geometry | In progress | Shared surface integrated into actual Appearance; wrap sweep passes. T01 independently reviewed and merged; actual silhouette/frame gates remain. |
-| C Grouped scene and focus | In progress | T03 complete semantic contract merged; T04 authorization and T05 interactive scene workers active. |
+| C Grouped scene and focus | In progress | T03 complete semantic contract merged; T04 authorized query service and T05 interactive scene merged; built integration passes the Appearance sweep. |
 | D Mappings and operational sources | In progress | Public provider adapter/repository verified in disposable HTTP/PostgreSQL; canonical reviewed records and source integration active. |
-| E Repository/work/views/TV | Not run | Coordinate runtime read contract; no competing dispatcher. |
+| E Repository/work/views/TV | In progress | T08 canonical named views active; T09 supported GitHub evidence prepared. Released project Work read contract identified; no released actual AgentRun contract. |
 | F Review and release | Not run | All required checks, PR, normal merge, constrained release and signed-in live evidence. |
 
 ## Preserved resources
@@ -62,3 +62,17 @@ The actual Appearance surface now uses the shared accessible floating primitive.
 The new four Observatory read capabilities are opt-in and separately issued; migration 0069 changes the allowed capability vocabulary without modifying any existing grant. 83 existing grant/policy unit tests pass with the declared additional reads. Work retains its separate work.read prerequisite.
 
 Wave two uses independently installed frozen/offline workspace dependencies and immutable base 4768f64. Its mandatory orientation and DTO/renderer sources require a declared 480000-byte read budget. The task-local manifest iterator now prunes excluded dependency/worktree directories before walking, preserving the same source selection rules.
+
+## Shared read, source and interaction integration
+
+T04 passed 36 authorized application/contract cases and independent packet verification. It authorizes resource/project scope and separate availability/security/provider/Work facets before projecting counts, aliases and evidence. T05 passed 29 component/layout/preference cases and packet verification. Both were normally merged. The built web application now consumes the shared scene endpoint and new landscape, with explicit unknown operational coverage, complete outline, grouping/search/expansion and device-local controls. The same 22-width Appearance fit/hit sweep passed through the new UI. Main-camera focus/restore is now wired to the renderer; its actual browser verification remains pending.
+
+Canonical reviewed annotations, typed relationships, provider dependencies, source bindings and client resource restrictions use actual owner sessions, expected versions, server provenance and atomic audit records. Real disposable PostgreSQL passed the existing 7 foundation and 9 canonical results (counts include enclosing tests), with 140-resource continuation, isolation, source-rebind reset and additive repeat migration. A populated prior-schema upgrade and full read-adapter races remain pending.
+
+Independent access review then confirmed four defects despite those green tests: project-B telemetry could cross a shared resource into project A, duplicate monitor bindings produced duplicate facet-access keys, whitespace review evidence could break reads, and expiry during an awaited audit could commit a denied write. Coordinator corrections and real database regressions are in progress. These findings are not accepted as resolved until independent recheck. Canonical operational sources are also gaining explicit reviewed project ownership; unbound legacy sources will require review before machine reads/polling.
+
+T06 supported InfraAgent reader and generic observation orchestration passed 53 protocol/application tests, including a real disposable HTTP failure/recovery boundary, paused/unknown/stale states, acknowledgment, redirects, timeout, response size and identity rejection. It is merged and exported. This does not establish DB source persistence, worker activation or a real monitor credential. The owner access request remains pending.
+
+T07 semantic corrections passed 65 targeted tests and final independent Astra probes. Provider effects retain environment, maintenance and local failures independently; aggregate counts deduplicate by resource while retaining all evidence. At 1,000 resources the reviewer measured 195ms monitored and 148ms dense projection. Original multi-second/cubic behavior is corrected in the reviewed fixtures. This is CPU projection evidence, not a GPU/frame or TV soak result.
+
+T08 owns six new canonical private-view files in an isolated worktree at immutable base 686263549fe0. T09 owns a supported repository reader and strict DTOs, using captured official GitHub contracts and disposable boundaries. Neither may expand client grants or activate credentials. Named-view UI/MCP integration, repository source persistence and actual work overlays remain coordinator work.
