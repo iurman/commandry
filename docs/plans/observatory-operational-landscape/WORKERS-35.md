@@ -10,7 +10,7 @@ No product, database, API, authorization, source configuration, renderer, geomet
 
 ## Base
 
-- branch: feat/observatory-operational-landscape
+- branch: loop/observatory-observation-base-t39
 - check command: PATH=/home/urmani/.local/share/pnpm/.tools/pnpm/11.19.0/bin:/home/urmani/.cache/codex-runtimes/codex-primary-runtime/dependencies/node/bin:$PATH pnpm boundaries:check
 - probes: none; local task, owner forbids prerequisite remote write probes
 
@@ -133,6 +133,6 @@ Retain actual failed baseline, candidate outcomes, source hashes, per-phase obse
 
 Then require all15 original real built cases and the full207-case main release suite. Only actual full success and immutable publication may advance to the protected approval and constrained deployment workflow.
 
-### Manifest language routing
+### Manifest generation isolation
 
-The official generator classifies a repository without root tsconfig.json as Python when any ignored diagnostic .py exists. This Node/TypeScript repository uses tracked tsconfig.base.json; the initial unmodified check consequently failed to resolve its real InfrastructureOverview type. Use a private launcher that imports the unchanged official generator and explicitly selects its existing TypeScript resolver by replacing only that language predicate for the exact inspected repository. Marker checks and the override must use that same resolved root; every other target retains the official language predicate. Run all original P1-P10 checks and generation through its unchanged main function. Do not edit the installed skill, checks, interface extractor or manifest fields. Record the launcher source and hash with the generated manifest. This is a routing correction, not a waived interface check.
+The official generator classifies a repository without root tsconfig.json as Python when any ignored diagnostic .py exists. This Node/TypeScript repository uses tracked tsconfig.base.json. The first unmodified root check consequently failed P8 despite the real type; a reviewed exact-root language shim corrected routing, but the root's old ignored worktrees also inflate scanning and context. Preserve those failed attempts. Run the unchanged official preflight and generator in the fresh exclusive T39 checkout before installing dependencies or copying Python diagnostics, with only the exact private Markdown evidence/excerpt seeds. This supplies identical committed source without the ignored worktree population and naturally selects the official TypeScript resolver. No runtime shim or installed-skill modification is used for final generation, no manifest fields are edited by hand, and all original P1-P10 checks remain required. A frozen local base reference records the actual plan/source commit; the integration branch remains feat/observatory-operational-landscape.
