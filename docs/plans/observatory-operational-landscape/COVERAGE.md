@@ -4,6 +4,8 @@
 
 All 58 scenarios retain their complete canonical wording in [ACCEPTANCE.md](ACCEPTANCE.md). PASS requires executed evidence against the actual implementation. A connector substitute does not establish production activation.
 
+Release status, 2026-10-17: PR22 is merged at `922cc6d`. [Main release run 39035678643](https://github.com/iurman/commandry/actions/runs/39035678643) failed before image publication because one original 257-resource pressure test exceeded its five-second deadline; 2,916 other tests passed. Source checks and the production dependency audit passed. The CI failure is under controlled investigation without weakening tests. Feature outcomes below remain source-qualified; the full release workflow is unfinished and production deployment has not occurred.
+
 | Scenario | State | Evidence / remaining check |
 | --- | --- | --- |
 | A01 | PASS | Independent actual built F1 passes95checks: exact91-ID scene/visible/root/reference union and complete expanded outline across six groupings. F1 overview represents all 91 IDs through the union of aggregate memberships and expanded resources. The union contains no foreign IDs. Counts are exact; expanding/collapsing changes neither canonical identity nor the total. |
