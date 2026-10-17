@@ -1,6 +1,8 @@
 # Published Observatory release candidate
 
-**Status: Operational. Full main release passed and the immutable image is verified. Protected operator approval and production deployment remain pending.**
+**Status: Operational. Published-candidate collection snapshot retained. The subsequent approved production rollout is recorded separately.**
+
+[Production rollout](PRODUCTION-ROLLOUT.md) completed at 22:12:43 UTC on 2026-10-17 for this exact revision and image. The approval/deployment fields below describe the earlier collection time, not current production state.
 
 [Release 39065358282](https://github.com/iurman/commandry/actions/runs/39065358282) completed successfully at 2026-10-17T20:44:55Z for main revision `885b356876a94adfae5c2c5c5c743c3cb866845b`. [PR28](https://github.com/iurman/commandry/pull/28) normally merged the independently reviewed release-only single-worker override. Application, tests and default local worker count remain conserved as recorded in [T43](T43.md).
 

@@ -6,31 +6,11 @@
 
 ## Current phase
 
-The operational Gravity Observatory implementation is normally merged through
-PR22. Its release corrections now have independent source review, 78 component
-controls and 12 passing built browser cases across desktop and phone layouts,
-including full-inventory 4K presentation. Corrective PR25 is normally merged;
-full hosted release39047712252 passed container startup and failed two desktop
-browser cases. T37 diagnostics now pass fifteen shared-world browser cases with
-independent review; diagnostic PR26 is normally merged and the instrumented full
-main run39051075901 completes with 200 passes, five original skips and two
-failures, with diagnostic artifacts retained. Independent trace reviews support
-bounded test-observation controls. Their real four-CPU candidate still passes
-13 of 15 cases and is rejected for release convergence. Matched native profiling
-retains those failures and supports a bounded aggregate-budget calibration.
-The exact two-literal candidate now passes all 15 original cases without
-profiling, retries or skips, with independent source/execution acceptance and
-strict physical cleanup. Explicit guards remain; implicit waits can grow.
-PR27 is normally merged. Subsequent full main release39061877665 at f30c4aa
-fails with 199 passes, five original skips and three browser failures. Exact
-diagnostics and three completed forensic reviews distinguish late observations
-from the cumulative deadline, without a product-cause claim. A reviewed
-one-worker CI experiment preserves every original case and guard. No image is
-published. Full main release, publication, genuine approval, deployment and live
-activation remain unfinished. The
-[58-scenario completion ledger](../plans/observatory-operational-landscape/COVERAGE.md)
-records 53 local passes, five explicit limitations and the remaining deployment
-and source-activation gates.
+The operational Gravity Observatory is live at [commandry.site](https://commandry.site/infrastructure). The approved exact-image deployment completed on 2026-10-17 at 22:12:43 UTC for revision `885b356`. The existing backup/recovery, migration, owner login, authenticated read and worker gates passed; public version/readiness and supporting-service preservation were verified. See the [production rollout record](../plans/observatory-operational-landscape/PRODUCTION-ROLLOUT.md).
+
+All original 91 resource IDs/parents and seven Commandry project bindings remain. Two canonical additions yield 93 resources and nine project links. The repository, deployment, Electra host and web service now have three reviewed typed relations. A reviewed Cloudflare Tunnel data-plane dependency retains unknown geography. Native readiness is enabled and recorded an actual up/HTTP 200/passing result. Other eligible services remain explicitly unmonitored; the operational GitHub pull-request/security reader is unconfigured. InfraAgent remains prior art/inventory scope, and provider discovery does not imply additional mappings or DNS changes.
+
+The full hosted main release retained all 207 browser identities: 202 passes, five original skips, zero failures, flaky results or retries. The [58-scenario ledger](../plans/observatory-operational-landscape/COVERAGE.md) retains 53 source-qualified local passes and five explicit partial/unrun limits. Live activation does not certify physical-device checks, owner interpretation or complete uptime history. Earlier failed releases and deployment attempts remain in the linked execution evidence.
 
 Commandry has completed its initial product definition. ADRs 0009 through 0012
 establish the initial technology and deployment architecture. The local

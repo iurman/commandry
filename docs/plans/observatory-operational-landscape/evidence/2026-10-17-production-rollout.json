@@ -1,0 +1,170 @@
+{
+  "status": "operational_rollout_delivered_acceptance_limits_retained",
+  "observedDate": "2026-10-17",
+  "productionUrl": "https://commandry.site/infrastructure",
+  "revision": "885b356876a94adfae5c2c5c5c743c3cb866845b",
+  "image": "ghcr.io/iurman/commandry@sha256:605e90004c9f596dc990faa611d4e9d189275f9bc83996df2ca5cf5bb6d4c80c",
+  "buildTime": "2026-10-17T20:18:18Z",
+  "ci": {
+    "runId": 39065358282,
+    "url": "https://github.com/iurman/commandry/actions/runs/39065358282",
+    "uniqueBrowserIdentities": 207,
+    "passed": 202,
+    "originalSkipped": 5,
+    "failed": 0,
+    "flaky": 0,
+    "retried": 0
+  },
+  "deployment": {
+    "startedAt": "2026-10-17T22:11:00.369057Z",
+    "completedAt": "2026-10-17T22:12:43.716641Z",
+    "exitCode": 0,
+    "protectedExactUnexpiredApprovalVerified": true,
+    "existingConstrainedBackupRestoreRecoveryMigrationGatesPassed": true,
+    "authenticatedRead": true,
+    "probeSessionRevoked": true,
+    "workerCompletionVerified": true,
+    "ownerBootstrapped": false,
+    "publicVersionAndReadyHttpStatus": 200,
+    "webWorkerExactImageVerified": true,
+    "allSixContainersRunning": true,
+    "postgresProxyTunnelAndEphemeraContainerIdentitiesPreserved": true,
+    "installedValidatorSourceParityVerified": true,
+    "independentReview": "ACCEPT for retained evidence reconciliation; not independent live replay"
+  },
+  "canonicalConservation": {
+    "baselineResources": 91,
+    "currentResources": 93,
+    "originalIdsMissing": 0,
+    "originalParentsChanged": 0,
+    "baselineProjectLinks": 7,
+    "currentProjectLinks": 9,
+    "originalProjectBindingsChanged": 0,
+    "newResources": [
+      {
+        "id": "3b02aadb-9967-4821-8107-374775f0b922",
+        "name": "Commandry production",
+        "kind": "deployment",
+        "subtype": "docker",
+        "parentResourceId": null
+      },
+      {
+        "id": "4843c886-1df6-4e4f-84af-ac170cd63c4d",
+        "name": "Cloudflare",
+        "kind": "provider",
+        "subtype": null,
+        "parentResourceId": null
+      }
+    ],
+    "newProjectLinkType": "supports",
+    "newProjectLinksActive": true,
+    "allReadsExhaustedContinuation": true
+  },
+  "reviewedRelations": [
+    {
+      "id": "9e712635-8b63-4311-951f-7deeb4fedf92",
+      "version": 1,
+      "type": "deploys",
+      "sourceResourceId": "8360b956-2c8f-41ab-a5d7-3470ae102c8b",
+      "targetResourceId": "3b02aadb-9967-4821-8107-374775f0b922",
+      "recordedAt": "2026-10-17T22:18:36.391Z"
+    },
+    {
+      "id": "9a139313-7747-4fa7-b68b-0d3c25be9026",
+      "version": 1,
+      "type": "executes_on",
+      "sourceResourceId": "3b02aadb-9967-4821-8107-374775f0b922",
+      "targetResourceId": "459463a0-5caa-46aa-9895-6edaeddb238a",
+      "recordedAt": "2026-10-17T22:19:13.291Z"
+    },
+    {
+      "id": "1f18a6c4-5182-46d1-8e98-b79ed34ae34e",
+      "version": 1,
+      "type": "provides_service",
+      "sourceResourceId": "3b02aadb-9967-4821-8107-374775f0b922",
+      "targetResourceId": "2b622d75-951e-49bb-8944-595165fd9ef3",
+      "recordedAt": "2026-10-17T22:20:12.548Z"
+    }
+  ],
+  "reviewedProviderDependency": {
+    "id": "321d788c-ab8f-4ec2-91ad-5fd250f00069",
+    "version": 1,
+    "resourceId": "2b622d75-951e-49bb-8944-595165fd9ef3",
+    "providerResourceId": "4843c886-1df6-4e4f-84af-ac170cd63c4d",
+    "componentId": "y98zlwj1d7zh",
+    "plane": "data",
+    "geography": null,
+    "active": true,
+    "environment": "production",
+    "recordedAt": "2026-10-17T22:21:41.639Z",
+    "incidentImpactInferred": false
+  },
+  "nativeReadinessSource": {
+    "id": "fb7cf023-19a1-446b-beca-3a4c710b7bee",
+    "resourceId": "2b622d75-951e-49bb-8944-595165fd9ef3",
+    "projectId": "a359b420-dff3-42ba-adaa-bb096ec73eba",
+    "kind": "http-readiness",
+    "externalId": "commandry-web-readiness",
+    "freshnessSeconds": 300,
+    "environment": "production",
+    "stagedVersion": 1,
+    "stagedEnabled": false,
+    "stagedAt": "2026-10-17T22:22:24.370Z",
+    "activeVersion": 2,
+    "enabled": true,
+    "activatedAt": "2026-10-17T22:22:43.899Z"
+  },
+  "actualNativeObservation": {
+    "sourceId": "fb7cf023-19a1-446b-beca-3a4c710b7bee",
+    "observedAt": "2026-10-17T22:22:47.176Z",
+    "checkStatus": "up",
+    "httpStatus": 200,
+    "durationMs": 56.70912799995858,
+    "sourceAvailability": "available",
+    "freshness": "fresh",
+    "availability": "passing",
+    "eligible": 1,
+    "observedEligible": 1,
+    "coverage": "complete",
+    "limitation": "One direct web/database readiness probe; does not establish external user availability or complete uptime history"
+  },
+  "sourceAndRelationWrites": "Actual signed-owner UI; each actual ID/version read back from the complete catalogue",
+  "independentAuditHistoryRead": false,
+  "auditUuidDisplayedByUi": false,
+  "productionSqlUsed": false,
+  "newGrantsOrCredentialsCreated": false,
+  "dnsChanged": false,
+  "infraAgentMonitoringActivated": false,
+  "observatoryGitHubPullRequestSecurityReaderConfigured": false,
+  "acceptanceLedger": {
+    "scenarioCount": 58,
+    "sourceQualifiedLocalPass": 53,
+    "partialOrUnrun": 5,
+    "all58Passed": false
+  },
+  "visualEvidence": {
+    "actualLiveDefaultViewportDarkImageInspected": true,
+    "actualLiveImageSaved": false,
+    "exportBlock": "Browser URL security rejected the self-contained local download document; no workaround attempted",
+    "hostedScreenshots": [
+      "2026-10-17-ci-release-4k.png",
+      "2026-10-17-ci-release-desktop.png",
+      "2026-10-17-ci-release-phone-390.png"
+    ],
+    "hostedImagesAreLiveProduction": false
+  },
+  "retainedLimits": [
+    "One direct readiness observation does not establish external user availability or complete uptime history.",
+    "Other eligible services remain explicitly unmonitored.",
+    "The operational GitHub pull-request/security reader is unconfigured; existing legacy GitHub activity is a separate source.",
+    "Ephemera and ResuPals discovery does not establish operational mappings; InfraAgent/CRM/Arvo remain repository inventory or prior art.",
+    "B05 incident snooze unsupported/OQ037; E07 genuine document.hidden; F04 physical mobile keyboard/safe area; F06 owner interpretation; G06 physical lower-power device remain partial/unrun.",
+    "The existing connector advertises four knowledge read tools; live operational MCP access under that existing credential was not verified or expanded.",
+    "The live screenshot was displayed but its attempted local browser download was blocked."
+  ],
+  "earlierFailures": {
+    "transportAttempt1": "Stopped before authentication because invocation omitted the existing trusted host-key alias; strict verification preserved.",
+    "deploymentAttempt2": "Failed at generic application_smoke and restored prior application code. Root invocation supplied no owner stdin; the discarded internal subcheck remains unknown. Migrations were not rolled back.",
+    "humanEntryHelper": "Failed before prompting on Bazzite system /home symlink. Existing saved credentials were subsequently used directly; no further owner entry was needed."
+  }
+}

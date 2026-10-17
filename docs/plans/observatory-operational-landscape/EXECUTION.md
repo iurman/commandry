@@ -1,12 +1,16 @@
 # Observatory execution record
 
-**Status: Operational. Full hosted release and immutable publication passed; protected approval, constrained deployment and signed-in activation remain in progress.**
+**Status: Operational. Approved deployment and initial signed-in source/mapping activation are complete; five acceptance limits remain explicit.**
 
-## Current verified release candidate, 2026-10-17
+## Current production rollout, 2026-10-17
+
+[The approved rollout](PRODUCTION-ROLLOUT.md) completed at 22:12:43 UTC for exact revision `885b356` and image `sha256:605e90004c9f596dc990faa611d4e9d189275f9bc83996df2ca5cf5bb6d4c80c`. Protected backup/recovery/migration/login/read/worker gates, exact live identity and preserved supporting services are verified. All 91 original IDs/parents and seven project bindings survive; two canonical additions and two supports links yield 93 resources and nine links. Three typed relations and the scoped Tunnel dependency are reviewed. Native readiness source version 2 is enabled and records up/HTTP 200/passing. Other eligible services remain unmonitored. [Structured evidence](evidence/2026-10-17-production-rollout.json) preserves the actual observations and limits.
+
+## Published release candidate, retained collection context
 
 [The full T43 release](T43-RELEASE.md) completed successfully at main `885b356` in run `39065358282`. Independent comparison retains all 207 original browser identities, 202 actual passes, exactly five original skips and zero failures, flakes or retries. Owner workflows, production-service rehearsal, provenance, existing image-security gates and immutable publication/readback also pass. Registry manifest/config bytes and clean revision are verified. The image scan reports 43 high findings with no reported fix, zero critical findings, zero fixable high/critical findings and zero secret findings; publication is not a vulnerability-free claim.
 
-The exact unapproved image and actual synthetic screenshots are retained in the linked release record. Genuine root-only operator approval, the existing constrained deployment, live identity/containment/link preservation, signed-in verification and actual source/mapping activation remain pending. InfraAgent/CRM/Arvo remain repository inventory/design-reference scope; [provider discovery](PROVIDER-DISCOVERY.md) does not authorize DNS changes. The 58-scenario ledger remains 53 source-qualified local passes and five explicit partial/unrun limitations. No whole-workflow completion is claimed.
+The candidate was unapproved when collected; its image and actual synthetic screenshots remain retained in the linked release record. Genuine protected approval, constrained deployment, live preservation checks and initial source/mapping activation subsequently completed as recorded above. InfraAgent/CRM/Arvo remain repository inventory/design-reference scope; [provider discovery](PROVIDER-DISCOVERY.md) does not authorize DNS changes. The 58-scenario ledger remains 53 source-qualified local passes and five explicit partial/unrun limitations. The five partial/unrun acceptance clauses remain open; production activation does not certify them.
 
 ## Earlier full-suite release boundaries, 2026-10-17
 
