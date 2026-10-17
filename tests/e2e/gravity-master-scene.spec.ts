@@ -1,5 +1,5 @@
 import { randomUUID } from "node:crypto";
-import { expect, test } from "@playwright/test";
+import { expect, test, type Response } from "@playwright/test";
 import {
   infrastructureOverviewSchema,
   observatorySceneReadResultSchema,
@@ -70,6 +70,7 @@ test("one master scene renders and inspects the complete multi-page inventory", 
   const requestNavigation = new WeakMap<object, number>();
   const overviewPages = new Map<string, InfrastructureOverview>();
   const browserScenes = new Map<string, ObservatorySceneDto>();
+  const responseChecks: Promise<void>[] = [];
   const sceneKey = (scene: ObservatorySceneDto) =>
     JSON.stringify([
       scene.grouping,
@@ -82,36 +83,48 @@ test("one master scene renders and inspects the complete multi-page inventory", 
   page.on("request", (request) => {
     requestNavigation.set(request, committedNavigation);
   });
-  page.on("response", async (response) => {
+  const inspectResponse = async (response: Response) => {
     const ticket = requestNavigation.get(response.request());
     if (ticket !== navigation) return;
     const url = new URL(response.url());
     if (!response.ok()) return;
+    const isOverview =
+      url.pathname === "/api/v1/infrastructure/overview" &&
+      url.searchParams.get("projectId") === project.id;
+    const isScene =
+      url.pathname === "/api/v1/infrastructure/observatory/scene" &&
+      response.request().postDataJSON()?.projectId === project.id;
+    if (!isOverview && !isScene) return;
     try {
-      if (
-        url.pathname === "/api/v1/infrastructure/overview" &&
-        url.searchParams.get("projectId") === project.id
-      ) {
-        const result = infrastructureOverviewSchema.parse(
-          await response.json(),
-        );
+      let text: string;
+      try {
+        text = await response.text();
+      } catch (error) {
+        if (response.request().failure()?.errorText === "net::ERR_ABORTED")
+          return;
+        await response.finished();
+        if (response.request().failure()?.errorText === "net::ERR_ABORTED")
+          return;
+        throw error;
+      }
+      const body: unknown = JSON.parse(text);
+      if (isOverview) {
+        const result = infrastructureOverviewSchema.parse(body);
         if (ticket === navigation)
           overviewPages.set(url.searchParams.get("cursor") ?? "first", result);
-      } else if (
-        url.pathname === "/api/v1/infrastructure/observatory/scene" &&
-        response.request().postDataJSON()?.projectId === project.id
-      ) {
-        const { scene } = observatorySceneReadResultSchema.parse(
-          await response.json(),
-        );
+      } else if (isScene) {
+        const { scene } = observatorySceneReadResultSchema.parse(body);
         if (ticket === navigation) browserScenes.set(sceneKey(scene), scene);
       }
     } catch (error) {
       if (ticket === navigation)
         errors.push(
-          `Invalid successful browser response: ${error instanceof Error ? error.name : "unknown"}`,
+          `Invalid successful browser response at ${url.pathname}: ${error instanceof Error ? error.message : "unknown"}; transport=${response.request().failure()?.errorText ?? "complete"}`,
         );
     }
+  };
+  page.on("response", (response) => {
+    responseChecks.push(inspectResponse(response));
   });
   await page.emulateMedia({ reducedMotion: "reduce" });
   const expectedIds = resources.map((item) => item.id).sort();
@@ -224,6 +237,37 @@ test("one master scene renders and inspects the complete multi-page inventory", 
     outline.locator(
       `li[data-resource-id="${id}"]:not([data-reference]) > .cmd-op-outline-row > button:not(.cmd-op-expand)`,
     );
+  async function floatingLabelsDoNotOverlap(requireVisible: boolean) {
+    await expect
+      .poll(async () =>
+        gravity
+          .locator(".cmd-op-label")
+          .evaluateAll((elements, requireVisible) => {
+            const labels = elements
+              .filter(
+                (element) =>
+                  Number(getComputedStyle(element).opacity) > 0.5 &&
+                  getComputedStyle(element).visibility !== "hidden",
+              )
+              .map((element) => element.getBoundingClientRect());
+            return (
+              (!requireVisible || labels.length > 0) &&
+              labels.every((a, index) =>
+                labels
+                  .slice(index + 1)
+                  .every(
+                    (b) =>
+                      a.right <= b.left + 0.5 ||
+                      b.right <= a.left + 0.5 ||
+                      a.bottom <= b.top + 0.5 ||
+                      b.bottom <= a.top + 0.5,
+                  ),
+              )
+            );
+          }, requireVisible),
+      )
+      .toBe(true);
+  }
   for (const colorScheme of ["light", "dark"] as const) {
     await page.emulateMedia({ colorScheme });
     navigation++;
@@ -250,7 +294,7 @@ test("one master scene renders and inspects the complete multi-page inventory", 
     await appearance.click();
     const surface = colorScheme === "light" ? "porcelain" : "midnight";
     await page
-      .getByLabel("Surface theme", { exact: true })
+      .getByRole("combobox", { name: "Surface theme", exact: true })
       .selectOption(surface);
     await page.keyboard.press("Escape");
     await expect(gravity).toHaveAttribute("data-theme", surface);
@@ -268,6 +312,8 @@ test("one master scene renders and inspects the complete multi-page inventory", 
       gravity.getByRole("complementary", { name: "Observatory inspector" }),
     ).toContainText("Availability and monitoring coverage");
     await row(resources[0]!.id).click();
+    await canvas.scrollIntoViewIfNeeded();
+    await floatingLabelsDoNotOverlap(true);
     await appearance.click();
     await page.getByLabel("Optional selected-subject lens").check();
     await page.keyboard.press("Escape");
@@ -277,33 +323,16 @@ test("one master scene renders and inspects the complete multi-page inventory", 
         Number(await canvas.getAttribute("data-gravity-focus-vertices")),
       )
       .toBeGreaterThan(0);
-    await expect
-      .poll(async () =>
-        gravity.locator(".cmd-op-label").evaluateAll((elements) => {
-          const labels = elements
-            .filter(
-              (element) =>
-                Number(getComputedStyle(element).opacity) > 0.5 &&
-                getComputedStyle(element).visibility !== "hidden",
-            )
-            .map((element) => element.getBoundingClientRect());
-          return (
-            labels.length > 0 &&
-            labels.every((a, index) =>
-              labels
-                .slice(index + 1)
-                .every(
-                  (b) =>
-                    a.right <= b.left + 0.5 ||
-                    b.right <= a.left + 0.5 ||
-                    a.bottom <= b.top + 0.5 ||
-                    b.bottom <= a.top + 0.5,
-                ),
-            )
-          );
-        }),
-      )
-      .toBe(true);
+    await expect(gravity.locator(".cmd-op-stage-caption")).toContainText(
+      resources[0]!.name,
+    );
+    await expect(gravity.locator(".cmd-op-lens")).toContainText(
+      resources[0]!.name,
+    );
+    await expect(
+      outline.locator("li[data-resource-id]:not([data-reference])"),
+    ).toHaveCount(103);
+    await floatingLabelsDoNotOverlap(false);
     await page.screenshot({
       path: testInfo.outputPath(`complete-fleet-focus-${surface}.png`),
       fullPage: true,
@@ -393,5 +422,6 @@ test("one master scene renders and inspects the complete multi-page inventory", 
   await expect(
     gravity.getByRole("complementary", { name: "Observatory inspector" }),
   ).toContainText(last.id);
+  await Promise.all(responseChecks);
   expect(errors).toEqual([]);
 });

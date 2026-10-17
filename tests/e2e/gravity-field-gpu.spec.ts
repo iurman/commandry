@@ -48,10 +48,10 @@ test("the production vertex shader evaluates the final contribution beyond 256 o
       const transform = gl.createTransformFeedback()!;
       const vao = gl.createVertexArray()!;
       try {
-        // Three's WebGL2 compatibility prefix supplies these built-in declarations.
+        // Match Three's float, integer and field-sampler precision declarations.
         gl.shaderSource(
           vertex,
-          "#version 300 es\nprecision highp float; precision highp int;\nuniform mat4 modelMatrix; uniform mat4 viewMatrix; uniform mat4 projectionMatrix; in vec3 position;\n#define varying out\n#define texture2D texture\n" +
+          "#version 300 es\nprecision highp float; precision highp int; precision highp sampler2D;\nuniform mat4 modelMatrix; uniform mat4 viewMatrix; uniform mat4 projectionMatrix; in vec3 position;\n#define varying out\n#define texture2D texture\n" +
             shader,
         );
         gl.shaderSource(

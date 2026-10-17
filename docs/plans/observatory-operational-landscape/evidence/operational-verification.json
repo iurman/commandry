@@ -1,0 +1,306 @@
+{
+  "status": "In progress; not a release verdict",
+  "fixtures": "Synthetic F1/F2/F3, never production monitoring",
+  "f1Source": "75ea13c1c76592bc24dcbd0b8df31c2ec5f5761e",
+  "hardware": {
+    "cpu": "AMD Ryzen AI 9 HX 370 w/ Radeon 890M",
+    "logicalCpus": 24,
+    "ramBytes": 100473573376
+  },
+  "browser": "153.0.8010.12",
+  "gpu": {
+    "vendor": "Google Inc. (AMD)",
+    "renderer": "ANGLE (AMD, AMD Radeon 890M Graphics (radeonsi strix1 ACO DRM 3.64 7.2.9-ogc3.1.fc44.x86_64), OpenGL ES 3.2)"
+  },
+  "viewport": {
+    "width": 1920,
+    "height": 1080
+  },
+  "dpr": 1,
+  "frameSamples": [
+    {
+      "name": "composed slow orbit",
+      "elapsedMs": 10000.59999999404,
+      "visible": true,
+      "rafSummary": {
+        "count": 600,
+        "p50Ms": 16.69999999999891,
+        "p95Ms": 16.700000000000728,
+        "maxMs": 16.80000000000109
+      },
+      "renderSummary": {
+        "count": 600,
+        "p50Ms": 16.69999999999891,
+        "p95Ms": 16.700000000000728,
+        "maxMs": 16.80000000000109
+      },
+      "diagnostics": {
+        "gravityDrawCalls": "2",
+        "gravityGeometries": "2",
+        "gravityTextures": "1",
+        "gravityTerrainVertices": "96984",
+        "gravityGeometryBytes": "3488328",
+        "gravityContributions": "7"
+      },
+      "load": [
+        5.46,
+        5.76,
+        4.86
+      ]
+    },
+    {
+      "name": "focused slow orbit",
+      "elapsedMs": 10001.799999982119,
+      "visible": true,
+      "rafSummary": {
+        "count": 600,
+        "p50Ms": 16.69999999999709,
+        "p95Ms": 16.700000000000728,
+        "maxMs": 16.80000000000291
+      },
+      "renderSummary": {
+        "count": 600,
+        "p50Ms": 16.69999999999709,
+        "p95Ms": 16.700000000000728,
+        "maxMs": 16.80000000000291
+      },
+      "diagnostics": {
+        "gravityDrawCalls": "2",
+        "gravityGeometries": "2",
+        "gravityTextures": "1",
+        "gravityTerrainVertices": "42601",
+        "gravityGeometryBytes": "1532076",
+        "gravityContributions": "12"
+      },
+      "load": [
+        5.07,
+        5.66,
+        4.84
+      ]
+    },
+    {
+      "name": "focused continuous pointer movement",
+      "elapsedMs": 10008.099999982122,
+      "visible": true,
+      "rafSummary": {
+        "count": 600,
+        "p50Ms": 16.69999999999709,
+        "p95Ms": 16.700000000004366,
+        "maxMs": 16.80000000000291
+      },
+      "renderSummary": {
+        "count": 600,
+        "p50Ms": 16.69999999999709,
+        "p95Ms": 16.700000000004366,
+        "maxMs": 16.80000000000291
+      },
+      "diagnostics": {
+        "gravityDrawCalls": "2",
+        "gravityGeometries": "2",
+        "gravityTextures": "1",
+        "gravityTerrainVertices": "42601",
+        "gravityGeometryBytes": "1532076",
+        "gravityContributions": "12"
+      },
+      "load": [
+        4.76,
+        5.57,
+        4.82
+      ]
+    }
+  ],
+  "collectedCycleCount": 10,
+  "collectedCollapsedDOM": [
+    {
+      "documents": 1,
+      "nodes": 1349,
+      "jsEventListeners": 399
+    },
+    {
+      "documents": 1,
+      "nodes": 1349,
+      "jsEventListeners": 399
+    },
+    {
+      "documents": 1,
+      "nodes": 1349,
+      "jsEventListeners": 399
+    },
+    {
+      "documents": 1,
+      "nodes": 1349,
+      "jsEventListeners": 399
+    },
+    {
+      "documents": 1,
+      "nodes": 1349,
+      "jsEventListeners": 399
+    },
+    {
+      "documents": 1,
+      "nodes": 1349,
+      "jsEventListeners": 399
+    },
+    {
+      "documents": 1,
+      "nodes": 1349,
+      "jsEventListeners": 399
+    },
+    {
+      "documents": 1,
+      "nodes": 1349,
+      "jsEventListeners": 399
+    },
+    {
+      "documents": 1,
+      "nodes": 1349,
+      "jsEventListeners": 399
+    },
+    {
+      "documents": 1,
+      "nodes": 1349,
+      "jsEventListeners": 399
+    }
+  ],
+  "errors": [],
+  "independentBuiltF1": {
+    "source": "75ea13c",
+    "checksPassed": 95
+  },
+  "sharedFloatingSurface": {
+    "checksPassed": 54,
+    "actualBrowserZoom": 2,
+    "physicalMobileUnverified": true,
+    "unsupportedCssAnchorBrowserUnverified": true,
+    "implementationUsesCssAnchors": false
+  },
+  "ownerViews": {
+    "source": "3e94e8f",
+    "checksPassed": 14,
+    "actualIndependentContexts": 2,
+    "canonicalRecordRemovedAfterCheck": true
+  },
+  "f3MeasurementsReportedPendingFinalReceipt": {
+    "source": "3e94e8f",
+    "ordinaryOverviewRepresentations": 3,
+    "ordinaryOverviewP95Ms": 16.8,
+    "ordinaryFocusedRepresentations": 4,
+    "ordinaryFocusedP95Ms": 16.7,
+    "stressSource": "75ea13c",
+    "stressRepresentations": 1002,
+    "stressOrbitP95Ms": 716.7,
+    "stressFocusedP95Ms": 433.2,
+    "stressLimitDisclosed": true
+  },
+  "tvSoak": {
+    "sourceSha": "75ea13c1c76592bc24dcbd0b8df31c2ec5f5761e",
+    "durationRequiredMs": 1800000,
+    "elapsedMs": 1800017.6159619999,
+    "complete": true,
+    "finishedAt": "2026-10-17T04:36:34.621Z",
+    "firstMinuteMaxAnchorDrift": 0,
+    "allSamplesComplete91": true,
+    "errors": [],
+    "rendering": "Chromium headless ANGLE SwiftShader; software GPU, not hardware performance acceptance",
+    "samples": 181
+  },
+  "release": "Draft PR22; no merge/deploy/live source activation",
+  "actualBoundaryProtocol": {
+    "sourceSha": "13bd29855fd4715be36549f66b95224ef5c0335b",
+    "checks": 15,
+    "kind": "Actual built owner HTTP and SDK MCP; disposablePG18; no route mocks"
+  },
+  "actualWorkParity": {
+    "sourceSha": "3e94e8fdeb3e0ab00fbf8825e8858ce0e98014ec",
+    "checks": 5,
+    "canonicalWork": 101,
+    "pages": [
+      100,
+      1
+    ],
+    "kind": "Actual owner HTTP/SDK MCP/independent built dock exact fields and digests; runtime unavailable"
+  },
+  "operationalStateMatrix": {
+    "sourceSha": "13bd29855fd4715be36549f66b95224ef5c0335b",
+    "passed": 218,
+    "total": 221,
+    "failure": "All3C03 structured plane omission; correction under T21",
+    "method": "Synthetic read ports through actual service and built component, not persistence/production activation"
+  },
+  "openCorrections": [
+    "T20-R1 portrait focus/lens pressure fallback and picking",
+    "T21 provider plane context, source checks pass, independent review and built closure pending",
+    "T22 selected operational evidence refresh, component6pass, caller/built pending",
+    "103-resource phone390 visible-label-overlap case diagnosis"
+  ],
+  "terrainCorrection": {
+    "status": "Independent bounded source and actual GPU closure passed; normal merge completed",
+    "baselineSource": "13bd29855fd4715be36549f66b95224ef5c0335b",
+    "focusedTests": 45,
+    "browserCases": 19,
+    "gpuTestProjects": [
+      "desktop",
+      "phone-390",
+      "phone-320"
+    ],
+    "phoneMainErrorCssPx": [
+      0.214243,
+      0.229809,
+      0.183341,
+      0.196942
+    ],
+    "phoneLensErrorCssPx": [
+      0.040378,
+      0.038239,
+      0.03313,
+      0.031376
+    ],
+    "desktopErrorCssPxBefore": 17.862985543,
+    "desktopErrorCssPxAfter": 0.307992667,
+    "method": "Provisional analytic versus installed-triangle projected difference, separately inspected actual raster; not an approved automated silhouette gate",
+    "exactOrdinaryRasterAndBufferPairs": 12,
+    "cycles": 10,
+    "listenersBeforeAfter": [
+      49,
+      49
+    ],
+    "gpuGeometriesBeforeAfter": [
+      3,
+      3
+    ],
+    "gpuTexturesBeforeAfter": [
+      2,
+      2
+    ],
+    "panSampleSeconds": 8,
+    "panRebuilds": 6,
+    "longestPanFrameMs": 166.2,
+    "limitations": [
+      "Physical phone not tested",
+      "Actual hidden-tab scheduling unavailable in headless browser",
+      "Synchronous rebuild stalls remain; distant pressure background intentionally coarser"
+    ]
+  },
+  "gpuHarnessCorrection": {
+    "change": "Match actual Three.js highp sampler2D prefix",
+    "originalAssertionAndNegativeControlUnchanged": true,
+    "baselineAndCandidateOldPrefixMaxError": 0.0025262845858278205,
+    "matchingPrefixMaxError": 6.3194140138556065e-06,
+    "exactRootTestProjectsPassed": 3
+  },
+  "selectedEvidenceRefreshCorrection": {
+    "sourceReviewTests": 48,
+    "uiTypecheck": "PASS",
+    "actualOldBuiltFailure": "New scene read retained obsolete selected source evidence",
+    "correctedBuiltClosure": "Pending"
+  },
+  "providerPlaneCorrection": {
+    "sourceReviewTests": 104,
+    "structuredPlaneCarried": true,
+    "correctedBuiltThreeContexts": "Pending"
+  },
+  "currentHeadPrChecks": {
+    "status": "Acceptance gap identified; T23 implementation active",
+    "availabilityAndRuntimeRemainIndependent": true
+  }
+}
