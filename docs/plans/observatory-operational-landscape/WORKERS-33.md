@@ -1,4 +1,4 @@
-# Complete current browser guarantees and implicit custom persistence
+# Migrate Observatory browser guarantees
 
 ## Goal
 
