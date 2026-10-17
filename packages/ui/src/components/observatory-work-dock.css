@@ -1,0 +1,138 @@
+.cmd-observatory-work-dock {
+  box-sizing: border-box;
+  min-width: 0;
+  padding: 16px;
+  border: 1px solid var(--op-line, #c6d1d3);
+  border-radius: 12px;
+  background: var(--op-panel, #fdfcf8);
+  color: var(--op-fg, #243e4b);
+  font: inherit;
+  line-height: 1.5;
+  overflow-wrap: anywhere;
+}
+.cmd-work-dock-heading,
+.cmd-work-dock-total {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  gap: 8px 16px;
+  justify-content: space-between;
+}
+.cmd-work-dock-heading h2 {
+  margin: 0;
+  font-size: 1.1em;
+}
+.cmd-work-dock-heading a {
+  color: var(--op-accent, #3b708e);
+}
+.cmd-work-dock-note,
+.cmd-work-dock-runtime,
+.cmd-work-dock-total span {
+  color: var(--op-muted, #5e717a);
+  font-size: 0.9em;
+}
+.cmd-work-dock-runtime {
+  padding-inline-start: 10px;
+  border-inline-start: 2px solid var(--op-line, #c6d1d3);
+}
+.cmd-work-dock-filters {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 12px;
+}
+.cmd-work-dock-filters label {
+  display: grid;
+  flex: 1 1 140px;
+  min-width: 0;
+  gap: 4px;
+}
+.cmd-work-dock-filters label:first-child {
+  flex-basis: 240px;
+}
+.cmd-observatory-work-dock :is(input, select, button) {
+  box-sizing: border-box;
+  min-width: 0;
+  min-height: 40px;
+  max-width: 100%;
+  border: 1px solid var(--op-line, #c6d1d3);
+  border-radius: 7px;
+  padding: 7px 10px;
+  color: inherit;
+  background: var(--op-panel, #fdfcf8);
+  font: inherit;
+}
+.cmd-observatory-work-dock button {
+  cursor: pointer;
+}
+.cmd-observatory-work-dock
+  :is(input, select, button, summary, a, [tabindex]):focus-visible {
+  outline: 2px solid var(--op-accent, #3b708e);
+  outline-offset: 3px;
+}
+.cmd-work-dock-scroll {
+  max-height: min(65vh, 640px);
+  overflow: auto;
+  overscroll-behavior: contain;
+  scrollbar-gutter: stable;
+  border-block: 1px solid var(--op-line, #c6d1d3);
+}
+.cmd-work-dock-scroll > ul {
+  padding: 0;
+  margin: 0;
+  list-style: none;
+}
+.cmd-work-dock-scroll > ul > li + li {
+  border-top: 1px solid var(--op-line, #c6d1d3);
+}
+.cmd-work-dock-scroll summary {
+  padding: 12px 6px;
+  cursor: pointer;
+  min-height: 24px;
+}
+.cmd-work-dock-title {
+  white-space: pre-wrap;
+  margin-inline-end: 12px;
+}
+.cmd-work-dock-badge {
+  display: inline-block;
+  font-size: 0.85em;
+  margin-inline-end: 6px;
+  padding: 1px 6px;
+  border: 1px solid var(--op-line, #c6d1d3);
+  border-radius: 5px;
+}
+.cmd-work-dock-body {
+  padding: 0 12px 12px;
+}
+.cmd-work-dock-description {
+  white-space: pre-wrap;
+}
+.cmd-work-dock-body dl {
+  display: grid;
+  grid-template-columns: minmax(100px, 160px) minmax(0, 1fr);
+  gap: 4px 12px;
+}
+.cmd-work-dock-body dt {
+  color: var(--op-muted, #5e717a);
+}
+.cmd-work-dock-body dd {
+  min-width: 0;
+  margin: 0;
+  white-space: pre-wrap;
+}
+.cmd-work-dock-body dd ul {
+  padding-inline-start: 18px;
+  margin: 0;
+}
+@media (max-width: 480px) {
+  .cmd-observatory-work-dock {
+    padding: 12px;
+  }
+  .cmd-work-dock-body dl {
+    grid-template-columns: minmax(0, 1fr);
+    gap: 2px;
+  }
+  .cmd-work-dock-body dd {
+    margin-block-end: 8px;
+  }
+}
