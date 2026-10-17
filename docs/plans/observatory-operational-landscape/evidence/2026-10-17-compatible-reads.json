@@ -1,0 +1,62 @@
+{
+  "status": "PASS for bounded executed compatible reads, not whole upgrade completion",
+  "sourceSha": "b305bf8f74b1a36a8bd7aba5f1e3bc136b50c1e7",
+  "method": "Actual disposable PostgreSQL18, supported leased reader/cipher/history, owner HTTP, separately granted MCP SDK and built Chromium153 dark UI",
+  "actualStartedAt": "2026-10-17T12:38:24.431Z",
+  "actualCompletedAt": "2026-10-17T12:38:57.098Z",
+  "checksPassed": 9,
+  "originalCanonicalResourcesConserved": 91,
+  "sourcePolls": 1,
+  "loopbackUpstreamGets": 8,
+  "pullRequestChecks": 101,
+  "commitStatuses": 2,
+  "nonemptySecurityCategories": 3,
+  "originalStrictSchemaDefaultAndFalse": "PASS",
+  "explicitRichOptInAndSeparateGrants": "PASS",
+  "realClockAgingWithoutRepoll": "PASS",
+  "immutableOriginalClocksAndHistory": "PASS",
+  "actualManualRetainedEvidenceRefresh": "PASS",
+  "unknownRequiredCoveragePreserved": true,
+  "cleanup": {
+    "ownSourcesCreated": 1,
+    "ownSourceDisabledVersion": 3,
+    "ownGrantsCreated": 2,
+    "ownGrantsRevokedAndCanonicallyReadBack": 2,
+    "allCanonicalGrantContinuationsConsumed": true,
+    "ownSdkBrowserDatabaseAndStandinHandlesClosed": true,
+    "rootPreviewIntentionallyRetained": true
+  },
+  "responseQualification": {
+    "browserRequests": 22,
+    "completedBrowserResponses": 20,
+    "completedResponseStatuses": [
+      200
+    ],
+    "unscopedRequestsWithoutRecordedResponse": 2,
+    "pageErrors": 0,
+    "selectedPrAndManualRefreshResponseParity": "PASS",
+    "unrecordedInitialResponsesNotClaimedSuccessful": true
+  },
+  "visualInspection": {
+    "actualPngPixelsInspectedByRoot": true,
+    "screenshots": [
+      "2026-10-17-compatible-ci-fresh.png",
+      "2026-10-17-compatible-ci-stale.png"
+    ],
+    "observations": [
+      "Literal markup inert",
+      "Failed and pending/null fields distinct",
+      "Fresh to stale preserves original dates",
+      "Required-check coverage unknown and independent runtime caveat visible"
+    ]
+  },
+  "preservedSetupFailures": [
+    "Initial inet CIDR text versus host text preflight assertion, corrected using PostgreSQL host() with same loopback equality",
+    "Extra post-cleanup snapshot expectation corrected to accepted binding-review reset semantics; no-repoll age/history assertions unchanged"
+  ],
+  "limits": [
+    "Synthetic upstream and disposable environment, not production activation",
+    "Separate F2 mixed facets and GPU/owner usability checks have their own evidence",
+    "Physical devices and genuine document-hidden precondition remain separately unverified"
+  ]
+}
