@@ -43,7 +43,9 @@ import {
 } from "./operational-layout";
 import {
   defaultObservatoryPreferences,
+  legacyObservatoryStorageKey,
   observatoryGroupings,
+  observatoryStorageKey,
   type ObservatoryQuery,
 } from "./observatory-preferences";
 
@@ -413,6 +415,307 @@ describe("operational component interactions with the real semantic scene", () =
     };
     return { input, scene, host, props };
   }
+  it.each([
+    {
+      name: "unsupported operational grouping in the legacy key",
+      raw: null,
+      legacy: '{"version":1,"grouping":"operational"}',
+    },
+    {
+      name: "version one data in the version two key with valid legacy data",
+      raw: '{"version":1,"grouping":"operational"}',
+      legacy: '{"version":1,"grouping":"custom"}',
+    },
+    {
+      name: "version two data in the legacy key",
+      raw: null,
+      legacy: '{"version":2,"grouping":"operational"}',
+    },
+  ])(
+    "preserves incoming Projects without a restoring query for $name",
+    async ({ raw, legacy }) => {
+      const { input, props } = setup();
+      if (raw !== null) localStorage.setItem(observatoryStorageKey, raw);
+      localStorage.setItem(legacyObservatoryStorageKey, legacy);
+      render(
+        createElement(OperationalObservatory, {
+          ...props,
+          scene: projectObservatory({ ...input, grouping: "projects" }),
+        }),
+      );
+      await waitFor(() => expect(engine.created).toHaveBeenCalledTimes(1));
+      expect(screen.getByLabelText("Observatory grouping")).toHaveValue(
+        "projects",
+      );
+      expect(props.onQueryChange).not.toHaveBeenCalled();
+      expect(engine.update.mock.lastCall![1].cameraMode).toBe("composed");
+    },
+  );
+  it.each(["hosts", "projects", "custom"] as const)(
+    "restores the supported legacy %s grouping into the active query",
+    async (grouping) => {
+      const { props } = setup();
+      localStorage.setItem(
+        legacyObservatoryStorageKey,
+        JSON.stringify({ version: 1, grouping }),
+      );
+      render(createElement(OperationalObservatory, props));
+      await waitFor(() => expect(props.onQueryChange).toHaveBeenCalledTimes(1));
+      expect(props.onQueryChange.mock.lastCall![0].grouping).toBe(grouping);
+      expect(screen.getByLabelText("Observatory grouping")).toHaveValue(
+        grouping,
+      );
+    },
+  );
+  it("treats a supported operational grouping in the version two key as an explicit saved choice", async () => {
+    const { input, props } = setup();
+    localStorage.setItem(
+      observatoryStorageKey,
+      JSON.stringify(defaultObservatoryPreferences()),
+    );
+    render(
+      createElement(OperationalObservatory, {
+        ...props,
+        scene: projectObservatory({ ...input, grouping: "projects" }),
+      }),
+    );
+    await waitFor(() => expect(props.onQueryChange).toHaveBeenCalledTimes(1));
+    expect(props.onQueryChange.mock.lastCall![0].grouping).toBe("operational");
+    expect(screen.getByLabelText("Observatory grouping")).toHaveValue(
+      "operational",
+    );
+  });
+  it("restores saved custom grouping into one authorized query without losing filters or replaying on refresh", async () => {
+    const { input, scene, props } = setup();
+    const resourceId = scene.membershipIndex.resourceIds[0]!;
+    const sectors = [
+      {
+        id: "shared",
+        label: "Authorized sector",
+        grouping: "hosts" as const,
+        resourceIds: [resourceId, "hidden-resource", resourceId],
+      },
+      {
+        id: "private",
+        label: "Private sector name",
+        grouping: "providers" as const,
+        resourceIds: ["hidden-resource"],
+      },
+    ];
+    localStorage.setItem(
+      observatoryStorageKey,
+      JSON.stringify({
+        ...defaultObservatoryPreferences(),
+        grouping: "custom",
+        sectors,
+        camera: "orbit",
+      }),
+    );
+    const view = render(
+      createElement(OperationalObservatory, {
+        ...props,
+        initialQuery: {
+          grouping: "operational",
+          environment: "production",
+          search: "retained filter",
+          sectors: [],
+          expandedRepresentationIds: [],
+          viewRevision: scene.viewRevision,
+        },
+      }),
+    );
+    await waitFor(() => expect(props.onQueryChange).toHaveBeenCalledTimes(1));
+    const restored = props.onQueryChange.mock.lastCall![0] as ObservatoryQuery;
+    expect(restored).toMatchObject({
+      grouping: "custom",
+      environment: "production",
+      search: "retained filter",
+      sectors: [
+        {
+          id: "shared",
+          label: "Authorized sector",
+          grouping: "hosts",
+          resourceIds: [resourceId],
+        },
+      ],
+    });
+    expect(restored.viewRevision).toMatch(/^local:/);
+    expect(JSON.stringify(restored)).not.toContain("hidden-resource");
+    expect(JSON.stringify(restored)).not.toContain("Private sector name");
+    expect(screen.getByLabelText("Observatory grouping")).toHaveValue("custom");
+    const response = projectObservatory({ ...input, ...restored });
+    expect(response.membershipIndex.resourceIds).toEqual(
+      scene.membershipIndex.resourceIds,
+    );
+    view.rerender(
+      createElement(OperationalObservatory, { ...props, scene: response }),
+    );
+    await waitFor(() => expect(engine.created).toHaveBeenCalledTimes(1));
+    expect(
+      screen.getByRole("region", { name: "Operational Observatory" }),
+    ).toHaveAttribute("data-pending", "false");
+    expect(engine.update.mock.lastCall![1].cameraMode).toBe("composed");
+    expect(props.onQueryChange).toHaveBeenCalledTimes(1);
+    fireEvent.change(screen.getByLabelText("Observatory grouping"), {
+      target: { value: "projects" },
+    });
+    const chosen = props.onQueryChange.mock.lastCall![0] as ObservatoryQuery;
+    view.rerender(
+      createElement(OperationalObservatory, {
+        ...props,
+        scene: projectObservatory({ ...input, ...chosen }),
+      }),
+    );
+    await act(async () => {});
+    expect(screen.getByLabelText("Observatory grouping")).toHaveValue(
+      "projects",
+    );
+    expect(props.onQueryChange).toHaveBeenCalledTimes(2);
+    expect(
+      JSON.parse(localStorage.getItem(observatoryStorageKey)!),
+    ).toMatchObject({
+      grouping: "projects",
+      sectors: restored.sectors,
+    });
+  });
+  it("restores projects grouping on each navigation remount while keeping the camera still", async () => {
+    const { props } = setup();
+    localStorage.setItem(
+      observatoryStorageKey,
+      JSON.stringify({
+        ...defaultObservatoryPreferences(),
+        grouping: "projects",
+        camera: "tour",
+      }),
+    );
+    const first = render(createElement(OperationalObservatory, props));
+    await waitFor(() => expect(props.onQueryChange).toHaveBeenCalledTimes(1));
+    expect(props.onQueryChange.mock.lastCall![0].grouping).toBe("projects");
+    await waitFor(() => expect(engine.created).toHaveBeenCalledTimes(1));
+    expect(engine.update.mock.lastCall![1].cameraMode).toBe("composed");
+    first.unmount();
+    render(createElement(OperationalObservatory, { ...props, compact: true }));
+    await waitFor(() => expect(props.onQueryChange).toHaveBeenCalledTimes(2));
+    expect(screen.getByLabelText("Observatory grouping")).toHaveValue(
+      "projects",
+    );
+    expect(props.onQueryChange.mock.lastCall![0].grouping).toBe("projects");
+    await waitFor(() => expect(engine.created).toHaveBeenCalledTimes(2));
+    expect(engine.update.mock.lastCall![1].cameraMode).toBe("composed");
+  });
+  it("reauthorizes saved sectors once when navigation narrows the resource scope", async () => {
+    const { input, props } = setup();
+    const retained = input.resources[0]!,
+      removed = input.resources[1]!;
+    localStorage.setItem(
+      observatoryStorageKey,
+      JSON.stringify({
+        ...defaultObservatoryPreferences(),
+        grouping: "custom",
+        sectors: [
+          {
+            id: "shared",
+            label: "Retained sector",
+            grouping: "hosts",
+            resourceIds: [retained.id, removed.id],
+          },
+          {
+            id: "private",
+            label: "Removed private sector",
+            grouping: "hosts",
+            resourceIds: [removed.id],
+          },
+        ],
+      }),
+    );
+    const view = render(createElement(OperationalObservatory, props));
+    await waitFor(() => expect(props.onQueryChange).toHaveBeenCalledTimes(1));
+    const restricted = projectObservatory({
+      ...observatoryFixtureInput([retained]),
+      scopeDigest: "fixture:restricted",
+    });
+    view.rerender(
+      createElement(OperationalObservatory, { ...props, scene: restricted }),
+    );
+    await waitFor(() => expect(props.onQueryChange).toHaveBeenCalledTimes(2));
+    expect(props.onQueryChange.mock.lastCall![0]).toMatchObject({
+      grouping: "custom",
+      sectors: [
+        {
+          id: "shared",
+          label: "Retained sector",
+          grouping: "hosts",
+          resourceIds: [retained.id],
+        },
+      ],
+    });
+    await act(async () => {});
+    expect(props.onQueryChange).toHaveBeenCalledTimes(2);
+    const stored = localStorage.getItem(observatoryStorageKey)!;
+    expect(stored).not.toContain(removed.id);
+    expect(stored).not.toContain("Removed private sector");
+  });
+  it.each([null, "broken", '{"version":8}'])(
+    "keeps a useful default query and explicit choices with absent or invalid storage: %s",
+    async (stored) => {
+      const { props } = setup();
+      if (stored !== null) localStorage.setItem(observatoryStorageKey, stored);
+      render(createElement(OperationalObservatory, props));
+      await waitFor(() => expect(engine.created).toHaveBeenCalledTimes(1));
+      expect(screen.getByLabelText("Observatory grouping")).toHaveValue(
+        "operational",
+      );
+      expect(props.onQueryChange).not.toHaveBeenCalled();
+      fireEvent.change(screen.getByLabelText("Observatory grouping"), {
+        target: { value: "hosts" },
+      });
+      expect(props.onQueryChange).toHaveBeenCalledTimes(1);
+      expect(props.onQueryChange.mock.lastCall![0].grouping).toBe("hosts");
+    },
+  );
+  it("keeps explicit grouping chosen before saved preferences finish loading", async () => {
+    const { props } = setup();
+    localStorage.setItem(
+      observatoryStorageKey,
+      JSON.stringify({
+        ...defaultObservatoryPreferences(),
+        grouping: "custom",
+      }),
+    );
+    render(createElement(OperationalObservatory, props));
+    fireEvent.change(screen.getByLabelText("Observatory grouping"), {
+      target: { value: "projects" },
+    });
+    await waitFor(() => expect(engine.created).toHaveBeenCalledTimes(1));
+    expect(props.onQueryChange).toHaveBeenCalledTimes(1);
+    expect(screen.getByLabelText("Observatory grouping")).toHaveValue(
+      "projects",
+    );
+    expect(
+      JSON.parse(localStorage.getItem(observatoryStorageKey)!),
+    ).toMatchObject({
+      grouping: "projects",
+    });
+  });
+  it("keeps grouping usable when device storage cannot be read", async () => {
+    const { props } = setup();
+    const read = vi
+      .spyOn(Storage.prototype, "getItem")
+      .mockImplementation(() => {
+        throw new Error("Device storage unavailable");
+      });
+    try {
+      render(createElement(OperationalObservatory, props));
+      await waitFor(() => expect(engine.created).toHaveBeenCalledTimes(1));
+      fireEvent.change(screen.getByLabelText("Observatory grouping"), {
+        target: { value: "providers" },
+      });
+      expect(props.onQueryChange).toHaveBeenCalledTimes(1);
+      expect(props.onQueryChange.mock.lastCall![0].grouping).toBe("providers");
+    } finally {
+      read.mockRestore();
+    }
+  });
   function canonicalWorkPage(
     projectId: string,
     cursor: FoundationProjectWorkCursor | null,
