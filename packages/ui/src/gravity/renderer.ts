@@ -681,6 +681,20 @@ export class ObservatoryRenderer {
     this.needsDraw = true;
   }
 
+  /** Accept the displayed reading pose as this active subject without fitting it. */
+  adoptSubject(id: string): boolean {
+    if (!this.targets.some((well) => well.id === id)) return false;
+    this.focusedSubject = id;
+    this.presentationMoved = false;
+    this.presentationInterrupted = true;
+    this.presentationEntry = null;
+    this.featuredId = id;
+    this.cameraTween = null;
+    this.renderer.domElement.dataset.gravityMainFocus = id;
+    this.needsDraw = true;
+    return true;
+  }
+
   focusSubject(
     id: string | null,
     options: { immediate?: boolean; restore?: boolean; refit?: boolean } = {},
