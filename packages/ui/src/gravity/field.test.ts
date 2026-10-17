@@ -11,6 +11,7 @@ import { ObservatoryRenderer, type RendererSettings } from "./renderer";
 import {
   fieldBounds,
   fieldGeometry,
+  fieldRefinement,
   fieldTransition,
   packField,
 } from "./field";
@@ -453,4 +454,35 @@ describe("swept field bounds", () => {
       fieldBounds([previous]),
     );
   });
+});
+
+describe("pressure view detail policy", () => {
+  const subject = { ...well(0), x: 18, z: 18, radius: 2, aspect: 1, depth: 4 };
+  it("follows the close view independently of selection and keeps overview work coarse", () => {
+    const close = fieldRefinement([subject], { x: 18, z: 18 }, 9, 900)!;
+    expect(close).toEqual({ x: 18, z: 18, radius: 8, step: 2 / 12 });
+    expect(fieldRefinement([subject], { x: 18.4, z: 17.7 }, 9, 900)).toEqual(
+      close,
+    );
+    expect(fieldRefinement([subject], { x: 18, z: 18 }, 500, 900)).toBeNull();
+    expect(fieldRefinement([subject], { x: 180, z: 180 }, 9, 900)).toBeNull();
+    expect(
+      fieldRefinement([{ ...subject, depth: 0 }], subject, 9, 900),
+    ).toBeNull();
+  });
+  it("bounds tiny-feature requests and uses actual viewport height", () => {
+    const tiny = { ...subject, radius: 0.01 };
+    const close = fieldRefinement([tiny], tiny, 0.1, 900)!;
+    expect(close.radius / close.step).toBeLessThanOrEqual(96);
+    expect(fieldRefinement([subject], subject, 9, 60)).toBeNull();
+    expect(fieldRefinement([subject], subject, 0, 900)).toBeNull();
+  });
+});
+
+it("bounds the larger portrait focus window before its single planning attempt", () => {
+  const subject = { ...well(0), x: 18, z: 18, radius: 2, aspect: 1, depth: 4 };
+  const portrait = fieldRefinement([subject], subject, 32.3, 620)!;
+  expect(portrait.radius).toBe(16);
+  expect(portrait.step).toBe(1 / 3);
+  expect(portrait.radius / portrait.step).toBeLessThanOrEqual(48);
 });

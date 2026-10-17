@@ -187,3 +187,44 @@ export function fieldTransition(
     key: JSON.stringify([...shapes].sort()),
   };
 }
+
+export type FieldRefinement = {
+  x: number;
+  z: number;
+  radius: number;
+  step: number;
+};
+
+// Spend pressure detail in a stable world window around the view, independent of
+// selection. Quantized windows and a bounded minimum step keep camera work finite.
+export function fieldRefinement(
+  wells: readonly Well[],
+  center: { x: number; z: number },
+  distance: number,
+  height: number,
+  fov = 40,
+): FieldRefinement | null {
+  if (!Number.isFinite(distance) || distance <= 0 || height <= 0) return null;
+  const halfView = distance * Math.tan((fov * Math.PI) / 360);
+  const radius = Math.max(8, Math.min(16, Math.ceil((halfView * 1.5) / 2) * 2));
+  let minor = Infinity;
+  for (const well of wells) {
+    const axis = well.radius * Math.min(1, well.aspect);
+    if (
+      Math.abs(well.depth) > 0.002 &&
+      (axis * height) / (2 * halfView) > 24 &&
+      Math.hypot(well.x - center.x, well.z - center.z) <=
+        radius + well.radius * Math.max(1, well.aspect) * 1.8
+    )
+      minor = Math.min(minor, axis);
+  }
+  if (!Number.isFinite(minor)) return null;
+  return {
+    x: Math.round(center.x / 2) * 2,
+    z: Math.round(center.z / 2) * 2,
+    radius,
+    // A wider portrait view must not request four times the fine-cell work.
+    // The radius-8 close view keeps its original 1/6 step for radius-2 wells.
+    step: Math.max(minor / 12, radius / 48),
+  };
+}

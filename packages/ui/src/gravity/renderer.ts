@@ -16,7 +16,12 @@ import {
   presentationPose,
 } from "./presentation";
 import { LabelLayout, labelHeight } from "./labels";
-import { fieldBounds, fieldTransition, packField } from "./field";
+import {
+  fieldBounds,
+  fieldRefinement,
+  fieldTransition,
+  packField,
+} from "./field";
 import {
   basinGeometry,
   basinGeometryWindow,
@@ -104,6 +109,10 @@ export class ObservatoryRenderer {
   private extent = fieldBounds([]);
   private terrainPlan = "";
   private terrainDetails: BasinGeometry | undefined;
+  private terrainFootprints: Well[] = [];
+  private pressureAppliedKey = "";
+  private pressureRejectedKey: string | undefined;
+  private pressurePending: { key: string; since: number } | undefined;
   private geometryTransition = false;
   private geometryRevision = 0;
   private focusGeometry: THREE.BufferGeometry | undefined;
@@ -371,15 +380,11 @@ export class ObservatoryRenderer {
     const transition = fieldTransition([], wells);
     const extent = transition.bounds;
     if (transition.key !== this.terrainPlan) {
-      const details = basinGeometry(transition.footprints, extent);
-      this.geometry.dispose();
-      this.geometry = details.geometry;
-      this.geometryRevision++;
-      this.focusGeometry?.dispose();
-      this.focusGeometry = undefined;
-      this.focusPlan = "";
-      this.terrain.geometry = this.geometry;
-      this.terrainDetails = details;
+      this.terrainFootprints = transition.footprints;
+      this.pressureAppliedKey = "";
+      this.pressureRejectedKey = undefined;
+      this.pressurePending = undefined;
+      this.replaceTerrain(basinGeometry(transition.footprints, extent));
       this.terrainPlan = transition.key;
     }
     this.terrain.position.set(0, 0, 0);
@@ -397,6 +402,84 @@ export class ObservatoryRenderer {
       this.controls.maxDistance + span * 3 + extent.apron * 2,
     );
     this.camera.updateProjectionMatrix();
+  }
+
+  private replaceTerrain(details: BasinGeometry) {
+    this.geometry.dispose();
+    this.geometry = details.geometry;
+    this.geometryRevision = (this.geometryRevision ?? 0) + 1;
+    this.focusGeometry?.dispose();
+    this.focusGeometry = undefined;
+    this.focusPlan = "";
+    this.terrain.geometry = this.geometry;
+    this.terrainDetails = details;
+    this.needsDraw = true;
+  }
+
+  private refineLandscape(now: number) {
+    if (!this.terrainDetails || this.terrainDetails.detailScale <= 1) return;
+    const main = fieldRefinement(
+      this.wells,
+      this.controls.target,
+      this.camera.position.distanceTo(this.controls.target),
+      this.height,
+      this.camera.fov,
+    );
+    const selected = this.settings.focus
+      ? this.wells.find((well) => well.id === this.settings.selected)
+      : undefined;
+    const lens = selected
+      ? fieldRefinement(
+          this.wells,
+          selected,
+          Math.max(10, selected.radius * Math.max(1, selected.aspect) * 5),
+          Math.min(640, this.lensViewport().radius * 2),
+          this.focusCamera.fov,
+        )
+      : null;
+    const regions = [main, lens].filter((region) => region !== null);
+    if (regions.length === 2 && JSON.stringify(main) === JSON.stringify(lens))
+      regions.pop();
+    const key = regions.length ? JSON.stringify(regions) : "";
+    if (key === this.pressureAppliedKey) {
+      this.pressureRejectedKey = undefined;
+      this.pressurePending = undefined;
+      return;
+    }
+    if (key === this.pressureRejectedKey) {
+      this.pressurePending = undefined;
+      return;
+    }
+    // Rebuild after a stable window request, never on every camera tween/frame.
+    // There is one owned full mesh and one optional lens subset, with no view cache.
+    if (this.pressurePending?.key !== key) {
+      this.pressurePending = { key, since: now };
+      return;
+    }
+    if (now - this.pressurePending.since < 180) return;
+    const details = basinGeometry(
+      this.terrainFootprints,
+      this.extent,
+      120_000,
+      regions,
+    );
+    if (
+      details.quality === "uniform-pressure" &&
+      (this.terrainDetails.quality === "local" ||
+        details.detailScale > this.terrainDetails.detailScale)
+    ) {
+      // A bounded attempt may fail, but it cannot flatten a usable scene.
+      // Remember one rejected request without treating it as installed detail.
+      details.geometry.dispose();
+      this.pressureRejectedKey = key;
+      this.pressurePending = undefined;
+      this.needsDraw = true;
+      return;
+    }
+    this.replaceTerrain(details);
+    this.pressureAppliedKey = key;
+    this.pressureRejectedKey = undefined;
+    this.pressurePending = undefined;
   }
 
   private publishFieldDiagnostics() {
@@ -436,6 +519,9 @@ export class ObservatoryRenderer {
     );
     canvas.dataset.gravityPlanningPasses = String(
       this.terrainDetails?.planningPasses ?? 0,
+    );
+    canvas.dataset.gravityRefinementRejected = String(
+      !!this.pressureRejectedKey,
     );
     canvas.dataset.gravityGeometryQuality =
       this.terrainDetails?.quality ?? "local";
@@ -881,6 +967,8 @@ export class ObservatoryRenderer {
     this.controls.enableDamping =
       moving && this.settings.cameraMode === "manual";
     changing = this.controls.update(dt) || changing;
+    if (this.needsDraw || changing || this.pressurePending)
+      this.refineLandscape(now);
     this.uniforms.uFogStart.value =
       this.camera.position.distanceTo(this.controls.target) +
       Math.max(18, Math.hypot(this.extent.width, this.extent.depth));

@@ -1,5 +1,5 @@
 import { BufferAttribute, BufferGeometry } from "three";
-import { fieldBounds } from "./field";
+import { fieldBounds, type FieldRefinement } from "./field";
 import type { Well } from "./model";
 
 type Extent = ReturnType<typeof fieldBounds>;
@@ -37,6 +37,7 @@ export function basinGeometry(
   footprints: readonly Well[],
   extent: Extent = fieldBounds(footprints),
   maximumLeaves = 120_000,
+  refinement: readonly FieldRefinement[] = [],
 ): BasinGeometry {
   if (!Number.isInteger(maximumLeaves) || maximumLeaves < 4)
     throw new RangeError("The terrain leaf budget must be at least four.");
@@ -132,11 +133,35 @@ export function basinGeometry(
           (basin.minor * basin.minor),
       0,
     );
+  for (const region of refinement)
+    if (
+      ![region.x, region.z, region.radius, region.step].every(
+        Number.isFinite,
+      ) ||
+      region.radius <= 0 ||
+      region.step <= 0
+    )
+      throw new RangeError(
+        "Terrain refinement must have finite positive bounds and step.",
+      );
+  // A dyadic cell can be almost twice as fine as the requested step on each
+  // axis. Reserve that worst-case square, including overlapping lens requests.
+  const reservedLeaves =
+    estimatedLeaves > maximumLeaves
+      ? refinement.reduce(
+          (sum, region) => sum + 4 * ((2 * region.radius) / region.step) ** 2,
+          0,
+        )
+      : 0;
+  const backgroundBudget = Math.max(
+    maximumLeaves / 8,
+    maximumLeaves - reservedLeaves,
+  );
   let detailScale =
     2 **
     Math.max(
       0,
-      Math.ceil(Math.log2(Math.sqrt(estimatedLeaves / maximumLeaves))),
+      Math.ceil(Math.log2(Math.sqrt(estimatedLeaves / backgroundBudget))),
     );
   const planningBudget = Math.max(128, Math.min(1_000_000, maximumLeaves * 32));
   let planningVisits = 0,
@@ -230,6 +255,15 @@ export function basinGeometry(
         if (divisions)
           step = Math.min(step, (basin.minor / divisions) * detailScale);
       }
+      // Refinement changes only the joined triangulation. The shader continues to
+      // evaluate every field contribution and exact analytic height and normal.
+      if (detailScale > 1)
+        for (const region of refinement) {
+          const dx = Math.max(0, Math.abs(worldX - region.x) - worldSize / 2);
+          const dz = Math.max(0, Math.abs(worldZ - region.z) - worldSize / 2);
+          if (dx * dx + dz * dz <= region.radius * region.radius)
+            step = Math.min(step, region.step);
+        }
       if (worldSize > step && size > 1) {
         return (
           subdivide(x, z, half, relevant) &&
