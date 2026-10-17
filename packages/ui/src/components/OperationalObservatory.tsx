@@ -1690,14 +1690,11 @@ function OperationalObservatoryView({
                           (item) =>
                             item.resourceId === containment?.parentResourceId,
                         );
-                        return (
-                          parent?.label ??
-                          (containment?.state === "missing"
+                        return containment?.state === "cycle"
+                          ? "Containment cycle recorded"
+                          : containment?.state === "missing"
                             ? "Parent unavailable in authorized scope"
-                            : containment?.state === "cycle"
-                              ? "Containment cycle recorded"
-                              : "Root resource")
-                        );
+                            : (parent?.label ?? "Root resource");
                       })()}
                     </dd>
                   </>

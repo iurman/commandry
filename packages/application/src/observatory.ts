@@ -290,7 +290,12 @@ function authorizedInput(
         health: "unknown",
       });
       unique(parsed.sources.map((source) => source.id));
-      resources.push(parsed);
+      resources.push({
+        ...parsed,
+        ...(resource.parentUnavailable === true
+          ? { parentUnavailable: true }
+          : {}),
+      });
     }
     const visible = new Set(resources.map((resource) => resource.id));
     const subject = (id: string) => visible.has(uuid.parse(id));

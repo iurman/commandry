@@ -205,6 +205,33 @@ describe("shared authorized Observatory reads", () => {
     ).toBe(0);
   });
 
+  it("preserves a storage-redacted missing parent without exposing its identity", async () => {
+    const source = mixedObservatoryFixture();
+    const project = source.projects[0]!.id;
+    const service = source.resources.find(
+      (resource) =>
+        resource.kind === "service" &&
+        resource.projects.some((item) => item.id === project),
+    )!;
+    const f = fixture({
+      ...source,
+      resources: source.resources.map((resource) =>
+        resource.id === service.id
+          ? { ...resource, parentResourceId: null, parentUnavailable: true }
+          : resource,
+      ),
+    });
+    f.scoped([project], allOperations, [service.id]);
+    const result = await f.service.scene("restricted-redacted", {
+      projectId: project,
+    });
+    expect(result.scene.containment).toEqual([
+      { resourceId: service.id, parentResourceId: null, state: "missing" },
+    ]);
+    expect(result.scene.membershipIndex.resourceIds).toEqual([service.id]);
+    expect(JSON.stringify(result)).not.toContain(service.parentResourceId);
+    expect(JSON.stringify(result)).not.toContain("parentUnavailable");
+  });
   it("requires the independent base grant, explicit non-owner project and matching server environment", async () => {
     for (const configure of [
       (f: ReturnType<typeof fixture>) =>

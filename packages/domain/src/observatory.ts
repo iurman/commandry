@@ -31,6 +31,8 @@ export type ObservatoryResource = {
   name: string;
   kind: string;
   parentResourceId: string | null;
+  /** Authorized child has a parent whose identity was redacted by storage. */
+  parentUnavailable?: boolean | undefined;
   childCount?: number | undefined;
   projects: readonly ObservatoryProject[];
   telemetry:
@@ -1004,7 +1006,9 @@ export function projectObservatory(input: ObservatoryInput): ObservatoryScene {
         state: cyclic
           ? "cycle"
           : resource.parentResourceId === null
-            ? "root"
+            ? resource.parentUnavailable
+              ? "missing"
+              : "root"
             : resources.has(resource.parentResourceId)
               ? "known"
               : "missing",

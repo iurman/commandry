@@ -199,6 +199,8 @@ export async function collectObservatoryRecords(
         r.parentResourceId && allowed.has(r.parentResourceId)
           ? r.parentResourceId
           : null,
+      parentUnavailable:
+        !!r.parentResourceId && !allowed.has(r.parentResourceId),
       childCount: resources.filter((child) => child.parentResourceId === r.id)
         .length,
       metrics: [

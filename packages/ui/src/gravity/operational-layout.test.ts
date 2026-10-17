@@ -744,6 +744,34 @@ describe("operational component interactions with the real semantic scene", () =
       expect.objectContaining({ environment: null }),
     );
   });
+  it("shows a recorded containment cycle even when its parent label is authorized", async () => {
+    const { input, host, props } = setup();
+    const other = input.resources.find(
+      (resource) => resource.kind === "host" && resource.id !== host.resourceId,
+    )!;
+    const scene = projectObservatory({
+      ...input,
+      resources: input.resources.map((resource) => ({
+        ...resource,
+        parentResourceId:
+          resource.id === host.resourceId
+            ? other.id
+            : resource.id === other.id
+              ? host.resourceId!
+              : resource.parentResourceId,
+      })),
+    });
+    render(
+      createElement(OperationalObservatory, {
+        ...props,
+        scene,
+        selectedId: host.resourceId,
+      }),
+    );
+    expect(
+      await screen.findByText("Containment cycle recorded"),
+    ).toBeInTheDocument();
+  });
   it("inspects a group in one activation and does not refocus on unchanged data refresh", async () => {
     const { input, scene, host, props } = setup();
     const view = render(createElement(OperationalObservatory, props));

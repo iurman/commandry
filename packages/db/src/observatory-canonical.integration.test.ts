@@ -343,6 +343,7 @@ test(
           );
           assert.equal(restricted.resources.length, 1);
           assert.equal(restricted.resources[0]?.parentResourceId, null);
+          assert.equal(restricted.resources[0]?.parentUnavailable, true);
           assert.equal(restricted.resources[0]?.childCount, 0);
           assert.ok(!JSON.stringify(restricted).includes(hostId));
         },
