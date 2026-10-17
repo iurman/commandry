@@ -10,14 +10,14 @@ Fetched origin/main is 507303ca1e82b8b15cc8d94864b61db1de86ed7e. The isolated im
 
 ## Delivery phases
 
-| Phase | State | Evidence or next action |
-| --- | --- | --- |
-| A Meaning and baseline | In progress | Owner approval recorded; ADR 0016; establish fixtures and scoped contracts. |
-| B Controls and geometry | In progress | Shared surface integrated into actual Appearance; wrap sweep passes. T01 independently reviewed and merged; actual silhouette/frame gates remain. |
-| C Grouped scene and focus | In progress | T03 complete semantic contract merged; T04 authorized query service and T05 interactive scene merged; built integration passes the Appearance sweep. |
-| D Mappings and operational sources | In progress | Public provider adapter/repository verified in disposable HTTP/PostgreSQL; canonical reviewed records and source integration active. |
-| E Repository/work/views/TV | In progress | T08 canonical named views active; T09 supported GitHub evidence prepared. Released project Work read contract identified; no released actual AgentRun contract. |
-| F Review and release | Not run | All required checks, PR, normal merge, constrained release and signed-in live evidence. |
+| Phase                              | State                                    | Evidence or next action                                                                                                                                                                                              |
+| ---------------------------------- | ---------------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| A Meaning and baseline             | Verified                                 | Owner authority, accepted ADR0016, exact fixtures, failing baselines and58-scenario ledger are recorded.                                                                                                             |
+| B Controls and geometry            | Verified with stated limits              | Actual shared-surface, GPU geometry, phone picking and measured ordinary performance pass. Physical-device and expanded-stress limits remain explicit; final label replay is pending.                                |
+| C Grouped scene and focus          | Verified with final label replay pending | Complete91/1000-resource scene, authorization, grouping, search, detail, tours and breadcrumbs pass actual built controls. T32 stationary label source is independently accepted; new build/pixels/idle remain.      |
+| D Mappings and operational sources | Verified in disposable boundaries        | Canonical reviewed records, supported availability, provider/scanner/CI source history and owner/API/MCP parity pass. Exact production mappings and activation remain qualified until deployed and reviewed.         |
+| E Repository/work/views/TV         | Verified with explicit runtime limit     | Actual private views, repository/security/CI evidence,101canonical Work records and30minuteTVsoak pass. Unreleased AgentRun remains unknown.                                                                         |
+| F Review and release               | In progress                              | Independently reviewed implementation and draftPR22 are pushed. Final label build, actual owner usability, normal main merge, main-only image CI, protected release controls and signed-in live verification remain. |
 
 ## Preserved resources
 
@@ -295,3 +295,9 @@ The full corrected check/test/build passed. Actual compatible owner HTTP/SDK/bui
 The actual strict-service/built F2 batch passed all5tour/current-breadcrumb/composed controls,6activity/restart controls,3mixed-CI/transient-error recovery controls,3idle/context-loss controls and the unchanged manually panned breadcrumb assertion. The unchanged original D02 check still fails:31identical anchors/sizes and camera continue to move internal label states, with changing/needsDraw true after715and1429frames. T32 isolates only labels.ts and its existing test, with exact captured cold/warm inputs and all original thresholds. No failing assertion was relaxed or marked passed.
 
 The three superseded owned previews42101/42309/36931 were stopped only after exact receipt/source/UID/command/web-parent/PG identity checks; their processes exited and exact temporary directories were removed after absence checks. New34211 is the private immutable b305bf8 target, with external polling disabled; owner3217 remains untouched. Read-only bridge41747 is prepared but has not been browser-verified or presented for F06. No production merge or deployment occurred.
+
+## Independently accepted stationary label correction
+
+T32 worker33d9aaa and normal merge83490c7 are accepted after exact immutable-base packet PASS and independent Astra review. The unchanged captured warm31-anchor/31-size/31-state/87-separation baseline fails the original600-call bound in both motion modes; corrected warm settles in2/56calls and cold in2/74. All101scoped tests and UI/web types pass. Original tests remain unchanged;13input invalidations, fresh metadata, live motion/dt,120replacement populations, eight collision passes and original collision/movement/opacity thresholds are verified. Root now owns the final fullcheck/test/build and unchanged actual D02 plus additive dense D04/idle replay. The prior actual failure remains retained and is not yet closed by source tests alone.
+
+The actual b305bf8 owner bridge additionally passes five native-browser groups each at1440light and390dark, with empty browser cookies and zero page errors. Root viewed the initial desktop surface and phone fullscreen controls. These are source-qualified technical checks, not F06 human feedback. Production dependency audit passes the high-severity threshold with one moderate advisory; example production Compose configuration passes. Protected operator access and production release controls remain pending.
