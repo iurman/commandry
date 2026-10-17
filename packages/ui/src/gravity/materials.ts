@@ -10,6 +10,7 @@ uniform int uCount;
 uniform float uTime;
 uniform float uAmbient;
 varying vec3 vWorld;
+varying vec3 vNormal;
 varying vec3 vColor;
 varying float vRim;
 varying float vAlert;
@@ -23,7 +24,15 @@ vec4 fieldRecord(int index, int part) {
 void main() {
   vec3 p = (modelMatrix * vec4(position, 1.0)).xyz;
   float h = sin(p.x * 0.14 + p.z * 0.11) * 0.55 + cos(p.z * 0.18 - p.x * 0.09) * 0.35;
-  h += sin(length(p.xz) * 0.7 - uTime * 0.35) * cos(p.x * 0.12 + p.z * 0.09) * 0.055 * uAmbient;
+  vec2 gradient = vec2(
+    0.077 * cos(p.x * 0.14 + p.z * 0.11) + 0.0315 * sin(p.z * 0.18 - p.x * 0.09),
+    0.0605 * cos(p.x * 0.14 + p.z * 0.11) - 0.063 * sin(p.z * 0.18 - p.x * 0.09)
+  );
+  float wave = length(p.xz) * 0.7 - uTime * 0.35;
+  float modulation = p.x * 0.12 + p.z * 0.09;
+  h += sin(wave) * cos(modulation) * 0.055 * uAmbient;
+  gradient += (cos(wave) * cos(modulation) * 0.7 * p.xz / max(length(p.xz), 0.0001)
+    - sin(wave) * sin(modulation) * vec2(0.12, 0.09)) * 0.055 * uAmbient;
   vec3 tint = vec3(0.25, 0.55, 0.8) * 0.025;
   float weight = 0.025;
   vRim = 0.0; vAlert = 0.0; vDash = 0.0; vDepth = 0.0; vInfluence = 0.0;
@@ -39,7 +48,15 @@ void main() {
     float wellDepth = w.w * exp(-pow(r2, shape.w) * 1.5);
     h += shape.z * exp(-r2 * 0.23) * strength;
     h -= wellDepth;
-    h += 0.13 * w.z * exp(-gravitySquare(r - 1.05) * 12.0) * strength;
+    float crest = 0.13 * w.z * exp(-gravitySquare(r - 1.05) * 12.0) * strength;
+    h += crest;
+    float derivative = -0.23 * shape.z * exp(-r2 * 0.23) * strength
+      + wellDepth * 1.5 * shape.w * pow(max(r2, 0.00000001), shape.w - 1.0)
+      - crest * 12.0 * (r - 1.05) / max(r, 0.0001);
+    gradient += derivative * 2.0 * vec2(
+      d.x * c / (w.z * shape.x) - d.y * s / w.z,
+      d.x * s / (w.z * shape.x) + d.y * c / w.z
+    );
     float influence = exp(-r2 * 0.45) * strength;
     tint += color.rgb * influence;
     weight += influence;
@@ -52,6 +69,7 @@ void main() {
   }
   p.y = h;
   vWorld = p;
+  vNormal = vec3(-gradient.x, 1.0, -gradient.y);
   vColor = tint / weight;
   gl_Position = projectionMatrix * viewMatrix * vec4(p, 1.0);
 }`;
@@ -69,6 +87,7 @@ uniform float uSelectedAngle;
 uniform float uFogStart;
 uniform float uSelected;
 varying vec3 vWorld;
+varying vec3 vNormal;
 varying vec3 vColor;
 varying float vRim;
 varying float vAlert;
@@ -77,7 +96,7 @@ varying float vDepth;
 varying float vInfluence;
 float hash(vec2 p) { return fract(sin(dot(p, vec2(127.1, 311.7))) * 43758.5453); }
 void main() {
-  vec3 normal = normalize(cross(dFdx(vWorld), dFdy(vWorld)));
+  vec3 normal = normalize(vNormal);
   if (normal.y < 0.0) normal = -normal;
   vec3 light = normalize(vec3(-0.5, 1.0, 0.65));
   float diffuse = max(dot(normal, light), 0.0);
