@@ -21,8 +21,13 @@ Actual main6d3b91a release39038533370 passed source/audit/unit/local/application
 ```json
 [
   {
-    "file": "packages/ui/src/components/OperationalObservatory.tsx",
-    "symbol": "OperationalObservatoryProps",
+    "file": "packages/ui/src/gravity/observatory-preferences.ts",
+    "symbol": "ObservatoryQuery",
+    "kind": "type"
+  },
+  {
+    "file": "packages/ui/src/gravity/observatory-preferences.ts",
+    "symbol": "ObservatorySector",
     "kind": "type"
   }
 ]
