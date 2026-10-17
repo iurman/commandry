@@ -11,7 +11,9 @@ PR22. Its release corrections now have independent source review, 78 component
 controls and 12 passing built browser cases across desktop and phone layouts,
 including full-inventory 4K presentation. Corrective PR25 is normally merged;
 full hosted release39047712252 passed container startup and failed two desktop
-browser cases. T37 diagnoses that boundary before publication and deployment. The
+browser cases. T37 diagnostics now pass fifteen shared-world browser cases with
+independent review; the full hosted boundary still needs its instrumented main run
+before publication and deployment. The
 [58-scenario completion ledger](../plans/observatory-operational-landscape/COVERAGE.md)
 records 53 local passes, five explicit limitations and the remaining deployment
 and source-activation gates.

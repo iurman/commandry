@@ -1,0 +1,19 @@
+{
+  "integrationHead": "e6a9410e8c7bbf16d6a6109d683c6436658a411a",
+  "reviewedT37": "07d833bab5f2c8f85fe59b3666241f0a11ccf9e0",
+  "reviewedT38": "dbb381e0579eb7d754b70abc5f659a3c609b5856",
+  "mainBase": "74d41481dfbcfdfb4faa2730c60078d81151079b",
+  "effectiveNonDocumentChanges": [
+    ".github/workflows/release-candidate.yml",
+    "tests/e2e/gravity-master-scene.spec.ts",
+    "tests/e2e/infrastructure-overview.spec.ts"
+  ],
+  "byteIdenticalToReviewedAndExecutedSources": true,
+  "sha256": {
+    "tests/e2e/gravity-master-scene.spec.ts": "4b1ebdd3eb6df03a89e18749001dac3541bd96627e893d3805fc1141e3aac8e5",
+    "tests/e2e/infrastructure-overview.spec.ts": "5b7c1d6d961e19b84e9d82bb0f6507ad8cb9e9644e7b3897315da15139483f59",
+    ".github/workflows/release-candidate.yml": "403e97115dcb16bf61bdaea3229ab32d28e11663567c49d377e821e943d26390"
+  },
+  "productRuntimeUnchangedFromMain74d": true,
+  "bothConvergenceBoundaryChecks": "PASS"
+}
