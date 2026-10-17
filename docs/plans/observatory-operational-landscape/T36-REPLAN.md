@@ -1,0 +1,9 @@
+# Replanned current browser and implicit grouping correction
+
+Status: Operational plan. Source correction and actual final acceptance remain pending.
+
+The stopped T36 worker retains two actual built unchanged-CSS baselines and all original failure evidence. The corrected IPC helper has separately passed strict real cleanup. An independent source-only journey preflight confirms both test-migration mistakes and a distinct product gap: adding a resource to a custom sector changes the active grouping to custom while saving the old grouping. The user sees Custom as active and settings as saved, but reload restores the old grouping.
+
+[WORKERS-33.md](WORKERS-33.md) explicitly supersedes the old two-file scope with four exclusively owned files: the existing component and component regression file, the browser workflow file and the narrow phone CSS line. The stopped child will normally fast-forward to this committed plan before a new exact immutable manifest is generated. Existing test work and baseline artifacts remain intact.
+
+The worker must retain the original explicit-Custom selection and reload journey, add a real failing component control for the implicit Add-resource path, fix only its existing preference/query writer, and prove that implicit custom grouping also survives a real built reload. Both phone boundary failures remain causal evidence for the42percent to48percent cap correction. No fixture, timeout, observer negative, canonical membership, availability or camera guarantee is weakened. The final packet, root independent reexecution, source/evidence review, PR, hosted release and deployment remain unfinished.
