@@ -69,6 +69,7 @@ export type OperationalObservatoryProps = {
   onProject: (projectId: string) => void;
   onQueryChange: (query: ObservatoryQuery) => void;
   initialSearch?: string;
+  initialQuery?: ObservatoryQuery;
   viewsClient?: ObservatoryViewsClient;
   evidenceClient?: ObservatoryEvidenceClient;
   workClient?: ObservatoryWorkDockProps["loadPage"];
@@ -319,6 +320,7 @@ function OperationalObservatoryView({
   onQueryChange,
   onCameraFocus,
   initialSearch = "",
+  initialQuery,
   viewsClient,
   evidenceClient,
   providerFeedClient,
@@ -362,10 +364,13 @@ function OperationalObservatoryView({
     .map((node) => node.id);
   const [query, setQuery] = useState<ObservatoryQuery>({
     grouping: scene.grouping,
-    environment: null,
+    environment: initialQuery?.environment ?? null,
     expandedRepresentationIds: initialExpanded,
-    search: initialSearch,
-    sectors: [],
+    search: initialQuery?.search ?? initialSearch,
+    sectors: normalizeObservatorySectors(
+      initialQuery?.sectors ?? [],
+      initialResourceIds,
+    ),
     viewRevision: scene.viewRevision,
   });
   const initialSelection = selectedId
@@ -820,11 +825,12 @@ function OperationalObservatoryView({
       !["unknown", "complete"].includes(signal.state),
   );
   const environments = [
-    ...new Set(
-      scene.signals.flatMap((signal) =>
+    ...new Set([
+      ...(query.environment ? [query.environment] : []),
+      ...scene.signals.flatMap((signal) =>
         signal.environment ? [signal.environment] : [],
       ),
-    ),
+    ]),
   ].sort();
   const breadcrumbs = selected ? pathTo(scene, selected.id) : [];
   const views = preferences.views.filter(

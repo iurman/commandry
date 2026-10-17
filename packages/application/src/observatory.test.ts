@@ -195,7 +195,7 @@ describe("shared authorized Observatory reads", () => {
     expect(result.scene.membershipIndex.resourceIds).toEqual([service.id]);
     expect(result.scene.population.canonicalResourceCount).toBe(1);
     expect(result.scene.containment).toEqual([
-      { resourceId: service.id, parentResourceId: null, state: "root" },
+      { resourceId: service.id, parentResourceId: null, state: "missing" },
     ]);
     expect(JSON.stringify(result)).not.toContain(service.parentResourceId);
     f.scoped([project], allOperations, []);

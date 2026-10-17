@@ -681,6 +681,69 @@ describe("operational component interactions with the real semantic scene", () =
       screen.getByText("Work loading paused. Totals unavailable."),
     ).toBeInTheDocument();
   });
+  it("retains the authoritative environment after a scope remount and expansion", async () => {
+    const { props } = setup();
+    const fixture = operationalObservatoryFixture();
+    const initial = projectObservatory(fixture);
+    const production = projectObservatory({
+      ...fixture,
+      environment: "production",
+      scopeDigest: "fixture:production-environment",
+    });
+    const query = {
+      grouping: production.grouping,
+      environment: "production",
+      expandedRepresentationIds: [],
+      search: "",
+      sectors: [],
+      viewRevision: production.viewRevision,
+    };
+    const view = render(
+      createElement(OperationalObservatory, { ...props, scene: initial }),
+    );
+    await waitFor(() => expect(engine.update).toHaveBeenCalled());
+    view.rerender(
+      createElement(OperationalObservatory, {
+        ...props,
+        scene: production,
+        initialQuery: query,
+      }),
+    );
+    await waitFor(() =>
+      expect(
+        screen.getByRole("combobox", { name: /^Environment$/ }),
+      ).toHaveValue("production"),
+    );
+    fireEvent.click(screen.getAllByRole("button", { name: /^Expand / })[0]!);
+    expect(props.onQueryChange).toHaveBeenLastCalledWith(
+      expect.objectContaining({ environment: "production" }),
+    );
+  });
+  it("shows and clears a retained environment even when no signal supplies its option", async () => {
+    const { scene, props } = setup();
+    expect(scene.signals.every((signal) => signal.environment === null)).toBe(
+      true,
+    );
+    render(
+      createElement(OperationalObservatory, {
+        ...props,
+        initialQuery: {
+          grouping: scene.grouping,
+          environment: "production",
+          expandedRepresentationIds: [],
+          search: "",
+          sectors: [],
+          viewRevision: scene.viewRevision,
+        },
+      }),
+    );
+    const environment = screen.getByRole("combobox", { name: /^Environment$/ });
+    expect(environment).toHaveValue("production");
+    fireEvent.change(environment, { target: { value: "" } });
+    expect(props.onQueryChange).toHaveBeenLastCalledWith(
+      expect.objectContaining({ environment: null }),
+    );
+  });
   it("inspects a group in one activation and does not refocus on unchanged data refresh", async () => {
     const { input, scene, host, props } = setup();
     const view = render(createElement(OperationalObservatory, props));

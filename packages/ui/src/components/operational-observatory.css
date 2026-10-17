@@ -392,6 +392,14 @@
   justify-content: space-between;
   gap: 10px;
 }
+.cmd-op-inspector-heading > div {
+  flex: 1;
+  min-width: 0;
+}
+.cmd-op-inspector-heading > button {
+  flex-shrink: 0;
+  white-space: nowrap;
+}
 .cmd-op-inspector nav {
   display: flex;
   flex-wrap: wrap;

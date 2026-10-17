@@ -759,6 +759,7 @@ export default function InfrastructureOverviewScreen({
                     renderer.focusSubject(id, options);
                   }}
                   initialSearch={initialQuery}
+                  initialQuery={sceneQuery}
                   viewsClient={observatoryViewsClient}
                   workClient={loadObservatoryWorkPage}
                   workProjectIds={

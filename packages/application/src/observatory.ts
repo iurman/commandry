@@ -294,13 +294,6 @@ function authorizedInput(
     }
     const visible = new Set(resources.map((resource) => resource.id));
     const subject = (id: string) => visible.has(uuid.parse(id));
-    const normalizedResources = resources.map((resource) => ({
-      ...resource,
-      parentResourceId:
-        resource.parentResourceId && visible.has(resource.parentResourceId)
-          ? resource.parentResourceId
-          : null,
-    }));
     const metadata = (candidate.metadata ?? [])
       .filter((item) => subject(item.resourceId))
       .map((item) => {
@@ -447,9 +440,9 @@ function authorizedInput(
       deploymentEnvironment: query.environment,
     });
     return {
-      resources: normalizedResources,
+      resources,
       deniedFacets,
-      collection: { complete: true, resourceCount: normalizedResources.length },
+      collection: { complete: true, resourceCount: resources.length },
       scopeDigest,
       viewRevision: query.viewRevision,
       readStartedAt: candidate.readStartedAt,
