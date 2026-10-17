@@ -15,6 +15,10 @@ import {
   observatoryRepositoryAlertSchema,
   observatoryRepositoryAnalysisSchema,
   observatoryRepositoryPullRequestSchema,
+  observatoryRepositoryCheckRunSchema,
+  observatoryRepositoryCommitStatusSchema,
+  type ObservatoryRepositoryCheckRunDto,
+  type ObservatoryRepositoryCommitStatusDto,
   type ObservatoryRepositoryAlertDto,
   type ObservatoryRepositoryAnalysisDto,
   type ObservatoryRepositoryEvidenceDto,
@@ -113,10 +117,94 @@ function parsePull(
     updatedAt: instant(raw.updated_at),
     baseRef: text(base.ref),
     headRef: text(head.ref),
+    headSha:
+      typeof head.sha === "string" &&
+      /^(?:[a-f0-9]{40}|[a-f0-9]{64})$/i.test(head.sha)
+        ? head.sha
+        : null,
+    requiredCheckCoverage: "unknown",
     author: raw.user === null ? null : text(object(raw.user).login, 100),
     url,
   });
 }
+
+function ciFreshness(at: string | null, now: Date, freshnessMs: number) {
+  return at === null
+    ? ("unknown" as const)
+    : Date.parse(at) > now.getTime()
+      ? ("future" as const)
+      : now.getTime() - Date.parse(at) >= freshnessMs
+        ? ("stale" as const)
+        : ("fresh" as const);
+}
+function parseCheckRun(
+  value: unknown,
+  repo: Repository,
+  sha: string,
+  now: Date,
+  freshnessMs: number,
+): ObservatoryRepositoryCheckRunDto {
+  const raw = object(value),
+    id = positive(raw.id);
+  if (
+    raw.head_sha !== sha ||
+    (raw.repository !== undefined &&
+      object(raw.repository).full_name !== repo.owner + "/" + repo.name)
+  )
+    throw invalid();
+  assertRowIdentity(
+    raw,
+    "/repos/" + repo.owner + "/" + repo.name + "/check-runs",
+    id,
+    null,
+  );
+  const startedAt = raw.started_at == null ? null : instant(raw.started_at),
+    completedAt = raw.completed_at == null ? null : instant(raw.completed_at);
+  return observatoryRepositoryCheckRunSchema.parse({
+    id,
+    headSha: sha,
+    name: text(raw.name),
+    status: raw.status,
+    conclusion: raw.conclusion ?? null,
+    startedAt,
+    completedAt,
+    freshness: ciFreshness(completedAt ?? startedAt, now, freshnessMs),
+    url: repo.url + "/runs/" + id,
+  });
+}
+function parseCommitStatus(
+  value: unknown,
+  repo: Repository,
+  sha: string,
+  now: Date,
+  freshnessMs: number,
+): ObservatoryRepositoryCommitStatusDto {
+  const raw = object(value);
+  if (
+    (raw.sha !== undefined && raw.sha !== sha) ||
+    (raw.url !== undefined &&
+      raw.url !==
+        "https://api.github.com/repos/" +
+          repo.owner +
+          "/" +
+          repo.name +
+          "/statuses/" +
+          sha)
+  )
+    throw invalid();
+  const createdAt = instant(raw.created_at),
+    updatedAt = instant(raw.updated_at);
+  return observatoryRepositoryCommitStatusSchema.parse({
+    id: positive(raw.id),
+    context: text(raw.context),
+    state: raw.state,
+    createdAt,
+    updatedAt,
+    freshness: ciFreshness(updatedAt, now, freshnessMs),
+    url: repo.url + "/commit/" + sha,
+  });
+}
+
 function parseAnalysis(
   value: unknown,
   repo: Repository,
@@ -232,12 +320,14 @@ function parseAlert(
 function validatePrivatePayload(
   payload: unknown,
   token: string | undefined,
+  initialDepth = 3,
 ): void {
   // The shared poller allows objects through observation depth 64. A raw page
   // sits at depth 3: observation -> rawPayload -> component pages -> page.
+  // CI pages start at depth 5 after the pullRequestChecks and exact-head wrappers.
   // Validate the original JSON tree before retaining any page of its component.
   const pending: { value: unknown; depth: number }[] = [
-    { value: payload, depth: 3 },
+    { value: payload, depth: initialDepth },
   ];
   while (pending.length) {
     const { value, depth } = pending.pop()!;
@@ -413,6 +503,7 @@ export function createGitHubObservatoryReader(
   }
   async function page(
     url: URL,
+    privateDepth = 3,
   ): Promise<{ payload: unknown; next: number | null }> {
     const signal = AbortSignal.timeout(timeoutMs);
     let response: Response;
@@ -492,7 +583,7 @@ export function createGitHubObservatoryReader(
       const payload: unknown = JSON.parse(
         new TextDecoder("utf-8", { fatal: true }).decode(Buffer.concat(chunks)),
       );
-      validatePrivatePayload(payload, token);
+      validatePrivatePayload(payload, token, privateDepth);
       return {
         payload,
         next: continuation(
@@ -518,32 +609,50 @@ export function createGitHubObservatoryReader(
     endpoint: URL,
     parse: (value: unknown) => T,
     identity: (item: T) => readonly string[],
+    envelope?: {
+      rows: (payload: unknown) => { rows: unknown[]; total?: number };
+      privateDepth: number;
+    },
   ): Promise<ReadResult<T>> {
     const items: T[] = [],
       raw: unknown[] = [],
       ids = new Set<string>(),
       visited = new Set<number>();
     let pageNumber: number | null = 1;
+    let expectedTotal: number | undefined;
     try {
       while (pageNumber !== null) {
         if (visited.has(pageNumber)) throw invalid();
         visited.add(pageNumber);
         const url = new URL(endpoint);
         url.searchParams.set("page", String(pageNumber));
-        const result = await page(url);
+        const result = await page(url, envelope?.privateDepth ?? 3);
+        const extracted = envelope?.rows(result.payload);
+        const rows = extracted?.rows ?? result.payload;
+        if (extracted?.total !== undefined) {
+          if (expectedTotal !== undefined && extracted.total !== expectedTotal)
+            throw invalid();
+          expectedTotal = extracted.total;
+        }
         if (
-          !Array.isArray(result.payload) ||
-          result.payload.length > 100 ||
-          (result.next !== null && result.payload.length !== 100)
+          !Array.isArray(rows) ||
+          rows.length > 100 ||
+          (result.next !== null && rows.length !== 100)
         )
           throw invalid();
-        for (const row of result.payload) {
+        for (const row of rows) {
           const item = parse(row),
             rowIds = identity(item);
           if (rowIds.some((id) => ids.has(id))) throw invalid();
           for (const id of rowIds) ids.add(id);
           items.push(item);
         }
+        if (
+          expectedTotal !== undefined &&
+          (items.length > expectedTotal ||
+            (result.next === null && items.length !== expectedTotal))
+        )
+          throw invalid();
         raw.push(result.payload);
         pageNumber = result.next;
       }
@@ -646,6 +755,122 @@ export function createGitHubObservatoryReader(
           (row) => [String(row.number)],
         ),
       ]);
+    // Four head workers bound fan-out; each head has two independent source reads.
+    // Shared SHAs are read once. No PR, head or result population is truncated.
+    const heads = [
+      ...new Set(
+        pullRequests.evidence.items.flatMap((pull) =>
+          pull.headSha ? [pull.headSha] : [],
+        ),
+      ),
+    ];
+    const headResults = new Map<
+      string,
+      {
+        checkRuns: ReadResult<ObservatoryRepositoryCheckRunDto>;
+        statuses: ReadResult<ObservatoryRepositoryCommitStatusDto>;
+      }
+    >();
+    let nextHead = 0;
+    await Promise.all(
+      Array.from({ length: Math.min(4, heads.length) }, async () => {
+        while (nextHead < heads.length) {
+          const sha = heads[nextHead++]!;
+          const [checkRuns, statuses] = await Promise.all([
+            component(
+              endpoint("commits/" + sha + "/check-runs", { filter: "latest" }),
+              (row) =>
+                parseCheckRun(
+                  row,
+                  repo,
+                  sha,
+                  at,
+                  claim.freshnessSeconds * 1000,
+                ),
+              (row) => [String(row.id)],
+              {
+                privateDepth: 5,
+                rows(payload) {
+                  const wrapper = object(payload),
+                    total = wrapper.total_count;
+                  if (
+                    typeof total !== "number" ||
+                    !Number.isSafeInteger(total) ||
+                    total < 0 ||
+                    !Array.isArray(wrapper.check_runs)
+                  )
+                    throw invalid();
+                  return { rows: wrapper.check_runs, total };
+                },
+              },
+            ),
+            component(
+              endpoint("commits/" + sha + "/statuses"),
+              (row) =>
+                parseCommitStatus(
+                  row,
+                  repo,
+                  sha,
+                  at,
+                  claim.freshnessSeconds * 1000,
+                ),
+              (row) => [String(row.id)],
+              {
+                privateDepth: 5,
+                rows(payload) {
+                  if (!Array.isArray(payload)) throw invalid();
+                  return { rows: payload };
+                },
+              },
+            ),
+          ]);
+          // Assess all pages against the completed component read, never the
+          // earlier poll start. Keep original result and security clocks intact.
+          const checksReadAt = new Date(checkRuns.evidence.readAt),
+            statusesReadAt = new Date(statuses.evidence.readAt);
+          checkRuns.evidence.items = checkRuns.evidence.items.map((run) => ({
+            ...run,
+            freshness: ciFreshness(
+              run.completedAt ?? run.startedAt,
+              checksReadAt,
+              claim.freshnessSeconds * 1000,
+            ),
+          }));
+          statuses.evidence.items = statuses.evidence.items.map((status) =>
+            observatoryRepositoryCommitStatusSchema.parse({
+              ...status,
+              freshness: ciFreshness(
+                status.updatedAt,
+                statusesReadAt,
+                claim.freshnessSeconds * 1000,
+              ),
+            }),
+          );
+          headResults.set(sha, { checkRuns, statuses });
+        }
+      }),
+    );
+    const unknownHead = () => ({
+      headSha: null,
+      state: "unsupported" as const,
+      readAt: now().toISOString(),
+      complete: false,
+      items: [],
+      errorCode: "OPERATIONAL_UNSUPPORTED_SOURCE" as const,
+      retrySeconds: 60,
+    });
+    pullRequests.evidence.items = pullRequests.evidence.items.map((pull) => {
+      const result = pull.headSha ? headResults.get(pull.headSha) : undefined;
+      return {
+        ...pull,
+        checkRuns: result
+          ? { ...result.checkRuns.evidence, headSha: pull.headSha! }
+          : unknownHead(),
+        statuses: result
+          ? { ...result.statuses.evidence, headSha: pull.headSha! }
+          : unknownHead(),
+      };
+    });
     const parsed = observatoryRepositoryEvidenceSchema.safeParse({
       schemaVersion: 1,
       repository: repo,
@@ -774,6 +999,19 @@ export function createGitHubObservatoryReader(
         codeScanningAlerts: code.raw,
         dependabot: dependency.raw,
         secretScanning: secret.raw,
+        ...(heads.length
+          ? {
+              pullRequestChecks: Object.fromEntries(
+                [...headResults].map(([sha, result]) => [
+                  sha,
+                  {
+                    checkRuns: result.checkRuns.raw,
+                    statuses: result.statuses.raw,
+                  },
+                ]),
+              ),
+            }
+          : {}),
       },
     };
   };

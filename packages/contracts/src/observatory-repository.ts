@@ -38,17 +38,110 @@ const failureCode = z.enum([
   "OPERATIONAL_RESPONSE_TOO_LARGE",
   "OPERATIONAL_UNAVAILABLE",
 ]);
-export const observatoryRepositoryPullRequestSchema = z.strictObject({
-  id: number,
-  number,
-  title: z.string().max(10000),
-  draft: z.boolean(),
-  updatedAt: timestamp,
-  baseRef: text,
-  headRef: text,
-  author: z.string().min(1).max(100).nullable(),
-  url: officialLink,
+const headSha = z.string().regex(/^(?:[a-f0-9]{40}|[a-f0-9]{64})$/i);
+const ciFreshness = z.enum(["fresh", "stale", "future", "unknown"]);
+export const observatoryRepositoryCheckRunSchema = z
+  .strictObject({
+    id: number,
+    headSha,
+    name: text,
+    status: z.enum([
+      "queued",
+      "in_progress",
+      "completed",
+      "waiting",
+      "requested",
+      "pending",
+    ]),
+    conclusion: z
+      .enum([
+        "action_required",
+        "cancelled",
+        "failure",
+        "neutral",
+        "success",
+        "skipped",
+        "stale",
+        "timed_out",
+        "startup_failure",
+      ])
+      .nullable(),
+    startedAt: timestamp.nullable(),
+    completedAt: timestamp.nullable(),
+    freshness: ciFreshness,
+    url: officialLink,
+  })
+  .superRefine((value, context) => {
+    if (
+      (value.status !== "completed" &&
+        (value.conclusion !== null || value.completedAt !== null)) ||
+      (value.startedAt !== null &&
+        value.completedAt !== null &&
+        Date.parse(value.completedAt) < Date.parse(value.startedAt)) ||
+      (value.startedAt === null && value.completedAt === null) !==
+        (value.freshness === "unknown")
+    )
+      context.addIssue({
+        code: "custom",
+        message: "Check result must retain its actual state and time",
+      });
+  });
+export const observatoryRepositoryCommitStatusSchema = z
+  .strictObject({
+    id: number,
+    context: text,
+    state: z.enum(["error", "failure", "pending", "success"]),
+    createdAt: timestamp,
+    updatedAt: timestamp,
+    freshness: z.enum(["fresh", "stale", "future"]),
+    url: officialLink,
+  })
+  .refine(
+    (value) => Date.parse(value.updatedAt) >= Date.parse(value.createdAt),
+    "Status update predates creation",
+  );
+const checkRuns = component(observatoryRepositoryCheckRunSchema).safeExtend({
+  headSha: headSha.nullable(),
 });
+const statuses = component(observatoryRepositoryCommitStatusSchema).safeExtend({
+  headSha: headSha.nullable(),
+});
+export const observatoryRepositoryPullRequestSchema = z
+  .strictObject({
+    id: number,
+    number,
+    title: z.string().max(10000),
+    draft: z.boolean(),
+    updatedAt: timestamp,
+    baseRef: text,
+    headRef: text,
+    author: z.string().min(1).max(100).nullable(),
+    url: officialLink,
+    // Optional for persisted pre-CI records. Absence never means successful checks.
+    headSha: headSha.nullable().optional(),
+    requiredCheckCoverage: z.literal("unknown").optional(),
+    checkRuns: checkRuns.optional(),
+    statuses: statuses.optional(),
+  })
+  .superRefine((value, context) => {
+    const sources = [value.checkRuns, value.statuses].filter(
+      (item) => item !== undefined,
+    );
+    if (
+      sources.some(
+        (item) =>
+          item.headSha !== value.headSha ||
+          (item.headSha === null && item.state === "available") ||
+          new Set(item.items.map((row) => row.id)).size !== item.items.length,
+      ) ||
+      value.checkRuns?.items.some((row) => row.headSha !== value.headSha)
+    )
+      context.addIssue({
+        code: "custom",
+        message:
+          "CI evidence must bind one exact pull request head and unique rows",
+      });
+  });
 const tool = z.strictObject({
   name: text,
   version: text.nullable(),
@@ -173,6 +266,24 @@ export const observatoryRepositoryEvidenceSchema = z
             )
           : false,
       );
+    const ciValid = value.pullRequests.items.every((pull) => {
+      const sources = [pull.checkRuns, pull.statuses].filter(
+        (item) => item !== undefined,
+      );
+      return (
+        sources.every(
+          (item) => Date.parse(item.readAt) <= Date.parse(value.readAt),
+        ) &&
+        (pull.checkRuns?.items.every(
+          (row) => row.url === root + "/runs/" + row.id,
+        ) ??
+          true) &&
+        (pull.statuses?.items.every(
+          (row) => row.url === root + "/commit/" + pull.headSha,
+        ) ??
+          true)
+      );
+    });
     const components = [
       value.pullRequests,
       value.security.codeScanning.analyses,
@@ -182,6 +293,7 @@ export const observatoryRepositoryEvidenceSchema = z
     ];
     if (
       !valid ||
+      !ciValid ||
       components.some(
         (source) => Date.parse(source.readAt) > Date.parse(value.readAt),
       ) ||
@@ -219,4 +331,11 @@ export type ObservatoryRepositoryAnalysisDto = z.infer<
 >;
 export type ObservatoryRepositoryAlertDto = z.infer<
   typeof observatoryRepositoryAlertSchema
+>;
+
+export type ObservatoryRepositoryCheckRunDto = z.infer<
+  typeof observatoryRepositoryCheckRunSchema
+>;
+export type ObservatoryRepositoryCommitStatusDto = z.infer<
+  typeof observatoryRepositoryCommitStatusSchema
 >;

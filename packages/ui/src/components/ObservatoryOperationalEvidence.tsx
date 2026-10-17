@@ -4,6 +4,7 @@ import { useEffect, useRef, useState } from "react";
 import {
   observatoryOperationalEvidenceResultSchema,
   type ObservatoryOperationalEvidenceResult,
+  type ObservatoryRepositoryPullRequestDto,
 } from "@commandry/contracts";
 
 type Facet = ObservatoryOperationalEvidenceResult["facet"];
@@ -207,6 +208,7 @@ export function ObservatoryOperationalEvidence({
                             {" "}
                             / {pull.baseRef} / updated {pull.updatedAt}
                           </span>
+                          <PullRequestChecks pull={pull} />
                         </li>
                       ))}
                     </ul>
@@ -302,5 +304,81 @@ export function ObservatoryOperationalEvidence({
         </>
       )}
     </section>
+  );
+}
+
+function PullRequestChecks({
+  pull,
+}: {
+  pull: ObservatoryRepositoryPullRequestDto;
+}) {
+  return (
+    <div>
+      <p>
+        Current head: {pull.headSha ? <code>{pull.headSha}</code> : "unknown"}
+      </p>
+      <p>
+        Required check coverage: unknown. These visible results do not establish
+        branch-protection satisfaction or that all required checks passed.
+      </p>
+      <p>Service availability and runtime observations remain independent.</p>
+      {(
+        [
+          ["Check runs", pull.checkRuns],
+          ["Commit statuses", pull.statuses],
+        ] as const
+      ).map(([label, source]) =>
+        source ? (
+          <div key={label}>
+            <p>
+              {label}:{" "}
+              {source.complete
+                ? "complete source read"
+                : source.state.replaceAll("_", " ")}
+              . Source read {source.readAt}; this is not a completion time.
+            </p>
+            {source.errorCode && (
+              <p>{source.errorCode}. No complete result is available.</p>
+            )}
+            {source.complete && source.items.length === 0 && (
+              <p>
+                No visible {label.toLowerCase()} returned. Required coverage
+                remains unknown.
+              </p>
+            )}
+          </div>
+        ) : (
+          <p key={label}>{label}: unavailable in this record.</p>
+        ),
+      )}
+      <ul>
+        {pull.checkRuns?.items.map((check) => (
+          <li key={check.id}>
+            <a href={check.url} target="_blank" rel="noreferrer">
+              {check.name}
+            </a>{" "}
+            / {check.status} / {check.conclusion ?? "conclusion unknown"} /{" "}
+            {check.freshness}
+            <p>
+              Started {check.startedAt ?? "unknown"}; completed{" "}
+              {check.completedAt ?? "unknown"}.
+            </p>
+          </li>
+        ))}
+      </ul>
+      <ul>
+        {pull.statuses?.items.map((status) => (
+          <li key={status.id}>
+            <a href={status.url} target="_blank" rel="noreferrer">
+              {status.context}
+            </a>{" "}
+            / {status.state} / {status.freshness}
+            <p>
+              Created {status.createdAt}; updated {status.updatedAt}.
+            </p>
+          </li>
+        ))}
+      </ul>
+    </div>
   );
 }

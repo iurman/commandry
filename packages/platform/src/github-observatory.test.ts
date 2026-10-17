@@ -889,3 +889,714 @@ describe("supported read-only GitHub repository HTTP evidence", () => {
     expect(result.signals).toHaveLength(1);
   });
 });
+
+const headSha = "b".repeat(40);
+const headPull = (number = 1, sha = headSha) => ({
+  ...pull(number),
+  head: { ...pull(number).head, sha },
+});
+const checkRun = (id = 1, sha = headSha) => ({
+  id,
+  name: "CI <script>literal</script>",
+  head_sha: sha,
+  status: "completed",
+  conclusion: "failure",
+  started_at: "2026-10-17T11:58:00Z",
+  completed_at: at,
+  details_url: "https://attacker.invalid/private",
+  output: { summary: "SERVER_PRIVATE_CHECK_OUTPUT" },
+});
+const commitStatus = (id = 1) => ({
+  id,
+  context: "legacy CI",
+  state: "pending",
+  created_at: "2026-10-17T11:58:00Z",
+  updated_at: at,
+  target_url: "https://attacker.invalid/target",
+  description: "SERVER_PRIVATE_STATUS_DESCRIPTION",
+});
+
+describe("current-head CI repository evidence", () => {
+  it("reads failed checks and pending statuses from the exact base-repository head without runtime or availability signals", async () => {
+    const records = empty();
+    records.pulls = [headPull()];
+    records["dependabot/alerts"] = [alert(1, "dependency")];
+    const f = await source(records, (_request, response, path) => {
+      if (path === "commits/" + headSha + "/check-runs") {
+        json(response, { total_count: 1, check_runs: [checkRun()] });
+        return true;
+      }
+      if (path === "commits/" + headSha + "/statuses") {
+        json(response, [commitStatus()]);
+        return true;
+      }
+      return false;
+    });
+    const observation = await reader(f.baseUrl)(claim),
+      dto = evidence(observation);
+    expect(dto.pullRequests.items[0]).toMatchObject({
+      headSha,
+      requiredCheckCoverage: "unknown",
+      checkRuns: {
+        headSha,
+        complete: true,
+        items: [
+          {
+            headSha,
+            status: "completed",
+            conclusion: "failure",
+            completedAt: at,
+          },
+        ],
+      },
+      statuses: {
+        headSha,
+        complete: true,
+        items: [{ state: "pending", updatedAt: at }],
+      },
+    });
+    expect(
+      observation.signals.every((signal) => signal.facet === "security"),
+    ).toBe(true);
+    expect(JSON.stringify(observation.details)).not.toContain("SERVER_PRIVATE");
+    expect(JSON.stringify(observation.rawPayload)).toContain(
+      "SERVER_PRIVATE_CHECK_OUTPUT",
+    );
+    expect(
+      f.requests.filter((request) =>
+        new URL(request.url).pathname.includes("commits/" + headSha),
+      ),
+    ).toHaveLength(2);
+  });
+});
+
+function ciSource(
+  records: Records = empty(),
+  runs: unknown[] = [checkRun()],
+  statuses: unknown[] = [commitStatus()],
+  override?: Override,
+) {
+  return source(records, (request, response, path, page) => {
+    if (override?.(request, response, path, page)) return true;
+    const checks = path.endsWith("/check-runs");
+    if (!checks && !path.endsWith("/statuses")) return false;
+    const rows = checks ? runs : statuses;
+    const url = new URL(request.url!, "http://" + request.headers.host);
+    const next = new URL(url);
+    next.searchParams.set("page", String(page + 1));
+    json(
+      response,
+      checks
+        ? {
+            total_count: rows.length,
+            check_runs: rows.slice((page - 1) * 100, page * 100),
+          }
+        : rows.slice((page - 1) * 100, page * 100),
+      200,
+      rows.length > page * 100
+        ? { link: "<" + next.href + '>; rel="next"' }
+        : {},
+    );
+    return true;
+  });
+}
+
+describe("complete current-head CI transport", () => {
+  it.each(["check-runs", "statuses"] as const)(
+    "assesses every %s page at its completed read time without changing source timestamps",
+    async (componentPath) => {
+      for (const [completedAt, readAt, expected] of [
+        ["2026-10-17T12:00:01.000Z", "2026-10-17T12:00:02.000Z", "fresh"],
+        [at, "2026-10-17T12:05:01.000Z", "stale"],
+      ] as const) {
+        const records = empty();
+        records.pulls = [headPull()];
+        records["dependabot/alerts"] = [
+          {
+            ...alert(1, "dependency"),
+            created_at: "2026-10-17T11:00:00Z",
+            updated_at: "2026-10-17T11:00:00Z",
+          },
+        ];
+        let clock = at;
+        const runs = Array.from({ length: 101 }, (_, i) => ({
+          ...checkRun(i + 1),
+          completed_at: completedAt,
+        }));
+        const statuses = Array.from({ length: 101 }, (_, i) => ({
+          ...commitStatus(i + 1),
+          updated_at: completedAt,
+        }));
+        const fixture = await ciSource(
+          records,
+          runs,
+          statuses,
+          (_request, _response, path, page) => {
+            if (path.endsWith("/" + componentPath) && page === 2)
+              clock = readAt;
+            return false;
+          },
+        );
+        const observation = await createGitHubObservatoryReader({
+          baseUrl: fixture.baseUrl,
+          token,
+          allowLoopbackForTests: true,
+          now: () => new Date(clock),
+        })(claim);
+        const pull = evidence(observation).pullRequests.items[0]!;
+        const component =
+          componentPath === "check-runs" ? pull.checkRuns! : pull.statuses!;
+        expect(component.readAt).toBe(readAt);
+        expect(component.items).toHaveLength(101);
+        expect(
+          component.items.every((item) => item.freshness === expected),
+        ).toBe(true);
+        if (componentPath === "check-runs")
+          expect(
+            pull.checkRuns!.items.every(
+              (item) => item.completedAt === completedAt,
+            ),
+          ).toBe(true);
+        else
+          expect(
+            pull.statuses!.items.every(
+              (item) => item.updatedAt === completedAt,
+            ),
+          ).toBe(true);
+        expect(observation.observedAt).toBe("2026-10-17T11:00:00.000Z");
+        expect(
+          observation.signals.every((signal) => signal.facet === "security"),
+        ).toBe(true);
+      }
+    },
+  );
+  it("keeps every paginated PR, check run and legacy status while reusing a shared fork head", async () => {
+    const records = empty();
+    records.pulls = Array.from({ length: 137 }, (_, index) =>
+      headPull(index + 1),
+    );
+    const f = await ciSource(
+      records,
+      Array.from({ length: 137 }, (_, index) => checkRun(index + 1)),
+      Array.from({ length: 125 }, (_, index) => commitStatus(index + 1)),
+    );
+    const observation = await reader(f.baseUrl)(claim),
+      dto = evidence(observation);
+    expect(dto.pullRequests.items).toHaveLength(137);
+    for (const pull of dto.pullRequests.items) {
+      expect(pull.checkRuns?.items).toHaveLength(137);
+      expect(pull.statuses?.items).toHaveLength(125);
+      expect(pull.requiredCheckCoverage).toBe("unknown");
+      expect(pull.checkRuns?.items[136]?.url).toBe(
+        "https://github.com/synthetic-owner/repository/runs/137",
+      );
+      expect(pull.statuses?.items[124]?.url).toBe(
+        "https://github.com/synthetic-owner/repository/commit/" + headSha,
+      );
+    }
+    const requests = f.requests.filter((request) =>
+      new URL(request.url).pathname.includes("/commits/"),
+    );
+    expect(requests).toHaveLength(4);
+    for (const request of requests) {
+      const url = new URL(request.url);
+      expect(url.pathname.startsWith(prefix + "commits/" + headSha + "/")).toBe(
+        true,
+      );
+      expect(url.searchParams.get("per_page")).toBe("100");
+      expect(request.authorization).toBe("Bearer " + token);
+      expect(request.method).toBe("GET");
+      expect(url.searchParams.get("filter")).toBe(
+        url.pathname.endsWith("/check-runs") ? "latest" : null,
+      );
+      expect(request.url).not.toContain("attacker");
+      expect(request.url).not.toContain("synthetic-fork");
+    }
+    expect(observation.signals).toEqual([]);
+    expect(observation.observedAt).toBeNull();
+    expect(observation.details.sourceState).toBe("unknown");
+    expect(JSON.stringify(observation.details)).not.toContain("SERVER_PRIVATE");
+    expect(JSON.stringify(observation.rawPayload)).toContain(
+      "SERVER_PRIVATE_STATUS_DESCRIPTION",
+    );
+  });
+  it("bounds concurrent heads without capping the eligible population or reading a duplicate head twice", async () => {
+    const records = empty();
+    const shas = Array.from({ length: 13 }, (_, index) =>
+      (index + 1).toString(16).padStart(40, "0"),
+    );
+    records.pulls = shas.map((sha, index) => headPull(index + 1, sha));
+    records.pulls.push(headPull(14, shas[0]!));
+    let activeRequests = 0,
+      maximumRequests = 0,
+      maximumHeads = 0;
+    const activeHeads = new Map<string, number>();
+    const f = await ciSource(records, [], [], (_request, response, path) => {
+      if (!path.startsWith("commits/")) return false;
+      const sha = path.split("/")[1]!;
+      activeRequests++;
+      maximumRequests = Math.max(maximumRequests, activeRequests);
+      activeHeads.set(sha, (activeHeads.get(sha) ?? 0) + 1);
+      maximumHeads = Math.max(maximumHeads, activeHeads.size);
+      setTimeout(() => {
+        activeRequests--;
+        const remaining = activeHeads.get(sha)! - 1;
+        if (remaining) activeHeads.set(sha, remaining);
+        else activeHeads.delete(sha);
+        json(
+          response,
+          path.endsWith("/check-runs")
+            ? { total_count: 1, check_runs: [checkRun(1, sha)] }
+            : [commitStatus()],
+        );
+      }, 10);
+      return true;
+    });
+    const dto = evidence(await reader(f.baseUrl)(claim));
+    expect(dto.pullRequests.items).toHaveLength(14);
+    expect(
+      dto.pullRequests.items.every(
+        (pull) => pull.checkRuns?.complete && pull.statuses?.complete,
+      ),
+    ).toBe(true);
+    expect(
+      f.requests.filter((request) =>
+        new URL(request.url).pathname.includes("/commits/"),
+      ),
+    ).toHaveLength(26);
+    expect(maximumHeads).toBeGreaterThan(1);
+    expect(maximumHeads).toBeLessThanOrEqual(4);
+    expect(maximumRequests).toBeLessThanOrEqual(8);
+  });
+  it("keeps missing and malformed heads unknown without issuing CI reads", async () => {
+    const records = empty();
+    records.pulls = [
+      pull(1),
+      headPull(2, "not-a-sha"),
+      headPull(3, "b".repeat(41)),
+    ];
+    const f = await source(records),
+      dto = evidence(await reader(f.baseUrl)(claim));
+    expect(dto.pullRequests.items).toHaveLength(3);
+    for (const pull of dto.pullRequests.items)
+      expect(pull).toMatchObject({
+        headSha: null,
+        requiredCheckCoverage: "unknown",
+        checkRuns: {
+          headSha: null,
+          state: "unsupported",
+          complete: false,
+          items: [],
+          errorCode: "OPERATIONAL_UNSUPPORTED_SOURCE",
+        },
+        statuses: { headSha: null, state: "unsupported", complete: false },
+      });
+    expect(f.requests).toHaveLength(5);
+  });
+  it("uses each fresh poll head rather than carrying old-head success forward", async () => {
+    const nextSha = "c".repeat(40),
+      records = empty();
+    records.pulls = [headPull()];
+    const f = await ciSource(records, [], [], (_request, response, path) => {
+      if (!path.endsWith("/check-runs")) return false;
+      const sha = path.split("/")[1]!;
+      json(response, {
+        total_count: 1,
+        check_runs: [
+          {
+            ...checkRun(1, sha),
+            conclusion: sha === headSha ? "success" : "failure",
+          },
+        ],
+      });
+      return true;
+    });
+    const read = reader(f.baseUrl);
+    expect(
+      evidence(await read(claim)).pullRequests.items[0]?.checkRuns?.items[0]
+        ?.conclusion,
+    ).toBe("success");
+    records.pulls = [headPull(1, nextSha)];
+    const next = evidence(await read(claim)).pullRequests.items[0]!;
+    expect(next.headSha).toBe(nextSha);
+    expect(next.checkRuns?.items[0]?.conclusion).toBe("failure");
+    expect(
+      f.requests.filter((request) =>
+        new URL(request.url).pathname.includes("/commits/"),
+      ),
+    ).toHaveLength(4);
+  });
+  it("retains pending, neutral, skipped, stale and future CI states with their original dates and no service signals", async () => {
+    const records = empty();
+    records.pulls = [headPull()];
+    const runs = [
+      {
+        ...checkRun(1),
+        status: "queued",
+        conclusion: null,
+        started_at: null,
+        completed_at: null,
+      },
+      {
+        ...checkRun(2),
+        status: "in_progress",
+        conclusion: null,
+        completed_at: null,
+      },
+      { ...checkRun(3), conclusion: "neutral" },
+      { ...checkRun(4), conclusion: "skipped" },
+      {
+        ...checkRun(5),
+        conclusion: "success",
+        started_at: "2026-10-16T10:00:00Z",
+        completed_at: "2026-10-16T10:01:00Z",
+      },
+      { ...checkRun(6), completed_at: "2026-10-18T10:00:00Z" },
+    ];
+    const statuses = [
+      { ...commitStatus(1), state: "success" },
+      { ...commitStatus(2), state: "failure" },
+      { ...commitStatus(3), state: "error" },
+      { ...commitStatus(4), updated_at: "2026-10-18T10:00:00Z" },
+      {
+        ...commitStatus(5),
+        created_at: "2026-10-16T10:00:00Z",
+        updated_at: "2026-10-16T10:01:00Z",
+      },
+    ];
+    const { observations, port } = await pollRead(
+      (await ciSource(records, runs, statuses)).baseUrl,
+    );
+    expect(port.fail).not.toHaveBeenCalled();
+    const observation = observations[0]!,
+      pull = evidence(observation).pullRequests.items[0]!;
+    expect(
+      pull.checkRuns?.items.map((run) => [
+        run.status,
+        run.conclusion,
+        run.freshness,
+      ]),
+    ).toEqual([
+      ["queued", null, "unknown"],
+      ["in_progress", null, "fresh"],
+      ["completed", "neutral", "fresh"],
+      ["completed", "skipped", "fresh"],
+      ["completed", "success", "stale"],
+      ["completed", "failure", "future"],
+    ]);
+    expect(pull.checkRuns?.items[0]?.completedAt).toBeNull();
+    expect(pull.checkRuns?.items[4]?.completedAt).toBe(
+      "2026-10-16T10:01:00.000Z",
+    );
+    expect(pull.statuses?.items.map((status) => status.freshness)).toEqual([
+      "fresh",
+      "fresh",
+      "fresh",
+      "future",
+      "stale",
+    ]);
+    expect(pull.requiredCheckCoverage).toBe("unknown");
+    expect(observation.signals).toEqual([]);
+    expect(observation.observedAt).toBeNull();
+  });
+  it.each([
+    "denied",
+    "rate-limit",
+    "not-found",
+    "malformed-json",
+    "wrong-wrapper",
+    "truncated-total",
+    "wrong-head",
+    "wrong-repository",
+    "duplicate-id",
+    "token-value",
+    "token-key",
+    "literal-secret",
+    "unsafe-continuation",
+    "repeated-page",
+    "changed-filter",
+    "invalid-utf8",
+    "oversized",
+    "timeout",
+  ])(
+    "isolates %s check-run failure from statuses, PRs and scanner findings",
+    async (mode) => {
+      const records = empty();
+      records.pulls = [headPull()];
+      records["dependabot/alerts"] = [alert(1, "dependency")];
+      const f = await ciSource(
+        records,
+        [],
+        [commitStatus()],
+        (request, response, path) => {
+          if (!path.endsWith("/check-runs")) return false;
+          if (mode === "denied") json(response, {}, 403);
+          else if (mode === "rate-limit")
+            json(response, {}, 403, { "retry-after": "123" });
+          else if (mode === "not-found") json(response, {}, 404);
+          else if (mode === "malformed-json") {
+            response.writeHead(200, { "content-type": "application/json" });
+            response.end("{");
+          } else if (mode === "invalid-utf8") {
+            response.writeHead(200, { "content-type": "application/json" });
+            response.end(Buffer.from([0xff]));
+          } else if (mode === "oversized") {
+            response.writeHead(200, {
+              "content-type": "application/json",
+              "content-length": "3000000",
+            });
+            response.end("{}");
+          } else if (mode === "timeout") {
+            /* An unfinished HTTP response exercises the shared deadline. */
+          } else if (
+            ["unsafe-continuation", "repeated-page", "changed-filter"].includes(
+              mode,
+            )
+          ) {
+            const next = new URL(
+              request.url!,
+              "http://" + request.headers.host,
+            );
+            next.searchParams.set("page", mode === "repeated-page" ? "1" : "2");
+            if (mode === "unsafe-continuation")
+              next.hostname = "attacker.invalid";
+            if (mode === "changed-filter")
+              next.searchParams.set("filter", "all");
+            json(
+              response,
+              {
+                total_count: 101,
+                check_runs: Array.from({ length: 100 }, (_, index) =>
+                  checkRun(index + 1),
+                ),
+              },
+              200,
+              { link: "<" + next.href + '>; rel="next"' },
+            );
+          } else if (mode === "wrong-wrapper") json(response, [checkRun()]);
+          else {
+            const row: Record<string, unknown> = checkRun();
+            if (mode === "wrong-head") row.head_sha = "d".repeat(40);
+            if (mode === "wrong-repository")
+              row.repository = { full_name: "attacker/repository" };
+            if (mode === "token-value") row.output = { summary: token };
+            if (mode === "token-key") row.output = { [token]: null };
+            if (mode === "literal-secret")
+              row.output = { secretLiteral: "UNSAFE_CI_LITERAL" };
+            const rows = mode === "duplicate-id" ? [row, row] : [row];
+            json(response, {
+              total_count: mode === "truncated-total" ? 2 : rows.length,
+              check_runs: rows,
+            });
+          }
+          return true;
+        },
+      );
+      const result = await reader(
+          f.baseUrl,
+          mode === "timeout" ? 40 : 1000,
+        )(claim),
+        dto = evidence(result),
+        pull = dto.pullRequests.items[0]!;
+      expect(pull.checkRuns).toMatchObject({
+        headSha,
+        complete: false,
+        items: [],
+        state:
+          mode === "denied"
+            ? "inaccessible"
+            : mode === "not-found"
+              ? "disabled_or_not_found"
+              : "unavailable",
+        errorCode:
+          mode === "denied"
+            ? "OPERATIONAL_UNAUTHORIZED"
+            : mode === "rate-limit"
+              ? "OPERATIONAL_RATE_LIMITED"
+              : mode === "not-found"
+                ? "OPERATIONAL_NOT_FOUND"
+                : mode === "oversized"
+                  ? "OPERATIONAL_RESPONSE_TOO_LARGE"
+                  : mode === "timeout"
+                    ? "OPERATIONAL_TIMEOUT"
+                    : "OPERATIONAL_INVALID_RESPONSE",
+      });
+      if (mode === "rate-limit") expect(pull.checkRuns?.retrySeconds).toBe(123);
+      expect(pull.statuses?.complete).toBe(true);
+      expect(dto.security.dependabot.complete).toBe(true);
+      expect(result.signals).toHaveLength(1);
+      expect(result.signals[0]?.facet).toBe("security");
+      const raw = result.rawPayload as {
+        pullRequestChecks: Record<
+          string,
+          { checkRuns: unknown; statuses: unknown }
+        >;
+      };
+      expect(raw.pullRequestChecks[headSha]?.checkRuns).toBeNull();
+      expect(raw.pullRequestChecks[headSha]?.statuses).not.toBeNull();
+      expect(JSON.stringify(result)).not.toContain(token);
+      expect(JSON.stringify(result)).not.toContain("UNSAFE_CI_LITERAL");
+      expect(
+        f.requests.filter((request) =>
+          new URL(request.url).pathname.endsWith("/check-runs"),
+        ),
+      ).toHaveLength(1);
+    },
+  );
+  it.each([
+    "denied",
+    "wrong-sha",
+    "duplicate-id",
+    "invalid-state",
+    "private-key",
+  ])("keeps complete check-runs when legacy statuses fail %s", async (mode) => {
+    const records = empty();
+    records.pulls = [headPull()];
+    const f = await ciSource(
+      records,
+      [checkRun()],
+      [],
+      (_request, response, path) => {
+        if (!path.endsWith("/statuses")) return false;
+        if (mode === "denied") json(response, {}, 401);
+        else {
+          const row: Record<string, unknown> = commitStatus();
+          if (mode === "wrong-sha") row.sha = "e".repeat(40);
+          if (mode === "invalid-state") row.state = "passed";
+          if (mode === "private-key") row[token] = "metadata";
+          json(response, mode === "duplicate-id" ? [row, row] : [row]);
+        }
+        return true;
+      },
+    );
+    const observation = await reader(f.baseUrl)(claim),
+      pull = evidence(observation).pullRequests.items[0]!;
+    expect(pull.checkRuns?.complete).toBe(true);
+    expect(pull.statuses).toMatchObject({
+      complete: false,
+      items: [],
+      errorCode:
+        mode === "denied"
+          ? "OPERATIONAL_UNAUTHORIZED"
+          : "OPERATIONAL_INVALID_RESPONSE",
+    });
+    expect(observation.signals).toEqual([]);
+    expect(JSON.stringify(observation)).not.toContain(token);
+  });
+  it.each([
+    ["checks", 57, true],
+    ["checks", 58, false],
+    ["statuses", 58, true],
+    ["statuses", 59, false],
+  ] as const)(
+    "accounts for %s private wrapper at nested depth %s through the real shared poller",
+    async (kind, depth, valid) => {
+      let nested: unknown = null;
+      for (let index = 0; index < depth; index++) nested = { next: nested };
+      const records = empty();
+      records.pulls = [headPull()];
+      records["secret-scanning/alerts"] = [alert(1, "secret")];
+      const f = await ciSource(
+        records,
+        [{ ...checkRun(), unused_nested: kind === "checks" ? nested : null }],
+        [
+          {
+            ...commitStatus(),
+            unused_nested: kind === "statuses" ? nested : null,
+          },
+        ],
+      );
+      const { observations, port } = await pollRead(f.baseUrl);
+      expect(port.fail).not.toHaveBeenCalled();
+      expect(port.complete).toHaveBeenCalledTimes(1);
+      const observation = observations[0]!,
+        pull = evidence(observation).pullRequests.items[0]!;
+      expect(
+        (kind === "checks" ? pull.checkRuns : pull.statuses)?.complete,
+      ).toBe(valid);
+      expect(
+        (kind === "checks" ? pull.statuses : pull.checkRuns)?.complete,
+      ).toBe(true);
+      expect(evidence(observation).security.secretScanning.complete).toBe(true);
+      expect(observation.signals).toHaveLength(1);
+      if (!valid)
+        expect(
+          (kind === "checks" ? pull.checkRuns : pull.statuses)?.errorCode,
+        ).toBe("OPERATIONAL_INVALID_RESPONSE");
+    },
+  );
+});
+
+describe("current-head continuation integrity", () => {
+  it.each([
+    "duplicate-second-page",
+    "changed-total",
+    "short-nonterminal",
+    "truncated-json",
+    "wrong-api-identity",
+  ])(
+    "discards every check page after %s instead of returning partial or wrong-head success",
+    async (mode) => {
+      const records = empty();
+      records.pulls = [headPull()];
+      const f = await ciSource(
+        records,
+        [],
+        [commitStatus()],
+        (request, response, path, page) => {
+          if (!path.endsWith("/check-runs")) return false;
+          if (mode === "truncated-json") {
+            response.writeHead(200, { "content-type": "application/json" });
+            response.end('{"total_count":1,"check_runs":[');
+            return true;
+          }
+          if (mode === "wrong-api-identity") {
+            json(response, {
+              total_count: 1,
+              check_runs: [
+                {
+                  ...checkRun(),
+                  url: "https://api.github.com/repos/attacker/repository/check-runs/1",
+                },
+              ],
+            });
+            return true;
+          }
+          const next = new URL(request.url!, "http://" + request.headers.host);
+          next.searchParams.set("page", String(page + 1));
+          const rows =
+            page === 1
+              ? Array.from(
+                  { length: mode === "short-nonterminal" ? 99 : 100 },
+                  (_, index) => checkRun(index + 1),
+                )
+              : [checkRun(mode === "duplicate-second-page" ? 1 : 101)];
+          json(
+            response,
+            {
+              total_count: mode === "changed-total" && page === 2 ? 102 : 101,
+              check_runs: rows,
+            },
+            200,
+            page === 1 ? { link: "<" + next.href + '>; rel="next"' } : {},
+          );
+          return true;
+        },
+      );
+      const observation = await reader(f.baseUrl)(claim),
+        pull = evidence(observation).pullRequests.items[0]!;
+      expect(pull.checkRuns).toMatchObject({
+        state: "unavailable",
+        complete: false,
+        items: [],
+        errorCode: "OPERATIONAL_INVALID_RESPONSE",
+      });
+      expect(pull.statuses?.complete).toBe(true);
+      expect(pull.requiredCheckCoverage).toBe("unknown");
+      const raw = observation.rawPayload as {
+        pullRequestChecks: Record<string, { checkRuns: unknown }>;
+      };
+      expect(raw.pullRequestChecks[headSha]?.checkRuns).toBeNull();
+    },
+  );
+});

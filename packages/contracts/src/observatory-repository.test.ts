@@ -216,3 +216,202 @@ describe("strict derived repository evidence", () => {
     }
   });
 });
+
+it("accepts optional head-bound CI while preserving old PR records as unknown", () => {
+  const dto = evidence();
+  dto.pullRequests.items.push(pull);
+  expect(
+    observatoryRepositoryEvidenceSchema.parse(dto).pullRequests.items[0],
+  ).not.toHaveProperty("headSha");
+  const sha = "b".repeat(40);
+  const current = {
+    ...dto,
+    pullRequests: {
+      ...dto.pullRequests,
+      items: [
+        {
+          ...pull,
+          headSha: sha,
+          requiredCheckCoverage: "unknown",
+          checkRuns: { ...empty(), headSha: sha },
+          statuses: { ...empty(), headSha: sha },
+        },
+      ],
+    },
+  };
+  expect(observatoryRepositoryEvidenceSchema.parse(current)).toEqual(current);
+});
+
+function currentEvidence(): ObservatoryRepositoryEvidenceDto {
+  const dto = evidence(),
+    sha = "b".repeat(40),
+    base = dto.repository.url;
+  dto.pullRequests.items = [
+    {
+      ...pull,
+      headSha: sha,
+      requiredCheckCoverage: "unknown",
+      checkRuns: {
+        ...empty(),
+        headSha: sha,
+        items: [
+          {
+            id: 7,
+            headSha: sha,
+            name: "Literal <script>check</script>",
+            status: "completed",
+            conclusion: "neutral",
+            startedAt: at,
+            completedAt: at,
+            freshness: "fresh",
+            url: base + "/runs/7",
+          },
+        ],
+      },
+      statuses: {
+        ...empty(),
+        headSha: sha,
+        items: [
+          {
+            id: 8,
+            context: "legacy context",
+            state: "pending",
+            createdAt: at,
+            updatedAt: at,
+            freshness: "fresh",
+            url: base + "/commit/" + sha,
+          },
+        ],
+      },
+    },
+  ];
+  return dto;
+}
+describe("strict current-head CI contract", () => {
+  it("retains literal names, exact official links, independent states and explicit unknown required coverage", () => {
+    const dto = currentEvidence();
+    expect(observatoryRepositoryEvidenceSchema.parse(dto)).toEqual(dto);
+    const pr = dto.pullRequests.items[0]!;
+    pr.statuses = {
+      ...pr.statuses!,
+      state: "inaccessible",
+      complete: false,
+      items: [],
+      errorCode: "OPERATIONAL_UNAUTHORIZED",
+      retrySeconds: 60,
+    };
+    expect(
+      observatoryRepositoryEvidenceSchema.parse(dto).pullRequests.items[0]
+        ?.checkRuns?.complete,
+    ).toBe(true);
+  });
+  it.each([
+    "wrong-source-head",
+    "missing-head",
+    "invalid-head",
+    "unknown-head-success",
+    "wrong-row-head",
+    "duplicate-check",
+    "duplicate-status",
+    "wrong-run-link",
+    "wrong-status-link",
+    "query-run-link",
+    "future-source-read",
+    "fake-required-pass",
+    "pending-conclusion",
+    "pending-completed-time",
+    "reversed-check-time",
+    "unknown-freshness-with-time",
+    "known-freshness-without-time",
+    "reversed-status-time",
+    "failed-source-with-rows",
+    "complete-denial",
+    "private-check-field",
+    "private-status-field",
+    "private-source-field",
+  ])(
+    "rejects %s instead of widening or inventing current-head evidence",
+    (mode) => {
+      const dto = currentEvidence(),
+        pr = dto.pullRequests.items[0]!,
+        checks = pr.checkRuns!,
+        statuses = pr.statuses!,
+        run = checks.items[0]!,
+        status = statuses.items[0]!;
+      if (mode === "wrong-source-head") checks.headSha = "c".repeat(40);
+      if (mode === "missing-head") delete pr.headSha;
+      if (mode === "invalid-head") pr.headSha = "not-a-sha";
+      if (mode === "unknown-head-success") {
+        pr.headSha = null;
+        checks.headSha = null;
+        statuses.headSha = null;
+        checks.items = [];
+        statuses.items = [];
+      }
+      if (mode === "wrong-row-head") run.headSha = "c".repeat(40);
+      if (mode === "duplicate-check") checks.items.push({ ...run });
+      if (mode === "duplicate-status") statuses.items.push({ ...status });
+      if (mode === "wrong-run-link")
+        run.url = "https://github.com/another/repository/runs/7";
+      if (mode === "wrong-status-link")
+        status.url = dto.repository.url + "/commit/" + "c".repeat(40);
+      if (mode === "query-run-link") run.url += "?token=private";
+      if (mode === "future-source-read") checks.readAt = "2026-10-18T12:00:00Z";
+      if (mode === "fake-required-pass")
+        Object.assign(pr, { requiredCheckCoverage: "complete" });
+      if (mode === "pending-conclusion") run.status = "queued";
+      if (mode === "pending-completed-time") {
+        run.status = "in_progress";
+        run.conclusion = null;
+      }
+      if (mode === "reversed-check-time")
+        run.completedAt = "2026-10-16T12:00:00Z";
+      if (mode === "unknown-freshness-with-time") run.freshness = "unknown";
+      if (mode === "known-freshness-without-time") {
+        run.startedAt = null;
+        run.completedAt = null;
+      }
+      if (mode === "reversed-status-time")
+        status.updatedAt = "2026-10-16T12:00:00Z";
+      if (mode === "failed-source-with-rows") {
+        checks.state = "unavailable";
+        checks.complete = false;
+        checks.errorCode = "OPERATIONAL_INVALID_RESPONSE";
+        checks.retrySeconds = 60;
+      }
+      if (mode === "complete-denial") {
+        statuses.errorCode = "OPERATIONAL_UNAUTHORIZED";
+        statuses.retrySeconds = 60;
+      }
+      if (mode === "private-check-field")
+        Object.assign(run, { output: { summary: "PRIVATE_MARKER" } });
+      if (mode === "private-status-field")
+        Object.assign(status, { target_url: "https://attacker.invalid" });
+      if (mode === "private-source-field")
+        Object.assign(checks, { rawPayload: [] });
+      expect(observatoryRepositoryEvidenceSchema.safeParse(dto).success).toBe(
+        false,
+      );
+    },
+  );
+  it("accepts an unknown newly read head only with unavailable CI while old absent fields stay absent", () => {
+    const dto = currentEvidence(),
+      pr = dto.pullRequests.items[0]!;
+    pr.headSha = null;
+    const unavailable = {
+      ...empty(),
+      headSha: null,
+      state: "unsupported" as const,
+      complete: false,
+      errorCode: "OPERATIONAL_UNSUPPORTED_SOURCE" as const,
+      retrySeconds: 60,
+    };
+    pr.checkRuns = unavailable;
+    pr.statuses = unavailable;
+    expect(observatoryRepositoryEvidenceSchema.parse(dto)).toEqual(dto);
+    dto.pullRequests.items = [pull];
+    expect(
+      observatoryRepositoryEvidenceSchema.parse(dto).pullRequests.items[0],
+    ).toEqual(pull);
+  });
+});
