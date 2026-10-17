@@ -66,8 +66,6 @@ No adapters, production writes or changes to other task ownership.
     "tests/fixtures/observatory.ts"
   ],
   "write_files": [
-    "packages/contracts/src/observatory.ts",
-    "packages/contracts/src/observatory.test.ts",
     "packages/domain/src/observatory.ts",
     "packages/domain/src/observatory.test.ts"
   ],
