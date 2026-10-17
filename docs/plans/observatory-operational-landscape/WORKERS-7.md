@@ -13,7 +13,7 @@ No production activation, credentials or monitor writes.
 
 ## Interfaces
 ```json
-[{"file": "packages/domain/src/observatory.ts", "symbol": "ObservatorySignal", "kind": "type"}]
+[{"file": "packages/application/src/observatory-observations.ts", "symbol": "OperationalSourcePort", "kind": "interface"}]
 ```
 
 ## Tasks
@@ -44,9 +44,6 @@ No production activation, credentials or monitor writes.
     "tsconfig.base.json",
     "vitest.config.mts",
     "vitest.setup.ts",
-    "docs/plans/observatory-operational-landscape/T03.md",
-    "packages/domain/src/observatory.ts",
-    "packages/contracts/src/observatory.ts",
     "packages/application/src/observatory-observations.ts",
     "packages/platform/src/infraagent-availability.ts",
     "docs/plans/observatory-operational-landscape/T10.md",
