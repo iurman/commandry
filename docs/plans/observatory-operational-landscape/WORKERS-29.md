@@ -10,7 +10,7 @@ No product code, test content, population, deadline, tolerance, environment, ret
 
 ## Base
 
-- branch: loop/release-test-contention/T33
+- branch: loop/release-unit-test-concurrency-correction/T33
 - check command: PATH=/home/urmani/.local/share/pnpm/.tools/pnpm/11.19.0/bin:/home/urmani/.cache/codex-runtimes/codex-primary-runtime/dependencies/node/bin:$PATH pnpm exec prettier --check vitest.config.mts
 - probes: none (local test-runner configuration only; no remote write probe required by owner)
 
