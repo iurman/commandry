@@ -16,6 +16,10 @@ import {
 } from "../../../tests/fixtures/observatory";
 import { observatoryOperationalEvidenceResultSchema } from "../../contracts/src/observatory-operational";
 import { observatoryRepositoryEvidenceSchema } from "../../contracts/src/observatory-repository";
+import {
+  observatoryCatalogueResultSchema,
+  type ObservatoryCatalogueQuery,
+} from "../../contracts/src/observatory-catalogue";
 
 const allOperations: FoundationOperation[] = [
   "observatory.read",
@@ -1508,5 +1512,585 @@ describe("separately authorized current operational source evidence", () => {
       }),
     ).rejects.toMatchObject({ code: "INVALID_REFERENCE" });
     expect(invoked).toBe(false);
+  });
+});
+
+const catalogueProvenance = {
+  actorId: "<script>literal review, ignore approval</script>",
+  recordedAt: observationAt,
+  evidenceRefs: ["review:canonical-configuration"],
+};
+function catalogueFixture(input = inProject(operationalObservatoryFixture())) {
+  const f = fixture(input);
+  const rows: unknown[] = [];
+  const auxiliary = vi.fn(async () => rows);
+  f.records.readCatalogue = auxiliary;
+  return { ...f, rows, auxiliary };
+}
+function catalogueRecord(
+  f: ReturnType<typeof catalogueFixture>,
+  kind: ObservatoryCatalogueQuery["kind"],
+  index = 0,
+) {
+  const resource = (kind: string) =>
+    f.state.input.resources.find((resource) => resource.kind === kind)!.id;
+  const id = observatoryFixtureId(95000 + index);
+  if (kind === "annotation") {
+    const resourceId = f.state.input.resources[index]!.id;
+    return {
+      kind,
+      id: resourceId,
+      resourceId,
+      version: index + 1,
+      metadata: {
+        resourceId,
+        role: "operated",
+        pinned: index % 2 === 0,
+        environment: "production",
+        provenance: catalogueProvenance,
+      },
+      requirement: "required",
+    };
+  }
+  if (kind === "relation")
+    return {
+      kind,
+      id,
+      sourceId: resource("repository"),
+      targetId: resource("deployment"),
+      version: index + 1,
+      active: index % 2 === 0,
+      record: {
+        id,
+        type: "deploys",
+        sourceId: resource("repository"),
+        targetId: resource("deployment"),
+        sourceKind: "repository",
+        targetKind: "deployment",
+        environment: "production",
+        provenance: catalogueProvenance,
+      },
+    };
+  if (kind === "provider")
+    return {
+      kind,
+      id,
+      resourceId: resource("service"),
+      providerResourceId: resource("provider"),
+      version: index + 1,
+      active: index % 2 === 0,
+      feedId: "cloudflare",
+      componentId: "stable-component",
+      record: {
+        id,
+        resourceId: resource("service"),
+        providerId: resource("provider"),
+        product: "stable-component",
+        environment: "production",
+        geography: null,
+        plane: "data",
+        provenance: catalogueProvenance,
+      },
+    };
+  return {
+    kind,
+    id,
+    resourceId: resource("service"),
+    projectId,
+    environment: "production",
+    version: index + 1,
+    sourceKind: "infraagent-monitor",
+    externalId: `monitor_${index}`,
+    enabled: index % 2 === 0,
+    freshnessSeconds: 300,
+    provenance: catalogueProvenance,
+  };
+}
+
+describe("reviewed canonical configuration catalogue", () => {
+  it.each(["annotation", "relation", "provider", "source"] as const)(
+    "returns every one of 137 mixed/inactive %s records with current versions and projection scope",
+    async (kind) => {
+      const f = catalogueFixture(
+        kind === "annotation"
+          ? inProject(scaleObservatoryFixture(137))
+          : inProject(operationalObservatoryFixture()),
+      );
+      const expected = Array.from({ length: 137 }, (_, index) =>
+        catalogueRecord(f, kind, index),
+      ).sort((left, right) => left.id.localeCompare(right.id));
+      f.rows.push(...[...expected].reverse());
+      // Other kinds are outside this selection, so their details are not parsed.
+      f.rows.push({ kind: kind === "source" ? "annotation" : "source" });
+      const result = await f.service.catalogue("UI", { kind });
+      const scene = await f.service.scene("API", {});
+      expect(observatoryCatalogueResultSchema.parse(result)).toEqual(result);
+      expect(result).toMatchObject({
+        schemaVersion: 1,
+        completeness: "complete",
+        scopeDigest: scene.scene.scopeDigest,
+        projectionRevision: scene.scene.projectionRevision,
+        kind,
+      });
+      expect(result.items).toEqual(expected);
+      expect(new Set(result.items.map((item) => item.id)).size).toBe(137);
+      expect(result.items.every((item) => item.version >= 1)).toBe(true);
+      expect(f.auxiliary).toHaveBeenCalledTimes(1);
+      expect(result.items[0]).not.toHaveProperty("expectedVersion");
+    },
+  );
+
+  it("denies source machines, provider/base grants and hidden requested subjects before the auxiliary read", async () => {
+    for (const [kind, operations] of [
+      ["source", allOperations],
+      ["provider", ["observatory.read"]],
+      ["annotation", ["resources.read"]],
+    ] as const) {
+      const f = catalogueFixture();
+      f.scoped([projectId], [...operations]);
+      await expect(
+        f.service.catalogue("denied", { projectId, kind }),
+      ).rejects.toMatchObject({ code: "FORBIDDEN" });
+      expect(f.auxiliary).not.toHaveBeenCalled();
+      expect(f.reads()).toBe(0);
+    }
+    const f = catalogueFixture();
+    const hidden = f.state.input.resources[0]!.id;
+    f.scoped([projectId], allOperations, []);
+    await expect(
+      f.service.catalogue("hidden", {
+        kind: "annotation",
+        projectId,
+        resourceId: hidden,
+      }),
+    ).rejects.toMatchObject({ code: "INVALID_REFERENCE" });
+    expect(f.auxiliary).not.toHaveBeenCalled();
+    const owner = catalogueFixture();
+    await expect(
+      owner.service.catalogue("absent", {
+        kind: "source",
+        resourceId: observatoryFixtureId(999999),
+      }),
+    ).rejects.toMatchObject({ code: "INVALID_REFERENCE" });
+    expect(owner.auxiliary).not.toHaveBeenCalled();
+  });
+
+  it.each(["annotation", "relation", "provider", "source"] as const)(
+    "filters hidden %s endpoints or projects before accessing malformed details",
+    async (kind) => {
+      const f = catalogueFixture();
+      const row = catalogueRecord(f, kind);
+      const hiddenId = observatoryFixtureId(999999);
+      const key =
+        kind === "source"
+          ? "provenance"
+          : kind === "annotation"
+            ? "metadata"
+            : "record";
+      if (kind === "source") Object.assign(row, { projectId: hiddenId });
+      else if (kind === "relation") Object.assign(row, { targetId: hiddenId });
+      else if (kind === "provider")
+        Object.assign(row, { providerResourceId: hiddenId });
+      else Object.assign(row, { resourceId: hiddenId });
+      const getter = vi.fn(() => {
+        throw new Error("PRIVATE_HIDDEN_DETAIL");
+      });
+      Object.defineProperty(row, key, { enumerable: true, get: getter });
+      f.rows.push(row);
+      const result = await f.service.catalogue("scoped", { kind, projectId });
+      expect(result.items).toEqual([]);
+      expect(getter).not.toHaveBeenCalled();
+      expect(JSON.stringify(result)).not.toContain(hiddenId);
+    },
+  );
+
+  it("uses explicit source project ownership on shared resources and exposes unbound sources only to the global owner", async () => {
+    const f = catalogueFixture();
+    const foreign = observatoryFixtureId(80002);
+    const local = catalogueRecord(f, "source");
+    const foreignRow = {
+      ...catalogueRecord(f, "source", 1),
+      projectId: foreign,
+    };
+    const unbound = { ...catalogueRecord(f, "source", 2), projectId: null };
+    f.rows.push(local, foreignRow, unbound);
+    const selected = await f.service.catalogue("selected-owner", {
+      kind: "source",
+      projectId,
+    });
+    expect(selected.items).toEqual([local]);
+    const global = await f.service.catalogue("global-owner", {
+      kind: "source",
+    });
+    expect(global.items).toEqual([local, foreignRow, unbound]);
+    f.scoped([projectId, foreign]);
+    await expect(
+      f.service.catalogue("machine", { kind: "source", projectId }),
+    ).rejects.toMatchObject({ code: "FORBIDDEN" });
+    expect(f.auxiliary).toHaveBeenCalledTimes(2);
+  });
+
+  it.each(["annotation", "relation", "provider", "source"] as const)(
+    "filters the recorded %s environment without treating null as production",
+    async (kind) => {
+      const f = catalogueFixture();
+      const rows = Array.from({ length: 3 }, (_, index) =>
+        catalogueRecord(f, kind, index),
+      );
+      for (let index = 0; index < rows.length; index++) {
+        const row = rows[index]!;
+        const environment =
+          index === 0 ? "production" : index === 1 ? null : "development";
+        if (kind === "source") Object.assign(row, { environment });
+        else {
+          const detail = kind === "annotation" ? row.metadata! : row.record!;
+          Object.assign(detail, { environment });
+          if (index === 2)
+            Object.defineProperty(detail, "provenance", {
+              enumerable: true,
+              get: () => {
+                throw new Error("WRONG_ENVIRONMENT_DETAILS");
+              },
+            });
+        }
+      }
+      f.rows.push(...rows);
+      const result = await f.service.catalogue("production", {
+        kind,
+        environment: "production",
+      });
+      expect(result.items).toEqual([rows[0]]);
+    },
+  );
+
+  it("requires both relation and provider endpoints and applies optional resource selection", async () => {
+    const f = catalogueFixture();
+    const annotation = catalogueRecord(f, "annotation");
+    const relation = catalogueRecord(f, "relation");
+    const provider = catalogueRecord(f, "provider");
+    f.rows.push(annotation, relation, provider);
+    expect(
+      (
+        await f.service.catalogue("relation-source", {
+          kind: "relation",
+          resourceId: relation.sourceId,
+        })
+      ).items,
+    ).toEqual([relation]);
+    expect(
+      (
+        await f.service.catalogue("relation-target", {
+          kind: "relation",
+          resourceId: relation.targetId,
+        })
+      ).items,
+    ).toEqual([relation]);
+    expect(
+      (
+        await f.service.catalogue("provider-subject", {
+          kind: "provider",
+          resourceId: provider.resourceId,
+        })
+      ).items,
+    ).toEqual([provider]);
+    const unselected = f.state.input.resources.find(
+      (item) =>
+        ![
+          relation.sourceId,
+          relation.targetId,
+          provider.resourceId,
+          annotation.resourceId,
+        ].includes(item.id),
+    )!.id;
+    expect(
+      (
+        await f.service.catalogue("other-subject", {
+          kind: "relation",
+          resourceId: unselected,
+        })
+      ).items,
+    ).toEqual([]);
+    f.scoped([projectId], allOperations, [
+      relation.sourceId!,
+      provider.resourceId!,
+    ]);
+    expect(
+      (
+        await f.service.catalogue("hidden-relation-target", {
+          kind: "relation",
+          projectId,
+        })
+      ).items,
+    ).toEqual([]);
+    expect(
+      (
+        await f.service.catalogue("hidden-provider-endpoint", {
+          kind: "provider",
+          projectId,
+        })
+      ).items,
+    ).toEqual([]);
+  });
+
+  it.each(["source", "target"] as const)(
+    "gates relation %s provider endpoints before hidden details using canonical resource kinds",
+    async (direction) => {
+      const f = catalogueFixture();
+      const normal = catalogueRecord(f, "relation");
+      const providerId = f.state.input.resources.find(
+        (resource) => resource.kind === "provider",
+      )!.id;
+      const sourceId = direction === "source" ? providerId : normal.sourceId;
+      const targetId = direction === "target" ? providerId : normal.targetId;
+      const row = {
+        ...catalogueRecord(f, "relation", 1),
+        sourceId,
+        targetId,
+        record: {
+          ...normal.record!,
+          id: observatoryFixtureId(95001),
+          type: "depends_on",
+          sourceId,
+          targetId,
+          sourceKind: direction === "source" ? "provider" : "repository",
+          targetKind: direction === "target" ? "provider" : "deployment",
+        },
+      };
+      const details = row.record;
+      f.rows.push(normal, row);
+      f.scoped([projectId], ["observatory.read"]);
+      const query = {
+        kind: "relation",
+        projectId,
+        environment: "production",
+      };
+      const denied = await f.service.catalogue("provider-denied", query);
+      expect(denied.items).toEqual([normal]);
+      expect(JSON.stringify(denied)).not.toContain(row.id);
+
+      // A record's declared kinds cannot disguise its canonical provider endpoint.
+      row.record = {
+        ...details,
+        sourceKind: "repository",
+        targetKind: "deployment",
+      };
+      expect(
+        (await f.service.catalogue("provider-disguised", query)).items,
+      ).toEqual([normal]);
+
+      const getter = vi.fn(() => {
+        throw new Error("PRIVATE_PROVIDER_RELATION");
+      });
+      Object.defineProperty(row, "record", {
+        enumerable: true,
+        configurable: true,
+        get: getter,
+      });
+      expect(
+        (await f.service.catalogue("provider-hidden-getter", query)).items,
+      ).toEqual([normal]);
+      expect(getter).not.toHaveBeenCalled();
+
+      Object.defineProperty(row, "record", {
+        enumerable: true,
+        configurable: true,
+        writable: true,
+        value: details,
+      });
+      f.scoped([projectId], ["observatory.read", "observatory.providers.read"]);
+      expect(
+        (await f.service.catalogue("provider-granted", query)).items,
+      ).toEqual([normal, row]);
+      f.state.access.owner = true;
+      f.state.access.operations = [];
+      expect(
+        (await f.service.catalogue("provider-owner", query)).items,
+      ).toEqual([normal, row]);
+    },
+  );
+
+  it.each([
+    "annotation-id",
+    "annotation-resource",
+    "relation-id",
+    "relation-endpoint",
+    "relation-types",
+    "provider-id",
+    "provider-product",
+    "provider-kind",
+    "blank-evidence",
+    "source-syntax",
+    "raw-row",
+    "raw-detail",
+    "duplicate",
+    "accessor",
+    "symbol",
+    "cycle",
+    "collection-accessor",
+    "collection-symbol",
+    "sparse",
+  ])(
+    "fails closed for authorized malformed %s without leaking private data",
+    async (mode) => {
+      const f = catalogueFixture();
+      const kind = mode.startsWith("relation")
+        ? "relation"
+        : mode.startsWith("provider")
+          ? "provider"
+          : mode.startsWith("annotation")
+            ? "annotation"
+            : "source";
+      const row = catalogueRecord(f, kind);
+      const foreign = observatoryFixtureId(999999);
+      if (
+        mode === "annotation-id" ||
+        mode === "relation-id" ||
+        mode === "provider-id"
+      )
+        row.id = foreign;
+      if (mode === "annotation-resource") row.metadata!.resourceId = foreign;
+      if (mode === "relation-endpoint") row.record!.targetId = foreign;
+      if (mode === "relation-types")
+        Object.assign(row.record!, { type: "depends_on", sourceKind: "host" });
+      if (mode === "provider-product")
+        Object.assign(row.record!, { product: "display label" });
+      if (mode === "provider-kind") {
+        Object.assign(row, { providerResourceId: row.resourceId });
+        Object.assign(row.record!, { providerId: row.resourceId });
+      }
+      if (mode === "blank-evidence")
+        Object.assign(row, {
+          provenance: { ...catalogueProvenance, evidenceRefs: [" "] },
+        });
+      if (mode === "source-syntax")
+        Object.assign(row, { externalId: "../secret" });
+      if (mode === "raw-row")
+        Object.assign(row, { rawPayload: "PRIVATE_CATALOGUE_DATA" });
+      if (mode === "raw-detail")
+        Object.assign(row, {
+          provenance: {
+            ...row.provenance!,
+            rawPayload: "PRIVATE_CATALOGUE_DATA",
+          },
+        });
+      const getter = vi.fn(() => "PRIVATE_CATALOGUE_DATA");
+      if (mode === "accessor")
+        Object.defineProperty(row, "provenance", {
+          enumerable: true,
+          get: getter,
+        });
+      if (mode === "symbol")
+        Object.assign(row, { [Symbol("private")]: "PRIVATE_CATALOGUE_DATA" });
+      if (mode === "cycle") Object.assign(row, { cycle: row });
+      f.rows.push(row);
+      if (mode === "duplicate") f.rows.push({ ...row });
+      if (mode === "collection-accessor")
+        Object.defineProperty(f.rows, "0", { enumerable: true, get: getter });
+      if (mode === "collection-symbol")
+        Object.assign(f.rows, {
+          [Symbol("private")]: "PRIVATE_CATALOGUE_DATA",
+        });
+      if (mode === "sparse") f.rows.length++;
+      const error = await f.service
+        .catalogue("malformed", { kind })
+        .catch((error: unknown) => error);
+      expect(error).toMatchObject({ code: "INVALID_REFERENCE" });
+      expect(String(error)).not.toContain("PRIVATE_CATALOGUE_DATA");
+      expect(getter).not.toHaveBeenCalled();
+    },
+  );
+
+  it("distinguishes an unavailable adapter from complete empty configuration and rejects public authority", async () => {
+    const f = catalogueFixture();
+    delete f.records.readCatalogue;
+    await expect(
+      f.service.catalogue("missing", { kind: "annotation" }),
+    ).rejects.toThrow(new Error("Observatory catalogue is unavailable"));
+    f.records.readCatalogue = f.auxiliary;
+    expect(
+      (await f.service.catalogue("empty", { kind: "annotation" })).items,
+    ).toEqual([]);
+    const before = f.requests.length;
+    await expect(
+      f.service.catalogue("injected", { kind: "source", owner: true }),
+    ).rejects.toThrow();
+    expect(f.requests).toHaveLength(before);
+  });
+
+  it.each(["owner", "grant", "project", "resource", "scope", "environment"])(
+    "rechecks %s authority across the auxiliary await",
+    async (mode) => {
+      const f = catalogueFixture();
+      if (mode !== "owner") f.scoped([projectId]);
+      let enter!: () => void, release!: () => void;
+      const entered = new Promise<void>((resolve) => {
+        enter = resolve;
+      });
+      const barrier = new Promise<void>((resolve) => {
+        release = resolve;
+      });
+      f.records.readCatalogue = async () => {
+        enter();
+        await barrier;
+        return [catalogueRecord(f, "annotation")];
+      };
+      const pending = f.service.catalogue("awaited", {
+        kind: "annotation",
+        projectId,
+      });
+      await entered;
+      if (mode === "owner") f.state.access.owner = false;
+      if (mode === "grant") f.state.access.operations = [];
+      if (mode === "project") f.state.access.projectIds = [];
+      if (mode === "resource") f.state.access.resourceIds = [];
+      if (mode === "scope") f.state.access.scopeDigest = "changed";
+      if (mode === "environment") f.state.access.environment = "production";
+      release();
+      await expect(pending).rejects.toMatchObject({ code: "FORBIDDEN" });
+    },
+  );
+
+  it("preserves adapter/commit errors, callback cardinality, result integrity and live authority through delivery", async () => {
+    const adapter = catalogueFixture(),
+      error = new Error("synthetic catalogue adapter failure");
+    adapter.records.readCatalogue = async () => {
+      throw error;
+    };
+    await expect(
+      adapter.service.catalogue("adapter", { kind: "source" }),
+    ).rejects.toBe(error);
+    for (const mode of ["none", "repeat", "swallowed-repeat"] as const) {
+      const f = catalogueFixture();
+      f.state.mode = mode;
+      await expect(
+        f.service.catalogue("callback", { kind: "source" }),
+      ).rejects.toMatchObject({ code: "INVALID_REFERENCE" });
+    }
+    for (const afterError of [
+      new FoundationError("EXPIRED"),
+      new FoundationError("REVOKED"),
+      new Error("synthetic audit failure"),
+    ]) {
+      const f = catalogueFixture();
+      f.state.afterError = afterError;
+      await expect(
+        f.service.catalogue("commit", { kind: "source" }),
+      ).rejects.toBe(afterError);
+    }
+    const tampered = catalogueFixture();
+    tampered.rows.push(catalogueRecord(tampered, "source"));
+    tampered.state.afterCallback = (result) => {
+      (result as { items: { version: number }[] }).items[0]!.version++;
+    };
+    await expect(
+      tampered.service.catalogue("tampered", { kind: "source" }),
+    ).rejects.toMatchObject({ code: "INVALID_REFERENCE" });
+    const revoked = catalogueFixture();
+    revoked.state.afterCallback = () => {
+      revoked.state.access.owner = false;
+    };
+    await expect(
+      revoked.service.catalogue("revoked", { kind: "source" }),
+    ).rejects.toMatchObject({ code: "FORBIDDEN" });
   });
 });
