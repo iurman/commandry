@@ -228,10 +228,12 @@
     "method": "Synthetic read ports through actual service and built component, not persistence/production activation"
   },
   "openCorrections": [
-    "T20-R1 portrait focus/lens pressure fallback and picking",
-    "T21 provider plane context, source checks pass, independent review and built closure pending",
-    "T22 selected operational evidence refresh, component6pass, caller/built pending",
-    "103-resource phone390 visible-label-overlap case diagnosis"
+    "T21 corrected-build control-plane explanation in three contexts",
+    "T22 corrected-build selected-evidence freshness closure",
+    "T23 supported current-head PR checks, independent review and nonempty protocol/UI closure",
+    "Exact new-built103-resource master scene at desktop390/320",
+    "Remaining interaction/continuation and actual owner/device checks",
+    "Protected release gates, normal main merge and exact live deployment"
   ],
   "terrainCorrection": {
     "status": "Independent bounded source and actual GPU closure passed; normal merge completed",
@@ -302,5 +304,16 @@
   "currentHeadPrChecks": {
     "status": "Acceptance gap identified; T23 implementation active",
     "availabilityAndRuntimeRemainIndependent": true
-  }
+  },
+  "historicalCorrectionDescriptions": [
+    "T20-R1 portrait focus/lens pressure fallback and picking",
+    "T21 provider plane context, source checks pass, independent review and built closure pending",
+    "T22 selected operational evidence refresh, component6pass, caller/built pending",
+    "103-resource phone390 visible-label-overlap case diagnosis"
+  ],
+  "closedCorrections": [
+    "T20-R1 actual GPU portrait focus/lens/picking",
+    "GPU test matching actual Three sampler precision, original tolerances unchanged",
+    "390px label failure diagnosed as zero eligible lens labels; nonempty control moved to lens-off, exact collision invariant retained and independently reviewed"
+  ]
 }
