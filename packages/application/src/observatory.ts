@@ -46,6 +46,13 @@ import {
   observatoryOperationalSourceRecordSchema,
   type ObservatoryOperationalEvidenceQuery,
 } from "@commandry/contracts";
+import {
+  observatoryCatalogueItemSchema,
+  observatoryCatalogueKindSchema,
+  observatoryCatalogueQuerySchema,
+  observatoryCatalogueResultSchema,
+  type ObservatoryCatalogueQuery,
+} from "../../contracts/src/observatory-catalogue";
 
 /** Server-established scope, never public request JSON or a new credential system. */
 export interface ObservatoryReadAccess {
@@ -63,6 +70,9 @@ export interface ObservatoryReadRecords {
   /** Complete current sources for this subject in the same authorized transaction.
    * Derived details only; never include raw originals, credentials or configuration. */
   readOperationalEvidence?(resourceId: string): Promise<unknown[]>;
+  /** Complete scoped canonical configuration, including inactive records.
+   * No raw source payloads, credentials, sessions or secret configuration. */
+  readCatalogue?(): Promise<unknown[]>;
 }
 /**
  * The adapter reuses createFoundationProjectReadAccessRepository. Authenticate
@@ -461,6 +471,109 @@ function authorizedInput(
 }
 
 type OperationalEvidenceRecords = { available: boolean; rows: unknown[] };
+function catalogueItems(
+  input: AuthorizedInput,
+  query: ObservatoryCatalogueQuery,
+  rows: unknown[],
+  access: ObservatoryReadAccess,
+) {
+  if (!Array.isArray(rows)) invalid();
+  const descriptors = Object.getOwnPropertyDescriptors(rows);
+  if (
+    Object.getOwnPropertySymbols(rows).length ||
+    Object.keys(descriptors).length !== rows.length + 1
+  )
+    invalid();
+  const object = (value: unknown): object => {
+    if (
+      !value ||
+      typeof value !== "object" ||
+      Array.isArray(value) ||
+      (Object.getPrototypeOf(value) !== Object.prototype &&
+        Object.getPrototypeOf(value) !== null)
+    )
+      invalid();
+    return value;
+  };
+  const field = (value: object, key: string): unknown => {
+    const descriptor = Object.getOwnPropertyDescriptor(value, key);
+    if (!descriptor?.enumerable || !Object.hasOwn(descriptor, "value"))
+      invalid();
+    return descriptor.value;
+  };
+  const resources = new Map(input.resources.map((item) => [item.id, item]));
+  const identity = (row: object, key: string) =>
+    observatoryMetadataSchema.shape.resourceId.parse(field(row, key));
+  const scoped: unknown[] = [];
+  for (let index = 0; index < rows.length; index++) {
+    const entry = descriptors[String(index)];
+    if (!entry?.enumerable || !Object.hasOwn(entry, "value")) invalid();
+    const row = object(entry.value);
+    const kind = observatoryCatalogueKindSchema.parse(field(row, "kind"));
+    if (kind !== query.kind) continue;
+    if (kind === "source") {
+      const projectId = observatoryMetadataSchema.shape.resourceId
+        .nullable()
+        .parse(field(row, "projectId"));
+      if (
+        (query.projectId && projectId !== query.projectId) ||
+        (!access.owner &&
+          (projectId === null || !access.projectIds.includes(projectId)))
+      )
+        continue;
+    }
+    const subjectIds =
+      kind === "relation"
+        ? [identity(row, "sourceId"), identity(row, "targetId")]
+        : kind === "provider"
+          ? [identity(row, "resourceId"), identity(row, "providerResourceId")]
+          : [identity(row, "resourceId")];
+    if (
+      subjectIds.some((id) => !resources.has(id)) ||
+      (query.resourceId &&
+        !(kind === "relation"
+          ? subjectIds.includes(query.resourceId)
+          : subjectIds[0] === query.resourceId))
+    )
+      continue;
+    if (
+      kind === "relation" &&
+      !permitted(access, "observatory.providers.read") &&
+      subjectIds.some((id) => resources.get(id)!.kind === "provider")
+    )
+      continue;
+    if (query.environment !== null) {
+      const details =
+        kind === "source"
+          ? row
+          : object(field(row, kind === "annotation" ? "metadata" : "record"));
+      const environment = observatoryMetadataSchema.shape.environment.parse(
+        field(details, "environment"),
+      );
+      if (environment !== query.environment) continue;
+    }
+    scoped.push(row);
+  }
+  // Digest only the authorized selection. This rejects accessors, symbols,
+  // cycles and non-data details without evaluating hidden rows.
+  digest(scoped);
+  const items = scoped.map((row) => observatoryCatalogueItemSchema.parse(row));
+  unique(items.map((item) => item.id));
+  for (const item of items) {
+    if (
+      item.kind === "relation" &&
+      (resources.get(item.sourceId)!.kind !== item.record.sourceKind ||
+        resources.get(item.targetId)!.kind !== item.record.targetKind)
+    )
+      invalid();
+    if (
+      item.kind === "provider" &&
+      resources.get(item.providerResourceId)!.kind !== "provider"
+    )
+      invalid();
+  }
+  return items.sort((left, right) => left.id.localeCompare(right.id));
+}
 function operationalEvidenceItems(
   input: AuthorizedInput,
   query: ObservatoryOperationalEvidenceQuery,
@@ -643,6 +756,7 @@ export function createObservatoryReadService<Request>(
       input: AuthorizedInput,
       records: ObservatoryReadRecords,
     ) => Promise<Auxiliary>,
+    ownerOnly = false,
   ): Promise<T> {
     let callbacks = 0,
       expectedDigest: string | undefined,
@@ -655,6 +769,7 @@ export function createObservatoryReadService<Request>(
         const access = accessContext(rawAccess, environment);
         if (
           !permitted(access, "observatory.read") ||
+          (ownerOnly && !access.owner) ||
           (extra && !permitted(access, extra)) ||
           (!access.owner &&
             (!query.projectId || !access.projectIds.includes(query.projectId)))
@@ -722,6 +837,27 @@ export function createObservatoryReadService<Request>(
       invalid();
   }
   return {
+    async catalogue(request: Request, rawQuery: unknown) {
+      const query = observatoryCatalogueQuerySchema.parse(rawQuery);
+      return read(
+        request,
+        query,
+        query.kind === "provider" ? "observatory.providers.read" : null,
+        (input, rows: unknown[], access) =>
+          observatoryCatalogueResultSchema.parse({
+            ...envelope(projectAuthorized(input)),
+            kind: query.kind,
+            items: catalogueItems(input, query, rows, access),
+          }),
+        async (input, records) => {
+          if (query.resourceId) requireSubject(input, query.resourceId);
+          if (!records.readCatalogue)
+            throw new Error("Observatory catalogue is unavailable");
+          return records.readCatalogue();
+        },
+        query.kind === "source",
+      );
+    },
     async operationalEvidence(request: Request, rawQuery: unknown) {
       const query = observatoryOperationalEvidenceQuerySchema.parse(rawQuery);
       const extra: FoundationOperation =
