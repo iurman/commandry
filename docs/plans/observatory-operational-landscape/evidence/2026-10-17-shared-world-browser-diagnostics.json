@@ -1,0 +1,351 @@
+{
+  "status": "Actual local shared-world PASS; hosted failures not reproduced or explained",
+  "runId": "run-c0b0fed6-109a-4197-8cbb-7ff2d4a07e45",
+  "source": "9083c87d6455ba1e5bd2630a9e477b987a13a702",
+  "sourceClean": false,
+  "buildId": "iE4xgcjeTEArbv2OBKSp6",
+  "changedFiles": {
+    "tests/e2e/gravity-master-scene.spec.ts": "4b1ebdd3eb6df03a89e18749001dac3541bd96627e893d3805fc1141e3aac8e5",
+    "tests/e2e/infrastructure-overview.spec.ts": "5b7c1d6d961e19b84e9d82bb0f6507ad8cb9e9644e7b3897315da15139483f59"
+  },
+  "unchangedProductComparedToMain74d": true,
+  "runtime": "Fresh disposable PostgreSQL18 and built standalone web, test-local-off, external polling disabled",
+  "caseStats": {
+    "startTime": "2026-10-17T16:42:54.942Z",
+    "duration": 160584.82799999998,
+    "expected": 15,
+    "skipped": 0,
+    "unexpected": 0,
+    "flaky": 0
+  },
+  "cases": [
+    {
+      "title": "one master scene renders and inspects the complete multi-page inventory",
+      "file": "gravity-master-scene.spec.ts",
+      "project": "desktop",
+      "status": "expected",
+      "results": [
+        {
+          "status": "passed",
+          "startTime": "2026-10-17T16:42:55.635Z",
+          "duration": 85707,
+          "workerIndex": 0,
+          "parallelIndex": 0
+        }
+      ]
+    },
+    {
+      "title": "one master scene renders and inspects the complete multi-page inventory",
+      "file": "gravity-master-scene.spec.ts",
+      "project": "phone-390",
+      "status": "expected",
+      "results": [
+        {
+          "status": "passed",
+          "startTime": "2026-10-17T16:44:21.853Z",
+          "duration": 45395,
+          "workerIndex": 2,
+          "parallelIndex": 0
+        }
+      ]
+    },
+    {
+      "title": "one master scene renders and inspects the complete multi-page inventory",
+      "file": "gravity-master-scene.spec.ts",
+      "project": "phone-320",
+      "status": "expected",
+      "results": [
+        {
+          "status": "passed",
+          "startTime": "2026-10-17T16:44:49.949Z",
+          "duration": 45337,
+          "workerIndex": 4,
+          "parallelIndex": 1
+        }
+      ]
+    },
+    {
+      "title": "map, list, evidence, project focus and wallboard work across themes and viewports",
+      "file": "infrastructure-overview.spec.ts",
+      "project": "desktop",
+      "status": "expected",
+      "results": [
+        {
+          "status": "passed",
+          "startTime": "2026-10-17T16:42:55.671Z",
+          "duration": 4038,
+          "workerIndex": 1,
+          "parallelIndex": 1
+        }
+      ]
+    },
+    {
+      "title": "scope is complete beyond the first page and delayed refresh retains labeled evidence",
+      "file": "infrastructure-overview.spec.ts",
+      "project": "desktop",
+      "status": "expected",
+      "results": [
+        {
+          "status": "passed",
+          "startTime": "2026-10-17T16:42:59.816Z",
+          "duration": 1381,
+          "workerIndex": 1,
+          "parallelIndex": 1
+        }
+      ]
+    },
+    {
+      "title": "new persisted observations cue once and wallboard rotation stops for manual inspection",
+      "file": "infrastructure-overview.spec.ts",
+      "project": "desktop",
+      "status": "expected",
+      "results": [
+        {
+          "status": "passed",
+          "startTime": "2026-10-17T16:43:01.208Z",
+          "duration": 1655,
+          "workerIndex": 1,
+          "parallelIndex": 1
+        }
+      ]
+    },
+    {
+      "title": "Gravity uses canonical resources, persisted appearance, focus and truthful source evidence",
+      "file": "infrastructure-overview.spec.ts",
+      "project": "desktop",
+      "status": "expected",
+      "results": [
+        {
+          "status": "passed",
+          "startTime": "2026-10-17T16:43:02.875Z",
+          "duration": 79743,
+          "workerIndex": 1,
+          "parallelIndex": 1
+        }
+      ]
+    },
+    {
+      "title": "map, list, evidence, project focus and wallboard work across themes and viewports",
+      "file": "infrastructure-overview.spec.ts",
+      "project": "phone-390",
+      "status": "expected",
+      "results": [
+        {
+          "status": "passed",
+          "startTime": "2026-10-17T16:44:23.353Z",
+          "duration": 3320,
+          "workerIndex": 3,
+          "parallelIndex": 1
+        }
+      ]
+    },
+    {
+      "title": "scope is complete beyond the first page and delayed refresh retains labeled evidence",
+      "file": "infrastructure-overview.spec.ts",
+      "project": "phone-390",
+      "status": "expected",
+      "results": [
+        {
+          "status": "passed",
+          "startTime": "2026-10-17T16:44:26.777Z",
+          "duration": 1629,
+          "workerIndex": 3,
+          "parallelIndex": 1
+        }
+      ]
+    },
+    {
+      "title": "new persisted observations cue once and wallboard rotation stops for manual inspection",
+      "file": "infrastructure-overview.spec.ts",
+      "project": "phone-390",
+      "status": "expected",
+      "results": [
+        {
+          "status": "passed",
+          "startTime": "2026-10-17T16:44:28.417Z",
+          "duration": 1113,
+          "workerIndex": 3,
+          "parallelIndex": 1
+        }
+      ]
+    },
+    {
+      "title": "Gravity uses canonical resources, persisted appearance, focus and truthful source evidence",
+      "file": "infrastructure-overview.spec.ts",
+      "project": "phone-390",
+      "status": "expected",
+      "results": [
+        {
+          "status": "passed",
+          "startTime": "2026-10-17T16:44:29.541Z",
+          "duration": 19716,
+          "workerIndex": 3,
+          "parallelIndex": 1
+        }
+      ]
+    },
+    {
+      "title": "map, list, evidence, project focus and wallboard work across themes and viewports",
+      "file": "infrastructure-overview.spec.ts",
+      "project": "phone-320",
+      "status": "expected",
+      "results": [
+        {
+          "status": "passed",
+          "startTime": "2026-10-17T16:45:07.967Z",
+          "duration": 4645,
+          "workerIndex": 5,
+          "parallelIndex": 0
+        }
+      ]
+    },
+    {
+      "title": "scope is complete beyond the first page and delayed refresh retains labeled evidence",
+      "file": "infrastructure-overview.spec.ts",
+      "project": "phone-320",
+      "status": "expected",
+      "results": [
+        {
+          "status": "passed",
+          "startTime": "2026-10-17T16:45:12.728Z",
+          "duration": 1520,
+          "workerIndex": 5,
+          "parallelIndex": 0
+        }
+      ]
+    },
+    {
+      "title": "new persisted observations cue once and wallboard rotation stops for manual inspection",
+      "file": "infrastructure-overview.spec.ts",
+      "project": "phone-320",
+      "status": "expected",
+      "results": [
+        {
+          "status": "passed",
+          "startTime": "2026-10-17T16:45:14.255Z",
+          "duration": 1073,
+          "workerIndex": 5,
+          "parallelIndex": 0
+        }
+      ]
+    },
+    {
+      "title": "Gravity uses canonical resources, persisted appearance, focus and truthful source evidence",
+      "file": "infrastructure-overview.spec.ts",
+      "project": "phone-320",
+      "status": "expected",
+      "results": [
+        {
+          "status": "passed",
+          "startTime": "2026-10-17T16:45:15.337Z",
+          "duration": 19065,
+          "workerIndex": 5,
+          "parallelIndex": 0
+        }
+      ]
+    }
+  ],
+  "masters": [
+    {
+      "project": "desktop",
+      "expectedCanonicalIds": 103,
+      "errors": [],
+      "completeLastOperation": "response-parser-checks",
+      "elapsedMs": 85613.216517,
+      "setup": {
+        "projects": 1,
+        "resources": 103,
+        "parents": 92,
+        "links": 103,
+        "projectMs": 26.455736,
+        "resourceMs": 736.5048030000002,
+        "parentMs": 671.6147969999987,
+        "linkMs": 755.4482110000002
+      },
+      "overviewPagesCaptured": 26,
+      "sceneRecordsCaptured": 67
+    },
+    {
+      "project": "phone-390",
+      "expectedCanonicalIds": 103,
+      "errors": [],
+      "completeLastOperation": "response-parser-checks",
+      "elapsedMs": 45287.701123000006,
+      "setup": {
+        "projects": 1,
+        "resources": 103,
+        "parents": 92,
+        "links": 103,
+        "projectMs": 19.294414999999958,
+        "resourceMs": 1044.6796459999987,
+        "parentMs": 1013.2524140000005,
+        "linkMs": 1152.1200770000005
+      },
+      "overviewPagesCaptured": 20,
+      "sceneRecordsCaptured": 30
+    },
+    {
+      "project": "phone-320",
+      "expectedCanonicalIds": 103,
+      "errors": [],
+      "completeLastOperation": "response-parser-checks",
+      "elapsedMs": 45207.849422,
+      "setup": {
+        "projects": 1,
+        "resources": 103,
+        "parents": 92,
+        "links": 103,
+        "projectMs": 26.957210000000032,
+        "resourceMs": 786.941029000003,
+        "parentMs": 780.757153000001,
+        "linkMs": 874.7051410000006
+      },
+      "overviewPagesCaptured": 20,
+      "sceneRecordsCaptured": 40
+    }
+  ],
+  "globalTransition": {
+    "passed": true,
+    "fixtureStrategy": "real-api",
+    "f1Resources": 91,
+    "f1Projects": 15,
+    "authorizedBefore": 220,
+    "authorizedAfter": 311,
+    "parserFlush": {
+      "boundMs": 250,
+      "expired": false,
+      "checked": 213,
+      "pendingResponseChecks": 0,
+      "pendingTransitionChecks": 0
+    },
+    "collectionState": {
+      "complete": true,
+      "pendingResponseChecks": 0,
+      "pendingTransitionChecks": 0
+    },
+    "parserAndPageErrors": [],
+    "console401Count": 31,
+    "console401PathAndCause": "not established by recorded console messages; not relabeled benign or zero",
+    "acceptedBrowserCanonicalIds": 311,
+    "exactAfterInventoryEquality": true,
+    "all220PriorIdsConserved": true,
+    "observedWorkSurface": "Work unavailable; complete authorized read and totals unavailable",
+    "observedProviderFeed": "Feed unknown; last successful fetch and attempt never",
+    "consoleStatusAssociation": "not established; no request paths captured for401s"
+  },
+  "cleanup": {
+    "normalHelperExit": 0,
+    "matchingRunIdAndReceipt": true,
+    "allCleanupFlags": true,
+    "actualOwnedPidsAbsent": true,
+    "actualOwnedProcessGroupAbsent": true,
+    "actualDirectoryAbsent": true
+  },
+  "independentSourceReview": "ACCEPT after three diagnostic corrections, initial BOUNCE retained",
+  "executedEvidenceReview": "Independent Astra ACCEPT for normal diagnostic convergence and one instrumented full main suite",
+  "hosted207CaseRecovery": false,
+  "imagePublication": false,
+  "productionDeployment": false,
+  "sourceActivation": false,
+  "desktopCaseOverlapSeconds": 78.467
+}
