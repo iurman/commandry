@@ -17,7 +17,8 @@
 **/__fixtures__
 **/fixtures
 apps/lab
-packages/test-support
+packages/test-support/**
+!packages/test-support/package.json
 docs
 README.md
 AGENTS.md
