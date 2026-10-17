@@ -10,7 +10,7 @@ No new camera store, replacement renderer, coordinator, source, evidence, canoni
 
 ## Base
 
-- branch: feat/observatory-operational-landscape
+- branch: loop/ancestor-breadcrumb-context-correction/T27
 - check command: PATH=/home/urmani/.local/share/pnpm/.tools/pnpm/11.19.0/bin:/home/urmani/.cache/codex-runtimes/codex-primary-runtime/dependencies/node/bin:$PATH pnpm exec vitest run --config vitest.config.mts packages/ui/src/gravity/operational-layout.test.ts packages/ui/src/gravity/renderer-pressure.test.ts
 - probes: none (local component history)
 
@@ -155,3 +155,7 @@ Owner authorized useful breadcrumbs and reading-context preservation. Read T27.m
 ## Independent review correction
 
 The original T27 candidate passes65 focused tests and fixes manual breadcrumb restoration. Independent review retains a failed tour-host to current-breadcrumb to child to ancestor control: the component accepts the shown subject, but renderer focus identity still points to the prior overview, so later navigation saves/restores a fitted host pose. Extend only the existing renderer and pressure-test ownership alongside the component and component tests. Preserve the immediate current-crumb no-focus/no-movement assertion and exact later position/target. A small explicit context-adoption operation may reuse current renderer state and saved poses; do not add a second camera store. Keep T24 direct-selection behavior and geometry unchanged. The coordinator already forwards complete focus options and is read-only for T27 because T29 owns it. Root must regenerate at the new immutable documentation base before resuming the same worktree.
+
+## Resumed task base
+
+The resumed isolated T27 task uses its existing task branch as the generator base. This resolves the actual documentation-only task HEAD after the normal documentation cherry-pick, rather than the integration branch after unrelated coordinator convergence. Packet build and independent check must name that exact immutable task HEAD explicitly. Preserve earlier9ffae16 causal evidence and compare source hashes across the documentation-only base correction.
