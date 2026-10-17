@@ -9,8 +9,8 @@
 The operational Gravity Observatory implementation is normally merged through
 PR22. Its release corrections now have independent source review, 78 component
 controls and 12 passing built browser cases across desktop and phone layouts,
-including full-inventory 4K presentation. A corrective PR and the full hosted
-release remain pending; this is not a production activation claim. The
+including full-inventory 4K presentation. Corrective PR25 is normally merged;
+full hosted release39047712252 is running. This is not a production activation claim. The
 [58-scenario completion ledger](../plans/observatory-operational-landscape/COVERAGE.md)
 records 53 local passes, five explicit limitations and the remaining deployment
 and source-activation gates.
