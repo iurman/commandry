@@ -2,7 +2,7 @@
 
 ## Goal
 
-Preserve default legacy PR evidence responses while allowing explicit current-head check reads.
+Preserve default legacy PR reads and age explicit current-head evidence from original timestamps.
 
 ## Non-goals
 
@@ -26,7 +26,7 @@ No storage/adapter/DB/credential/grant changes, CI truncation, new runtime/actio
 {
   "task_id": "T29",
   "title": "Preserve strict existing PR evidence clients",
-  "goal": "Preserve default legacy PR evidence responses while allowing explicit current-head check reads.",
+  "goal": "Preserve default legacy PR reads and age explicit current-head evidence from original timestamps.",
   "brief": {
     "change": "Make expanded PR check evidence an explicit compatible read option",
     "check": "PATH=/home/urmani/.local/share/pnpm/.tools/pnpm/11.19.0/bin:/home/urmani/.cache/codex-runtimes/codex-primary-runtime/dependencies/node/bin:$PATH pnpm exec vitest run --config vitest.config.mts packages/contracts/src/observatory-operational.test.ts packages/application/src/observatory.test.ts apps/web/app/infrastructure/observatory-work-client.test.ts packages/ui/src/components/ObservatoryOperationalEvidence.test.tsx"
