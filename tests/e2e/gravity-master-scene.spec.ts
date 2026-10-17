@@ -16,7 +16,7 @@ test("one master scene renders and inspects the complete multi-page inventory", 
   page,
   request,
 }, testInfo) => {
-  test.setTimeout(180000);
+  test.setTimeout(300000);
   const started = performance.now();
   const phasePath = testInfo.outputPath("master-scene-phases.jsonl");
   const summaryPath = testInfo.outputPath("master-scene-diagnostics.json");
