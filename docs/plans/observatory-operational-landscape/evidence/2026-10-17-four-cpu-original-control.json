@@ -1,0 +1,91 @@
+{
+  "status": "ORIGINAL_CONTROL_FAILED",
+  "runId": "run-e98eb32a-3b0e-4c35-ad98-a4685c21421b",
+  "source": "07d833bab5f2c8f85fe59b3666241f0a11ccf9e0",
+  "sourceClean": true,
+  "buildId": "9QJzTn6xR6Qou3_Y8UaCE",
+  "controllerAffinity": [0, 1, 2, 3],
+  "verifiedActualAffinityProcesses": [
+    "controller",
+    "preview",
+    "web",
+    "postgres"
+  ],
+  "browser": {
+    "startTime": "2026-10-17T17:28:30.474Z",
+    "duration": 242197.97699999998,
+    "expected": 13,
+    "skipped": 0,
+    "unexpected": 2,
+    "flaky": 0
+  },
+  "testExitCode": 1,
+  "testSignal": null,
+  "testFilesSha256": {
+    "tests/e2e/gravity-master-scene.spec.ts": "4b1ebdd3eb6df03a89e18749001dac3541bd96627e893d3805fc1141e3aac8e5",
+    "tests/e2e/infrastructure-overview.spec.ts": "5b7c1d6d961e19b84e9d82bb0f6507ad8cb9e9644e7b3897315da15139483f59"
+  },
+  "helperFilesSha256": {
+    ".agent/context/T39-control/preview.mjs": "4281f3dc0b200834e128b8c626bc81ec94ac40524a4440f39fe8bd93612ca353",
+    ".agent/context/T39-control/verify-pair.mjs": "720507a13bc33bed57f26829e3aecd998024aaf0a9a8d36cee20ef9ba153dc0b"
+  },
+  "desktopMaster": {
+    "status": "timedOut",
+    "durationMs": 181725,
+    "deadlineMs": 180000,
+    "lastPhases": [
+      {
+        "phase": "outline-expansion",
+        "theme": "dark",
+        "grouping": "hosts",
+        "operation": "end",
+        "elapsedMs": 181142.193181,
+        "lastCompletedOperation": "context-loss-fallback"
+      },
+      {
+        "phase": "response-parser-checks",
+        "theme": "dark",
+        "grouping": "hosts",
+        "operation": "start",
+        "elapsedMs": 181142.624875,
+        "lastCompletedOperation": "context-loss-fallback"
+      },
+      {
+        "phase": "response-parser-checks",
+        "theme": "dark",
+        "grouping": "hosts",
+        "operation": "end",
+        "elapsedMs": 181143.031723,
+        "lastCompletedOperation": "response-parser-checks"
+      },
+      {
+        "phase": "response-parser-checks",
+        "theme": "dark",
+        "grouping": "hosts",
+        "operation": "finally",
+        "elapsedMs": 181143.072879,
+        "lastCompletedOperation": "response-parser-checks"
+      }
+    ]
+  },
+  "desktopOverview": {
+    "status": "failed",
+    "durationMs": 59794,
+    "globalTransition": "passed original5s predicate",
+    "failure": "Later F1 searchResults buttoncount>=91 original5000ms predicate returned0 at line2014",
+    "qualification": "Independent static trace review verifies the later search response contains complete311membership and182matches including every91F1 ID. Correct current DOM with182buttons appears1177ms before the original deadline; the second runner count returns2703ms after it. This is a separate observation boundary; no product cause is established."
+  },
+  "cleanup": {
+    "normalPreviewStoppedReceipt": true,
+    "errors": [],
+    "actualKnownPidsAbsent": true,
+    "previewProcessGroupAbsent": true,
+    "ownedTemporaryDirectoryAbsent": true,
+    "exclusiveChildAndRuntimeCwdPopulationAbsent": true,
+    "otherCommandGroups": "Reviewed controller finally verifies group absence; individual command PIDs were not serialized. Root independently checks exclusive child/runtime process population."
+  },
+  "publication": false,
+  "deployment": false,
+  "productCause": "not established",
+  "next": "Complete current T39 observation/probe controls; separately correct the later search observation boundary under unchanged5000ms and exact membership checks; all15/full207 release remain required."
+}
