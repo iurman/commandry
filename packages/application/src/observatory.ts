@@ -680,7 +680,74 @@ function operationalEvidenceItems(
             payload = {
               repository: snapshot.repository,
               readAt: snapshot.readAt,
-              pullRequests: snapshot.pullRequests,
+              pullRequests: {
+                ...snapshot.pullRequests,
+                items: snapshot.pullRequests.items.map((pull) => {
+                  if (query.includePullRequestChecks !== true) {
+                    const {
+                      id,
+                      number,
+                      title,
+                      draft,
+                      updatedAt,
+                      baseRef,
+                      headRef,
+                      author,
+                      url,
+                    } = pull;
+                    return {
+                      id,
+                      number,
+                      title,
+                      draft,
+                      updatedAt,
+                      baseRef,
+                      headRef,
+                      author,
+                      url,
+                    };
+                  }
+                  return {
+                    ...pull,
+                    ...(pull.checkRuns
+                      ? {
+                          checkRuns: {
+                            ...pull.checkRuns,
+                            items: pull.checkRuns.items.map((check) => {
+                              const at = check.completedAt ?? check.startedAt;
+                              return {
+                                ...check,
+                                freshness:
+                                  at === null
+                                    ? ("unknown" as const)
+                                    : observatoryFreshness(
+                                        at,
+                                        row.freshnessSeconds * 1000,
+                                        input.now,
+                                      ),
+                              };
+                            }),
+                          },
+                        }
+                      : {}),
+                    ...(pull.statuses
+                      ? {
+                          statuses: {
+                            ...pull.statuses,
+                            items: pull.statuses.items.map((status) => ({
+                              ...status,
+                              freshness: observatoryFreshness(
+                                status.updatedAt,
+                                row.freshnessSeconds * 1000,
+                                input.now,
+                              ),
+                            })),
+                          },
+                        }
+                      : {}),
+                  };
+                }),
+              },
             };
             observedAt = latest(
               snapshot.pullRequests.items.map((item) => item.updatedAt),

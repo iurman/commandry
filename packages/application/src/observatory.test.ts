@@ -841,6 +841,554 @@ function operationalFixture() {
   return { ...f, serviceId, repositoryId, rows, auxiliary };
 }
 
+// Frozen pre-CI strict public reader, independent of the live PR schema and keys.
+const legacyPullRequestPayload = (() => {
+  const require = (valid: boolean) => {
+    if (!valid) throw new Error("Invalid legacy strict PR payload");
+  };
+  const object = (value: unknown, keys: readonly string[]) => {
+    require(
+      value !== null && typeof value === "object" && !Array.isArray(value),
+    );
+    const row = value as Record<string, unknown>;
+    require(Object.keys(row).sort().join(",") === [...keys].sort().join(","));
+    return row;
+  };
+  const text = (value: unknown, maximum: number, minimum = 1) =>
+    typeof value === "string" &&
+    value.length >= minimum &&
+    value.length <= maximum;
+  const number = (value: unknown) =>
+    typeof value === "number" && Number.isSafeInteger(value) && value > 0;
+  const date = (value: unknown) =>
+    typeof value === "string" &&
+    /^\d{4}-\d\d-\d\dT\d\d:\d\d:\d\d(?:\.\d+)?(?:Z|[+-]\d\d:\d\d)$/.test(
+      value,
+    ) &&
+    Number.isFinite(Date.parse(value));
+  const link = (value: unknown) => {
+    if (typeof value !== "string") return false;
+    try {
+      const url = new URL(value);
+      return (
+        url.origin === "https://github.com" &&
+        !url.username &&
+        !url.password &&
+        !url.hash
+      );
+    } catch {
+      return false;
+    }
+  };
+  const states = Object.freeze([
+    "available",
+    "inaccessible",
+    "unavailable",
+    "disabled_or_not_found",
+    "unsupported",
+  ]);
+  const errors = Object.freeze([
+    "OPERATIONAL_INVALID_RESPONSE",
+    "OPERATIONAL_UNSUPPORTED_SOURCE",
+    "OPERATIONAL_UNAUTHORIZED",
+    "OPERATIONAL_NOT_FOUND",
+    "OPERATIONAL_RATE_LIMITED",
+    "OPERATIONAL_TIMEOUT",
+    "OPERATIONAL_RESPONSE_TOO_LARGE",
+    "OPERATIONAL_UNAVAILABLE",
+  ]);
+  const parse = (value: unknown) => {
+    const payload = object(value, ["repository", "readAt", "pullRequests"]),
+      repository = object(payload.repository, ["owner", "name", "url"]),
+      component = object(payload.pullRequests, [
+        "state",
+        "readAt",
+        "complete",
+        "items",
+        "errorCode",
+        "retrySeconds",
+      ]);
+    require(
+      typeof repository.owner === "string" &&
+        /^[a-zA-Z0-9](?:[a-zA-Z0-9-]{0,37}[a-zA-Z0-9])?$/.test(
+          repository.owner,
+        ) &&
+        !repository.owner.includes("--"),
+    );
+    require(
+      typeof repository.name === "string" &&
+        /^[a-zA-Z0-9_.-]{1,100}$/.test(repository.name) &&
+        repository.name !== "." &&
+        repository.name !== "..",
+    );
+    const root =
+      "https://github.com/" + repository.owner + "/" + repository.name;
+    require(link(repository.url) && repository.url === root);
+    require(date(payload.readAt) && date(component.readAt));
+    require(
+      Date.parse(String(component.readAt)) <=
+        Date.parse(String(payload.readAt)),
+    );
+    require(
+      typeof component.state === "string" && states.includes(component.state),
+    );
+    require(
+      typeof component.complete === "boolean" && Array.isArray(component.items),
+    );
+    require(
+      component.errorCode === null ||
+        (typeof component.errorCode === "string" &&
+          errors.includes(component.errorCode)),
+    );
+    require(
+      component.retrySeconds === null ||
+        (typeof component.retrySeconds === "number" &&
+          Number.isInteger(component.retrySeconds) &&
+          component.retrySeconds >= 30 &&
+          component.retrySeconds <= 86400),
+    );
+    const items = component.items as unknown[],
+      available = component.state === "available";
+    require(component.complete === available);
+    require(
+      available
+        ? component.errorCode === null && component.retrySeconds === null
+        : component.errorCode !== null &&
+            component.retrySeconds !== null &&
+            items.length === 0,
+    );
+    if (component.state === "inaccessible")
+      require(component.errorCode === "OPERATIONAL_UNAUTHORIZED");
+    if (component.state === "disabled_or_not_found")
+      require(component.errorCode === "OPERATIONAL_NOT_FOUND");
+    if (component.state === "unsupported")
+      require(component.errorCode === "OPERATIONAL_UNSUPPORTED_SOURCE");
+    if (component.state === "unavailable")
+      require(
+        ![
+          "OPERATIONAL_UNAUTHORIZED",
+          "OPERATIONAL_NOT_FOUND",
+          "OPERATIONAL_UNSUPPORTED_SOURCE",
+        ].includes(String(component.errorCode)),
+      );
+    const ids = new Set<unknown>(),
+      numbers = new Set<unknown>();
+    for (const raw of items) {
+      const item = object(raw, [
+        "id",
+        "number",
+        "title",
+        "draft",
+        "updatedAt",
+        "baseRef",
+        "headRef",
+        "author",
+        "url",
+      ]);
+      require(
+        number(item.id) &&
+          number(item.number) &&
+          !ids.has(item.id) &&
+          !numbers.has(item.number),
+      );
+      require(
+        text(item.title, 10000, 0) &&
+          typeof item.draft === "boolean" &&
+          date(item.updatedAt),
+      );
+      require(
+        text(item.baseRef, 1000) &&
+          text(item.headRef, 1000) &&
+          (item.author === null || text(item.author, 100)),
+      );
+      require(link(item.url) && item.url === root + "/pull/" + item.number);
+      ids.add(item.id);
+      numbers.add(item.number);
+    }
+    return value;
+  };
+  return Object.freeze({
+    parse,
+    safeParse: (value: unknown) => {
+      try {
+        parse(value);
+        return { success: true };
+      } catch {
+        return { success: false };
+      }
+    },
+  });
+})();
+
+function repositoryChecksSnapshot() {
+  const snapshot = repositorySnapshot(),
+    repository = snapshot.repository,
+    first = repository.pullRequests.items[0]!,
+    headSha = "a".repeat(40),
+    root = repository.repository.url,
+    component = {
+      state: "available",
+      readAt: repository.readAt,
+      complete: true,
+      errorCode: null,
+      retrySeconds: null,
+      headSha,
+    };
+  const checks = Array.from({ length: 137 }, (_, index) => ({
+    id: index + 1,
+    headSha,
+    name: "Exact head check " + index,
+    status: "completed",
+    conclusion: index === 0 ? "failure" : "success",
+    startedAt: "2026-10-16T11:59:59.000Z",
+    completedAt: observationAt,
+    freshness: "fresh",
+    url: root + "/runs/" + (index + 1),
+  }));
+  const statuses = Array.from({ length: 137 }, (_, index) => ({
+    id: index + 1,
+    context: "Exact head status " + index,
+    state: index === 0 ? "failure" : "success",
+    createdAt: observationAt,
+    updatedAt: observationAt,
+    freshness: "fresh",
+    url: root + "/commit/" + headSha,
+  }));
+  repository.pullRequests.items = Array.from({ length: 137 }, (_, index) => ({
+    ...first,
+    id: index + 1,
+    number: index + 1,
+    url: root + "/pull/" + (index + 1),
+  }));
+  Object.assign(repository.pullRequests.items[0]!, {
+    headSha,
+    requiredCheckCoverage: "unknown",
+    checkRuns: {
+      ...component,
+      items: [
+        ...checks,
+        {
+          ...checks[0]!,
+          id: 138,
+          status: "queued",
+          conclusion: null,
+          startedAt: null,
+          completedAt: null,
+          freshness: "unknown",
+          url: root + "/runs/138",
+        },
+        {
+          ...checks[0]!,
+          id: 139,
+          startedAt: "2026-10-16T12:20:00.000Z",
+          completedAt: "2026-10-16T12:20:01.000Z",
+          freshness: "future",
+          url: root + "/runs/139",
+        },
+        {
+          ...checks[0]!,
+          id: 140,
+          status: "in_progress",
+          conclusion: null,
+          startedAt: observationAt,
+          completedAt: null,
+          url: root + "/runs/140",
+        },
+      ],
+    },
+    statuses: {
+      ...component,
+      items: [
+        ...statuses,
+        {
+          ...statuses[0]!,
+          id: 138,
+          state: "pending",
+          createdAt: "2026-10-16T12:20:00.000Z",
+          updatedAt: "2026-10-16T12:20:01.000Z",
+          freshness: "future",
+        },
+      ],
+    },
+  });
+  Object.assign(repository.pullRequests.items[1]!, {
+    headSha: null,
+    requiredCheckCoverage: "unknown",
+    checkRuns: {
+      ...component,
+      headSha: null,
+      state: "unsupported",
+      complete: false,
+      items: [],
+      errorCode: "OPERATIONAL_UNSUPPORTED_SOURCE",
+      retrySeconds: 60,
+    },
+    statuses: {
+      ...component,
+      headSha: null,
+      state: "unavailable",
+      complete: false,
+      items: [],
+      errorCode: "OPERATIONAL_TIMEOUT",
+      retrySeconds: 60,
+    },
+  });
+  Object.assign(repository.pullRequests.items[2]!, {
+    headSha,
+    requiredCheckCoverage: "unknown",
+    checkRuns: { ...component, items: [] },
+    statuses: { ...component, items: [] },
+  });
+  return {
+    ...snapshot,
+    repository: observatoryRepositoryEvidenceSchema.parse(repository),
+  };
+}
+
+describe("compatible opt-in current-head PR evidence", () => {
+  it.each(["legacy", "null", "empty", "failed"])(
+    "keeps retained %s source details readable under either contract",
+    async (mode) => {
+      const f = operationalFixture(),
+        snapshot = repositorySnapshot();
+      if (mode === "failed")
+        Object.assign(snapshot.repository.pullRequests, {
+          state: "inaccessible",
+          complete: false,
+          items: [],
+          errorCode: "OPERATIONAL_UNAUTHORIZED",
+          retrySeconds: 60,
+        });
+      const details = mode === "null" ? null : mode === "empty" ? {} : snapshot;
+      const before = structuredClone(details);
+      f.rows.push(sourceRecord(f.repositoryId, "github-repository", details));
+      const query = { resourceId: f.repositoryId, facet: "pull_requests" };
+      const original = await f.service.operationalEvidence("old-stored", query);
+      for (const includePullRequestChecks of [false, true]) {
+        const result = await f.service.operationalEvidence(
+          "negotiated-old-stored",
+          { ...query, includePullRequestChecks },
+        );
+        expect(result).toEqual(original);
+        if (mode === "null" || mode === "empty")
+          expect(result.items[0]?.payload).toBeNull();
+        else
+          expect(
+            legacyPullRequestPayload.parse(result.items[0]?.payload),
+          ).toEqual({
+            repository: snapshot.repository.repository,
+            readAt: snapshot.repository.readAt,
+            pullRequests: snapshot.repository.pullRequests,
+          });
+      }
+      expect(details).toEqual(before);
+    },
+  );
+
+  it.each([false, true])(
+    "keeps grant, subject restriction and revocation boundaries with includePullRequestChecks=%s",
+    async (includePullRequestChecks) => {
+      const f = operationalFixture();
+      f.rows.push(
+        sourceRecord(
+          f.repositoryId,
+          "github-repository",
+          repositoryChecksSnapshot(),
+        ),
+      );
+      const query = {
+        projectId,
+        resourceId: f.repositoryId,
+        facet: "pull_requests",
+        includePullRequestChecks,
+      };
+      f.scoped([projectId], ["observatory.read", "observatory.security.read"]);
+      await expect(
+        f.service.operationalEvidence("no-work-grant", query),
+      ).rejects.toMatchObject({ code: "FORBIDDEN" });
+      expect(f.auxiliary).not.toHaveBeenCalled();
+      f.scoped([projectId], ["observatory.read", "work.read"], [f.serviceId]);
+      await expect(
+        f.service.operationalEvidence("hidden-subject", query),
+      ).rejects.toMatchObject({ code: "INVALID_REFERENCE" });
+      expect(f.auxiliary).not.toHaveBeenCalled();
+      f.scoped([projectId], ["observatory.read", "work.read"]);
+      f.state.afterError = new FoundationError("REVOKED");
+      await expect(
+        f.service.operationalEvidence("revoked-before-delivery", query),
+      ).rejects.toMatchObject({ code: "REVOKED" });
+      expect(f.auxiliary).toHaveBeenCalledTimes(1);
+    },
+  );
+
+  it("preserves the immutable old strict payload by default and false while true retains complete CI", async () => {
+    const f = operationalFixture(),
+      snapshot = repositoryChecksSnapshot(),
+      before = structuredClone(snapshot);
+    f.state.now = "2026-10-16T12:00:15.000Z";
+    f.rows.push(sourceRecord(f.repositoryId, "github-repository", snapshot));
+    const query = { resourceId: f.repositoryId, facet: "pull_requests" };
+    const canonicalPayload = {
+      repository: snapshot.repository.repository,
+      readAt: snapshot.repository.readAt,
+      pullRequests: snapshot.repository.pullRequests,
+    };
+    expect(legacyPullRequestPayload.safeParse(canonicalPayload).success).toBe(
+      false,
+    );
+    const omitted = await f.service.operationalEvidence("old-default", query);
+    const expected = {
+      ...canonicalPayload,
+      pullRequests: {
+        ...canonicalPayload.pullRequests,
+        items: canonicalPayload.pullRequests.items.map(
+          ({
+            id,
+            number,
+            title,
+            draft,
+            updatedAt,
+            baseRef,
+            headRef,
+            author,
+            url,
+          }) => ({
+            id,
+            number,
+            title,
+            draft,
+            updatedAt,
+            baseRef,
+            headRef,
+            author,
+            url,
+          }),
+        ),
+      },
+    };
+    expect(legacyPullRequestPayload.parse(omitted.items[0]?.payload)).toEqual(
+      expected,
+    );
+    const explicitFalse = await f.service.operationalEvidence("old-false", {
+      ...query,
+      includePullRequestChecks: false,
+    });
+    expect(explicitFalse).toEqual(omitted);
+    expect(
+      legacyPullRequestPayload.parse(explicitFalse.items[0]?.payload),
+    ).toEqual(expected);
+    const explicitTrue = await f.service.operationalEvidence("new-true", {
+      ...query,
+      includePullRequestChecks: true,
+    });
+    expect(explicitTrue.items[0]?.payload).toEqual(canonicalPayload);
+    expect(explicitTrue.items[0]).toMatchObject({
+      observedAt: firstPullDate(snapshot),
+      freshness: "stale",
+    });
+    expect(explicitTrue.items[0]?.payload).not.toHaveProperty("security");
+    expect(explicitTrue.items[0]?.payload).not.toHaveProperty("availability");
+    expect(explicitTrue.schemaVersion).toBe(1);
+    expect(snapshot).toEqual(before);
+  });
+
+  it("ages every retained check and status from original times without a new source poll", async () => {
+    const f = operationalFixture(),
+      snapshot = repositoryChecksSnapshot(),
+      before = structuredClone(snapshot);
+    const row = sourceRecord(f.repositoryId, "github-repository", snapshot);
+    row.freshnessSeconds = 60;
+    f.rows.push(row);
+    f.state.now = "2026-10-16T12:00:15.000Z";
+    const query = {
+      resourceId: f.repositoryId,
+      facet: "pull_requests",
+      includePullRequestChecks: true,
+    };
+    const first = await f.service.operationalEvidence("initial", query);
+    expect(first.facet).toBe("pull_requests");
+    f.state.now = "2026-10-16T12:01:01.000Z";
+    const expired = await f.service.operationalEvidence(
+      "same-snapshot-later-clock",
+      query,
+    );
+    if (first.facet !== "pull_requests" || expired.facet !== "pull_requests")
+      throw new Error("Expected PR evidence");
+    const initial = first.items[0]!.payload!,
+      later = expired.items[0]!.payload!,
+      pull = later.pullRequests.items[0]!;
+    expect(initial.pullRequests.items[0]!.checkRuns!.items[0]!.freshness).toBe(
+      "fresh",
+    );
+    expect(initial.pullRequests.items[0]!.statuses!.items[0]!.freshness).toBe(
+      "fresh",
+    );
+    expect(
+      pull.checkRuns!.items.slice(0, 137).map((item) => item.freshness),
+    ).toEqual(Array(137).fill("stale"));
+    expect(
+      pull.statuses!.items.slice(0, 137).map((item) => item.freshness),
+    ).toEqual(Array(137).fill("stale"));
+    expect(pull.checkRuns!.items[137]).toMatchObject({
+      status: "queued",
+      startedAt: null,
+      completedAt: null,
+      freshness: "unknown",
+    });
+    expect(pull.checkRuns!.items[138]).toMatchObject({ freshness: "future" });
+    expect(pull.checkRuns!.items[139]).toMatchObject({
+      status: "in_progress",
+      startedAt: observationAt,
+      completedAt: null,
+      freshness: "stale",
+    });
+    expect(pull.statuses!.items[137]).toMatchObject({
+      state: "pending",
+      freshness: "future",
+    });
+    const expected = structuredClone(initial);
+    for (const item of expected.pullRequests.items) {
+      for (const check of item.checkRuns?.items ?? [])
+        if (check.freshness === "fresh") check.freshness = "stale";
+      for (const status of item.statuses?.items ?? [])
+        if (status.freshness === "fresh") status.freshness = "stale";
+    }
+    expect(later).toEqual(expected);
+    expect(later.pullRequests.items).toHaveLength(137);
+    expect(pull.checkRuns!.items).toHaveLength(140);
+    expect(pull.statuses!.items).toHaveLength(138);
+    expect(expired.items[0]).toEqual({ ...first.items[0], payload: expected });
+    expect(snapshot).toEqual(before);
+    expect(f.auxiliary).toHaveBeenCalledTimes(2);
+    const security = await f.service.operationalEvidence(
+      "independent-security",
+      { resourceId: f.repositoryId, facet: "security" },
+    );
+    expect(security.items[0]).toMatchObject({
+      observedAt: observationAt,
+      payload: {
+        readAt: snapshot.repository.readAt,
+        security: {
+          codeScanning: {
+            analyses: {
+              readAt: snapshot.repository.readAt,
+              items: [
+                { createdAt: "2026-10-16T11:00:00.000Z", freshness: "stale" },
+              ],
+            },
+          },
+        },
+      },
+    });
+    expect(security.items[0]?.payload).not.toHaveProperty("pullRequests");
+    expect(snapshot).toEqual(before);
+  });
+});
+
+function firstPullDate(snapshot: ReturnType<typeof repositoryChecksSnapshot>) {
+  return snapshot.repository.pullRequests.items[0]!.updatedAt;
+}
+
 describe("fixed readiness evidence", () => {
   it("uses the same availability facet with explicit direct-check identity and preserves expiry", async () => {
     const f = operationalFixture();

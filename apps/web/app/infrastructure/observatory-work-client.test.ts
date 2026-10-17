@@ -578,6 +578,7 @@ async function loadSelectionCoordinator() {
     events: [],
   };
   let sceneReads = 0;
+  const evidenceRequests: Record<string, unknown>[] = [];
   vi.stubGlobal(
     "fetch",
     vi.fn(async (path: RequestInfo | URL, init?: RequestInit) => {
@@ -592,11 +593,15 @@ async function loadSelectionCoordinator() {
           scene: projectObservatory({
             ...input,
             ...JSON.parse(String(init?.body)),
+            now: new Date(
+              Date.parse(input.now) + sceneReads * 1000,
+            ).toISOString(),
           }),
         });
       }
       if (url === "/api/v1/infrastructure/observatory/operational") {
         const query = JSON.parse(String(init?.body));
+        evidenceRequests.push(query);
         return Response.json({
           schemaVersion: 1,
           scopeDigest: initialScene.scopeDigest,
@@ -613,8 +618,48 @@ async function loadSelectionCoordinator() {
   );
   const view = render(createElement(InfrastructureOverviewScreen));
   await waitFor(() => expect(coordinatorRenderer.hooks).not.toBeNull());
-  return { view, hosts, reads: () => sceneReads };
+  return { view, hosts, evidenceRequests, reads: () => sceneReads };
 }
+it("opts in only PR evidence through the actual owner coordinator and preserves the request on refresh", async () => {
+  const { hosts, evidenceRequests, reads } = await loadSelectionCoordinator();
+  const first = hosts[0]!;
+  fireEvent.click(screen.getByRole("button", { name: first.label + ":" }));
+  await waitFor(() => expect(evidenceRequests).toHaveLength(1));
+  const base = {
+    grouping: "operational",
+    environment: null,
+    expandedRepresentationIds: [],
+    search: "",
+    sectors: [],
+    viewRevision: "1",
+    resourceId: first.resourceId,
+  };
+  expect(evidenceRequests[0]).toEqual({ ...base, facet: "availability" });
+  fireEvent.change(screen.getByRole("combobox", { name: "Evidence facet" }), {
+    target: { value: "pull_requests" },
+  });
+  await waitFor(() => expect(evidenceRequests).toHaveLength(2));
+  expect(evidenceRequests[1]).toEqual({
+    ...base,
+    facet: "pull_requests",
+    includePullRequestChecks: true,
+  });
+  fireEvent.change(screen.getByRole("combobox", { name: "Evidence facet" }), {
+    target: { value: "security" },
+  });
+  await waitFor(() => expect(evidenceRequests).toHaveLength(3));
+  expect(evidenceRequests[2]).toEqual({ ...base, facet: "security" });
+  fireEvent.change(screen.getByRole("combobox", { name: "Evidence facet" }), {
+    target: { value: "pull_requests" },
+  });
+  await waitFor(() => expect(evidenceRequests).toHaveLength(4));
+  const previousReads = reads();
+  fireEvent.click(screen.getByRole("button", { name: "Refresh now" }));
+  await waitFor(() => expect(reads()).toBeGreaterThan(previousReads));
+  await waitFor(() => expect(evidenceRequests).toHaveLength(5));
+  expect(evidenceRequests[4]).toEqual(evidenceRequests[1]);
+  expect(coordinatorRenderer.settings?.selected).toBe(first.id);
+});
 describe("explicit selection intent through the actual infrastructure coordinator", () => {
   it("honors repeated outer same-ID clicks after automatic tour features and keeps refresh from creating an intent", async () => {
     const { hosts, reads } = await loadSelectionCoordinator(),
