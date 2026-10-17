@@ -157,9 +157,12 @@ export default function InfrastructureOverviewScreen({
           ...(scope.projectId ? { projectId: scope.projectId } : {}),
           resourceId,
           facet,
+          ...(facet === "pull_requests"
+            ? { includePullRequestChecks: true }
+            : {}),
         }),
       }),
-    [sceneQuery, scope.projectId],
+    [sceneQuery, scope.projectId, epoch],
   );
   const providerFeedClient = useMemo(
     () =>

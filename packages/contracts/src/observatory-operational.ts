@@ -21,10 +21,21 @@ export const observatoryOperationalFacetSchema = z.enum([
   "security",
 ]);
 export const observatoryOperationalEvidenceQuerySchema =
-  observatorySceneQuerySchema.extend({
-    resourceId: identity,
-    facet: observatoryOperationalFacetSchema,
-  });
+  observatorySceneQuerySchema
+    .extend({
+      resourceId: identity,
+      facet: observatoryOperationalFacetSchema,
+      includePullRequestChecks: z.boolean().optional(),
+    })
+    .refine(
+      (query) =>
+        query.includePullRequestChecks !== true ||
+        query.facet === "pull_requests",
+      {
+        path: ["includePullRequestChecks"],
+        message: "Pull request checks require the pull_requests facet",
+      },
+    );
 const errorCode = z.enum([
   "OPERATIONAL_INVALID_CLAIM",
   "OPERATIONAL_INVALID_OBSERVATION",

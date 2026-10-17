@@ -108,6 +108,38 @@ function result() {
 }
 
 describe("strict operational evidence queries and derived payloads", () => {
+  it("preserves old query inputs and accepts only an explicit boolean PR check opt-in", () => {
+    for (const facet of ["availability", "pull_requests", "security"]) {
+      const original = observatoryOperationalEvidenceQuerySchema.parse({
+        resourceId,
+        facet,
+      });
+      expect(original).not.toHaveProperty("includePullRequestChecks");
+      expect(original.schemaVersion).toBe(1);
+      expect(
+        observatoryOperationalEvidenceQuerySchema.parse({
+          resourceId,
+          facet,
+          includePullRequestChecks: false,
+        }),
+      ).toEqual({ ...original, includePullRequestChecks: false });
+      expect(
+        observatoryOperationalEvidenceQuerySchema.safeParse({
+          resourceId,
+          facet,
+          includePullRequestChecks: true,
+        }).success,
+      ).toBe(facet === "pull_requests");
+    }
+    for (const includePullRequestChecks of ["true", 1, null, {}, []])
+      expect(
+        observatoryOperationalEvidenceQuerySchema.safeParse({
+          resourceId,
+          facet: "pull_requests",
+          includePullRequestChecks,
+        }).success,
+      ).toBe(false);
+  });
   it("requires the canonical project UUID on both adapter records and public source items", () => {
     const { projectId: _projectId, ...missingProject } = source();
     expect(
