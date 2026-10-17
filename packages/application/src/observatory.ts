@@ -45,7 +45,7 @@ import {
   observatoryOperationalRepositoryDetailsSchema,
   observatoryOperationalSourceRecordSchema,
   type ObservatoryOperationalEvidenceQuery,
-} from "../../contracts/src/observatory-operational";
+} from "@commandry/contracts";
 
 /** Server-established scope, never public request JSON or a new credential system. */
 export interface ObservatoryReadAccess {
