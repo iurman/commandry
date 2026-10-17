@@ -73,7 +73,8 @@ No material, product-control, field-membership, canonical-data, transport, provi
     "packages/ui/src/gravity/model.ts",
     "packages/ui/src/gravity/materials.ts",
     "packages/ui/src/gravity/presentation.ts",
-    "packages/ui/src/gravity/presentation.test.ts"
+    "packages/ui/src/gravity/presentation.test.ts",
+    "tests/e2e/gravity-field-gpu.spec.ts"
   ],
   "write_files": [
     "packages/ui/src/gravity/renderer.ts",
