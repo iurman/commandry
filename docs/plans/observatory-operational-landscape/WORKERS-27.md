@@ -2,15 +2,15 @@
 
 ## Goal
 
-Restore actual MCP registration and preserve strict scoped PR check opt-in validation.
+Restore compiled owner and MCP compatibility after shared Observatory changes.
 
 ## Non-goals
 
-No source, storage, adapter, credential, grant, UI, freshness or original evidence changes. No test assertion weakening or authority expansion.
+No source, storage, adapter, credential, grant, freshness or original evidence changes. No test assertion weakening, UX change or authority expansion.
 
 ## Base
 
-- branch: loop/operational-mcp-query-derivation/T31
+- branch: loop/operational-mcp-query-derivation-correction/T31
 - check command: PATH=/home/urmani/.local/share/pnpm/.tools/pnpm/11.19.0/bin:/home/urmani/.cache/codex-runtimes/codex-primary-runtime/dependencies/node/bin:$PATH pnpm exec vitest run --config vitest.config.mts packages/contracts/src/observatory-operational.test.ts
 - probes: none (local shared contract and SDK boundary)
 
@@ -27,11 +27,11 @@ The full candidate suite retains3actual SDK failures and2886passing tests. Direc
 ```json
 {
   "task_id": "T31",
-  "title": "Derive strict operational MCP input before shared cross-field validation",
-  "goal": "Restore actual MCP registration and preserve strict scoped PR check opt-in validation.",
+  "title": "Restore owner web compilation and strict operational MCP input",
+  "goal": "Restore compiled owner and MCP compatibility after shared Observatory changes.",
   "brief": {
-    "change": "Derive project-free tool input without omitting a refined Zod object",
-    "check": "PATH=/home/urmani/.local/share/pnpm/.tools/pnpm/11.19.0/bin:/home/urmani/.cache/codex-runtimes/codex-primary-runtime/dependencies/node/bin:$PATH pnpm exec vitest run --config vitest.config.mts packages/contracts/src/observatory-operational.test.ts packages/application/src/observatory.test.ts apps/web/app/infrastructure/observatory-work-client.test.ts packages/ui/src/components/ObservatoryOperationalEvidence.test.tsx apps/web/lib/observatory-mcp.test.ts"
+    "change": "Derive strict tool inputs before refinement and retain compatible reverse history lookup",
+    "check": "PATH=/home/urmani/.local/share/pnpm/.tools/pnpm/11.19.0/bin:/home/urmani/.cache/codex-runtimes/codex-primary-runtime/dependencies/node/bin:$PATH pnpm exec vitest run --config vitest.config.mts packages/contracts/src/observatory-operational.test.ts packages/application/src/observatory.test.ts apps/web/app/infrastructure/observatory-work-client.test.ts packages/ui/src/components/ObservatoryOperationalEvidence.test.tsx apps/web/lib/observatory-mcp.test.ts packages/ui/src/gravity/operational-layout.test.ts packages/ui/src/gravity/renderer-pressure.test.ts"
   },
   "seed_files": [
     "AGENTS.md",
@@ -78,36 +78,38 @@ The full candidate suite retains3actual SDK failures and2886passing tests. Direc
     "apps/web/lib/foundation-mcp.ts",
     "apps/web/lib/observatory-mcp.ts",
     "apps/web/lib/observatory-mcp.test.ts",
-    "packages/application/src/observatory.test.ts"
+    "packages/application/src/observatory.test.ts",
+    "packages/ui/src/gravity/operational-layout.test.ts",
+    "packages/ui/src/gravity/renderer-pressure.test.ts"
   ],
   "write_files": [
     "packages/contracts/src/observatory-operational.ts",
     "packages/contracts/src/observatory-operational.test.ts",
     "apps/web/lib/foundation-mcp.ts",
-    "apps/web/lib/observatory-mcp.test.ts"
+    "apps/web/lib/observatory-mcp.test.ts",
+    "packages/ui/src/components/OperationalObservatory.tsx"
   ],
   "create_files": [],
   "forbidden": [
     "packages/db",
     "packages/platform",
     "packages/domain",
-    "packages/application",
-    "packages/ui"
+    "packages/application"
   ],
   "acceptance": [
     {
       "id": "A1",
       "kind": "command",
-      "run": "PATH=/home/urmani/.local/share/pnpm/.tools/pnpm/11.19.0/bin:/home/urmani/.cache/codex-runtimes/codex-primary-runtime/dependencies/node/bin:$PATH pnpm exec vitest run --config vitest.config.mts packages/contracts/src/observatory-operational.test.ts packages/application/src/observatory.test.ts apps/web/app/infrastructure/observatory-work-client.test.ts packages/ui/src/components/ObservatoryOperationalEvidence.test.tsx apps/web/lib/observatory-mcp.test.ts",
+      "run": "PATH=/home/urmani/.local/share/pnpm/.tools/pnpm/11.19.0/bin:/home/urmani/.cache/codex-runtimes/codex-primary-runtime/dependencies/node/bin:$PATH pnpm exec vitest run --config vitest.config.mts packages/contracts/src/observatory-operational.test.ts packages/application/src/observatory.test.ts apps/web/app/infrastructure/observatory-work-client.test.ts packages/ui/src/components/ObservatoryOperationalEvidence.test.tsx apps/web/lib/observatory-mcp.test.ts packages/ui/src/gravity/operational-layout.test.ts packages/ui/src/gravity/renderer-pressure.test.ts",
       "expect": {
         "exit": 0
       },
-      "covers": "Actual SDK registration/discovery and strict no-project tool opt-in, unchanged old/default/current-age/authority/recovery controls"
+      "covers": "Actual SDK registration/discovery and strict no-project tool opt-in, unchanged old/default/current-age/authority/recovery controls; unchanged breadcrumb, tour, renderer and camera controls"
     },
     {
       "id": "A2",
       "kind": "command",
-      "run": "PATH=/home/urmani/.local/share/pnpm/.tools/pnpm/11.19.0/bin:/home/urmani/.cache/codex-runtimes/codex-primary-runtime/dependencies/node/bin:$PATH pnpm --filter @commandry/contracts --filter @commandry/web typecheck",
+      "run": "PATH=/home/urmani/.local/share/pnpm/.tools/pnpm/11.19.0/bin:/home/urmani/.cache/codex-runtimes/codex-primary-runtime/dependencies/node/bin:$PATH pnpm --filter @commandry/contracts --filter @commandry/ui --filter @commandry/web typecheck",
       "expect": {
         "exit": 0
       },
@@ -116,7 +118,7 @@ The full candidate suite retains3actual SDK failures and2886passing tests. Direc
     {
       "id": "A3",
       "kind": "command",
-      "run": "PATH=/home/urmani/.local/share/pnpm/.tools/pnpm/11.19.0/bin:/home/urmani/.cache/codex-runtimes/codex-primary-runtime/dependencies/node/bin:$PATH pnpm exec prettier --check packages/contracts/src/observatory-operational.ts packages/contracts/src/observatory-operational.test.ts apps/web/lib/foundation-mcp.ts apps/web/lib/observatory-mcp.test.ts",
+      "run": "PATH=/home/urmani/.local/share/pnpm/.tools/pnpm/11.19.0/bin:/home/urmani/.cache/codex-runtimes/codex-primary-runtime/dependencies/node/bin:$PATH pnpm exec prettier --check packages/contracts/src/observatory-operational.ts packages/contracts/src/observatory-operational.test.ts apps/web/lib/foundation-mcp.ts apps/web/lib/observatory-mcp.test.ts packages/ui/src/components/OperationalObservatory.tsx",
       "expect": {
         "exit": 0
       },
@@ -125,7 +127,7 @@ The full candidate suite retains3actual SDK failures and2886passing tests. Direc
     {
       "id": "A4",
       "kind": "command",
-      "run": "PATH=/home/urmani/.local/share/pnpm/.tools/pnpm/11.19.0/bin:/home/urmani/.cache/codex-runtimes/codex-primary-runtime/dependencies/node/bin:$PATH pnpm exec eslint packages/contracts/src/observatory-operational.ts packages/contracts/src/observatory-operational.test.ts apps/web/lib/foundation-mcp.ts apps/web/lib/observatory-mcp.test.ts",
+      "run": "PATH=/home/urmani/.local/share/pnpm/.tools/pnpm/11.19.0/bin:/home/urmani/.cache/codex-runtimes/codex-primary-runtime/dependencies/node/bin:$PATH pnpm exec eslint packages/contracts/src/observatory-operational.ts packages/contracts/src/observatory-operational.test.ts apps/web/lib/foundation-mcp.ts apps/web/lib/observatory-mcp.test.ts packages/ui/src/components/OperationalObservatory.tsx",
       "expect": {
         "exit": 0
       },
@@ -133,7 +135,7 @@ The full candidate suite retains3actual SDK failures and2886passing tests. Direc
     }
   ],
   "depends_on": [],
-  "size": "S",
+  "size": "M",
   "model": "gpt-6.1-sol"
 }
 ```
@@ -144,8 +146,8 @@ T31
 
 ## Risks
 
-The SDK derives project-free tool input by omitting projectId from a refined owner Zod object, which is unsupported and prevents server initialization. Preserve one shared cross-field rule and strict shape, derive the tool input before object refinement, and keep actor project authority server supplied. Root owns generated OpenAPI validation, final full-suite/build and actual protocol. No source writes outside the four paths.
+The SDK derives project-free tool input by omitting projectId from a refined owner Zod object, which is unsupported and prevents server initialization. Preserve one shared cross-field rule and strict shape, derive the tool input before object refinement, and keep actor project authority server supplied. Root owns generated OpenAPI validation, final full-suite/build and actual protocol. The root web compilation also caught the T27 reverse history lookup using findLastIndex, outside the accepted web TypeScript library. Replace only that lookup with equivalent supported reverse iteration, preserving all saved-pose/current-tour semantics and existing tests. Do not change the compiler target. No source writes outside the five paths.
 
 ## Escalation answers
 
-Read T31.md and exact local context if supplied. You are not alone; all other source work is integrated/frozen. No search/install/commit/push. Root provisions normal frozen dependencies. Administrative reads of .agent/manifests/T31.json/CURRENT, scratch .agent/scratch/T31/ and python3 .agent/tools/review_packet.py build --manifest .agent/manifests/T31.json --repo . --base <actual immutable base> are authorized. Verify delivered never and Full Access. Retain exact original failing SDK assertions before correction, then add actual opt-in discovery and authorized/rejected owner/project fields/other-facet tests as appropriate. No registration bypass, duplicate divergent query validation or dropped constraint.
+Read T31.md and exact local context if supplied. You are not alone; all other source work is integrated/frozen. No search/install/commit/push. Root provisions normal frozen dependencies. Administrative reads of .agent/manifests/T31.json/CURRENT, scratch .agent/scratch/T31/ and python3 .agent/tools/review_packet.py build --manifest .agent/manifests/T31.json --repo . --base <actual immutable base> are authorized. Verify delivered never and Full Access. Retain exact original failing SDK assertions before correction, then add actual opt-in discovery and authorized/rejected owner/project fields/other-facet tests as appropriate. No registration bypass, duplicate divergent query validation or dropped constraint. The exact known web compilation failure is independent of MCP registration; preserve both causes and fixes in the report.
