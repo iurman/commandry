@@ -165,16 +165,19 @@ export const observatoryProviderNoticeSchema = z.strictObject({
   updateId: id,
   providerId: z.uuid(),
   componentIds: z.array(id),
-  product: id,
+  product: id.nullable(),
   environment: id.nullable(),
   geography: id.nullable(),
-  plane: z.enum(["control", "data"]),
-  severity: z.enum(["minor", "major", "critical"]),
-  status: z.enum(["open", "monitoring", "resolved", "maintenance"]),
+  plane: z.enum(["control", "data"]).nullable(),
+  severity: z.enum(["minor", "major", "critical", "unknown"]),
+  status: z.enum(["open", "monitoring", "resolved", "maintenance", "unknown"]),
   confidence: z.enum(["reported", "verified"]),
   sourceId: id,
   observedAt: timestamp,
   freshnessMs: z.number().positive().finite(),
+  feedState: z
+    .enum(["current", "stale", "unavailable", "disabled", "unknown"])
+    .optional(),
   evidenceRefs: evidence,
 });
 export const observatoryProviderExposureSchema = z
@@ -191,12 +194,21 @@ export const observatoryProviderExposureSchema = z
       "advisory",
       "relevance_unknown",
     ]),
-    severity: z.enum(["minor", "major", "critical"]),
+    severity: z.enum(["minor", "major", "critical", "unknown"]),
     confidence: z.enum(["reported", "verified"]),
     localImpact: z.enum(["confirmed", "unknown"]),
     causation: z.enum(["unknown", "suspected", "established"]),
     freshness: observatoryFreshnessSchema,
-    status: z.enum(["open", "monitoring", "resolved", "maintenance"]),
+    feedState: z
+      .enum(["current", "stale", "unavailable", "disabled", "unknown"])
+      .optional(),
+    status: z.enum([
+      "open",
+      "monitoring",
+      "resolved",
+      "maintenance",
+      "unknown",
+    ]),
     sourceId: id,
     observedAt: timestamp,
     evidenceRefs: evidence,
@@ -206,7 +218,8 @@ export const observatoryProviderExposureSchema = z
       value.classification === "potential_exposure" &&
       (value.relevance !== "matched" ||
         value.freshness !== "fresh" ||
-        !["open", "monitoring"].includes(value.status))
+        !["open", "monitoring"].includes(value.status) ||
+        (value.feedState !== undefined && value.feedState !== "current"))
     )
       context.addIssue({
         code: "custom",

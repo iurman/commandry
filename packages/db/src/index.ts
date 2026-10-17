@@ -87,3 +87,5 @@ export * from "./observatory-management-repository";
 export * from "./observatory-views-repository";
 
 export * from "./observatory-source-repository";
+
+export * from "./observatory-work-repository";

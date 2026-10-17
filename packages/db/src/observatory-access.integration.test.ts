@@ -18,6 +18,8 @@ import {
   createObservatoryOwnerReadRepository,
 } from "./observatory-read-repository";
 import { collectObservatoryRecords } from "./observatory-records";
+import { createObservatoryProviderRepository } from "./observatory-provider-repository";
+import { observatoryProviderFeed } from "./observatory-provider-schema";
 import { observatoryAnnotation, observatorySource } from "./observatory-schema";
 import { foundationAudit, foundationClient } from "./foundation-schema";
 import {
@@ -501,6 +503,157 @@ test(
           await assert.rejects(
             () => read.operationalEvidence(request(), query),
             denied("INVALID_REFERENCE"),
+          );
+        },
+      );
+      await t.test(
+        "reviewed provider joins retain all structured notices, unknown axes and failed-feed disclosure behind separate grants",
+        async () => {
+          const providerId = randomUUID(),
+            mappingId = randomUUID();
+          await admin.db
+            .insert(resource)
+            .values({
+              id: providerId,
+              kind: "provider",
+              name: "Cloudflare fixture",
+            });
+          await admin.db
+            .insert(projectResourceLink)
+            .values({
+              id: randomUUID(),
+              projectId,
+              resourceId: providerId,
+              type: "relates_to",
+              sourceKind: "project",
+              targetKind: "resource",
+              lifecycle: "active",
+            });
+          const repo = createObservatoryProviderRepository(runtime.db, {
+            now: () => now,
+            jitterSeconds: () => 0,
+          });
+          const claim = await repo.claim();
+          assert.ok(claim);
+          const notices = Array.from({ length: 137 }, (_, index) => ({
+            id: "fixture-notice-" + index,
+            kind: "incident" as const,
+            title: "Literal <script>untrusted</script>",
+            status: "investigating",
+            severity: "major",
+            componentIds: ["other", "workers"],
+            createdAt: now.toISOString(),
+            updatedAt: now.toISOString(),
+            resolvedAt: null,
+            scheduledFor: null,
+            scheduledUntil: null,
+            evidenceHref:
+              "https://www.cloudflarestatus.com/incidents/fixture-notice-" +
+              index,
+            updates: [
+              {
+                id: "update-" + index,
+                status: "investigating",
+                body: "Literal source text only",
+                occurredAt: now.toISOString(),
+              },
+            ],
+          }));
+          await repo.complete(claim, {
+            snapshot: {
+              provider: "cloudflare",
+              endpoint: "https://www.cloudflarestatus.com/api/v2/summary.json",
+              readAt: now.toISOString(),
+              reportedAt: now.toISOString(),
+              complete: true,
+              components: [
+                {
+                  id: "workers",
+                  name: "Workers fixture",
+                  status: "degraded_performance",
+                  groupId: null,
+                },
+              ],
+              notices,
+            },
+            notModified: false,
+            etag: "fixture-etag",
+            retrySeconds: 120,
+            rawPayload: { fixture: "public structured provider snapshot" },
+          });
+          await management.review(owner, "provider", {
+            id: mappingId,
+            expectedVersion: 0,
+            feedId: "cloudflare",
+            componentId: "workers",
+            active: true,
+            dependency: {
+              id: mappingId,
+              resourceId: serviceId,
+              providerId,
+              product: "workers",
+              environment: "test",
+              geography: "*",
+              plane: "data",
+            },
+            review,
+          });
+          assert.equal(
+            (await read.scene(request(), { projectId })).scene.providerExposures
+              .length,
+            0,
+            "ordinary scene grants cannot disclose provider associations",
+          );
+          const providerClient = await issuer.createClient(
+            {
+              name: "Provider detail fixture",
+              projectId,
+              environment: "test",
+              ttlSeconds: 300,
+              operations: ["observatory.read", "observatory.providers.read"],
+            },
+            randomUUID(),
+          );
+          const providerRequest = {
+            ...request(),
+            tokenDigest: foundationTokenDigest(providerClient.token),
+          };
+          const current = await read.scene(providerRequest, { projectId });
+          assert.equal(current.scene.providerExposures.length, 137);
+          assert.ok(
+            current.scene.providerExposures.every(
+              (notice) =>
+                notice.feedState === "current" &&
+                notice.relevance === "unknown" &&
+                notice.classification === "relevance_unknown",
+            ),
+          );
+          assert.ok(
+            current.scene.providerExposures.every(
+              (notice) => notice.providerId === providerId,
+            ),
+          );
+          assert.equal(
+            current.scene.summary.provider.counts.potential_exposure ?? 0,
+            0,
+          );
+          await admin.db
+            .update(observatoryProviderFeed)
+            .set({ lastError: "PROVIDER_TIMEOUT" })
+            .where(eq(observatoryProviderFeed.id, "cloudflare"));
+          const failed = await read.scene(providerRequest, { projectId });
+          assert.equal(failed.scene.providerExposures.length, 137);
+          assert.ok(
+            failed.scene.providerExposures.every(
+              (notice) => notice.feedState === "unavailable",
+            ),
+          );
+          assert.equal(
+            failed.facetAccess.find(
+              (item) =>
+                item.resourceId === serviceId && item.facet === "provider",
+            )!.state,
+            "unavailable",
           );
         },
       );

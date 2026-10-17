@@ -1,6 +1,9 @@
 import { and, asc, desc, eq, inArray, isNotNull, sql } from "drizzle-orm";
 import { linuxHostSampleSchema } from "@commandry/contracts";
-import { infrastructureTelemetry } from "@commandry/application";
+import {
+  infrastructureTelemetry,
+  projectObservatoryProviderNotices,
+} from "@commandry/application";
 import {
   FoundationError,
   foundationDigest,
@@ -9,6 +12,11 @@ import {
   combineObservatorySourceAccess,
 } from "@commandry/domain";
 import type { CommandryDatabase } from "./client";
+import { readObservatoryProviderFeedRecords } from "./observatory-provider-repository";
+import {
+  observatoryProviderFeed,
+  observatoryProviderNotice,
+} from "./observatory-provider-schema";
 import { readInfrastructureOverviewRecords } from "./infrastructure-overview-repository";
 import {
   observatoryAnnotation,
@@ -246,6 +254,68 @@ export async function collectObservatoryRecords(
       facet: source.kind === "infraagent-monitor" ? "availability" : "security",
       state: sourceAccess(source),
     }));
+  const [providerFeed] = mappings.length
+    ? await tx
+        .select()
+        .from(observatoryProviderFeed)
+        .where(eq(observatoryProviderFeed.id, "cloudflare"))
+    : [];
+  const feedAge = providerFeed?.lastSuccessAt
+    ? now.getTime() - providerFeed.lastSuccessAt.getTime()
+    : null;
+  const feedState = !providerFeed
+    ? ("unknown" as const)
+    : !providerFeed.enabled
+      ? ("disabled" as const)
+      : providerFeed.lastError
+        ? ("unavailable" as const)
+        : feedAge === null
+          ? ("unknown" as const)
+          : feedAge < 0 || feedAge > 600000
+            ? ("stale" as const)
+            : ("current" as const);
+  const currentNotices = providerFeed?.snapshot
+    ? await tx
+        .select()
+        .from(observatoryProviderNotice)
+        .where(
+          and(
+            eq(observatoryProviderNotice.providerId, "cloudflare"),
+            eq(observatoryProviderNotice.active, true),
+          ),
+        )
+        .orderBy(asc(observatoryProviderNotice.id))
+    : [];
+  const providerNotices = providerFeed?.snapshot
+    ? [
+        ...new Set(mappings.map((mapping) => mapping.providerResourceId)),
+      ].flatMap((providerId) =>
+        projectObservatoryProviderNotices(
+          providerId,
+          {
+            ...providerFeed.snapshot,
+            notices: currentNotices.map((notice) => notice.record),
+          },
+          feedState,
+        ),
+      )
+    : [];
+  for (const resourceId of new Set(
+    mappings.flatMap((mapping) => [
+      mapping.resourceId,
+      mapping.providerResourceId,
+    ]),
+  ))
+    facetAccess.push({
+      resourceId,
+      facet: "provider",
+      state:
+        feedState === "current"
+          ? "available"
+          : feedState === "disabled"
+            ? "disabled"
+            : "unavailable",
+    });
   return {
     resources: inputResources,
     collection: { complete: true, resourceCount: inputResources.length },
@@ -267,6 +337,7 @@ export async function collectObservatoryRecords(
     })),
     relations: relations.map((r) => r.record),
     providerDependencies: mappings.map((m) => m.record),
+    providerNotices,
     signals,
     facetAccess: combineObservatorySourceAccess(facetAccess),
   };
@@ -312,4 +383,21 @@ export async function readObservatoryOperationalRecords(
         : null,
     details: source.snapshot?.details ?? null,
   }));
+}
+
+export async function collectObservatoryProviderFeedRecords(
+  tx: Transaction,
+  input: { afterId?: string; limit: number },
+  now: Date,
+): Promise<unknown> {
+  const page = await readObservatoryProviderFeedRecords(tx, input, now);
+  return {
+    ...page,
+    notices: page.notices.map((notice) => ({
+      ...notice,
+      sourceUpdatedAt: notice.sourceUpdatedAt.toISOString(),
+      reconciledAt: notice.reconciledAt?.toISOString() ?? null,
+      lastSeenAt: notice.lastSeenAt.toISOString(),
+    })),
+  };
 }

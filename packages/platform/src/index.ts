@@ -9,3 +9,5 @@ export * from "./infraagent-availability";
 export * from "./github-observatory";
 
 export * from "./operational-payload-cipher";
+
+export * from "./operational-source-readers";

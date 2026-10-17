@@ -926,6 +926,64 @@ describe("provider severity, relevance, local impact and attribution", () => {
     ).toBe("relevance_unknown");
   });
 
+  it("matches any recorded component and leaves absent incident axes unknown", () => {
+    const fixture = operationalObservatoryFixture();
+    const dependency = fixture.providerDependencies[0]!;
+    const notice = {
+      ...fixture.providerNotices[0]!,
+      product: null,
+      componentIds: ["unrelated-product", dependency.product],
+    };
+    const context = { resourceId: dependency.resourceId, now: fixture.now };
+    expect(
+      evaluateObservatoryProviderExposure(notice, dependency, context)
+        .classification,
+    ).toBe("potential_exposure");
+    expect(
+      evaluateObservatoryProviderExposure(
+        { ...notice, plane: null, environment: null, geography: null },
+        dependency,
+        context,
+      ),
+    ).toMatchObject({
+      relevance: "unknown",
+      classification: "relevance_unknown",
+    });
+    expect(
+      evaluateObservatoryProviderExposure(
+        { ...notice, componentIds: ["unrelated-product"] },
+        dependency,
+        context,
+      ).classification,
+    ).toBe("advisory");
+    expect(
+      evaluateObservatoryProviderExposure(
+        { ...notice, status: "unknown" },
+        dependency,
+        context,
+      ).classification,
+    ).toBe("advisory");
+  });
+
+  it.each(["stale", "unavailable", "disabled", "unknown"] as const)(
+    "retains %s feed disclosure without current potential exposure",
+    (feedState) => {
+      const fixture = operationalObservatoryFixture();
+      const dependency = fixture.providerDependencies[0]!;
+      const exposure = evaluateObservatoryProviderExposure(
+        { ...fixture.providerNotices[0]!, feedState },
+        dependency,
+        { resourceId: dependency.resourceId, now: fixture.now },
+      );
+      expect(exposure).toMatchObject({
+        relevance: "matched",
+        classification: "advisory",
+        feedState,
+        freshness: "fresh",
+      });
+    },
+  );
+
   it("separates confirmed local failure from a provider cause and respects stale/resolved notices", () => {
     const fixture = operationalObservatoryFixture();
     const notice = fixture.providerNotices[0]!;

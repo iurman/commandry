@@ -3509,3 +3509,5 @@ export * from "./observatory-views";
 export * from "./observatory-repository";
 
 export * from "./observatory-operational";
+
+export * from "./observatory-provider-feed";

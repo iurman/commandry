@@ -130,21 +130,24 @@ export type ObservatoryProviderDependency = {
   plane: "control" | "data";
   provenance: ObservatoryProvenance;
 };
+export type ObservatoryProviderFeedState =
+  "current" | "stale" | "unavailable" | "disabled" | "unknown";
 export type ObservatoryProviderNotice = {
   id: string;
   updateId: string;
   providerId: string;
   componentIds: readonly string[];
-  product: string;
+  product: string | null;
   environment: string | null;
   geography: string | null;
-  plane: "control" | "data";
-  severity: "minor" | "major" | "critical";
-  status: "open" | "monitoring" | "resolved" | "maintenance";
+  plane: "control" | "data" | null;
+  severity: "minor" | "major" | "critical" | "unknown";
+  status: "open" | "monitoring" | "resolved" | "maintenance" | "unknown";
   confidence: "reported" | "verified";
   sourceId: string;
   observedAt: string;
   freshnessMs: number;
+  feedState?: ObservatoryProviderFeedState | undefined;
   evidenceRefs: readonly string[];
 };
 export type ObservatoryAttribution = {
@@ -170,6 +173,7 @@ export type ObservatoryProviderExposure = {
   localImpact: "confirmed" | "unknown";
   causation: "unknown" | "suspected" | "established";
   freshness: ObservatoryFreshness;
+  feedState?: ObservatoryProviderFeedState | undefined;
   status: ObservatoryProviderNotice["status"];
   sourceId: string;
   observedAt: string;
@@ -760,7 +764,13 @@ export function evaluateObservatoryProviderExposure(
     dependency && dependency.resourceId === context.resourceId
       ? [
           providerScopeMatch(notice.providerId, dependency.providerId),
-          providerScopeMatch(notice.product, dependency.product),
+          notice.product !== null
+            ? providerScopeMatch(notice.product, dependency.product)
+            : notice.componentIds.length
+              ? notice.componentIds.includes(dependency.product)
+                ? "matched"
+                : "unrelated"
+              : "unknown",
           providerScopeMatch(notice.environment, dependency.environment),
           providerScopeMatch(notice.geography, dependency.geography),
           providerScopeMatch(notice.plane, dependency.plane),
@@ -799,8 +809,8 @@ export function evaluateObservatoryProviderExposure(
   const localImpact = local.length ? "confirmed" : "unknown";
   const active =
     freshness === "fresh" &&
-    notice.status !== "resolved" &&
-    notice.status !== "maintenance";
+    (notice.feedState === undefined || notice.feedState === "current") &&
+    ["open", "monitoring"].includes(notice.status);
   const classification =
     relevance === "unrelated"
       ? "advisory"
@@ -824,6 +834,7 @@ export function evaluateObservatoryProviderExposure(
     localImpact,
     causation: attribution?.status ?? "unknown",
     freshness,
+    ...(notice.feedState ? { feedState: notice.feedState } : {}),
     status: notice.status,
     sourceId: notice.sourceId,
     observedAt: notice.observedAt,

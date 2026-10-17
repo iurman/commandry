@@ -3,12 +3,14 @@ import {
   createObservatoryReadService,
   createObservatoryManagementService,
   createObservatoryViewsService,
+  createObservatoryOwnerWorkService,
 } from "@commandry/application";
 import {
   createObservatoryOwnerReadRepository,
   createObservatoryMachineReadRepository,
   createObservatoryManagementRepository,
   createObservatoryViewsRepository,
+  createObservatoryOwnerWorkRepository,
 } from "@commandry/db";
 import {
   foundationOwnerIdentity,
@@ -67,6 +69,16 @@ export async function observatoryOwnerViews(request: Request) {
   return {
     service: createObservatoryViewsService(
       createObservatoryViewsRepository(getDatabase().db),
+    ),
+    identity: { ...owner.identity, sessionId: owner.sessionId },
+  };
+}
+
+export async function observatoryOwnerWork(request: Request) {
+  const owner = await foundationOwnerIdentity(request);
+  return {
+    service: createObservatoryOwnerWorkService(
+      createObservatoryOwnerWorkRepository(getDatabase().db),
     ),
     identity: { ...owner.identity, sessionId: owner.sessionId },
   };

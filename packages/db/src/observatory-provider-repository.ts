@@ -278,57 +278,68 @@ export function createObservatoryProviderRepository(
       });
     },
     async read(input = {}) {
-      const limit = input.limit ?? 100;
-      if (!Number.isInteger(limit) || limit < 1 || limit > 100)
-        throw new Error("Invalid provider page limit");
       return db.transaction(
-        async (tx) => {
-          const [source] = await tx
-            .select()
-            .from(feed)
-            .where(eq(feed.id, "cloudflare"));
-          const rows = source
-            ? await tx
-                .select()
-                .from(notice)
-                .where(
-                  and(
-                    eq(notice.providerId, source.id),
-                    input.activeOnly ? eq(notice.active, true) : undefined,
-                    input.afterId ? gt(notice.id, input.afterId) : undefined,
-                  ),
-                )
-                .orderBy(asc(notice.id))
-                .limit(limit + 1)
-            : [];
-          const items = rows.slice(0, limit);
-          const age = source?.lastSuccessAt
-            ? now().getTime() - source.lastSuccessAt.getTime()
-            : null;
-          const state = !source
-            ? "unknown"
-            : !source.enabled
-              ? "disabled"
-              : source.lastError
-                ? "unavailable"
-                : age === null
-                  ? "unknown"
-                  : age < 0 || age > 600_000
-                    ? "stale"
-                    : "current";
-          return {
-            state,
-            lastSuccessAt: source?.lastSuccessAt?.toISOString() ?? null,
-            lastAttemptAt: source?.lastAttemptAt?.toISOString() ?? null,
-            lastError: source?.lastError ?? null,
-            revision: source?.revision ?? 0,
-            snapshot: source?.snapshot ?? null,
-            notices: items,
-            nextCursor: rows.length > limit ? items.at(-1)!.id : null,
-          };
-        },
+        (tx) => readObservatoryProviderFeedRecords(tx, input, now()),
         { isolationLevel: "repeatable read", accessMode: "read only" },
       );
     },
+  };
+}
+
+type ProviderReadTransaction = Parameters<
+  Parameters<CommandryDatabase["transaction"]>[0]
+>[0];
+/** Same canonical public records, reused inside an already authorized read transaction. */
+export async function readObservatoryProviderFeedRecords(
+  tx: ProviderReadTransaction,
+  input: { afterId?: string; limit?: number; activeOnly?: boolean } = {},
+  now = new Date(),
+) {
+  const limit = input.limit ?? 100;
+  if (!Number.isInteger(limit) || limit < 1 || limit > 100)
+    throw new Error("Invalid provider page limit");
+  const [source] = await tx
+    .select()
+    .from(feed)
+    .where(eq(feed.id, "cloudflare"));
+  const rows = source
+    ? await tx
+        .select()
+        .from(notice)
+        .where(
+          and(
+            eq(notice.providerId, source.id),
+            input.activeOnly ? eq(notice.active, true) : undefined,
+            input.afterId ? gt(notice.id, input.afterId) : undefined,
+          ),
+        )
+        .orderBy(asc(notice.id))
+        .limit(limit + 1)
+    : [];
+  const items = rows.slice(0, limit);
+  const age = source?.lastSuccessAt
+    ? now.getTime() - source.lastSuccessAt.getTime()
+    : null;
+  const state: "unknown" | "disabled" | "unavailable" | "stale" | "current" =
+    !source
+      ? "unknown"
+      : !source.enabled
+        ? "disabled"
+        : source.lastError
+          ? "unavailable"
+          : age === null
+            ? "unknown"
+            : age < 0 || age > 600_000
+              ? "stale"
+              : "current";
+  return {
+    state,
+    lastSuccessAt: source?.lastSuccessAt?.toISOString() ?? null,
+    lastAttemptAt: source?.lastAttemptAt?.toISOString() ?? null,
+    lastError: source?.lastError ?? null,
+    revision: source?.revision ?? 0,
+    snapshot: source?.snapshot ?? null,
+    notices: items,
+    nextCursor: rows.length > limit ? items.at(-1)!.id : null,
   };
 }
