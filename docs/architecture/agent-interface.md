@@ -8,6 +8,10 @@ Commandry should be a durable shared brain for many agent tools. The interface
 must let agents discover authorized context, create or update work, record
 knowledge, and request governed action without coupling them to the web UI.
 
+## Operational Observatory access
+
+The implemented [Observatory agent workflow](observatory-agent-workflow.md) documents the exact separately granted MCP reads, continuations, safe evidence and owner-only review handoff. It shares canonical services with the owner API. Its current release evidence is tracked independently from the broader proposed runtime interface in this document.
+
 ## Interface surfaces
 
 ### API

@@ -30,6 +30,7 @@ docs are organized by the question a reader is trying to answer.
 - [Capture and triage](features/capture-and-triage.md)
 - [Project workspaces](features/project-workspaces.md)
 - [Infrastructure and monitoring](features/infrastructure.md)
+- [Gravity Observatory](features/gravity-observatory.md) - complete operational landscape and evidence semantics
 - [Automations and Overnight Queue](features/automations.md)
 - [Agents and approvals](features/agents.md)
 - [Search, activity, and notifications](features/search-and-notifications.md)
@@ -52,6 +53,7 @@ feature has been implemented.
   component, state, sensory, and flow tooling
 - [Events and integrations](architecture/events-and-integrations.md) — normalized
   connector contract and event flow
+- [Observatory agent workflow](architecture/observatory-agent-workflow.md) - scoped MCP/API reads and owner review handoff
 - [Agent interface](architecture/agent-interface.md) — API/MCP concepts and
   execution packets
 - [Read-only project knowledge MCP](architecture/knowledge-mcp.md) - independent

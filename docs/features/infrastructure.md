@@ -129,6 +129,10 @@ read-only slice. Existing signal review keeps its existing development-only
 policy. Implementation evidence and remaining limits are recorded in the
 [implementation and verification record](../implementation/infrastructure-network.md).
 
+## Operational Observatory upgrade
+
+The [Gravity Observatory specification](gravity-observatory.md) is the canonical definition of the operational landscape under ADR0016. It defines complete grouping, separate operational facets, reviewed configuration and source meaning. [Agent access](../architecture/observatory-agent-workflow.md) uses the same application services and explicitly records owner-only operations. [Execution and activation evidence](../plans/observatory-operational-landscape/EXECUTION.md) remains separate from the historical production slice below.
+
 ## Gravity presentation (2026-10-15)
 
 The approved Gravity renderer is deployed in production using
