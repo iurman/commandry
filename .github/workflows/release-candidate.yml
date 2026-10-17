@@ -79,7 +79,7 @@ jobs:
           PLAYWRIGHT_JSON_OUTPUT_NAME: test-results/browser-results.json
         run: |
           pnpm exec playwright install --with-deps chromium
-          pnpm test:e2e --reporter=line,json
+          pnpm test:e2e --workers=1 --reporter=line,json
 
       - name: Retain browser diagnostics
         if: always()
