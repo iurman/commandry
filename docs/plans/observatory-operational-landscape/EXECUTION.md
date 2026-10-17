@@ -343,3 +343,8 @@ The root-owned helper separately failed shutdown with exit143, not a passing cle
 ## 2026-10-17 existing readiness access preflight
 
 Read-only checks from the existing VPS reached current507303c /version, /health/live and /health/ready withHTTP200. A second request from the actual production worker container used the new native reader's exact GET/Accept/no-store/credentials-omit/redirect-error/10second options and received the exact supported ready/web/database-ready body. This establishes server-side access to the existing readiness boundary. It does not persist a source observation, activate monitoring, prove external-user availability, or establish the new release. The earlier desktop unauthenticated403 is a different access vantage, not evidence of an application outage. No InfraAgent account or connector is required. See [sanitized access evidence](evidence/2026-10-17-current-readiness-access.json).
+
+
+## 2026-10-17 actual corrected helper cleanup
+
+A separate full T36 unchanged-CSS baseline at422701f/BUILD_ID0nCX3w0oQxLYjvB_-HqWb again reports9PASS/3FAIL. Its new IPC shutdown passes strict cleanup with a fresh matching stopped receipt; root independently verifies actual preview, web, PostgreSQL and process-group absence and exact temporary-directory removal. The original exit143 failure remains retained. Both phone geometry failures remain intentional pre-correction evidence; desktop advances to a remaining unmigrated Surface theme control. Source-only journey review will identify remaining control mismatches before the final full packet. This is cleanup acceptance only, not browser/source/release acceptance. Coverage stays51PASS/1FAIL/6partial-unrun.
