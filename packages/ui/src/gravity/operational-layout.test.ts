@@ -41,6 +41,8 @@ import {
 const options = defaultObservatoryPreferences();
 const engine = vi.hoisted(() => ({
   fail: false,
+  hooks: null as RendererHooks | null,
+  created: vi.fn(),
   update: vi.fn(),
   dispose: vi.fn(),
   preset: vi.fn(),
@@ -54,6 +56,8 @@ vi.mock("./renderer", () => ({
       private hooks: RendererHooks,
     ) {
       if (engine.fail) throw Error("GPU unavailable");
+      engine.hooks = hooks;
+      engine.created();
     }
     update(wells: Well[], settings: RendererSettings) {
       engine.update(wells, settings);
@@ -80,6 +84,7 @@ vi.mock("./renderer", () => ({
 beforeEach(() => {
   vi.clearAllMocks();
   engine.fail = false;
+  engine.hooks = null;
   localStorage.clear();
   vi.stubGlobal(
     "matchMedia",
@@ -1014,4 +1019,348 @@ describe("provider plane context in the actual inspector", () => {
           ).toBeNull();
     },
   );
+});
+
+function guidedTourFixture() {
+  const input = mixedObservatoryFixture(),
+    scene = projectObservatory(input),
+    hosts = scene.representations.filter(
+      (node) =>
+        node.kind === "host" &&
+        scene.visibleRepresentationIds.includes(node.id),
+    );
+  const props = {
+    scene,
+    snapshot: {
+      readAt: scene.readCompletedAt,
+      total: 91,
+      nextCursor: null,
+      items: [],
+      edges: [],
+      events: [],
+    } as InfrastructureOverview,
+    selectedId: null as string | null,
+    onSelect: vi.fn(),
+    onProject: vi.fn(),
+    onQueryChange: vi.fn(),
+    onCameraFocus: vi.fn(),
+  };
+  return { input, scene, hosts, props };
+}
+describe("automatic tour features in the actual operational component", () => {
+  it("keeps the existing inspector and tour without focus, expansion or artificial reading history on automatic features", async () => {
+    const { scene, hosts, props } = guidedTourFixture();
+    const view = render(createElement(OperationalObservatory, props));
+    await waitFor(() => expect(engine.update).toHaveBeenCalled());
+    const inspector = screen.getByRole("complementary", {
+        name: "Observatory inspector",
+      }),
+      start = screen.getByRole("button", { name: "Start presentation" });
+    fireEvent.click(start);
+    expect(engine.update.mock.lastCall?.[1].cameraMode).toBe("tour");
+    const focusCalls = props.onCameraFocus.mock.calls.length,
+      created = engine.created.mock.calls.length;
+    for (const host of hosts.slice(0, 2)) {
+      act(() => engine.hooks?.featured?.(host.id));
+      expect(
+        screen.getByRole("complementary", { name: "Observatory inspector" }),
+      ).toBe(inspector);
+      expect(
+        within(inspector).getByRole("heading", { name: host.label }),
+      ).toBeVisible();
+      expect(inspector).toHaveTextContent(host.resourceId!);
+      expect(engine.update.mock.lastCall?.[1]).toMatchObject({
+        cameraMode: "tour",
+        motion: true,
+        selected: host.id,
+      });
+      expect(props.onCameraFocus).toHaveBeenCalledTimes(focusCalls);
+      expect(props.onQueryChange).not.toHaveBeenCalled();
+      expect(props.onSelect).not.toHaveBeenCalled();
+    }
+    view.rerender(
+      createElement(OperationalObservatory, {
+        ...props,
+        scene: {
+          ...scene,
+          evaluatedAt: "2026-10-16T12:00:18.000Z",
+          representations: [...scene.representations],
+        },
+      }),
+    );
+    await act(async () => {});
+    expect(engine.update.mock.lastCall?.[1].cameraMode).toBe("tour");
+    expect(props.onCameraFocus).toHaveBeenCalledTimes(focusCalls);
+    expect(engine.created).toHaveBeenCalledTimes(created);
+    fireEvent.click(within(inspector).getByRole("button", { name: "Back" }));
+    expect(
+      within(inspector).getByRole("heading", { name: "Coverage and evidence" }),
+    ).toBeVisible();
+    expect(props.onQueryChange).not.toHaveBeenCalled();
+  });
+});
+
+describe("direct operational presentation interruptions", () => {
+  it.each([
+    "selection",
+    "keyboard activation",
+    "search",
+    "drag",
+    "inspector reading",
+  ])(
+    "keeps %s manual after an automatic feature until explicit Start presentation",
+    async (action) => {
+      const { hosts, props } = guidedTourFixture();
+      render(createElement(OperationalObservatory, props));
+      await waitFor(() => expect(engine.update).toHaveBeenCalled());
+      fireEvent.click(
+        screen.getByRole("button", { name: "Start presentation" }),
+      );
+      act(() => engine.hooks?.featured?.(hosts[0]!.id));
+      expect(engine.update.mock.lastCall?.[1]).toMatchObject({
+        cameraMode: "tour",
+        selected: hosts[0]!.id,
+      });
+      const focusCalls = props.onCameraFocus.mock.calls.length;
+      if (action === "selection") act(() => engine.hooks!.select(hosts[0]!.id));
+      if (action === "keyboard activation")
+        fireEvent.click(
+          screen.getByRole("button", {
+            name:
+              "Inspect " +
+              hosts[0]!.label +
+              ", Host, " +
+              hosts[0]!.memberCount +
+              " unique resources",
+          }),
+          { detail: 0 },
+        );
+      if (action === "search") {
+        const input = screen.getByRole("searchbox");
+        fireEvent.focus(input);
+        fireEvent.change(input, { target: { value: "Synthetic" } });
+      }
+      if (action === "drag") {
+        fireEvent.pointerDown(
+          screen.getByLabelText("Projected operational landscape"),
+        );
+        act(() => engine.hooks!.interrupted());
+      }
+      if (action === "inspector reading")
+        fireEvent.focus(
+          within(
+            screen.getByRole("complementary", {
+              name: "Observatory inspector",
+            }),
+          ).getByRole("button", { name: "Back" }),
+        );
+      expect(engine.update.mock.lastCall?.[1].cameraMode).toBe("manual");
+      if (action === "selection" || action === "keyboard activation") {
+        expect(props.onSelect).toHaveBeenLastCalledWith(hosts[0]!.resourceId);
+        expect(props.onCameraFocus).toHaveBeenCalledTimes(focusCalls + 1);
+        expect(props.onCameraFocus.mock.lastCall?.[1]).toBe(hosts[0]!.id);
+      }
+      act(() => engine.hooks?.featured?.(hosts[1]!.id));
+      await act(async () => {});
+      expect(engine.update.mock.lastCall?.[1].cameraMode).toBe("manual");
+      expect(engine.update.mock.lastCall?.[1].selected).toBe(hosts[0]!.id);
+      fireEvent.click(
+        screen.getByRole("button", { name: "Start presentation" }),
+      );
+      expect(engine.update.mock.lastCall?.[1]).toMatchObject({
+        cameraMode: "tour",
+        motion: true,
+      });
+      act(() => engine.hooks?.featured?.(hosts[1]!.id));
+      expect(engine.update.mock.lastCall?.[1]).toMatchObject({
+        cameraMode: "tour",
+        selected: hosts[1]!.id,
+      });
+    },
+  );
+  it("keeps pause and reduced motion static, rejects foreign/non-host features, and resets denied scope state", async () => {
+    const { scene, hosts, props } = guidedTourFixture(),
+      view = render(createElement(OperationalObservatory, props));
+    await waitFor(() => expect(engine.update).toHaveBeenCalled());
+    fireEvent.click(screen.getByRole("button", { name: "Start presentation" }));
+    act(() => engine.hooks?.featured?.(hosts[0]!.id));
+    const nonHost = scene.representations.find((node) => node.kind !== "host")!;
+    act(() => {
+      engine.hooks?.featured?.("foreign");
+      engine.hooks?.featured?.(nonHost.id);
+    });
+    expect(engine.update.mock.lastCall?.[1].selected).toBe(hosts[0]!.id);
+    fireEvent.click(screen.getByRole("button", { name: "Pause scene" }));
+    expect(engine.update.mock.lastCall?.[1]).toMatchObject({
+      cameraMode: "manual",
+      motion: false,
+    });
+    act(() => engine.hooks?.featured?.(hosts[1]!.id));
+    expect(engine.update.mock.lastCall?.[1].selected).toBe(hosts[0]!.id);
+    fireEvent.click(screen.getByRole("button", { name: "Resume scene" }));
+    expect(engine.update.mock.lastCall?.[1].cameraMode).toBe("manual");
+    fireEvent.click(
+      screen.getByRole("button", { name: "Appearance and views" }),
+    );
+    fireEvent.click(screen.getByRole("checkbox", { name: "Reduced motion" }));
+    expect(engine.update.mock.lastCall?.[1]).toMatchObject({
+      cameraMode: "composed",
+      motion: false,
+    });
+    expect(
+      screen.getByRole("button", { name: "Start presentation" }),
+    ).toBeDisabled();
+    const next = projectObservatory({
+      ...scaleObservatoryFixture(0),
+      scopeDigest: "tour-new-empty-scope",
+    });
+    view.rerender(
+      createElement(OperationalObservatory, { ...props, scene: next }),
+    );
+    await screen.findByText("No authorized resources in this view.");
+    expect(screen.queryByText(hosts[0]!.label)).toBeNull();
+    await waitFor(() =>
+      expect(engine.update.mock.lastCall?.[1].selected).toBeNull(),
+    );
+  });
+  it("keeps deliberate orbit moving until a real interaction and resumes only by owner input", async () => {
+    const { props } = guidedTourFixture();
+    render(createElement(OperationalObservatory, props));
+    await waitFor(() => expect(engine.update).toHaveBeenCalled());
+    fireEvent.click(
+      screen.getByRole("button", { name: "Appearance and views" }),
+    );
+    fireEvent.change(screen.getByRole("combobox", { name: "Camera" }), {
+      target: { value: "orbit" },
+    });
+    expect(engine.update.mock.lastCall?.[1].cameraMode).toBe("orbit");
+    act(() => engine.hooks!.interrupted());
+    expect(engine.update.mock.lastCall?.[1].cameraMode).toBe("manual");
+    await act(async () => {});
+    expect(engine.update.mock.lastCall?.[1].cameraMode).toBe("manual");
+    fireEvent.click(screen.getByRole("button", { name: "Start presentation" }));
+    expect(engine.update.mock.lastCall?.[1].cameraMode).toBe("orbit");
+  });
+});
+
+it("treats explicit outline expansion after a tour feature as direct focus and preserves normal refitting", async () => {
+  const { input, hosts, props } = guidedTourFixture(),
+    view = render(createElement(OperationalObservatory, props));
+  await waitFor(() => expect(engine.update).toHaveBeenCalled());
+  fireEvent.click(screen.getByRole("button", { name: "Start presentation" }));
+  act(() => engine.hooks?.featured?.(hosts[0]!.id));
+  const before = props.onCameraFocus.mock.calls.length;
+  fireEvent.click(
+    screen.getByRole("button", { name: "Expand " + hosts[0]!.label }),
+  );
+  expect(engine.update.mock.lastCall?.[1].cameraMode).toBe("manual");
+  expect(props.onQueryChange).toHaveBeenCalledTimes(1);
+  const expanded = projectObservatory({
+    ...input,
+    ...props.onQueryChange.mock.lastCall![0],
+  });
+  view.rerender(
+    createElement(OperationalObservatory, { ...props, scene: expanded }),
+  );
+  await waitFor(() =>
+    expect(props.onCameraFocus).toHaveBeenCalledTimes(before + 1),
+  );
+  expect(props.onCameraFocus.mock.lastCall?.[1]).toBe(hosts[0]!.id);
+  expect(engine.update.mock.lastCall?.[1].cameraMode).toBe("manual");
+});
+
+describe("explicit external selection intent after automatic tour context", () => {
+  it("accepts a repeated canonical ID request after a different automatic host without replaying intent on refresh", async () => {
+    const { scene, hosts, props } = guidedTourFixture();
+    const requested = {
+      ...props,
+      selectedId: hosts[0]!.resourceId,
+      selectionRevision: 1,
+    };
+    const view = render(createElement(OperationalObservatory, requested));
+    await waitFor(() => expect(engine.update).toHaveBeenCalled());
+    fireEvent.click(screen.getByRole("button", { name: "Start presentation" }));
+    act(() => engine.hooks?.featured?.(hosts[1]!.id));
+    expect(engine.update.mock.lastCall?.[1]).toMatchObject({
+      cameraMode: "tour",
+      selected: hosts[1]!.id,
+    });
+    const inspector = screen.getByRole("complementary", {
+        name: "Observatory inspector",
+      }),
+      calls = props.onCameraFocus.mock.calls.length;
+    view.rerender(
+      createElement(OperationalObservatory, {
+        ...requested,
+        selectionRevision: 2,
+      }),
+    );
+    await waitFor(() =>
+      expect(engine.update.mock.lastCall?.[1]).toMatchObject({
+        cameraMode: "manual",
+        selected: hosts[0]!.id,
+      }),
+    );
+    expect(
+      within(inspector).getByRole("heading", { name: hosts[0]!.label }),
+    ).toBeVisible();
+    expect(props.onCameraFocus).toHaveBeenCalledTimes(calls + 1);
+    expect(props.onCameraFocus.mock.lastCall?.[1]).toBe(hosts[0]!.id);
+    expect(props.onSelect).not.toHaveBeenCalled();
+    expect(props.onQueryChange).not.toHaveBeenCalled();
+    const after = props.onCameraFocus.mock.calls.length;
+    view.rerender(
+      createElement(OperationalObservatory, {
+        ...requested,
+        selectionRevision: 2,
+        scene: {
+          ...scene,
+          representations: [...scene.representations],
+          evaluatedAt: "2026-10-16T12:00:25.000Z",
+        },
+      }),
+    );
+    await act(async () => {});
+    expect(props.onCameraFocus).toHaveBeenCalledTimes(after);
+    expect(engine.update.mock.lastCall?.[1].cameraMode).toBe("manual");
+    fireEvent.click(screen.getByRole("button", { name: "Start presentation" }));
+    act(() => engine.hooks?.featured?.(hosts[1]!.id));
+    expect(engine.update.mock.lastCall?.[1].cameraMode).toBe("tour");
+  });
+});
+
+it("treats a new same-ID request as direct before the first tour feature without duplicating it on refresh", async () => {
+  const { hosts, props } = guidedTourFixture(),
+    first = hosts[0]!,
+    requested = {
+      ...props,
+      selectedId: first.resourceId,
+      selectionRevision: 10,
+    };
+  const view = render(createElement(OperationalObservatory, requested));
+  await waitFor(() => expect(engine.update).toHaveBeenCalled());
+  fireEvent.click(screen.getByRole("button", { name: "Start presentation" }));
+  expect(engine.update.mock.lastCall?.[1].cameraMode).toBe("tour");
+  const before = props.onCameraFocus.mock.calls.length;
+  view.rerender(
+    createElement(OperationalObservatory, {
+      ...requested,
+      selectionRevision: 11,
+    }),
+  );
+  await waitFor(() =>
+    expect(engine.update.mock.lastCall?.[1].cameraMode).toBe("manual"),
+  );
+  expect(props.onCameraFocus).toHaveBeenCalledTimes(before + 1);
+  expect(props.onCameraFocus.mock.lastCall?.[1]).toBe(first.id);
+  view.rerender(
+    createElement(OperationalObservatory, {
+      ...requested,
+      selectionRevision: 11,
+      snapshot: { ...props.snapshot },
+    }),
+  );
+  await act(async () => {});
+  expect(props.onCameraFocus).toHaveBeenCalledTimes(before + 1);
+  expect(props.onQueryChange).not.toHaveBeenCalled();
 });

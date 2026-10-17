@@ -78,6 +78,10 @@ export type RendererHooks = {
   anchors: (anchors: Anchor[]) => void;
   stats: (stats: RenderStats) => void;
   select: (id: string) => void;
+  /** Automatic tour context only; it must not activate direct camera focus.
+   * Consumers without this hook retain the legacy select notification.
+   */
+  featured?: (id: string) => void;
   interrupted: () => void;
   unavailable: (message: string) => void;
   viewport: (portrait: boolean) => void;
@@ -172,6 +176,7 @@ export class ObservatoryRenderer {
     time: number;
   } | null = null;
   private presentationInterrupted = false;
+  private presentationMoved = false;
   private featuredId: string | null = null;
   private nextStats = 0;
   private renderedFrames = 0;
@@ -657,6 +662,7 @@ export class ObservatoryRenderer {
   }
 
   preset(preset: "overview" | "top" | "angle") {
+    this.presentationMoved = false;
     this.focusedSubject = null;
     this.renderer.domElement.dataset.gravityMainFocus = "";
     const pose = fittedLandscapePose(
@@ -679,7 +685,12 @@ export class ObservatoryRenderer {
     id: string | null,
     options: { immediate?: boolean; restore?: boolean; refit?: boolean } = {},
   ): boolean {
-    if (id === this.focusedSubject && !options.refit && !options.restore)
+    if (
+      id === this.focusedSubject &&
+      !options.refit &&
+      !options.restore &&
+      !this.presentationMoved
+    )
       return true;
     const pose = id
       ? focusedLandscapePose(this.targets, id, this.camera.aspect)
@@ -700,6 +711,7 @@ export class ObservatoryRenderer {
       saved?.target.clone() ??
       new THREE.Vector3(pose.target.x, pose.target.y, pose.target.z);
     this.focusedSubject = id;
+    this.presentationMoved = false;
     this.presentationInterrupted = true;
     this.presentationEntry = null;
     this.featuredId = id;
@@ -922,6 +934,8 @@ export class ObservatoryRenderer {
       (this.settings.cameraMode === "orbit" ||
         this.settings.cameraMode === "tour");
     if (automatic && moving) {
+      // Automatic camera travel invalidates an earlier same-ID direct focus pose.
+      this.presentationMoved = true;
       this.presentationElapsed += dt;
       const pose = presentationPose(
         this.targets,
@@ -960,7 +974,8 @@ export class ObservatoryRenderer {
       );
       if (pose.featured && pose.featured !== this.featuredId) {
         this.featuredId = pose.featured;
-        this.hooks.select(pose.featured);
+        if (this.hooks.featured) this.hooks.featured(pose.featured);
+        else this.hooks.select(pose.featured);
       }
       changing = true;
     }

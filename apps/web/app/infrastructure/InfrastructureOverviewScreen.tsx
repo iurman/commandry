@@ -125,6 +125,7 @@ export default function InfrastructureOverviewScreen({
   const [paused, setPaused] = useState(false);
   const [view, setView] = useState<"gravity" | "map" | "list">("gravity");
   const [selectedId, setSelectedId] = useState<string | null>(null);
+  const [selectionRevision, setSelectionRevision] = useState(0);
   const [follow, setFollow] = useState(false);
   const [tv, setTv] = useState(wallboard);
   const [rotatePages, setRotatePages] = useState(false);
@@ -418,10 +419,14 @@ export default function InfrastructureOverviewScreen({
     event.preventDefault();
     changeScope(scope.projectId, search.trim());
   }
-  function select(id: string) {
+  function rememberSelection(id: string) {
     setRotatePages(false);
     setFollow(false);
     setSelectedId(id);
+  }
+  function select(id: string) {
+    rememberSelection(id);
+    setSelectionRevision((current) => current + 1);
   }
   function nextPage(cursor: string, previous = false) {
     previousEvents.current = null;
@@ -752,7 +757,8 @@ export default function InfrastructureOverviewScreen({
                   compact={wallboard}
                   dark={tv}
                   selectedId={selectedId}
-                  onSelect={select}
+                  selectionRevision={selectionRevision}
+                  onSelect={rememberSelection}
                   onProject={(id) => changeScope(id)}
                   onQueryChange={setSceneQuery}
                   onCameraFocus={(renderer, id, options) => {

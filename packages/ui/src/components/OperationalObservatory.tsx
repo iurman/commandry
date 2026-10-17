@@ -65,6 +65,10 @@ export type OperationalObservatoryProps = {
   scene: ObservatoryScene;
   snapshot: InfrastructureOverview;
   selectedId: string | null;
+  /** Advance only for a new direct outer selection, including the same ID.
+   * Refreshes, automatic features and local onSelect acknowledgements retain it.
+   */
+  selectionRevision?: number;
   onSelect: (resourceId: string) => void;
   onProject: (projectId: string) => void;
   onQueryChange: (query: ObservatoryQuery) => void;
@@ -315,6 +319,7 @@ function OperationalObservatoryView({
   scene,
   snapshot,
   selectedId,
+  selectionRevision = 0,
   onSelect,
   onProject,
   onQueryChange,
@@ -380,7 +385,10 @@ function OperationalObservatoryView({
     : null;
   const [focusId, setFocusId] = useState<string | null>(initialSelection);
   const [focusSequence, setFocusSequence] = useState(0);
-  const lastExternalSelection = useRef(selectedId);
+  const lastExternalSelection = useRef({
+    id: selectedId,
+    revision: selectionRevision,
+  });
   const [appearanceOpen, setAppearanceOpen] = useState(false),
     [viewName, setViewName] = useState(""),
     [sectorName, setSectorName] = useState("");
@@ -401,6 +409,7 @@ function OperationalObservatoryView({
   const elements = useRef(new Map<string, HTMLButtonElement>()),
     anchorPositions = useRef(new Map<string, Anchor>());
   const restoreCamera = useRef(false);
+  const automaticFeature = useRef(false);
   const lastCameraRequest = useRef<{
     id: string | null;
     sequence: number;
@@ -493,6 +502,7 @@ function OperationalObservatoryView({
     setPreferences((old) => ({ ...old, ...patch }));
   }
   function emit(next: ObservatoryQuery, nextCamera: CameraMode = "manual") {
+    automaticFeature.current = false;
     const safe = authorizeObservatoryQuery(
       {
         ...next,
@@ -510,6 +520,7 @@ function OperationalObservatoryView({
   function activate(id: string) {
     const node = nodes.get(id);
     if (!node) return;
+    automaticFeature.current = false;
     if (focusId !== id) history.current.push(entry());
     restoreCamera.current = false;
     setFocusSequence((value) => value + 1);
@@ -527,7 +538,21 @@ function OperationalObservatoryView({
     )
       emit({ ...query, expandedRepresentationIds: [...expanded] });
   }
+  function feature(id: string) {
+    const node = nodes.get(id);
+    if (
+      current.current.settings.cameraMode !== "tour" ||
+      !current.current.settings.motion ||
+      node?.kind !== "host" ||
+      !current.current.projection?.wells.some((well) => well.id === id)
+    )
+      return;
+    // A tour owns its camera and does not create a manual selection/history entry.
+    automaticFeature.current = true;
+    setFocusId(id);
+  }
   function restore(previous: HistoryEntry | undefined) {
+    automaticFeature.current = false;
     restoreCamera.current = true;
     setFocusSequence((value) => value + 1);
     const id =
@@ -565,9 +590,9 @@ function OperationalObservatoryView({
     else expanded.add(id);
     emit({ ...query, expandedRepresentationIds: [...expanded] });
   }
-  const actions = useRef({ activate, onCameraFocus });
+  const actions = useRef({ activate, feature, onCameraFocus });
   useEffect(() => {
-    actions.current = { activate, onCameraFocus };
+    actions.current = { activate, feature, onCameraFocus };
   });
 
   useEffect(() => {
@@ -614,14 +639,30 @@ function OperationalObservatoryView({
     }
   }, [preferences, loaded]);
   useEffect(() => {
-    if (lastExternalSelection.current === selectedId) return;
-    lastExternalSelection.current = selectedId;
+    const requested =
+      lastExternalSelection.current.revision !== selectionRevision;
+    if (lastExternalSelection.current.id === selectedId && !requested) return;
+    lastExternalSelection.current = {
+      id: selectedId,
+      revision: selectionRevision,
+    };
+    // Acknowledge local activation without replaying its focus or history.
+    if (
+      !requested &&
+      !automaticFeature.current &&
+      (selectedId === null
+        ? focusId === null
+        : nodes.get(focusId ?? "")?.resourceId === selectedId)
+    )
+      return;
     const node = selectedId
       ? scene.representations.find(
           (item) => item.resourceId === selectedId && !item.referenceTo,
         )
       : undefined;
     void Promise.resolve().then(() => {
+      automaticFeature.current = false;
+      setCamera("manual");
       setFocusSequence((value) => value + 1);
       setFocusId((previous) => {
         const currentNode = nodes.get(previous ?? "");
@@ -630,7 +671,7 @@ function OperationalObservatoryView({
           : (node?.id ?? null);
       });
     });
-  }, [selectedId, nodes, scene.representations]);
+  }, [selectedId, selectionRevision, focusId, nodes, scene.representations]);
   useEffect(() => {
     if (!projection.value) return;
     activity.setProjection(projection.value);
@@ -680,6 +721,9 @@ function OperationalObservatoryView({
             stats() {},
             select(id) {
               actions.current.activate(id.replace(/^lens-/, ""));
+            },
+            featured(id) {
+              actions.current.feature(id);
             },
             interrupted() {
               setCamera("manual");
@@ -777,7 +821,7 @@ function OperationalObservatoryView({
   useEffect(() => {
     const instance = renderer.current;
     const projected = current.current.projection;
-    if (!instance || !ready || !projected) return;
+    if (!instance || !ready || !projected || automaticFeature.current) return;
     const node = focusId ? projected.byId.get(focusId) : null;
     const subject = node
       ? projected.wells.some((well) => well.id === node.id)
@@ -1489,6 +1533,7 @@ function OperationalObservatoryView({
               <button
                 type="button"
                 onClick={() => {
+                  automaticFeature.current = false;
                   setFocusId(null);
                   setCamera("composed");
                   renderer.current?.preset("overview");
