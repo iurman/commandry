@@ -16,6 +16,7 @@ import { createObservatoryManagementRepository } from "./observatory-management-
 import {
   createObservatoryMachineReadRepository,
   createObservatoryOwnerReadRepository,
+  type ObservatoryOwnerReadRequest,
 } from "./observatory-read-repository";
 import { collectObservatoryRecords } from "./observatory-records";
 import { createObservatoryProviderRepository } from "./observatory-provider-repository";
@@ -763,6 +764,138 @@ test(
         },
       );
       await t.test(
+        "owner authority and selected project are pinned across auxiliary reads",
+        async () => {
+          const replacementUser = randomUUID(),
+            replacementSession = randomUUID();
+          await admin.db.insert(user).values({
+            id: replacementUser,
+            name: "Replacement owner control",
+            email: replacementUser + "@example.test",
+          });
+          await admin.db.insert(session).values({
+            id: replacementSession,
+            userId: replacementUser,
+            token: randomUUID(),
+            expiresAt: new Date(owner.expiresAt),
+          });
+          const replacement = {
+            principalId: "user:" + replacementUser,
+            sessionId: replacementSession,
+            expiresAt: owner.expiresAt,
+          };
+          const mutations: ((request: ObservatoryOwnerReadRequest) => void)[] =
+            [
+              (request) => {
+                request.identity = null;
+              },
+              (request) => {
+                request.identity = replacement;
+              },
+              (request) => {
+                request.projectId = otherProjectId;
+              },
+              (request) => {
+                request.identity!.expiresAt = "2099-01-01T00:00:00Z";
+              },
+            ];
+          for (const mutate of mutations) {
+            const request: ObservatoryOwnerReadRequest = {
+              identity: { ...owner },
+              projectId,
+            };
+            const port = createObservatoryOwnerReadRepository(runtime.db, {
+              environment: "test",
+            });
+            const before = await admin.db
+              .select()
+              .from(auditEvent)
+              .where(eq(auditEvent.operation, "observatory.read"));
+            await assert.rejects(
+              () =>
+                port.withRead(request, async (_access, records) => {
+                  const result = await records.readCatalogue!();
+                  mutate(request);
+                  return result;
+                }),
+              denied("FORBIDDEN"),
+            );
+            const after = await admin.db
+              .select()
+              .from(auditEvent)
+              .where(eq(auditEvent.operation, "observatory.read"));
+            assert.equal(
+              after.length,
+              before.length,
+              "changed owner context cannot commit a read audit",
+            );
+          }
+        },
+      );
+      await t.test(
+        "exact expiry and invalid clock after the actual final session query withhold delivery",
+        async () => {
+          for (const mode of ["expired", "invalid"] as const) {
+            let delivered = false,
+              finalQueries = 0;
+            const clock = () =>
+              delivered
+                ? mode === "expired"
+                  ? new Date(owner.expiresAt)
+                  : new Date(Number.NaN)
+                : new Date(now);
+            const wrap = (builder: object): object =>
+              new Proxy(builder, {
+                get(target, key) {
+                  if (key === "then")
+                    return (
+                      resolve: (value: unknown) => unknown,
+                      reject: (error: unknown) => unknown,
+                    ) =>
+                      Promise.resolve(target)
+                        .then((value) => {
+                          finalQueries++;
+                          delivered = true;
+                          return value;
+                        })
+                        .then(resolve, reject);
+                  const value = Reflect.get(target, key);
+                  return typeof value === "function"
+                    ? (...args: unknown[]) =>
+                        wrap(Reflect.apply(value, target, args))
+                    : value;
+                },
+              });
+            const database = new Proxy(runtime.db, {
+              get(target, key) {
+                const value = Reflect.get(target, key);
+                if (key === "select")
+                  return (...args: unknown[]) =>
+                    wrap(Reflect.apply(value, target, args));
+                return typeof value === "function" ? value.bind(target) : value;
+              },
+            });
+            const port = createObservatoryOwnerReadRepository(database, {
+              environment: "test",
+              now: clock,
+            });
+            await assert.rejects(
+              () =>
+                port.withRead(
+                  { identity: { ...owner }, projectId },
+                  async (_access, records) => records.readCatalogue!(),
+                ),
+              denied(mode === "expired" ? "EXPIRED" : "FORBIDDEN"),
+            );
+            assert.equal(
+              finalQueries,
+              1,
+              "clock changes after the real post-commit canonical SELECT resolves",
+            );
+          }
+        },
+      );
+      await t.test(
         "expiry after the awaited allowed audit rolls back canonical mutation and allowed audit",
         async () => {
           const target = randomUUID(),
@@ -882,10 +1015,74 @@ test(
             token: randomUUID(),
             expiresAt: new Date(now.getTime() + 1000),
           });
-          let calls = 0;
-          const port = createObservatoryOwnerReadRepository(runtime.db, {
+          let auditCompleted = false;
+          const afterAudit = (builder: object): object =>
+            new Proxy(builder, {
+              get(target, key) {
+                if (key === "then")
+                  return (
+                    resolve: (value: unknown) => unknown,
+                    reject: (error: unknown) => unknown,
+                  ) =>
+                    Promise.resolve(target)
+                      .then((value) => {
+                        auditCompleted = true;
+                        return value;
+                      })
+                      .then(resolve, reject);
+                const value = Reflect.get(target, key);
+                return typeof value === "function"
+                  ? (...args: unknown[]) =>
+                      afterAudit(Reflect.apply(value, target, args))
+                  : value;
+              },
+            });
+          const database = new Proxy(runtime.db, {
+            get(target, key) {
+              if (key === "transaction")
+                return (...args: unknown[]) => {
+                  const callback = args[0];
+                  assert.equal(typeof callback, "function");
+                  args[0] = (transaction: object) =>
+                    Reflect.apply(
+                      callback as (...values: unknown[]) => unknown,
+                      undefined,
+                      [
+                        new Proxy(transaction, {
+                          get(tx, member) {
+                            const value = Reflect.get(tx, member);
+                            if (member === "insert")
+                              return (...values: unknown[]) => {
+                                const builder = Reflect.apply(
+                                  value,
+                                  tx,
+                                  values,
+                                );
+                                if (values[0] === auditEvent) {
+                                  assert.ok(
+                                    builder !== null &&
+                                      typeof builder === "object",
+                                  );
+                                  return afterAudit(builder);
+                                }
+                                return builder;
+                              };
+                            return typeof value === "function"
+                              ? value.bind(tx)
+                              : value;
+                          },
+                        }),
+                      ],
+                    );
+                  return Reflect.apply(target.transaction, target, args);
+                };
+              const value = Reflect.get(target, key);
+              return typeof value === "function" ? value.bind(target) : value;
+            },
+          });
+          const port = createObservatoryOwnerReadRepository(database, {
             environment: "test",
-            now: () => new Date(now.getTime() + (++calls >= 4 ? 2000 : 0)),
+            now: () => new Date(now.getTime() + (auditCompleted ? 2000 : 0)),
           });
           const before = (
             await runtime.db
@@ -912,6 +1109,11 @@ test(
                 async (_access, records) => records.readObservatory(),
               ),
             denied("EXPIRED"),
+          );
+          assert.equal(
+            auditCompleted,
+            true,
+            "Expiry changes only after the actual audit INSERT resolves",
           );
           assert.equal(
             (

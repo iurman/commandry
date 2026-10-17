@@ -1,0 +1,57 @@
+.cmd-provider-feed {
+  padding: 1rem;
+  border-top: 1px solid var(--cmd-border, #8886);
+  color: inherit;
+  min-width: 0;
+}
+.cmd-provider-feed summary {
+  cursor: pointer;
+}
+.cmd-provider-feed p,
+.cmd-provider-feed li,
+.cmd-provider-feed article {
+  overflow-wrap: anywhere;
+}
+.cmd-provider-feed ul {
+  padding-inline-start: 1.25rem;
+}
+.cmd-provider-feed > ul {
+  max-height: 28rem;
+  overflow: auto;
+  overscroll-behavior: contain;
+}
+.cmd-provider-feed li {
+  padding-block: 0.35rem;
+}
+.cmd-provider-feed-filters {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.75rem;
+  margin-block: 0.75rem;
+}
+.cmd-provider-feed-filters label {
+  display: grid;
+  gap: 0.25rem;
+  min-width: 0;
+  flex: 1 1 10rem;
+}
+.cmd-provider-feed input,
+.cmd-provider-feed select,
+.cmd-provider-feed button {
+  font: inherit;
+  color: inherit;
+  background: var(--cmd-surface, #7771);
+  border: 1px solid var(--cmd-border, #8886);
+  border-radius: 0.35rem;
+  padding: 0.45rem 0.6rem;
+  max-width: 100%;
+  min-width: 0;
+}
+.cmd-provider-feed :focus-visible {
+  outline: 2px solid currentColor;
+  outline-offset: 3px;
+}
+.cmd-provider-feed a {
+  color: inherit;
+  text-decoration: underline;
+}

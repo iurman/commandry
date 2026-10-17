@@ -6,6 +6,10 @@ the task, then follow links only when needed.
 
 ## Planning and dispatch
 
+- MUST treat InfraAgent as Observatory design prior art. InfraAgent, CRM and
+  Arvo repositories remain repository inventory unless the owner explicitly
+  authorizes their operational tracking; their accounts and monitors are not
+  Commandry monitoring prerequisites.
 - MUST keep reusable plans and implementation handoffs in tracked repository
   documentation and commit them when handing off; do not leave the only copy
   in an uncommitted worktree or ignored agent folder. Keep credentials, private

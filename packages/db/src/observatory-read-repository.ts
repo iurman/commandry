@@ -9,6 +9,7 @@ import type {
 import {
   FoundationError,
   foundationDigest,
+  foundationInstantMilliseconds,
   type FoundationEnvironment,
 } from "@commandry/domain";
 import type { CommandryDatabase } from "./client";
@@ -119,25 +120,69 @@ export function createObservatoryOwnerReadRepository(
     (options.environment === "local" || options.environment === "test");
   return {
     async withRead(request, callback) {
-      if (!request.identity && !local)
-        throw new FoundationError("INVALID_CREDENTIAL");
+      let initialDigest: string;
+      let identity: ObservatoryOwnerIdentity | null;
+      let projectId: string | undefined;
+      try {
+        initialDigest = foundationDigest(request);
+        const keys = Object.keys(request).sort().join(",");
+        if (keys !== "identity" && keys !== "identity,projectId")
+          throw new Error();
+        if (
+          request.identity !== null &&
+          (typeof request.identity !== "object" ||
+            Object.keys(request.identity).sort().join(",") !==
+              "expiresAt,principalId,sessionId" ||
+            typeof request.identity.principalId !== "string" ||
+            typeof request.identity.sessionId !== "string" ||
+            typeof request.identity.expiresAt !== "string")
+        )
+          throw new Error();
+        if (
+          request.projectId !== undefined &&
+          typeof request.projectId !== "string"
+        )
+          throw new Error();
+        identity = request.identity === null ? null : { ...request.identity };
+        projectId = request.projectId;
+      } catch {
+        throw new FoundationError("FORBIDDEN", "Invalid owner read context");
+      }
+      if (!identity && !local) throw new FoundationError("INVALID_CREDENTIAL");
+      function guard(): Date {
+        try {
+          if (foundationDigest(request) !== initialDigest) throw new Error();
+        } catch {
+          throw new FoundationError("FORBIDDEN", "Owner read context changed");
+        }
+        const time = now();
+        if (!(time instanceof Date) || !Number.isFinite(time.getTime()))
+          throw new FoundationError("FORBIDDEN", "Invalid owner read clock");
+        if (
+          identity &&
+          (!Number.isFinite(
+            foundationInstantMilliseconds(identity.expiresAt),
+          ) ||
+            foundationInstantMilliseconds(identity.expiresAt) <= time.getTime())
+        )
+          throw new FoundationError("EXPIRED", "Owner session expired");
+        return new Date(time.getTime());
+      }
+      guard();
       const value = await db.transaction(
         async (tx) => {
-          if (request.identity)
-            await requireWorkflowOwnerSession(
-              tx,
-              request.identity,
-              now(),
-              true,
-            );
+          guard();
+          if (identity)
+            await requireWorkflowOwnerSession(tx, identity, guard(), true);
+          guard();
           const scopeDigest = foundationDigest({
-            principalId: request.identity?.principalId ?? "local-owner",
-            projectId: request.projectId ?? null,
+            principalId: identity?.principalId ?? "local-owner",
+            projectId: projectId ?? null,
             environment: options.environment,
           });
           const access: ObservatoryReadAccess = {
             owner: true,
-            projectIds: request.projectId ? [request.projectId] : [],
+            projectIds: projectId ? [projectId] : [],
             resourceIds: null,
             scopeDigest,
             operations: [],
@@ -146,15 +191,15 @@ export function createObservatoryOwnerReadRepository(
           const result = await callback(access, {
             readCatalogue: () =>
               readObservatoryCatalogueRecords(tx, {
-                ...(request.projectId ? { projectId: request.projectId } : {}),
+                ...(projectId ? { projectId: projectId } : {}),
                 resourceIds: null,
                 scopeDigest,
               }),
             readProviderFeed: (input: { afterId?: string; limit: number }) =>
-              collectObservatoryProviderFeedRecords(tx, input, now()),
+              collectObservatoryProviderFeedRecords(tx, input, guard()),
             readOperationalEvidence: (resourceId: string) =>
               readObservatoryOperationalRecords(tx, resourceId, {
-                ...(request.projectId ? { projectId: request.projectId } : {}),
+                ...(projectId ? { projectId: projectId } : {}),
                 resourceIds: null,
                 scopeDigest,
               }),
@@ -162,41 +207,33 @@ export function createObservatoryOwnerReadRepository(
               collectObservatoryRecords(
                 tx,
                 {
-                  ...(request.projectId
-                    ? { projectId: request.projectId }
-                    : {}),
+                  ...(projectId ? { projectId: projectId } : {}),
                   resourceIds: null,
                   scopeDigest,
                 },
-                now(),
+                guard(),
               ),
           });
-          if (request.identity)
-            await requireWorkflowOwnerSession(
-              tx,
-              request.identity,
-              now(),
-              false,
-            );
+          guard();
+          if (identity)
+            await requireWorkflowOwnerSession(tx, identity, guard(), false);
           await tx.insert(auditEvent).values({
             id: randomUUID(),
-            actor: request.identity?.principalId ?? "local-owner",
+            actor: identity?.principalId ?? "local-owner",
             operation: "observatory.read",
             details: { scopeDigest, environment: options.environment },
           });
-          if (request.identity)
-            await requireWorkflowOwnerSession(
-              tx,
-              request.identity,
-              now(),
-              false,
-            );
+          guard();
+          if (identity)
+            await requireWorkflowOwnerSession(tx, identity, guard(), false);
           return result;
         },
         { isolationLevel: "repeatable read" },
       );
-      if (request.identity)
-        await requireWorkflowOwnerSession(db, request.identity, now(), false);
+      guard();
+      if (identity)
+        await requireWorkflowOwnerSession(db, identity, guard(), false);
+      guard();
       return value;
     },
   };

@@ -169,3 +169,7 @@ export {
   ObservatoryWorkDock,
   type ObservatoryWorkDockProps,
 } from "./components/ObservatoryWorkDock";
+
+export * from "./components/ObservatoryProviderFeed";
+
+export * from "./components/ObservatoryReviewControls";

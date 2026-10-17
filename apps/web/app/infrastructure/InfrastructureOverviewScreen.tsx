@@ -10,6 +10,7 @@ const OperationalObservatory = dynamic(
 import {
   useCallback,
   useEffect,
+  useMemo,
   useRef,
   useState,
   type FormEvent,
@@ -33,6 +34,8 @@ import {
   type ProjectRecord,
 } from "../projects/api";
 import { observatoryViewsClient } from "./observatory-views-client";
+import { createObservatoryProviderFeedClient } from "./observatory-provider-client";
+import { createObservatoryReviewClient } from "./observatory-review-client";
 import {
   loadObservatoryWorkPage,
   loadCompleteObservatoryWorkProjects,
@@ -144,6 +147,25 @@ export default function InfrastructureOverviewScreen({
       }),
     [sceneQuery, scope.projectId],
   );
+  const providerFeedClient = useMemo(
+    () =>
+      createObservatoryProviderFeedClient({
+        schemaVersion: 1,
+        ...sceneQuery,
+        ...(scope.projectId ? { projectId: scope.projectId } : {}),
+      }),
+    [sceneQuery, scope.projectId],
+  );
+  const reviewClient = useMemo(
+    () =>
+      createObservatoryReviewClient({
+        schemaVersion: 1,
+        ...sceneQuery,
+        ...(scope.projectId ? { projectId: scope.projectId } : {}),
+      }),
+    [sceneQuery, scope.projectId],
+  );
+  const onReviewed = useCallback(() => setEpoch((value) => value + 1), []);
   const [fullscreenError, setFullscreenError] = useState<string | null>(null);
   const container = useRef<HTMLDivElement>(null);
 
@@ -745,6 +767,9 @@ export default function InfrastructureOverviewScreen({
                       : undefined
                   }
                   evidenceClient={evidenceClient}
+                  providerFeedClient={providerFeedClient}
+                  reviewClient={reviewClient}
+                  onReviewed={onReviewed}
                   scopeProjectId={scope.projectId || null}
                   paused={paused}
                   delayed={!!error || !!sceneError || scenePending}

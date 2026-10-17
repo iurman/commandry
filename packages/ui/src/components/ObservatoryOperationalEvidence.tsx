@@ -158,8 +158,8 @@ export function ObservatoryOperationalEvidence({
                       </p>
                     )}
                     <p>
-                      Recent checks are limited to the latest 25 from this source. This
-                      is not complete uptime history.
+                      Recent checks are limited to the latest 25 from this
+                      source. This is not complete uptime history.
                     </p>
                   </div>
                 ),

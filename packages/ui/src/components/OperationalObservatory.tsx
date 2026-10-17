@@ -16,6 +16,14 @@ import {
   type ObservatoryWorkDockProps,
 } from "./ObservatoryWorkDock";
 import {
+  ObservatoryProviderFeed,
+  type ObservatoryProviderFeedClient,
+} from "./ObservatoryProviderFeed";
+import {
+  ObservatoryReviewControls,
+  type ObservatoryReviewClient,
+} from "./ObservatoryReviewControls";
+import {
   ObservatoryOperationalEvidence,
   type ObservatoryEvidenceClient,
 } from "./ObservatoryOperationalEvidence";
@@ -65,6 +73,9 @@ export type OperationalObservatoryProps = {
   evidenceClient?: ObservatoryEvidenceClient;
   workClient?: ObservatoryWorkDockProps["loadPage"];
   workProjectIds?: string[] | undefined;
+  providerFeedClient?: ObservatoryProviderFeedClient;
+  reviewClient?: ObservatoryReviewClient;
+  onReviewed?: () => void;
   scopeProjectId?: string | null;
   paused?: boolean;
   delayed?: boolean;
@@ -218,7 +229,11 @@ function OutlineNode({
   if (!node) return null;
   const children = scene.membershipIndex.children[id] ?? [];
   return (
-    <li>
+    <li
+      data-representation-id={node.id}
+      data-resource-id={node.resourceId ?? undefined}
+      data-reference={node.referenceTo ?? undefined}
+    >
       <div
         className="cmd-op-outline-row"
         data-attention={operationalAttention(node.summary)}
@@ -306,6 +321,9 @@ function OperationalObservatoryView({
   initialSearch = "",
   viewsClient,
   evidenceClient,
+  providerFeedClient,
+  reviewClient,
+  onReviewed,
   workClient,
   workProjectIds,
   scopeProjectId = null,
@@ -314,6 +332,18 @@ function OperationalObservatoryView({
   compact = false,
   dark = false,
 }: OperationalObservatoryProps) {
+  const reviewResources = useMemo(() => {
+    const canonical = new Set(scene.membershipIndex.resourceIds);
+    const records = snapshot.items.filter((item) => canonical.has(item.id));
+    return records.length === canonical.size &&
+      new Set(records.map((item) => item.id)).size === canonical.size
+      ? records.map((item) => ({
+          id: item.id,
+          name: item.name,
+          kind: item.kind,
+        }))
+      : null;
+  }, [scene.membershipIndex.resourceIds, snapshot.items]);
   const [preferences, setPreferences] = useState(defaultObservatoryPreferences);
   const [initialResourceIds] = useState(
     () => new Set(scene.membershipIndex.resourceIds),
@@ -1692,6 +1722,31 @@ function OperationalObservatoryView({
               loadEvidence={evidenceClient}
             />
           )}
+          {selected?.resourceId &&
+            reviewClient &&
+            onReviewed &&
+            (reviewResources &&
+            workProjectIds !== undefined &&
+            reviewResources.some((item) => item.id === selected.resourceId) ? (
+              <ObservatoryReviewControls
+                key={`${scene.scopeDigest}:${selected.resourceId}`}
+                resource={reviewResources.find(
+                  (item) => item.id === selected.resourceId,
+                )!}
+                resources={reviewResources}
+                projectIds={workProjectIds}
+                scopeKey={scene.scopeDigest}
+                selectedProjectId={scopeProjectId}
+                loadCatalogue={reviewClient.loadCatalogue}
+                review={reviewClient.review}
+                onReviewed={onReviewed}
+              />
+            ) : (
+              <p role="status">
+                Complete canonical review choices are unavailable. Refresh the
+                inventory and project catalogue.
+              </p>
+            ))}
           <details>
             <summary>Observation evidence</summary>
             {scene.signals
@@ -1829,6 +1884,13 @@ function OperationalObservatoryView({
           <p role="status">Canonical Work unavailable in this view.</p>
         )}
       </details>
+      {providerFeedClient && (
+        <ObservatoryProviderFeed
+          scopeKey={scene.scopeDigest}
+          loadPage={providerFeedClient}
+          paused={paused}
+        />
+      )}
     </section>
   );
 }
