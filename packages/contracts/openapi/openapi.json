@@ -23509,6 +23509,9 @@
               "pull_requests",
               "security"
             ]
+          },
+          "includePullRequestChecks": {
+            "type": "boolean"
           }
         },
         "required": [
