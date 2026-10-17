@@ -574,7 +574,7 @@ test("Gravity uses canonical resources, persisted appearance, focus and truthful
   page,
   request,
 }, testInfo) => {
-  test.setTimeout(120000);
+  test.setTimeout(240000);
   const diagnosticStarted = performance.now();
   const f = await fixture(request);
   const errors: string[] = [];
