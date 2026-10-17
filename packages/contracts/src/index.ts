@@ -3505,3 +3505,5 @@ export * from "./foundation-finding-proposal";
 export * from "./foundation-onboarding";
 
 export * from "./observatory-views";
+
+export * from "./observatory-repository";

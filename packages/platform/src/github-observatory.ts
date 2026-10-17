@@ -19,7 +19,7 @@ import {
   type ObservatoryRepositoryAnalysisDto,
   type ObservatoryRepositoryEvidenceDto,
   type ObservatoryRepositoryPullRequestDto,
-} from "../../contracts/src/observatory-repository";
+} from "@commandry/contracts";
 
 const maximumBytes = 2_097_152;
 const invalid = () =>

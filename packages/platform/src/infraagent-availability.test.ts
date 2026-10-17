@@ -2,12 +2,12 @@ import { createServer, type RequestListener } from "node:http";
 import { afterEach, describe, expect, it, vi } from "vitest";
 import { observatoryFreshness } from "@commandry/domain";
 import { createInfraAgentAvailabilityReader } from "./infraagent-availability";
-import { createOperationalObservationPoller } from "../../application/src/observatory-observations";
+import { createOperationalObservationPoller } from "@commandry/application";
 import type {
   OperationalObservation,
   OperationalSourceClaim,
   OperationalSourcePort,
-} from "../../application/src/observatory-observations";
+} from "@commandry/application";
 
 const at = "2026-10-16T12:00:00.000Z";
 const apiKey = "synthetic_read_only_key";

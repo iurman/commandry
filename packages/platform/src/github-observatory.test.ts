@@ -12,7 +12,7 @@ import type {
   OperationalSourcePort,
 } from "@commandry/application";
 import { observatoryFreshness } from "@commandry/domain";
-import { observatoryRepositoryEvidenceSchema } from "../../contracts/src/observatory-repository";
+import { observatoryRepositoryEvidenceSchema } from "@commandry/contracts";
 import { createGitHubObservatoryReader } from "./github-observatory";
 
 const at = "2026-10-17T12:00:00.000Z",

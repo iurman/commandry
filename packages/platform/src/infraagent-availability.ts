@@ -4,11 +4,11 @@ import {
   OperationalSourceError,
   boundedOperationalRetrySeconds,
   validateOperationalSourceClaim,
-} from "../../application/src/observatory-observations";
+} from "@commandry/application";
 import type {
   OperationalObservation,
   OperationalSourceClaim,
-} from "../../application/src/observatory-observations";
+} from "@commandry/application";
 
 const maximumBytes = 1_048_576;
 const invalid = () =>
