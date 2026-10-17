@@ -29,9 +29,10 @@ No product, database, API, renderer, source authority, population, timeout, retr
   "goal": "Retain phase receipts and transition diagnostics without changing browser acceptance.",
   "brief": {
     "change": "Add Node-side phase receipts to master and finally evidence around full-F1 global switch",
-    "check": "PATH=/home/urmani/.local/share/pnpm/.tools/pnpm/11.19.0/bin:/home/urmani/.cache/codex-runtimes/codex-primary-runtime/dependencies/node/bin:$PATH pnpm exec playwright test tests/e2e/gravity-master-scene.spec.ts tests/e2e/infrastructure-overview.spec.ts --list"
+    "check": "PATH=/home/urmani/.local/share/pnpm/.tools/pnpm/11.19.0/bin:/home/urmani/.cache/codex-runtimes/codex-primary-runtime/dependencies/node/bin:$PATH PLAYWRIGHT_BASE_URL=http://127.0.0.1:1 pnpm exec playwright test tests/e2e/gravity-master-scene.spec.ts tests/e2e/infrastructure-overview.spec.ts --list"
   },
   "seed_files": [
+    "docs/plans/observatory-operational-landscape/WORKERS-34.md",
     "AGENTS.md",
     "docs/project/status.md",
     "docs/product/principles.md",
@@ -83,7 +84,7 @@ No product, database, API, renderer, source authority, population, timeout, retr
     {
       "id": "A3",
       "kind": "command",
-      "run": "PATH=/home/urmani/.local/share/pnpm/.tools/pnpm/11.19.0/bin:/home/urmani/.cache/codex-runtimes/codex-primary-runtime/dependencies/node/bin:$PATH pnpm exec playwright test tests/e2e/gravity-master-scene.spec.ts tests/e2e/infrastructure-overview.spec.ts --list",
+      "run": "PATH=/home/urmani/.local/share/pnpm/.tools/pnpm/11.19.0/bin:/home/urmani/.cache/codex-runtimes/codex-primary-runtime/dependencies/node/bin:$PATH PLAYWRIGHT_BASE_URL=http://127.0.0.1:1 pnpm exec playwright test tests/e2e/gravity-master-scene.spec.ts tests/e2e/infrastructure-overview.spec.ts --list",
       "expect": {
         "exit": 0
       },
@@ -107,6 +108,7 @@ No product, database, API, renderer, source authority, population, timeout, retr
     "check": "PATH=/home/urmani/.local/share/pnpm/.tools/pnpm/11.19.0/bin:/home/urmani/.cache/codex-runtimes/codex-primary-runtime/dependencies/node/bin:$PATH pnpm exec prettier --check .github/workflows/release-candidate.yml"
   },
   "seed_files": [
+    "docs/plans/observatory-operational-landscape/WORKERS-34.md",
     "AGENTS.md",
     "docs/project/status.md",
     "docs/product/principles.md",
