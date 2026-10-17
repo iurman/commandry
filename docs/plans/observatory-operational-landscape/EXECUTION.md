@@ -1,8 +1,14 @@
 # Observatory execution record
 
-**Status: Operational. Implementation merged; release browser corrections remain in progress.**
+**Status: Operational. Implementation and local browser corrections accepted; hosted release and constrained deployment remain in progress.**
 
-## Current release state, 2026-10-17
+## Current accepted local correction, 2026-10-17
+
+T35/T36 close all three reopened local cases: 53 PASS, 0 FAIL and five explicit partial/unrun limitations. Final worker 3b15e63, normally merged locally at d74e48f, retains original guarantees and passes 78 component controls plus all 12 built browser cases in 1.1 minutes. Root independently executes all five packet checks and verifies source hashes plus strict owned cleanup. Astra final source/evidence review accepts; exact prior failed attempts, final measurements and actual screenshots are in [T36](T36.md) and [sanitized final evidence](evidence/2026-10-17-browser-final.json). The subsequent prefer-const correction has a separately recorded hash and independent acceptance as preserving behavior. Repository checks and scoped browser lint pass; current final repository bytes still require the mandatory hosted release.
+
+The next authorized steps are the corrective normal PR/merge, a single full main release, exact immutable-image metadata verification, genuine protected approval, existing constrained deployment and signed-in live/source activation. No image was published or production modified by this local correction. Unchanged historical GPU/soak/database/MCP evidence retains its actual original source53827d6. Five explicit owner/device/source limitations remain; the entire workflow is unfinished.
+
+## Retained release history, 2026-10-17
 
 The implementation is normally merged through PR22 at922cc6d. Its product and test bytes match the actual built53827d6 feature evidence, apart from the subsequent test-runner ceiling. The first main release39035678643 failed one original pressure test at5026ms against the unchanged5000ms deadline. T33's numeric worker ceiling4to2 passed controlled original-suite comparisons, worker/coordinator full-test acceptance and independent Astra review, then normally merged through [PR23](https://github.com/iurman/commandry/pull/23) ate26d4a0.
 
@@ -29,7 +35,7 @@ Fetched origin/main is 507303ca1e82b8b15cc8d94864b61db1de86ed7e. The isolated im
 | C Grouped scene and focus          | Verified | Complete91/1000-resource scene, authorization, grouping, search, detail, tours and breadcrumbs pass actual built controls. Actual final53827d6 label build, pixels and idle pass.      |
 | D Mappings and operational sources | Verified in disposable boundaries        | Canonical reviewed records, supported availability, provider/scanner/CI source history and owner/API/MCP parity pass. Exact production mappings and activation remain qualified until deployed and reviewed.         |
 | E Repository/work/views/TV         | Verified with explicit runtime limit     | Actual private views, repository/security/CI evidence,101canonical Work records and30minuteTVsoak pass. Unreleased AgentRun remains unknown.                                                                         |
-| F Review and release | In progress | PR22/23/24 merged; hosted container startup verified. Release browser6failures require T35/T36 behavior/test corrections before publication, protected controls and live verification. |
+| F Review and release | In progress | PR22/23/24 merged; hosted container startup verified. T35/T36 corrections accepted locally; corrective normal PR/full hosted release, publication, protected controls and live verification remain pending. |
 
 ## Preserved resources
 

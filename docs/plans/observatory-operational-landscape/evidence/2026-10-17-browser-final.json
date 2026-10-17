@@ -1,0 +1,507 @@
+{
+  "status": "Executed local PASS and independent review ACCEPT; hosted release pending",
+  "observedAt": "2026-10-17T15:57:26.698482+00:00",
+  "immutableBase": "7ad54a5d5e65875443950c91063165f4746ce577",
+  "runId": "run-03dd3f7e-115c-4ef2-9bf4-057e4a95f303",
+  "buildId": "f_8DtHgpIxyCfQ-3E-LNn",
+  "sourceClean": false,
+  "candidateSourceSha256": {
+    "packages/ui/src/components/OperationalObservatory.tsx": "6809ad57e747fa8594fee57a9d933ca9654f538e8e7ca1323477bc89fe001abf",
+    "packages/ui/src/gravity/operational-layout.test.ts": "98c7d3bb8852a9fe9480c74b2c640ec02d6c69602bbad3ba4036873be52cf9d2",
+    "tests/e2e/infrastructure-overview.spec.ts": "1d33d0cc16794735466b3854e311525f0a656e74626c1383772344dd5191b3ac",
+    "packages/ui/src/components/operational-observatory.css": "39cbaedd6ce9566f2a0265ce2c81d1eb53dafbdd765d86c2a64e3b8822fe4e95"
+  },
+  "sourceUnchangedDuringCheck": true,
+  "fiveTaskChecks": "78 component/preference tests; UI types; actual worker/web build plus disposable PostgreSQL18 and full original browser file; four-file formatting; boundaries",
+  "browser": {
+    "passed": 12,
+    "failed": 0,
+    "projects": [
+      "desktop",
+      "phone-390",
+      "phone-320"
+    ],
+    "originalTestDeadlineMs": 120000,
+    "expectationBudgetMs": 5000,
+    "negativeNoDrawWindowMs": 150,
+    "testExitCode": 0,
+    "testSignal": null,
+    "reportedDuration": "1.1m"
+  },
+  "runtime": {
+    "realPostgreSQL": 18,
+    "isolated": true,
+    "externalPolling": false,
+    "authMode": "test-local-off",
+    "privateCompiledAssets": true
+  },
+  "cleanup": {
+    "freshMatchingRunIdReceipt": true,
+    "webStopped": true,
+    "postgresStopped": true,
+    "directoryRemoved": true,
+    "actualPidGroupDirectoryAbsenceIndependentlyVerified": true
+  },
+  "fullPopulation": {
+    "strategy": "real-api",
+    "fixtureResources": 91,
+    "projects": 15,
+    "authorizedResources": 260,
+    "additionalAuthorizedResources": 169,
+    "completeCanonicalAndAliasUnion": true,
+    "enabledSearchControls": 182,
+    "allSearchControlsEnabled": true,
+    "completeEnabledCanonicalOutline": true,
+    "actualRepresentativeSelections": 3,
+    "boundaryKeyboardSelection": true,
+    "realSourceEvidenceHttpStatus": 200,
+    "workKeyboardAccess": true,
+    "textScale": 1.5,
+    "textFontCssPx": 21
+  },
+  "wallboardGeometry": {
+    "1920x1080-gravity-wallboard.json": {
+      "viewport": {
+        "width": 1920,
+        "height": 1080,
+        "scrollX": 0,
+        "scrollY": 0,
+        "visual": {
+          "width": 1920,
+          "height": 1080,
+          "scale": 1
+        }
+      },
+      "document": {
+        "scrollHeight": 1080,
+        "clientHeight": 1080,
+        "scrollWidth": 1920,
+        "clientWidth": 1920
+      },
+      "stage": {
+        "x": 18,
+        "y": 441.703125,
+        "width": 1544,
+        "height": 275.96875,
+        "top": 441.703125,
+        "right": 1562,
+        "bottom": 717.671875,
+        "left": 18
+      },
+      "canvas": {
+        "x": 18,
+        "y": 441.703125,
+        "width": 1544,
+        "height": 276,
+        "top": 441.703125,
+        "right": 1562,
+        "bottom": 717.703125,
+        "left": 18
+      },
+      "rowAllocation": {
+        "main": {
+          "x": 17,
+          "y": 292.984375,
+          "width": 1886,
+          "height": 743.625,
+          "top": 292.984375,
+          "right": 1903,
+          "bottom": 1036.609375,
+          "left": 17
+        },
+        "observatory": {
+          "x": 17,
+          "y": 292.984375,
+          "width": 1886,
+          "height": 697.4375,
+          "top": 292.984375,
+          "right": 1903,
+          "bottom": 990.421875,
+          "left": 17
+        },
+        "truth": {
+          "x": 17,
+          "y": 990.421875,
+          "width": 1886,
+          "height": 46.1875,
+          "top": 990.421875,
+          "right": 1903,
+          "bottom": 1036.609375,
+          "left": 17
+        },
+        "naturalTruthHeight": 46.1875,
+        "ready": true
+      },
+      "ready": true
+    },
+    "3840x2160-f1-150-percent-text.json": {
+      "viewport": {
+        "width": 3840,
+        "height": 2160,
+        "scrollX": 0,
+        "scrollY": 0,
+        "visual": {
+          "width": 3840,
+          "height": 2160,
+          "scale": 1
+        }
+      },
+      "document": {
+        "scrollHeight": 2160,
+        "clientHeight": 2160,
+        "scrollWidth": 3840,
+        "clientWidth": 3840
+      },
+      "stage": {
+        "x": 18,
+        "y": 479.578125,
+        "width": 3464,
+        "height": 1270.234375,
+        "top": 479.578125,
+        "right": 3482,
+        "bottom": 1749.8125,
+        "left": 18
+      },
+      "canvas": {
+        "x": 18,
+        "y": 479.578125,
+        "width": 3464,
+        "height": 1270,
+        "top": 479.578125,
+        "right": 3482,
+        "bottom": 1749.578125,
+        "left": 18
+      },
+      "rowAllocation": {
+        "main": {
+          "x": 17,
+          "y": 292.984375,
+          "width": 3806,
+          "height": 1823.625,
+          "top": 292.984375,
+          "right": 3823,
+          "bottom": 2116.609375,
+          "left": 17
+        },
+        "observatory": {
+          "x": 17,
+          "y": 292.984375,
+          "width": 3806,
+          "height": 1777.4375,
+          "top": 292.984375,
+          "right": 3823,
+          "bottom": 2070.421875,
+          "left": 17
+        },
+        "truth": {
+          "x": 17,
+          "y": 2070.421875,
+          "width": 3806,
+          "height": 46.1875,
+          "top": 2070.421875,
+          "right": 3823,
+          "bottom": 2116.609375,
+          "left": 17
+        },
+        "naturalTruthHeight": 46.1875,
+        "ready": true
+      },
+      "ready": true
+    },
+    "3840x2160-f1-accessible-regions.json": {
+      "viewport": {
+        "width": 3840,
+        "height": 2160,
+        "scrollX": 0,
+        "scrollY": 0,
+        "visual": {
+          "width": 3840,
+          "height": 2160,
+          "scale": 1
+        }
+      },
+      "document": {
+        "scrollHeight": 2160,
+        "clientHeight": 2160,
+        "scrollWidth": 3840,
+        "clientWidth": 3840
+      },
+      "stage": {
+        "x": 18,
+        "y": 479.578125,
+        "width": 3464,
+        "height": 852.0625,
+        "top": 479.578125,
+        "right": 3482,
+        "bottom": 1331.640625,
+        "left": 18
+      },
+      "canvas": {
+        "x": 18,
+        "y": 479.578125,
+        "width": 3464,
+        "height": 852,
+        "top": 479.578125,
+        "right": 3482,
+        "bottom": 1331.578125,
+        "left": 18
+      },
+      "rowAllocation": {
+        "main": {
+          "x": 17,
+          "y": 292.984375,
+          "width": 3806,
+          "height": 1823.625,
+          "top": 292.984375,
+          "right": 3823,
+          "bottom": 2116.609375,
+          "left": 17
+        },
+        "observatory": {
+          "x": 17,
+          "y": 292.984375,
+          "width": 3806,
+          "height": 1777.4375,
+          "top": 292.984375,
+          "right": 3823,
+          "bottom": 2070.421875,
+          "left": 17
+        },
+        "truth": {
+          "x": 17,
+          "y": 2070.421875,
+          "width": 3806,
+          "height": 46.1875,
+          "top": 2070.421875,
+          "right": 3823,
+          "bottom": 2116.609375,
+          "left": 17
+        },
+        "naturalTruthHeight": 46.1875,
+        "ready": true
+      },
+      "ready": true
+    },
+    "1920x1080-restored-project-wallboard.json": {
+      "viewport": {
+        "width": 1920,
+        "height": 1080,
+        "scrollX": 0,
+        "scrollY": 0,
+        "visual": {
+          "width": 1920,
+          "height": 1080,
+          "scale": 1
+        }
+      },
+      "document": {
+        "scrollHeight": 1080,
+        "clientHeight": 1080,
+        "scrollWidth": 1920,
+        "clientWidth": 1920
+      },
+      "stage": {
+        "x": 18,
+        "y": 441.703125,
+        "width": 1544,
+        "height": 275.96875,
+        "top": 441.703125,
+        "right": 1562,
+        "bottom": 717.671875,
+        "left": 18
+      },
+      "canvas": {
+        "x": 18,
+        "y": 441.703125,
+        "width": 1544,
+        "height": 276,
+        "top": 441.703125,
+        "right": 1562,
+        "bottom": 717.703125,
+        "left": 18
+      },
+      "rowAllocation": {
+        "main": {
+          "x": 17,
+          "y": 292.984375,
+          "width": 1886,
+          "height": 743.625,
+          "top": 292.984375,
+          "right": 1903,
+          "bottom": 1036.609375,
+          "left": 17
+        },
+        "observatory": {
+          "x": 17,
+          "y": 292.984375,
+          "width": 1886,
+          "height": 697.4375,
+          "top": 292.984375,
+          "right": 1903,
+          "bottom": 990.421875,
+          "left": 17
+        },
+        "truth": {
+          "x": 17,
+          "y": 990.421875,
+          "width": 1886,
+          "height": 46.1875,
+          "top": 990.421875,
+          "right": 1903,
+          "bottom": 1036.609375,
+          "left": 17
+        },
+        "naturalTruthHeight": 46.1875,
+        "ready": true
+      },
+      "ready": true
+    }
+  },
+  "lensAndObserver": {
+    "desktop": {
+      "viewport": {
+        "width": 1280,
+        "height": 720
+      },
+      "lensMaximumCssPixelError": 0.014374999999972715,
+      "expectedDiameter": 211.2,
+      "actualDiameter": 211.1875,
+      "pairedObserver": {
+        "observed": 5,
+        "falseDelivered": 1,
+        "suppressed": 4
+      },
+      "afterNavigationObserver": {
+        "observed": 3,
+        "falseDelivered": 3,
+        "suppressed": 0
+      },
+      "clippedAncestorContentHeight": 0,
+      "positiveCanvasContainer": {
+        "width": 578,
+        "height": 480
+      }
+    },
+    "390": {
+      "viewport": {
+        "width": 390,
+        "height": 844
+      },
+      "lensMaximumCssPixelError": 0.009999999999990905,
+      "expectedDiameter": 155.76,
+      "actualDiameter": 155.75,
+      "pairedObserver": {
+        "observed": 6,
+        "falseDelivered": 1,
+        "suppressed": 5
+      },
+      "afterNavigationObserver": {
+        "observed": 2,
+        "falseDelivered": 1,
+        "suppressed": 1
+      },
+      "clippedAncestorContentHeight": 0,
+      "positiveCanvasContainer": {
+        "width": 354,
+        "height": 460
+      }
+    },
+    "320": {
+      "viewport": {
+        "width": 320,
+        "height": 720
+      },
+      "lensMaximumCssPixelError": 0.01187500000000341,
+      "expectedDiameter": 124.96,
+      "actualDiameter": 124.953125,
+      "pairedObserver": {
+        "observed": 6,
+        "falseDelivered": 1,
+        "suppressed": 5
+      },
+      "afterNavigationObserver": {
+        "observed": 4,
+        "falseDelivered": 1,
+        "suppressed": 3
+      },
+      "clippedAncestorContentHeight": 0,
+      "positiveCanvasContainer": {
+        "width": 284,
+        "height": 460
+      }
+    }
+  },
+  "preservedOriginalGuarantees": [
+    "all four original titles, complete fixture and two unrelated test bodies",
+    "three original Playwright projects, themes, screenshots and deadlines",
+    "exact canonical identities, physical parent and every authorized extra",
+    "actual observed source timestamps/HTTP evidence and telemetry separate from unknown unmonitored availability",
+    "saved explicit Custom, implicit Add-resource Custom and Projects navigation before any reselection",
+    "actual slow-orbit pose movement and stationary paused pose",
+    "withheld observer delivery, clipped-ancestor negative and real-scroll positive draw recovery",
+    "original phone width and1920x1080 height/stage floor"
+  ],
+  "additionalF1Setup": "Real enabled toggle handlers run sequentially with observed aria-expanded=true commit between them. Only added fullPopulationMode setup uses this bounded DOM batching; original scoped pointer interactions stay unchanged.",
+  "retainedAttempts": [
+    {
+      "name": "provided-seed",
+      "runId": "run-e6bfba85-90bf-4d79-8bad-7df8e59b0b82",
+      "result": "12PASS",
+      "qualification": "Earlier source before row allocation correction; not substituted for final"
+    },
+    {
+      "name": "force-api-before-row-fix",
+      "runId": "run-a368d0f6-565c-4843-815d-d5613f55e8c2",
+      "result": "12PASS",
+      "qualification": "Earlier source passes viewport containment but leaves truth grid row740.016px"
+    },
+    {
+      "name": "row-corrected-timeout",
+      "runId": "run-ae9f9862-c87c-4d20-b907-99bbd91f0fca",
+      "result": "11PASS/1FAIL",
+      "qualification": "Original120000ms deadline exhausted during restoration after added full-F1 work; no layout assertion failed"
+    },
+    {
+      "name": "synchronous-batch-failure",
+      "runId": "run-7c1bf8cd-4996-4b51-9f39-ff145eaff634",
+      "result": "11PASS/1FAIL",
+      "qualification": "Preserved expansion-count guard332>302 catches render-captured-query overwrite; no bound relaxed"
+    }
+  ],
+  "independentReview": "ACCEPT exact tested snapshot and source-qualified semantics-preserving prefer-const correction; no extra local packet required, mandatory current full hosted release remains pending",
+  "qualifiedHistoricalSource": "53827d6a610a591e4b2afd8cb570e72a73d53895",
+  "historicalEvidenceRule": "Unchanged renderer/domain/contracts/database/MCP evidence retains its actual original revision/setup. It is not relabeled current build/GPU/soak evidence.",
+  "limits": [
+    "B05 unsupported incident snooze",
+    "E07 genuine document.hidden",
+    "F04 physical mobile keyboard/safearea",
+    "F06 owner interpretation",
+    "G06 lower-power physical device/stress costs"
+  ],
+  "releasePublished": false,
+  "productionDeployed": false,
+  "productionSourceActivated": false,
+  "postVerificationLintCorrection": {
+    "file": "tests/e2e/infrastructure-overview.spec.ts",
+    "testedSha256": "1d33d0cc16794735466b3854e311525f0a656e74626c1383772344dd5191b3ac",
+    "currentSha256": "110b88e0dd5c45ff1e2052c6d10ca3538c664e13d9251eccd1f548152a350ce3",
+    "change": "ESLint prefer-const: remove unassigned let declaration and declare the same timer as const at its existing assignment; no assertions, timeout, operation ordering or product code changed",
+    "hostedCurrentSourceVerification": "pending main release",
+    "independentReview": "ACCEPT; timing/commit/cleanup semantics preserved; original actual run hash retained"
+  },
+  "workerCommit": "3b15e63b9da94ca3447e6795caa4080ef03fd29f",
+  "rootTransferCommit": "d74e48f0b79e8b1d6eefbb2607e169b4dbcfc2f9",
+  "repositoryChecks": {
+    "pnpmCheckExit": 0,
+    "browserEslintExit": 0,
+    "browserFormatting": "passed in actual packet; mechanical correction checked separately before commit"
+  },
+  "currentSourceSha256": {
+    ".dockerignore": "027cf4957b0a41bc1938215dc35f55ce96fbc724d9e57dbd81f8cb8f9e4ff3c1",
+    "vitest.config.mts": "901bbed6bae30803f8a2c65880901ce4995ae2907deac5729ac08669069a96a8",
+    "packages/ui/src/components/OperationalObservatory.tsx": "6809ad57e747fa8594fee57a9d933ca9654f538e8e7ca1323477bc89fe001abf",
+    "packages/ui/src/gravity/operational-layout.test.ts": "98c7d3bb8852a9fe9480c74b2c640ec02d6c69602bbad3ba4036873be52cf9d2",
+    "tests/e2e/infrastructure-overview.spec.ts": "110b88e0dd5c45ff1e2052c6d10ca3538c664e13d9251eccd1f548152a350ce3",
+    "packages/ui/src/components/operational-observatory.css": "39cbaedd6ce9566f2a0265ce2c81d1eb53dafbdd765d86c2a64e3b8822fe4e95"
+  }
+}

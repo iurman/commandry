@@ -812,7 +812,6 @@ test("Gravity uses canonical resources, persisted appearance, focus and truthful
               // Each real toggle captures its rendered query. Wait for its
               // actual commit before the next handler reads that query.
               await new Promise<void>((resolve, reject) => {
-                let timer: ReturnType<typeof setTimeout>;
                 const observer = new MutationObserver(() => {
                   if (button.getAttribute("aria-expanded") === "true") {
                     clearTimeout(timer);
@@ -821,7 +820,7 @@ test("Gravity uses canonical resources, persisted appearance, focus and truthful
                   }
                 });
                 observer.observe(button, { attributes: true });
-                timer = setTimeout(() => {
+                const timer = setTimeout(() => {
                   observer.disconnect();
                   reject(new Error("Full-inventory expansion did not commit"));
                 }, 5000);
