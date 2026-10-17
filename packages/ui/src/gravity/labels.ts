@@ -153,6 +153,9 @@ export class LabelLayout {
         const { anchor, state } = box;
         const x = box.x - anchor.x;
         const y = box.y + box.height / 2 - anchor.y;
+        // Collision passes can keep settling after reduced motion snaps to this target.
+        const moving = Math.abs(x - state.x) + Math.abs(y - state.y) > 0.05;
+        const wasAdmitted = state.admitted;
         state.x += (x - state.x) * smoothing;
         state.y += (y - state.y) * smoothing;
         const rendered = {
@@ -180,7 +183,8 @@ export class LabelLayout {
         else state.opacity = Math.min(state.opacity, 0.04);
         state.opacity += (opacity - state.opacity) * smoothing;
         this.changing ||=
-          Math.abs(x - state.x) + Math.abs(y - state.y) > 0.05 ||
+          moving ||
+          wasAdmitted !== state.admitted ||
           Math.abs(opacity - state.opacity) > 0.002;
         return {
           ...anchor,
