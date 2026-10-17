@@ -5,7 +5,7 @@ export default defineConfig({
   plugins: [react()],
   test: {
     // Bound shared-machine contention while preserving every test and its existing deadline.
-    maxWorkers: 4,
+    maxWorkers: 2,
     include: ["apps/**/*.test.{ts,tsx}", "packages/**/*.test.{ts,tsx}"],
     exclude: [
       "**/node_modules/**",
