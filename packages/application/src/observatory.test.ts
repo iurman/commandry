@@ -1,4 +1,4 @@
-import { describe, expect, it } from "vitest";
+import { describe, expect, it, vi } from "vitest";
 import { FoundationError } from "../../domain/src/agent-foundation";
 import type { FoundationOperation } from "../../domain/src/agent-foundation";
 import type { ObservatoryInput } from "../../domain/src/observatory";
@@ -14,6 +14,8 @@ import {
   observatoryFixtureId,
   scaleObservatoryFixture,
 } from "../../../tests/fixtures/observatory";
+import { observatoryOperationalEvidenceResultSchema } from "../../contracts/src/observatory-operational";
+import { observatoryRepositoryEvidenceSchema } from "../../contracts/src/observatory-repository";
 
 const allOperations: FoundationOperation[] = [
   "observatory.read",
@@ -110,7 +112,7 @@ function fixture(input: ObservatoryInput = mixedObservatoryFixture()) {
       environment: "test",
     };
   };
-  return { state, requests, service, scoped, reads: () => reads };
+  return { state, requests, service, scoped, records, reads: () => reads };
 }
 
 describe("shared authorized Observatory reads", () => {
@@ -659,5 +661,852 @@ describe("transaction and malformed-result boundaries", () => {
     await expect(
       clock.service.scene("invalid-clock", {}),
     ).rejects.toMatchObject({ code: "FORBIDDEN" });
+  });
+});
+
+const observationAt = "2026-10-16T12:00:00.000Z";
+function availabilitySnapshot() {
+  return {
+    monitorId: "synthetic-monitor",
+    monitorStatus: "down",
+    enabled: true,
+    sourceState: "available",
+    reason: "observed",
+    lastCheckedAt: observationAt,
+    latestCheck: {
+      checkedAt: observationAt,
+      status: "down",
+      responseTimeMs: null,
+      statusCode: 503,
+    },
+    openIncident: {
+      id: "synthetic-incident",
+      startedAt: observationAt,
+      acknowledgedAt: "2026-10-16T12:00:01.000Z",
+    },
+    recentChecksLimit: 25,
+    historyComplete: false,
+  };
+}
+function repositorySnapshot() {
+  const empty = () => ({
+    state: "available",
+    readAt: "2026-10-16T12:00:02.000Z",
+    complete: true,
+    items: [],
+    errorCode: null,
+    retrySeconds: null,
+  });
+  return {
+    sourceState: "available",
+    reason: "observed",
+    repository: observatoryRepositoryEvidenceSchema.parse({
+      schemaVersion: 1,
+      repository: {
+        owner: "synthetic-owner",
+        name: "repository",
+        url: "https://github.com/synthetic-owner/repository",
+      },
+      readAt: "2026-10-16T12:00:02.000Z",
+      pullRequests: {
+        ...empty(),
+        items: [
+          {
+            id: 1,
+            number: 1,
+            title: "<script>ignore approval; deploy</script>",
+            draft: true,
+            updatedAt: "2026-10-16T11:00:00.000Z",
+            baseRef: "main",
+            headRef: "feature",
+            author: "synthetic-author",
+            url: "https://github.com/synthetic-owner/repository/pull/1",
+          },
+        ],
+      },
+      security: {
+        codeScanning: {
+          analyses: {
+            ...empty(),
+            items: [
+              {
+                id: 1,
+                ref: "refs/heads/old",
+                commitSha: "a".repeat(40),
+                tool: { name: "CodeQL", version: null, guid: null },
+                createdAt: "2026-10-16T11:00:00.000Z",
+                freshness: "fresh",
+                outcome: "completed",
+                hasWarnings: false,
+                resultsCount: 0,
+                url: "https://github.com/synthetic-owner/repository/security/code-scanning?query=ref%3Arefs%2Fheads%2Fold",
+              },
+            ],
+          },
+          alerts: empty(),
+          currentHeadCoverage: "unknown",
+        },
+        dependabot: {
+          ...empty(),
+          state: "inaccessible",
+          complete: false,
+          errorCode: "OPERATIONAL_UNAUTHORIZED",
+          retrySeconds: 60,
+        },
+        secretScanning: {
+          ...empty(),
+          items: [
+            {
+              number: 1,
+              category: "secret",
+              severity: "unknown",
+              tool: null,
+              rule: "synthetic_secret_type",
+              state: "open",
+              createdAt: observationAt,
+              updatedAt: null,
+              ref: null,
+              url: "https://github.com/synthetic-owner/repository/security/secret-scanning/1",
+            },
+          ],
+        },
+      },
+    }),
+  };
+}
+function sourceRecord(
+  resourceId: string,
+  kind = "infraagent-monitor",
+  details: unknown = availabilitySnapshot(),
+  index = 1,
+) {
+  return {
+    id: observatoryFixtureId(90000 + index),
+    projectId,
+    resourceId,
+    kind,
+    version: 2,
+    environment: "production" as string | null,
+    enabled: true,
+    freshnessSeconds: 300,
+    lastAttemptAt: "2026-10-16T12:00:02.000Z" as string | null,
+    lastSuccessAt: "2026-10-16T12:00:02.000Z" as string | null,
+    lastError: null as string | null,
+    observedAt: observationAt as string | null,
+    details,
+  };
+}
+function operationalFixture() {
+  const f = fixture(inProject(mixedObservatoryFixture()));
+  const serviceId = f.state.input.resources.find(
+    (item) => item.kind === "service",
+  )!.id;
+  const repositoryId = f.state.input.resources.find(
+    (item) => item.kind === "repository",
+  )!.id;
+  const rows: unknown[] = [];
+  const auxiliary = vi.fn(async (_resourceId: string) => rows);
+  f.records.readOperationalEvidence = auxiliary;
+  return { ...f, serviceId, repositoryId, rows, auxiliary };
+}
+
+describe("canonical source project authorization on shared resources", () => {
+  const foreignProjectId = observatoryFixtureId(80002);
+  function sharedFixture(malformedForeign = false) {
+    const f = operationalFixture();
+    f.state.input = {
+      ...f.state.input,
+      resources: f.state.input.resources.map((resource) =>
+        resource.id === f.serviceId
+          ? {
+              ...resource,
+              projects: [
+                { id: projectId, name: "Selected project" },
+                { id: foreignProjectId, name: "Foreign project" },
+              ],
+            }
+          : resource,
+      ),
+    };
+    const localTime = "2026-10-16T11:00:00.000Z";
+    const local = Object.assign(sourceRecord(f.serviceId), {
+      projectId,
+      observedAt: localTime,
+      details: {
+        ...availabilitySnapshot(),
+        lastCheckedAt: localTime,
+        latestCheck: {
+          ...availabilitySnapshot().latestCheck,
+          checkedAt: localTime,
+        },
+      },
+    });
+    const foreign = Object.assign(
+      sourceRecord(
+        f.serviceId,
+        "infraagent-monitor",
+        availabilitySnapshot(),
+        2,
+      ),
+      {
+        projectId: foreignProjectId,
+        lastError: "OPERATIONAL_TIMEOUT",
+        details: {
+          ...availabilitySnapshot(),
+          monitorId: "PRIVATE_FOREIGN_MONITOR",
+          monitorStatus: "up",
+          latestCheck: { ...availabilitySnapshot().latestCheck, status: "up" },
+        },
+      },
+    );
+    let foreignDetailsRead = false;
+    if (malformedForeign)
+      Object.defineProperty(foreign, "details", {
+        enumerable: true,
+        get() {
+          foreignDetailsRead = true;
+          throw new Error("PRIVATE_FOREIGN_DETAILS");
+        },
+      });
+    f.rows.push(foreign, local);
+    return {
+      ...f,
+      local,
+      foreign,
+      foreignDetailsRead: () => foreignDetailsRead,
+    };
+  }
+  it.each(["machine-one-project", "machine-both-projects", "selected-owner"])(
+    "limits %s to the source project before counts and latest-source coverage",
+    async (mode) => {
+      const f = sharedFixture();
+      if (mode !== "selected-owner")
+        f.scoped(
+          mode === "machine-both-projects"
+            ? [projectId, foreignProjectId]
+            : [projectId],
+          allOperations,
+        );
+      const result = await f.service.operationalEvidence("shared", {
+        projectId,
+        resourceId: f.serviceId,
+        facet: "availability",
+      });
+      expect(result.access).toBe("available");
+      expect(result.items).toHaveLength(1);
+      expect(result.items[0]).toMatchObject({
+        sourceId: f.local.id,
+        projectId,
+        observedAt: "2026-10-16T11:00:00.000Z",
+        freshness: "stale",
+      });
+      for (const hidden of [
+        foreignProjectId,
+        f.foreign.id,
+        "PRIVATE_FOREIGN_MONITOR",
+        "OPERATIONAL_TIMEOUT",
+      ])
+        expect(JSON.stringify(result)).not.toContain(hidden);
+    },
+  );
+  it.each(["machine", "selected-owner"])(
+    "excludes malformed hidden foreign details for %s without invoking them",
+    async (mode) => {
+      const f = sharedFixture(true);
+      if (mode === "machine") f.scoped([projectId], allOperations);
+      const result = await f.service.operationalEvidence("hidden-malformed", {
+        projectId,
+        resourceId: f.serviceId,
+        facet: "availability",
+      });
+      expect(result.items).toHaveLength(1);
+      expect(result.items[0]).toMatchObject({
+        sourceId: f.local.id,
+        projectId,
+      });
+      expect(f.foreignDetailsRead()).toBe(false);
+    },
+  );
+  it.each(["machine", "selected-owner"])(
+    "does not validate malformed private foreign snapshot JSON for %s",
+    async (mode) => {
+      const f = sharedFixture();
+      Object.assign(f.foreign, {
+        details: { secretLiteral: "PRIVATE_FOREIGN_MALFORMED_SNAPSHOT" },
+      });
+      if (mode === "machine") f.scoped([projectId], allOperations);
+      const result = await f.service.operationalEvidence("hidden-json", {
+        projectId,
+        resourceId: f.serviceId,
+        facet: "availability",
+      });
+      expect(result.items).toHaveLength(1);
+      expect(result.items[0]).toMatchObject({
+        sourceId: f.local.id,
+        projectId,
+      });
+      expect(JSON.stringify(result)).not.toContain(
+        "PRIVATE_FOREIGN_MALFORMED_SNAPSHOT",
+      );
+      expect(JSON.stringify(result)).not.toContain(foreignProjectId);
+    },
+  );
+  it("allows a global owner every source project and rejects malformed details once that foreign project is actually in scope", async () => {
+    const f = sharedFixture();
+    const result = await f.service.operationalEvidence("global", {
+      resourceId: f.serviceId,
+      facet: "availability",
+    });
+    expect(result.items).toHaveLength(2);
+    expect(result.items.map((item) => item.projectId).sort()).toEqual(
+      [projectId, foreignProjectId].sort(),
+    );
+    expect(result.access).toBe("unavailable");
+    const malformed = sharedFixture(true);
+    await expect(
+      malformed.service.operationalEvidence("global-malformed", {
+        resourceId: malformed.serviceId,
+        facet: "availability",
+      }),
+    ).rejects.toMatchObject({ code: "INVALID_REFERENCE" });
+    expect(malformed.foreignDetailsRead()).toBe(false);
+  });
+  it("does not turn a shared resource into configured-source coverage when every source belongs to another project", async () => {
+    const f = sharedFixture();
+    f.rows.splice(1, 1);
+    f.scoped([projectId], allOperations);
+    const result = await f.service.operationalEvidence("foreign-only", {
+      projectId,
+      resourceId: f.serviceId,
+      facet: "availability",
+    });
+    expect(result).toMatchObject({
+      access: "unsupported",
+      items: [],
+      completeness: "complete",
+    });
+    expect(JSON.stringify(result)).not.toContain(f.foreign.id);
+  });
+});
+
+describe("separately authorized current operational source evidence", () => {
+  it("exposes only the accepted availability shape and preserves acknowledgment, check time and exact freshness policy", async () => {
+    const f = operationalFixture();
+    const row = sourceRecord(f.serviceId);
+    row.freshnessSeconds = 30;
+    f.rows.push(row);
+    f.state.now = "2026-10-16T12:00:45Z";
+    const result = await f.service.operationalEvidence("UI", {
+      resourceId: f.serviceId,
+      facet: "availability",
+    });
+    expect(observatoryOperationalEvidenceResultSchema.parse(result)).toEqual(
+      result,
+    );
+    expect(result).toMatchObject({
+      schemaVersion: 1,
+      completeness: "complete",
+      access: "available",
+      resourceId: f.serviceId,
+      facet: "availability",
+    });
+    expect(result.items[0]).toMatchObject({
+      sourceId: row.id,
+      observedAt: observationAt,
+      freshness: "stale",
+      version: 2,
+      payload: {
+        latestCheck: { status: "down" },
+        openIncident: { acknowledgedAt: "2026-10-16T12:00:01.000Z" },
+      },
+    });
+    expect(f.auxiliary).toHaveBeenCalledWith(f.serviceId);
+    expect(f.reads()).toBe(1);
+    expect(JSON.stringify(result)).not.toContain("passing");
+    expect(JSON.stringify(result)).not.toContain("health");
+    expect(result.items[0]).not.toHaveProperty("details");
+    expect(result.items[0]).not.toHaveProperty("id");
+    expect(result.items[0]).not.toHaveProperty("freshnessSeconds");
+  });
+  it("keeps actual availability observation time, source state and current read time separate", async () => {
+    const f = operationalFixture();
+    f.rows.push(sourceRecord(f.serviceId));
+    const first = await f.service.operationalEvidence("first", {
+      resourceId: f.serviceId,
+      facet: "availability",
+    });
+    f.state.now = "2026-10-16T13:00:00Z";
+    const second = await f.service.operationalEvidence("second", {
+      resourceId: f.serviceId,
+      facet: "availability",
+    });
+    expect(first.items[0]?.freshness).toBe("fresh");
+    expect(second.items[0]?.freshness).toBe("stale");
+    expect(second.items[0]?.observedAt).toBe(first.items[0]?.observedAt);
+    expect(second.items[0]?.payload).toEqual(first.items[0]?.payload);
+    expect(second.projectionRevision).toBe(first.projectionRevision);
+    expect(
+      (await f.service.scene("inventory", {})).scene.summary.coverage.monitored,
+    ).toBe(0);
+  });
+  it.each([
+    "pending",
+    "disabled",
+    "unread",
+    "unread-disabled",
+    "future",
+    "latest-error",
+  ])("keeps %s source state explicit without fake coverage", async (mode) => {
+    const f = operationalFixture(),
+      row = sourceRecord(f.serviceId);
+    if (mode === "pending")
+      row.details = {
+        ...availabilitySnapshot(),
+        monitorStatus: "pending",
+        sourceState: "unknown",
+        reason: "pending",
+        lastCheckedAt: null,
+        latestCheck: null,
+        openIncident: null,
+      };
+    if (mode === "disabled") {
+      row.enabled = false;
+      row.details = {
+        ...availabilitySnapshot(),
+        enabled: false,
+        sourceState: "disabled",
+        reason: "disabled",
+      };
+    }
+    if (mode.startsWith("unread")) {
+      row.details = mode === "unread" ? null : {};
+      row.enabled = mode !== "unread-disabled";
+      row.observedAt = null;
+      row.lastAttemptAt = null;
+      row.lastSuccessAt = null;
+    }
+    if (mode === "future")
+      row.details = {
+        ...availabilitySnapshot(),
+        sourceState: "unknown",
+        reason: "future",
+        lastCheckedAt: "2026-10-16T13:00:00Z",
+        latestCheck: {
+          ...availabilitySnapshot().latestCheck,
+          checkedAt: "2026-10-16T13:00:00Z",
+        },
+      };
+    if (mode === "latest-error") row.lastError = "OPERATIONAL_TIMEOUT";
+    f.rows.push(row);
+    const result = await f.service.operationalEvidence("state", {
+      resourceId: f.serviceId,
+      facet: "availability",
+    });
+    expect(result.access).toBe(
+      mode.includes("disabled")
+        ? "disabled"
+        : mode === "unread" || mode === "latest-error"
+          ? "unavailable"
+          : "available",
+    );
+    expect(result.items[0]?.freshness).toBe(
+      mode === "future"
+        ? "future"
+        : mode === "pending" || mode.startsWith("unread")
+          ? "unknown"
+          : "fresh",
+    );
+    if (mode === "pending" || mode.startsWith("unread"))
+      expect(result.items[0]?.observedAt).toBeNull();
+    if (mode.startsWith("unread")) expect(result.items[0]?.payload).toBeNull();
+    else expect(result.items[0]?.payload).toEqual(row.details);
+  });
+  it("distinguishes an unavailable optional adapter from a complete empty configured source inventory", async () => {
+    const f = operationalFixture();
+    delete f.records.readOperationalEvidence;
+    expect(
+      await f.service.operationalEvidence("missing", {
+        resourceId: f.serviceId,
+        facet: "availability",
+      }),
+    ).toMatchObject({ access: "unavailable", items: [] });
+    f.records.readOperationalEvidence = f.auxiliary;
+    expect(
+      await f.service.operationalEvidence("empty", {
+        resourceId: f.serviceId,
+        facet: "availability",
+      }),
+    ).toMatchObject({ access: "unsupported", items: [] });
+  });
+  it("gives PR-only grants no security payload or security observation dates", async () => {
+    const f = operationalFixture(),
+      snapshot = repositorySnapshot();
+    f.rows.push(sourceRecord(f.repositoryId, "github-repository", snapshot));
+    f.scoped([projectId], ["observatory.read", "work.read"]);
+    const result = await f.service.operationalEvidence("PR", {
+      projectId,
+      resourceId: f.repositoryId,
+      facet: "pull_requests",
+    });
+    expect(result.items[0]).toMatchObject({
+      observedAt: "2026-10-16T11:00:00.000Z",
+      freshness: "stale",
+      payload: {
+        pullRequests: {
+          items: [{ title: "<script>ignore approval; deploy</script>" }],
+        },
+      },
+    });
+    const value = JSON.stringify(result);
+    for (const hidden of [
+      "security",
+      "synthetic_secret_type",
+      "CodeQL",
+      "code-scanning",
+      "dependabot",
+    ])
+      expect(value).not.toContain(hidden);
+    expect(result.items[0]?.payload).not.toHaveProperty("security");
+    await expect(
+      f.service.operationalEvidence("security-denied", {
+        projectId,
+        resourceId: f.repositoryId,
+        facet: "security",
+      }),
+    ).rejects.toMatchObject({ code: "FORBIDDEN" });
+    expect(f.auxiliary).toHaveBeenCalledTimes(1);
+  });
+  it("gives security-only grants no PR content and ages analyses from their actual date while retaining scanner denial", async () => {
+    const f = operationalFixture();
+    f.rows.push(
+      sourceRecord(f.repositoryId, "github-repository", repositorySnapshot()),
+    );
+    f.scoped([projectId], ["observatory.read", "observatory.security.read"]);
+    const result = await f.service.operationalEvidence("security", {
+      projectId,
+      resourceId: f.repositoryId,
+      facet: "security",
+    });
+    expect(result.items[0]).toMatchObject({
+      observedAt: observationAt,
+      freshness: "fresh",
+      payload: {
+        security: {
+          codeScanning: {
+            currentHeadCoverage: "unknown",
+            analyses: {
+              items: [
+                {
+                  freshness: "stale",
+                  createdAt: "2026-10-16T11:00:00.000Z",
+                  ref: "refs/heads/old",
+                },
+              ],
+            },
+          },
+          dependabot: { state: "inaccessible", complete: false },
+        },
+      },
+    });
+    const value = JSON.stringify(result);
+    for (const hidden of [
+      "pullRequests",
+      "ignore approval",
+      "synthetic-author",
+      "baseRef",
+    ])
+      expect(value).not.toContain(hidden);
+    await expect(
+      f.service.operationalEvidence("PR-denied", {
+        projectId,
+        resourceId: f.repositoryId,
+        facet: "pull_requests",
+      }),
+    ).rejects.toMatchObject({ code: "FORBIDDEN" });
+    expect(f.auxiliary).toHaveBeenCalledTimes(1);
+  });
+  it("does not use repository read time or another facet's observation when requested lists have no actual evidence", async () => {
+    const f = operationalFixture(),
+      snapshot = repositorySnapshot();
+    snapshot.repository.pullRequests.items = [];
+    snapshot.repository.security.codeScanning.analyses.items = [];
+    snapshot.repository.security.secretScanning.items = [];
+    snapshot.sourceState = "unknown";
+    snapshot.reason = "no_observation";
+    f.rows.push(sourceRecord(f.repositoryId, "github-repository", snapshot));
+    for (const facet of ["pull_requests", "security"]) {
+      const result = await f.service.operationalEvidence("empty", {
+        resourceId: f.repositoryId,
+        facet,
+      });
+      expect(result.items[0]?.observedAt).toBeNull();
+      expect(result.items[0]?.freshness).toBe("unknown");
+      expect(result.access).toBe("available");
+    }
+  });
+  it("checks extra grants and hidden subject membership before auxiliary reads or counts", async () => {
+    for (const facet of ["availability", "pull_requests", "security"]) {
+      const f = operationalFixture();
+      f.scoped([projectId], ["observatory.read"]);
+      await expect(
+        f.service.operationalEvidence("denied", {
+          projectId,
+          resourceId: f.serviceId,
+          facet,
+        }),
+      ).rejects.toMatchObject({ code: "FORBIDDEN" });
+      expect(f.auxiliary).not.toHaveBeenCalled();
+      expect(f.reads()).toBe(0);
+    }
+    const f = operationalFixture();
+    f.scoped([projectId], allOperations, [f.repositoryId]);
+    await expect(
+      f.service.operationalEvidence("hidden", {
+        projectId,
+        resourceId: f.serviceId,
+        facet: "availability",
+      }),
+    ).rejects.toMatchObject({ code: "INVALID_REFERENCE" });
+    expect(f.auxiliary).not.toHaveBeenCalled();
+    f.scoped([projectId], ["observatory.signals.read"]);
+    await expect(
+      f.service.operationalEvidence("base-denied", {
+        projectId,
+        resourceId: f.serviceId,
+        facet: "availability",
+      }),
+    ).rejects.toMatchObject({ code: "FORBIDDEN" });
+    expect(f.auxiliary).not.toHaveBeenCalled();
+  });
+  it("preserves all 137 matching source identities and filters source kind/environment before payload selection", async () => {
+    const f = operationalFixture();
+    f.rows.push(
+      ...Array.from({ length: 137 }, (_, index) =>
+        sourceRecord(
+          f.serviceId,
+          "infraagent-monitor",
+          availabilitySnapshot(),
+          index + 1,
+        ),
+      ).reverse(),
+    );
+    f.rows.push(
+      sourceRecord(
+        f.serviceId,
+        "github-repository",
+        { unrelated_private_shape: true },
+        1000,
+      ),
+    );
+    f.rows.push({
+      ...sourceRecord(
+        f.serviceId,
+        "infraagent-monitor",
+        availabilitySnapshot(),
+        1001,
+      ),
+      environment: "development",
+    });
+    const result = await f.service.operationalEvidence("complete", {
+      resourceId: f.serviceId,
+      facet: "availability",
+      environment: "production",
+    });
+    expect(result.items).toHaveLength(137);
+    expect(new Set(result.items.map((item) => item.sourceId)).size).toBe(137);
+    expect(result.items.map((item) => item.sourceId)).toEqual(
+      Array.from({ length: 137 }, (_, index) =>
+        observatoryFixtureId(90001 + index),
+      ),
+    );
+    expect(result.completeness).toBe("complete");
+    expect(JSON.stringify(result)).not.toContain("unrelated_private_shape");
+    expect(f.auxiliary).toHaveBeenCalledTimes(1);
+  });
+  it.each([
+    "id",
+    "resource",
+    "duplicate",
+    "extra-raw",
+    "extra-authority",
+    "invalid-window",
+    "bad-availability",
+    "bad-hidden-security",
+    "bad-wrapper",
+    "bad-error",
+  ])(
+    "rejects malformed %s source results without returning private input",
+    async (mode) => {
+      const f = operationalFixture();
+      let row = sourceRecord(f.serviceId);
+      if (mode === "id") row.id = "invalid";
+      if (mode === "resource") row.resourceId = f.repositoryId;
+      if (mode === "extra-raw")
+        Object.assign(row, { rawPayload: { secret: "PRIVATE_SOURCE_DATA" } });
+      if (mode === "extra-authority") Object.assign(row, { owner: true });
+      if (mode === "invalid-window") row.freshnessSeconds = 0;
+      if (mode === "bad-availability")
+        row.details = {
+          ...availabilitySnapshot(),
+          config: { secret: "PRIVATE_SOURCE_DATA" },
+        };
+      if (mode === "bad-hidden-security" || mode === "bad-wrapper") {
+        const snapshot = repositorySnapshot();
+        if (mode === "bad-hidden-security")
+          Object.assign(snapshot.repository.security.secretScanning.items[0]!, {
+            secretLiteral: "PRIVATE_SOURCE_DATA",
+          });
+        else Object.assign(snapshot, { token: "PRIVATE_SOURCE_DATA" });
+        row = sourceRecord(f.repositoryId, "github-repository", snapshot);
+      }
+      if (mode === "bad-error") row.lastError = "PRIVATE_SOURCE_DATA";
+      f.rows.push(row);
+      if (mode === "duplicate") f.rows.push({ ...row });
+      const error = await f.service
+        .operationalEvidence("invalid", {
+          resourceId:
+            mode.startsWith("bad-hidden") || mode === "bad-wrapper"
+              ? f.repositoryId
+              : f.serviceId,
+          facet:
+            mode.startsWith("bad-hidden") || mode === "bad-wrapper"
+              ? "pull_requests"
+              : "availability",
+        })
+        .catch((error: unknown) => error);
+      expect(error).toMatchObject({ code: "INVALID_REFERENCE" });
+      expect(String(error)).not.toContain("PRIVATE_SOURCE_DATA");
+    },
+  );
+  it.each(["owner", "grant", "project", "resource", "scope", "environment"])(
+    "rechecks %s authority after the awaited auxiliary read",
+    async (mode) => {
+      const f = operationalFixture();
+      if (mode !== "owner") f.scoped([projectId]);
+      let enter!: () => void, release!: () => void;
+      const entered = new Promise<void>((resolve) => {
+        enter = resolve;
+      });
+      const barrier = new Promise<void>((resolve) => {
+        release = resolve;
+      });
+      f.records.readOperationalEvidence = async () => {
+        enter();
+        await barrier;
+        return [sourceRecord(f.serviceId)];
+      };
+      const pending = f.service.operationalEvidence("awaited", {
+        projectId,
+        resourceId: f.serviceId,
+        facet: "availability",
+      });
+      await entered;
+      if (mode === "owner") f.state.access.owner = false;
+      if (mode === "grant") f.state.access.operations = ["observatory.read"];
+      if (mode === "project") f.state.access.projectIds = [];
+      if (mode === "resource") f.state.access.resourceIds = [];
+      if (mode === "scope") f.state.access.scopeDigest = "changed";
+      if (mode === "environment") f.state.access.environment = "production";
+      release();
+      await expect(pending).rejects.toMatchObject({ code: "FORBIDDEN" });
+    },
+  );
+  it("uses selection time after auxiliary wait for exact freshness and rejects an invalid resumed clock", async () => {
+    for (const invalidClock of [false, true]) {
+      const f = operationalFixture(),
+        row = sourceRecord(f.serviceId);
+      row.freshnessSeconds = 30;
+      f.records.readOperationalEvidence = async () => {
+        f.state.now = invalidClock ? "invalid" : "2026-10-16T12:00:30Z";
+        return [row];
+      };
+      const pending = f.service.operationalEvidence("clock", {
+        resourceId: f.serviceId,
+        facet: "availability",
+      });
+      if (invalidClock)
+        await expect(pending).rejects.toMatchObject({ code: "FORBIDDEN" });
+      else expect((await pending).items[0]?.freshness).toBe("stale");
+    }
+  });
+  it("propagates adapter, audit and expiry failures and rejects post-port tampering and authority loss", async () => {
+    const adapter = operationalFixture(),
+      error = new Error("synthetic transaction adapter failure");
+    adapter.records.readOperationalEvidence = async () => {
+      throw error;
+    };
+    await expect(
+      adapter.service.operationalEvidence("adapter", {
+        resourceId: adapter.serviceId,
+        facet: "availability",
+      }),
+    ).rejects.toBe(error);
+    for (const afterError of [
+      new FoundationError("EXPIRED"),
+      new FoundationError("REVOKED"),
+      new Error("synthetic audit failure"),
+    ]) {
+      const f = operationalFixture();
+      f.rows.push(sourceRecord(f.serviceId));
+      f.state.afterError = afterError;
+      await expect(
+        f.service.operationalEvidence("commit", {
+          resourceId: f.serviceId,
+          facet: "availability",
+        }),
+      ).rejects.toBe(afterError);
+    }
+    const tampered = operationalFixture();
+    tampered.rows.push(sourceRecord(tampered.serviceId));
+    tampered.state.afterCallback = (result) => {
+      (result as { items: { sourceId: string }[] }).items[0]!.sourceId =
+        observatoryFixtureId(999999);
+    };
+    await expect(
+      tampered.service.operationalEvidence("tampered", {
+        resourceId: tampered.serviceId,
+        facet: "availability",
+      }),
+    ).rejects.toMatchObject({ code: "INVALID_REFERENCE" });
+    const revoked = operationalFixture();
+    revoked.rows.push(sourceRecord(revoked.serviceId));
+    revoked.state.afterCallback = () => {
+      revoked.state.access.owner = false;
+    };
+    await expect(
+      revoked.service.operationalEvidence("revoked", {
+        resourceId: revoked.serviceId,
+        facet: "availability",
+      }),
+    ).rejects.toMatchObject({ code: "FORBIDDEN" });
+  });
+  it("rejects public authority before the port and does not execute source accessors", async () => {
+    const f = operationalFixture();
+    await expect(
+      f.service.operationalEvidence("injected", {
+        resourceId: f.serviceId,
+        facet: "availability",
+        sourceId: "selected",
+        owner: true,
+      }),
+    ).rejects.toThrow();
+    expect(f.requests).toEqual([]);
+    let invoked = false;
+    const row = sourceRecord(f.serviceId);
+    Object.defineProperty(row, "details", {
+      enumerable: true,
+      get() {
+        invoked = true;
+        return { secret: "PRIVATE_SOURCE_DATA" };
+      },
+    });
+    f.rows.push(row);
+    await expect(
+      f.service.operationalEvidence("accessor", {
+        resourceId: f.serviceId,
+        facet: "availability",
+      }),
+    ).rejects.toMatchObject({ code: "INVALID_REFERENCE" });
+    expect(invoked).toBe(false);
   });
 });
