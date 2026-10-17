@@ -13,7 +13,9 @@ including full-inventory 4K presentation. Corrective PR25 is normally merged;
 full hosted release39047712252 passed container startup and failed two desktop
 browser cases. T37 diagnostics now pass fifteen shared-world browser cases with
 independent review; diagnostic PR26 is normally merged and the instrumented full
-main run39051075901 is in progress before publication and deployment. The
+main run39051075901 completes with 200 passes, five original skips and two
+failures, with diagnostic artifacts retained. Separate causal trace reviews
+precede any further correction, publication and deployment. The
 [58-scenario completion ledger](../plans/observatory-operational-landscape/COVERAGE.md)
 records 53 local passes, five explicit limitations and the remaining deployment
 and source-activation gates.

@@ -1,0 +1,69 @@
+{
+  "status": "COMPLETE_FAILED_RELEASE_NO_PUBLICATION",
+  "run": 39051075901,
+  "attempt": 1,
+  "revision": "a1c760aa161dba3c225f030d9597a99f6b295129",
+  "url": "https://github.com/iurman/commandry/actions/runs/39051075901",
+  "conclusion": "failure",
+  "browser": {
+    "startTime": "2026-10-17T17:00:49.713Z",
+    "duration": 743987.47,
+    "expected": 200,
+    "skipped": 5,
+    "unexpected": 2,
+    "flaky": 0
+  },
+  "diagnostics": {
+    "artifactId": 12108562266,
+    "name": "commandry-browser-39051075901-1-a1c760aa161dba3c225f030d9597a99f6b295129",
+    "serverArchiveSha256": "ea382236efb86aa4ef8a23ee84bb663d33525dbb4cf92f98cbb70faa397141c2",
+    "serverSizeBytes": 98440046,
+    "downloadedWith": "gh run download exact run and artifact name",
+    "extractedFileCount": 67,
+    "machineReportSha256": "f25d143fc09b6bd07509a76e5c0074ee544fabe1cdbf992a3a36a9330feb3a93",
+    "retainedTraceHashes": [
+      {
+        "caseDirectory": "gravity-master-scene-one-m-b6034-mplete-multi-page-inventory-desktop",
+        "sha256": "d63e76f2caf60fd55b20ad9d2baa34a49322b122a900a00e7f57830361dd0d20",
+        "bytes": 14400564
+      },
+      {
+        "caseDirectory": "infrastructure-overview-Gr-b82d7-nd-truthful-source-evidence-desktop",
+        "sha256": "72723efaf0d94801ee4b4979cf2e75897df565cc56d8d7d2da5308dd464fe5b1",
+        "bytes": 10436093
+      }
+    ],
+    "retentionDays": 7
+  },
+  "failures": [
+    {
+      "project": "desktop",
+      "test": "one master scene renders and inspects the complete multi-page inventory",
+      "status": "timedOut",
+      "durationMs": 182239,
+      "deadlineMs": 180000,
+      "location": "gravity-master-scene.spec.ts:363:72",
+      "qualification": "Final dark-outline action is deadline location; causal diagnosis pending trace review."
+    },
+    {
+      "project": "desktop",
+      "test": "Gravity uses canonical resources, persisted appearance, focus and truthful source evidence",
+      "status": "failed",
+      "durationMs": 57492,
+      "predicateMs": 5000,
+      "location": "infrastructure-overview.spec.ts:1902:10",
+      "qualification": "Global complete-F1 predicate failed; retained transition JSON/timeline and trace require causal review."
+    }
+  ],
+  "precedingGates": "source, contracts, formatting, production dependency audit, unit/local tests, application upgrade/build/smoke, production Compose config, exact container build/start passed",
+  "unitTests": 2933,
+  "labTests": 33,
+  "publication": "skipped",
+  "candidate": "not prepared",
+  "protectedApproval": "not requested",
+  "deployment": "not attempted",
+  "sourceActivation": "not attempted",
+  "productionUnchanged": true,
+  "rootCause": "pending independent artifact reviews; no repair selected",
+  "preservedAcceptance": "All207 original cases, original5 skips, original2 workers/retries0 and deadlines/assertions retained."
+}
