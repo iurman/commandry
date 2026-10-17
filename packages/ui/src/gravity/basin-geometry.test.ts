@@ -1,3 +1,4 @@
+import { createHash } from "node:crypto";
 import { describe, expect, it } from "vitest";
 import { PerspectiveCamera, Vector3, type BufferGeometry } from "three";
 import { basinGeometry, basinGeometryWindow } from "./basin-geometry";
@@ -398,4 +399,42 @@ describe("joined local basin geometry", () => {
     );
     expect(() => basinGeometry([], fieldBounds([]), 0)).toThrow(RangeError);
   });
+});
+
+// Captured from the pre-correction planner, before adding view refinement.
+describe("ordinary terrain byte compatibility", () => {
+  it.each([
+    [1, "c9d57d4cfd2637263b480816242c7db081a6dd64111fa8a5713c1317a96d2086"],
+    [2, "db6caf37bae8c8083a55d76bee8fe8652c4440338b2df182c05fb673c8a907fd"],
+    [3, "32ffe70d459ef7572be2c9e33ab193d02bafa21542a9f9409fd489aad13fc47e"],
+    [4, "cb104d6142b288e20a67e41c67d8d2a30967d60f87385ab8dd26da48f66c5166"],
+    [5, "f69e60f8142fdbe50102eb8396d6f4d71aa7519bd775a8ad9ae9fe59d10afd2b"],
+    [6, "b711f3fab08a4e0bf324518d46329ba91d93fca78395d19774e85b5ec37f2730"],
+    [7, "a4c89988fbc796ac07d6b23a75676dff196d430d2fbf75a0371aa4d301c6a2c3"],
+  ] as const)(
+    "retains the original %i-basin positions and topology hash",
+    (count, hash) => {
+      const wells = Array.from({ length: count }, (_, i) =>
+        basin("ordinary-" + i, {
+          x: i * 9,
+          z: (i % 2) * 7,
+          aspect: i % 2 ? 1.7 : 1,
+          angle: i * 0.23,
+        }),
+      );
+      const plan = basinGeometry(wells);
+      try {
+        expect(
+          createHash("sha256")
+            .update(
+              new Uint8Array(plan.geometry.attributes.position!.array.buffer),
+            )
+            .update(new Uint8Array(plan.geometry.index!.array.buffer))
+            .digest("hex"),
+        ).toBe(hash);
+      } finally {
+        plan.geometry.dispose();
+      }
+    },
+  );
 });

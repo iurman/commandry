@@ -1,0 +1,665 @@
+// @vitest-environment jsdom
+import { afterEach, describe, expect, it, vi } from "vitest";
+import { BufferGeometry, PerspectiveCamera, Vector3 } from "three";
+import { ObservatoryRenderer, type RendererSettings } from "./renderer";
+import { surfaceHeight, type Well } from "./model";
+import * as basinPlanning from "./basin-geometry";
+
+vi.mock("three", async (original) => {
+  const actual = await original<typeof import("three")>();
+  return {
+    ...actual,
+    WebGLRenderer: class {
+      domElement = document.createElement("canvas");
+      capabilities = { maxTextureSize: 4096 };
+      info = {
+        autoReset: false,
+        render: { calls: 1, triangles: 0 },
+        memory: { geometries: 2, textures: 1 },
+        reset() {},
+      };
+      setPixelRatio() {}
+      getPixelRatio() {
+        return 1;
+      }
+      setSize() {}
+      setRenderTarget() {}
+      setClearColor() {}
+      clearDepth() {}
+      render() {}
+      dispose() {}
+    },
+  };
+});
+
+const wells: Well[] = Array.from({ length: 257 }, (_, i) => ({
+  id: "active-" + i,
+  label: "active-" + i,
+  kind: "host",
+  hostId: null,
+  sector: "test",
+  x: (i % 17) * 9,
+  z: Math.floor(i / 17) * 9,
+  radius: 2,
+  depth: 4,
+  aspect: 1,
+  angle: 0,
+  elevation: 0.7,
+  profile: 1.1,
+  attention: false,
+}));
+const settings: RendererSettings = {
+  theme: "porcelain",
+  palette: { reporting: "#2288bb", attention: "#cc8800", unhealthy: "#cc2200" },
+  motion: false,
+  cameraMode: "manual",
+  ambient: false,
+  selected: null,
+  focus: false,
+  activity: {
+    source: { snapshot: () => ({ time: 0, transfers: [], events: [] }) },
+    running: false,
+    follow: false,
+    trace: null,
+  },
+};
+type Internals = {
+  camera: PerspectiveCamera;
+  controls: { target: Vector3; update(): void };
+  geometry: BufferGeometry;
+  geometryRevision: number;
+  focusGeometry?: BufferGeometry;
+  focusCamera: PerspectiveCamera;
+  terrainDetails: {
+    leaves: number;
+    basins: number;
+    planningPasses: number;
+    planningCandidates: number;
+    planningVisits: number;
+    planningBudget: number;
+    detailScale: number;
+    quality: string;
+    bounds: { minX: number; maxX: number; minZ: number; maxZ: number };
+  };
+};
+
+function setup(
+  population = wells,
+  width = 1200,
+  height = 900,
+  viewportHeight = height,
+) {
+  let callback: FrameRequestCallback = () => {};
+  vi.stubGlobal("requestAnimationFrame", (next: FrameRequestCallback) => {
+    callback = next;
+    return 1;
+  });
+  vi.stubGlobal("cancelAnimationFrame", () => {});
+  vi.stubGlobal(
+    "ResizeObserver",
+    class {
+      observe() {}
+      disconnect() {}
+    },
+  );
+  vi.stubGlobal(
+    "IntersectionObserver",
+    class {
+      observe() {}
+      disconnect() {}
+    },
+  );
+  vi.stubGlobal("innerWidth", width);
+  vi.stubGlobal("innerHeight", viewportHeight);
+  vi.stubGlobal("devicePixelRatio", width < 400 ? 2.75 : 1);
+  vi.spyOn(document, "hidden", "get").mockReturnValue(false);
+  const container = document.createElement("div");
+  Object.defineProperties(container, {
+    clientWidth: { value: width },
+    clientHeight: { value: height },
+  });
+  container.getBoundingClientRect = () => ({
+    left: 0,
+    top: 0,
+    right: width,
+    bottom: height,
+    x: 0,
+    y: 0,
+    width,
+    height,
+    toJSON() {},
+  });
+  document.body.append(container);
+  const anchors = vi.fn(),
+    select = vi.fn();
+  const renderer = new ObservatoryRenderer(container, settings, {
+    anchors,
+    stats() {},
+    select,
+    interrupted() {},
+    unavailable() {},
+    viewport() {},
+    lens() {},
+    activity() {},
+    visibility() {},
+  });
+  renderer.update(population, settings);
+  const frame = (now: number) => callback(now);
+  frame(0);
+  const access = renderer as unknown as Internals;
+  const view = (x = 18, z = 18) => {
+    access.camera.position.set(x + 3, 5, z + 6);
+    access.controls.target.set(x, -1, z);
+    access.controls.update();
+  };
+  const canvas = container.querySelector("canvas")!;
+  canvas.getBoundingClientRect = container.getBoundingClientRect;
+  canvas.setPointerCapture = () => {};
+  canvas.releasePointerCapture = () => {};
+  return { renderer, access, frame, view, container, canvas, anchors, select };
+}
+
+// Interpolate only queried triangles and lazily evaluate their full analytic field.
+// This is the disclosed projected diagnostic, not raster silhouette extraction.
+function deviation(
+  geometry: BufferGeometry,
+  subject: Well,
+  camera: PerspectiveCamera,
+  width = 1200,
+  heightPixels = 900,
+) {
+  const position = geometry.attributes.position!,
+    index = geometry.index!;
+  const local: {
+    a: number;
+    b: number;
+    c: number;
+    minX: number;
+    maxX: number;
+    minZ: number;
+    maxZ: number;
+  }[] = [];
+  for (let i = 0; i < index.count; i += 3) {
+    const a = index.getX(i),
+      b = index.getX(i + 1),
+      c = index.getX(i + 2);
+    const minX = Math.min(position.getX(a), position.getX(b), position.getX(c)),
+      maxX = Math.max(position.getX(a), position.getX(b), position.getX(c));
+    const minZ = Math.min(position.getZ(a), position.getZ(b), position.getZ(c)),
+      maxZ = Math.max(position.getZ(a), position.getZ(b), position.getZ(c));
+    if (
+      maxX >= subject.x - 7 &&
+      minX <= subject.x + 7 &&
+      maxZ >= subject.z - 7 &&
+      minZ <= subject.z + 7
+    )
+      local.push({ a, b, c, minX, maxX, minZ, maxZ });
+  }
+  const heights = new Map<number, number>();
+  const height = (i: number) => {
+    if (!heights.has(i))
+      heights.set(i, surfaceHeight(position.getX(i), position.getZ(i), wells));
+    return heights.get(i)!;
+  };
+  let maximum = 0,
+    compared = 0;
+  camera.updateMatrixWorld();
+  for (const radius of [
+    0, 0.2, 0.45, 0.7, 0.9, 1, 1.05, 1.08, 1.2, 1.5, 1.8, 2.5, 3.5,
+  ])
+    for (let i = 0; i < 64; i++) {
+      const angle = (i * Math.PI * 2) / 64;
+      const x = subject.x + Math.cos(angle) * radius * subject.radius;
+      const z = subject.z + Math.sin(angle) * radius * subject.radius;
+      const expected = new Vector3(x, surfaceHeight(x, z, wells), z).project(
+        camera,
+      );
+      if (
+        expected.z < -1 ||
+        expected.z > 1 ||
+        Math.abs(expected.x) > 1 ||
+        Math.abs(expected.y) > 1
+      )
+        continue;
+      let sampled: number | undefined;
+      for (const { a, b, c, minX, maxX, minZ, maxZ } of local) {
+        if (
+          x < minX - 1e-6 ||
+          x > maxX + 1e-6 ||
+          z < minZ - 1e-6 ||
+          z > maxZ + 1e-6
+        )
+          continue;
+        const ax = position.getX(a),
+          az = position.getZ(a),
+          bx = position.getX(b),
+          bz = position.getZ(b),
+          cx = position.getX(c),
+          cz = position.getZ(c);
+        const determinant = (bz - cz) * (ax - cx) + (cx - bx) * (az - cz);
+        const u = ((bz - cz) * (x - cx) + (cx - bx) * (z - cz)) / determinant;
+        const v = ((cz - az) * (x - cx) + (ax - cx) * (z - cz)) / determinant;
+        if (u >= -1e-6 && v >= -1e-6 && u + v <= 1 + 1e-6) {
+          sampled = u * height(a) + v * height(b) + (1 - u - v) * height(c);
+          break;
+        }
+      }
+      if (sampled === undefined)
+        throw new Error("Sample fell through the joined pressure floor");
+      const actual = new Vector3(x, sampled, z).project(camera);
+      maximum = Math.max(
+        maximum,
+        Math.hypot(
+          ((actual.x - expected.x) * width) / 2,
+          ((actual.y - expected.y) * heightPixels) / 2,
+        ),
+      );
+      compared++;
+    }
+  expect(compared).toBeGreaterThan(64);
+  return maximum;
+}
+
+function joined(
+  geometry: BufferGeometry,
+  bounds: Internals["terrainDetails"]["bounds"],
+) {
+  const position = geometry.attributes.position!,
+    index = geometry.index!;
+  const edges = new Map<string, number>();
+  let area = 0,
+    reversed = 0,
+    seams = 0;
+  for (let i = 0; i < index.count; i += 3) {
+    const a = index.getX(i),
+      b = index.getX(i + 1),
+      c = index.getX(i + 2);
+    const signed =
+      (position.getZ(b) - position.getZ(a)) *
+        (position.getX(c) - position.getX(a)) -
+      (position.getX(b) - position.getX(a)) *
+        (position.getZ(c) - position.getZ(a));
+    if (signed <= 0) reversed++;
+    area += signed / 2;
+    for (const [from, to] of [
+      [a, b],
+      [b, c],
+      [c, a],
+    ]) {
+      const key = Math.min(from!, to!) + ":" + Math.max(from!, to!);
+      edges.set(key, (edges.get(key) ?? 0) + 1);
+    }
+  }
+  for (const [key, count] of edges) {
+    if (count === 2) continue;
+    const [a, b] = key.split(":").map(Number);
+    const x = position.getX(a!),
+      z = position.getZ(a!);
+    const border =
+      (x === position.getX(b!) &&
+        (Math.abs(x - bounds.minX) < 1e-4 ||
+          Math.abs(x - bounds.maxX) < 1e-4)) ||
+      (z === position.getZ(b!) &&
+        (Math.abs(z - bounds.minZ) < 1e-4 || Math.abs(z - bounds.maxZ) < 1e-4));
+    if (count !== 1 || !border) seams++;
+  }
+  expect(reversed).toBe(0);
+  expect(seams).toBe(0);
+  expect(area).toBeCloseTo(
+    (bounds.maxX - bounds.minX) * (bounds.maxZ - bounds.minZ),
+    2,
+  );
+}
+
+afterEach(() => {
+  document.body.replaceChildren();
+  vi.restoreAllMocks();
+  vi.unstubAllGlobals();
+});
+
+describe("shared pressure terrain camera lifecycle", () => {
+  it.each([1, 7])(
+    "preserves ordinary %i-basin geometry during close viewing",
+    (count) => {
+      const { renderer, access, frame, view } = setup(wells.slice(0, count));
+      try {
+        const original = access.geometry;
+        expect(access.terrainDetails.detailScale).toBe(1);
+        view(0, 0);
+        frame(20);
+        frame(220);
+        frame(500);
+        expect(access.geometry).toBe(original);
+      } finally {
+        renderer.dispose();
+      }
+    },
+  );
+  it("corrects the reproduced manual close view while retaining the complete joined field and bounded planning", () => {
+    const { renderer, access, frame, view, container } = setup();
+    try {
+      const base = access.geometry;
+      view();
+      expect(deviation(base, wells[36]!, access.camera)).toBeGreaterThan(10);
+      frame(20);
+      frame(100);
+      expect(access.geometry).toBe(base);
+      frame(220);
+      expect(
+        deviation(access.geometry, wells[36]!, access.camera),
+      ).toBeLessThanOrEqual(2);
+      expect(access.geometry).not.toBe(base);
+      const details = access.terrainDetails;
+      expect(details.basins).toBe(257);
+      expect(details.leaves).toBeLessThanOrEqual(120_000);
+      expect(details.planningPasses).toBe(1);
+      expect(details.planningCandidates).toBeLessThanOrEqual(
+        details.planningBudget,
+      );
+      expect(details.planningVisits).toBeLessThanOrEqual(
+        details.planningBudget,
+      );
+      expect(details.quality).toBe("local");
+      const canvas = container.querySelector("canvas")!;
+      expect(canvas.dataset.gravityContributions).toBe("257");
+      expect(canvas.dataset.gravityLastContribution).toBe("active-256");
+      joined(access.geometry, details.bounds);
+      const refined = access.geometry,
+        revision = access.geometryRevision;
+      frame(400);
+      frame(600);
+      frame(900);
+      expect(access.geometry).toBe(refined);
+      expect(access.geometryRevision).toBe(revision);
+      const draws = canvas.dataset.gravityRenderedFrames;
+      frame(1200);
+      frame(1400);
+      expect(canvas.dataset.gravityRenderedFrames).toBe(draws);
+      view(20, 18);
+      frame(1500);
+      frame(1600);
+      expect(access.geometry).toBe(refined);
+      frame(1700);
+      expect(access.geometry).not.toBe(refined);
+      expect(access.geometryRevision).toBe(revision + 1);
+    } finally {
+      renderer.dispose();
+    }
+  });
+  it("refines selected main focus, preserves lens subsets, and disposes old meshes across focus changes", () => {
+    const { renderer, access, frame } = setup();
+    try {
+      const base = access.geometry;
+      const disposed = vi.fn();
+      base.addEventListener("dispose", disposed);
+      expect(renderer.focusSubject("active-36", { immediate: true })).toBe(
+        true,
+      );
+      frame(20);
+      frame(220);
+      expect(access.geometry).not.toBe(base);
+      expect(disposed).toHaveBeenCalledTimes(1);
+      expect(access.terrainDetails.quality).toBe("local");
+      expect(
+        deviation(access.geometry, wells[36]!, access.camera),
+      ).toBeLessThanOrEqual(2);
+      renderer.update(wells, {
+        ...settings,
+        selected: "active-36",
+        focus: true,
+      });
+      frame(240);
+      frame(440);
+      expect(access.focusGeometry).toBeDefined();
+      expect(access.focusGeometry!.attributes.position!.count).toBeLessThan(
+        access.geometry.attributes.position!.count,
+      );
+      const prior = access.geometry,
+        priorLens = access.focusGeometry!;
+      const terrainDisposed = vi.fn(),
+        lensDisposed = vi.fn();
+      prior.addEventListener("dispose", terrainDisposed);
+      priorLens.addEventListener("dispose", lensDisposed);
+      renderer.focusSubject("active-72", { immediate: true });
+      renderer.update(wells, {
+        ...settings,
+        selected: "active-72",
+        focus: true,
+      });
+      frame(460);
+      frame(660);
+      expect(access.terrainDetails.quality).toBe("local");
+      expect(
+        deviation(access.geometry, wells[72]!, access.camera),
+      ).toBeLessThanOrEqual(2);
+      expect(terrainDisposed).toHaveBeenCalledTimes(1);
+      expect(lensDisposed).toHaveBeenCalledTimes(1);
+      expect(access.terrainDetails.leaves).toBeLessThanOrEqual(120_000);
+      const retained = access.geometry;
+      vi.spyOn(document, "hidden", "get").mockReturnValue(true);
+      frame(900);
+      expect(access.geometry).toBe(retained);
+    } finally {
+      renderer.dispose();
+    }
+  });
+});
+
+function visibleCenter(
+  geometry: BufferGeometry,
+  subject: Well,
+  camera: PerspectiveCamera,
+  width: number,
+  height: number,
+) {
+  const position = geometry.attributes.position!,
+    index = geometry.index!;
+  for (let i = 0; i < index.count; i += 3) {
+    const a = index.getX(i),
+      b = index.getX(i + 1),
+      c = index.getX(i + 2);
+    const ax = position.getX(a),
+      az = position.getZ(a),
+      bx = position.getX(b),
+      bz = position.getZ(b),
+      cx = position.getX(c),
+      cz = position.getZ(c);
+    if (
+      subject.x < Math.min(ax, bx, cx) - 1e-6 ||
+      subject.x > Math.max(ax, bx, cx) + 1e-6 ||
+      subject.z < Math.min(az, bz, cz) - 1e-6 ||
+      subject.z > Math.max(az, bz, cz) + 1e-6
+    )
+      continue;
+    const determinant = (bz - cz) * (ax - cx) + (cx - bx) * (az - cz);
+    const u =
+      ((bz - cz) * (subject.x - cx) + (cx - bx) * (subject.z - cz)) /
+      determinant;
+    const v =
+      ((cz - az) * (subject.x - cx) + (ax - cx) * (subject.z - cz)) /
+      determinant;
+    if (u < -1e-6 || v < -1e-6 || u + v > 1 + 1e-6) continue;
+    const y =
+      u * surfaceHeight(ax, az, wells) +
+      v * surfaceHeight(bx, bz, wells) +
+      (1 - u - v) * surfaceHeight(cx, cz, wells);
+    camera.updateMatrixWorld();
+    const point = new Vector3(subject.x, y, subject.z).project(camera);
+    return { x: ((point.x + 1) * width) / 2, y: ((1 - point.y) * height) / 2 };
+  }
+  throw new Error("Visible center fell through the complete floor");
+}
+
+describe("portrait pressure focus and lens", () => {
+  it.each([
+    [390, 844, 36],
+    [390, 844, 256],
+    [320, 720, 36],
+    [320, 720, 256],
+  ] as const)(
+    "retains useful local detail and actual visible-center picking at %ix%i for active-%i",
+    (width, viewportHeight, subjectIndex) => {
+      const height = 620,
+        subject = wells[subjectIndex]!;
+      const { renderer, access, frame, view, canvas, anchors, select } = setup(
+        wells,
+        width,
+        height,
+        viewportHeight,
+      );
+      const owned = new Map<BufferGeometry, ReturnType<typeof vi.fn>>();
+      const remember = () => {
+        for (const geometry of [access.geometry, access.focusGeometry])
+          if (geometry && !owned.has(geometry)) {
+            const disposed = vi.fn();
+            geometry.addEventListener("dispose", disposed);
+            owned.set(geometry, disposed);
+          }
+      };
+      const pickCenter = () => {
+        const point = visibleCenter(
+          access.geometry,
+          subject,
+          access.camera,
+          width,
+          height,
+        );
+        expect(point.x).toBeGreaterThan(0);
+        expect(point.x).toBeLessThan(width);
+        expect(point.y).toBeGreaterThan(0);
+        expect(point.y).toBeLessThan(height);
+        for (const type of ["pointerdown", "pointerup"])
+          canvas.dispatchEvent(
+            Object.assign(
+              new MouseEvent(type, {
+                clientX: point.x,
+                clientY: point.y,
+                button: 0,
+                bubbles: true,
+              }),
+              { pointerId: 1, pointerType: "mouse" },
+            ),
+          );
+        expect(select).toHaveBeenLastCalledWith(subject.id);
+      };
+      const bounded = () => {
+        const details = access.terrainDetails;
+        expect(details.quality).toBe("local");
+        expect(details.basins).toBe(257);
+        expect(details.leaves).toBeLessThanOrEqual(120_000);
+        expect(details.planningPasses).toBe(1);
+        expect(details.planningCandidates).toBeLessThanOrEqual(
+          details.planningBudget,
+        );
+        expect(details.planningVisits).toBeLessThanOrEqual(
+          details.planningBudget,
+        );
+        expect(canvas.dataset.gravityContributions).toBe("257");
+        expect(canvas.dataset.gravityLastContribution).toBe("active-256");
+      };
+      try {
+        remember();
+        view(subject.x, subject.z);
+        frame(20);
+        frame(220);
+        remember();
+        expect(
+          deviation(access.geometry, subject, access.camera, width, height),
+        ).toBeLessThanOrEqual(2);
+        renderer.update(wells, { ...settings, selected: subject.id });
+        renderer.focusSubject(subject.id, { immediate: true });
+        frame(240);
+        const beforeAnchor = anchors.mock.lastCall![0].find(
+          (anchor: { id: string }) => anchor.id === subject.id,
+        )!;
+        frame(440);
+        remember();
+        expect(
+          deviation(access.geometry, subject, access.camera, width, height),
+        ).toBeLessThanOrEqual(2);
+        bounded();
+        pickCenter();
+        const afterAnchor = anchors.mock.lastCall![0].find(
+          (anchor: { id: string }) => anchor.id === subject.id,
+        )!;
+        // OrbitControls normalizes the settled pose at floating-point precision.
+        expect(afterAnchor.x).toBeCloseTo(beforeAnchor.x, 9);
+        expect(afterAnchor.y).toBeCloseTo(beforeAnchor.y, 9);
+        joined(access.geometry, access.terrainDetails.bounds);
+        renderer.update(wells, {
+          ...settings,
+          selected: subject.id,
+          focus: true,
+        });
+        frame(460);
+        remember();
+        frame(660);
+        remember();
+        bounded();
+        expect(
+          deviation(access.geometry, subject, access.camera, width, height),
+        ).toBeLessThanOrEqual(2);
+        const diameter = renderer.lensViewport().radius * 2;
+        expect(access.focusGeometry).toBeDefined();
+        expect(
+          deviation(
+            access.focusGeometry!,
+            subject,
+            access.focusCamera,
+            diameter,
+            diameter,
+          ),
+        ).toBeLessThanOrEqual(2);
+        pickCenter();
+        const stable = access.geometry,
+          lens = access.focusGeometry,
+          revision = access.geometryRevision;
+        frame(900);
+        frame(1200);
+        expect(access.geometry).toBe(stable);
+        expect(access.focusGeometry).toBe(lens);
+        expect(access.geometryRevision).toBe(revision);
+        const draws = canvas.dataset.gravityRenderedFrames;
+        frame(1400);
+        expect(canvas.dataset.gravityRenderedFrames).toBe(draws);
+      } finally {
+        renderer.dispose();
+        for (const disposed of owned.values())
+          expect(disposed).toHaveBeenCalledTimes(1);
+      }
+    },
+  );
+});
+
+it("retains a usable mesh and disposes an exhausted local request without retrying it every frame", () => {
+  const { renderer, access, frame, view, canvas } = setup();
+  const fallback = basinPlanning.basinGeometry(wells, undefined, 4);
+  const rejectedDispose = vi.fn();
+  fallback.geometry.addEventListener("dispose", rejectedDispose);
+  const attempt = vi
+    .spyOn(basinPlanning, "basinGeometry")
+    .mockReturnValueOnce(fallback);
+  try {
+    const usable = access.geometry;
+    view();
+    frame(20);
+    frame(220);
+    expect(access.geometry).toBe(usable);
+    expect(rejectedDispose).toHaveBeenCalledTimes(1);
+    expect(canvas.dataset.gravityRefinementRejected).toBe("true");
+    renderer.refreshActivity();
+    frame(400);
+    renderer.refreshActivity();
+    frame(600);
+    expect(attempt).toHaveBeenCalledTimes(1);
+    view(20, 18);
+    frame(800);
+    frame(1000);
+    expect(attempt).toHaveBeenCalledTimes(2);
+    expect(access.geometry).not.toBe(usable);
+    expect(access.terrainDetails.quality).toBe("local");
+    expect(canvas.dataset.gravityRefinementRejected).toBe("false");
+  } finally {
+    renderer.dispose();
+  }
+});
