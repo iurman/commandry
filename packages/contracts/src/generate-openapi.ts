@@ -337,6 +337,37 @@ import {
   syntheticRunSchema,
   versionResponseSchema,
   workItemSchema,
+  foundationProjectWorkQuerySchema,
+  foundationProjectWorkPageSchema,
+  observatorySceneQuerySchema,
+  observatorySceneReadResultSchema,
+  observatoryMembershipQuerySchema,
+  observatoryMembershipPageSchema,
+  observatoryRelationsQuerySchema,
+  observatoryRelationsResultSchema,
+  observatorySignalEvidenceQuerySchema,
+  observatorySignalEvidenceResultSchema,
+  observatoryProviderExplanationQuerySchema,
+  observatoryProviderExplanationResultSchema,
+  observatoryOperationalEvidenceQuerySchema,
+  observatoryOperationalEvidenceResultSchema,
+  observatoryCatalogueQuerySchema,
+  observatoryCatalogueResultSchema,
+  observatoryProviderFeedQuerySchema,
+  observatoryProviderFeedResultSchema,
+  observatoryAnnotationChangeSchema,
+  observatoryRelationChangeSchema,
+  observatoryProviderMappingChangeSchema,
+  observatorySourceBindingChangeSchema,
+  observatoryClientScopeChangeSchema,
+  observatoryViewCreateSchema,
+  observatoryViewUpdateSchema,
+  observatoryViewDeleteSchema,
+  observatoryViewReadSchema,
+  observatoryViewPageQuerySchema,
+  observatoryViewSchema,
+  observatoryViewPageSchema,
+  observatoryViewDeletedSchema,
 } from "./index";
 
 function component(
@@ -885,11 +916,263 @@ const resourceFilterParameter = {
   schema: { type: "string", format: "uuid" },
 };
 
+const observatoryResponseHeaders = {
+  "Cache-Control": {
+    description: "Owner results and safe failures are never cached",
+    schema: { type: "string", const: "no-store" },
+  },
+  "X-Correlation-Id": {
+    description:
+      "Accepted safe request correlation ID, otherwise a new server UUID",
+    schema: {
+      type: "string",
+      minLength: 1,
+      maxLength: 100,
+      pattern: "^[a-zA-Z0-9_-]+$",
+    },
+  },
+};
+const observatoryOwnerAuthority =
+  "An actual live allowlisted owner password session and a nonempty trusted Origin are required. No machine bearer credential grants owner authority, and JSON cannot assert an owner, session, capability or grant. ";
+const observatoryReadAuthority =
+  "Low-risk read, canonically audited as observatory.read. In password mode an actual live allowlisted owner password session and a nonempty trusted Origin are required. Only the explicitly enabled local auth-off read path permits an absent Origin; a supplied foreign Origin is always denied. No machine bearer credential grants owner authority; machines use their separately scoped MCP read tools. Reading does not probe a service, refresh observation time, create health evidence or build history. ";
+function observatoryPost(
+  operationId: string,
+  input: string,
+  output: string,
+  summary: string,
+  description: string,
+  options: { read?: boolean; conflict?: boolean; notFound?: boolean } = {},
+) {
+  const failures = {
+    "400":
+      "Malformed JSON, invalid shared input or invalid subject/cursor reference",
+    "401": "Missing, invalid or expired actual owner password session",
+    "403":
+      "Untrusted or missing required Origin, denied authority or inaccessible scope",
+    ...(options.notFound !== false
+      ? { "404": "Operation or canonical record not found" }
+      : {}),
+    ...(options.conflict
+      ? {
+          "409":
+            "Expected version or stable record identity conflicts with current canonical state",
+        }
+      : {}),
+    "413": "UTF-8 JSON request body exceeds 262144 bytes; INPUT_TOO_LARGE",
+    "503": "Canonical service, database or validated result is unavailable",
+  };
+  return {
+    post: {
+      operationId,
+      tags: ["Observatory"],
+      summary,
+      description:
+        (options.read ? observatoryReadAuthority : observatoryOwnerAuthority) +
+        description +
+        " Structural schemas use the canonical shared Zod definitions; server validation also enforces cross-field identities, authority and continuation/version refinements. UTF-8 JSON input is bounded to 262144 bytes; this transport bound is not an inventory population cap.",
+      parameters: [
+        {
+          ...ownerOriginParameter,
+          required: !options.read,
+          description: options.read
+            ? "Nonempty configured application/trusted local Origin is required in password mode. Only the explicit local auth-off read mode permits omission; supplied foreign origins are denied."
+            : "Nonempty configured application or trusted local Origin is required for this owner POST, including private-view and Work reads. No auth-off fallback.",
+        },
+        {
+          in: "header",
+          name: "X-Correlation-Id",
+          required: false,
+          description:
+            "Optional safe correlation ID; invalid values are replaced by a server UUID",
+          schema: observatoryResponseHeaders["X-Correlation-Id"].schema,
+        },
+      ],
+      requestBody: { required: true, content: jsonContent(input) },
+      responses: {
+        "200": {
+          description: "Strict current canonical result; no-store",
+          headers: observatoryResponseHeaders,
+          content: jsonContent(output),
+        },
+        ...Object.fromEntries(
+          Object.entries(failures).map(([status, failure]) => [
+            status,
+            {
+              description: failure,
+              headers: observatoryResponseHeaders,
+              content: jsonContent(
+                status === "413"
+                  ? "ObservatoryInputTooLarge"
+                  : "FoundationFailure",
+              ),
+            },
+          ]),
+        ),
+      },
+    },
+  };
+}
+
+const observatoryPaths = {
+  "/api/v1/infrastructure/observatory/scene": observatoryPost(
+    "readOwnerObservatoryScene",
+    "ObservatorySceneQuery",
+    "ObservatorySceneReadResult",
+    "Read the complete authorized Observatory landscape",
+    "Returns the complete canonical resource population, representations, membership index, scopeDigest, projectionRevision and exact per-resource facet access. Presentation search/grouping and environment filters never grant authority. Missing or unsupported evidence remains unknown.",
+    { read: true },
+  ),
+  "/api/v1/infrastructure/observatory/members": observatoryPost(
+    "listOwnerObservatoryMembers",
+    "ObservatoryMembershipQuery",
+    "ObservatoryMembershipPage",
+    "Traverse every member of one scene group",
+    "The opaque text cursor is bound to groupId, scopeDigest, projectionRevision and the same scene query. Limit 1..100 (default 25) is a page size. Follow every nextCursor to null before claiming the complete population; completeness is partial until the final page. Restart from the scene after INVALID_REFERENCE or changed scope/revision. This cursor is not a provider-feed, private-view or Work cursor.",
+    { read: true },
+  ),
+  "/api/v1/infrastructure/observatory/relations": observatoryPost(
+    "listOwnerObservatoryRelations",
+    "ObservatoryRelationsQuery",
+    "ObservatoryRelationsResult",
+    "Read complete reviewed operational relationships",
+    "Returns the complete authorized reviewed relation list, optionally for one resource, without a public cursor or arbitrary truncation. Recorded typed endpoints and provenance do not prove live traffic or inferred topology.",
+    { read: true },
+  ),
+  "/api/v1/infrastructure/observatory/signals": observatoryPost(
+    "readOwnerObservatorySignalEvidence",
+    "ObservatorySignalEvidenceQuery",
+    "ObservatorySignalEvidenceResult",
+    "Read complete selected resource/facet signal evidence",
+    "Returns complete safe signals and applicable source/capacity observations for the selected resource and facet, optionally one signalId, with exact access disclosure. There is no public cursor. Preserve original observedAt and freshness; absence is not healthy evidence, and raw originals or credentials are excluded.",
+    { read: true },
+  ),
+  "/api/v1/infrastructure/observatory/providers": observatoryPost(
+    "readOwnerObservatoryProviderExplanation",
+    "ObservatoryProviderExplanationQuery",
+    "ObservatoryProviderExplanationResult",
+    "Read complete selected-resource provider relevance explanations",
+    "Returns complete authorized explanations, optionally one noticeId, without a public cursor. Severity, relevance, confidence, causation and confirmed local impact remain distinct; a public incident alone does not prove local impact.",
+    { read: true },
+  ),
+  "/api/v1/infrastructure/observatory/operational": observatoryPost(
+    "readOwnerObservatoryOperationalEvidence",
+    "ObservatoryOperationalEvidenceQuery",
+    "ObservatoryOperationalEvidenceResult",
+    "Read complete persisted operational source evidence",
+    "Returns the complete safe source list for availability, pull_requests or security with access, state/error, real observedAt and freshness; no public cursor. Source configuration, immutable raw originals and credentials are excluded. Fixed Commandry readiness is one actual persisted check, not a 25-check history or end-user uptime guarantee; a read cannot freshen old evidence or activate a source.",
+    { read: true },
+  ),
+  "/api/v1/infrastructure/observatory/catalogue": observatoryPost(
+    "readOwnerObservatoryCatalogue",
+    "ObservatoryCatalogueQuery",
+    "ObservatoryCatalogueResult",
+    "Read complete owner reviewed configuration, including sources",
+    "Owner catalogue includes annotation, relation, provider and source configuration for the authorized resource. It returns every active/inactive or enabled/disabled record, stable identity, version and literal provenance/evidence, without a public cursor or fixed row cap. Machine catalogue is deliberately narrower and excludes source configuration; this owner HTTP contract does not expand its grants. No raw originals or credentials are returned.",
+    { read: true },
+  ),
+  "/api/v1/infrastructure/observatory/provider-feed": observatoryPost(
+    "listOwnerObservatoryProviderNotices",
+    "ObservatoryProviderFeedQuery",
+    "ObservatoryProviderFeedResult",
+    "Traverse the full recorded public provider notice population",
+    "Population is recorded_provider_notices, including complete updates and components. Follow structured nextCursor {afterId,revision,scopeDigest} to null with the same query/scope/feed revision; limit 1..100 (default 50) is a page size. Restart after INVALID_REFERENCE or a changed population revision. This cursor is not opaque membership text or a Work/view UUID cursor. Preserve provider updated/reported time, snapshot read time and last success/attempt separately; unknown/disabled/unavailable/stale differs from a current empty feed.",
+    { read: true },
+  ),
+  "/api/v1/infrastructure/observatory/reviews/annotation": observatoryPost(
+    "reviewOwnerObservatoryAnnotation",
+    "ObservatoryAnnotationChange",
+    "ObservatoryReviewReceipt",
+    "Review a versioned resource annotation and requirement",
+    "Reversible owner-only review requires expectedVersion, explicit evidenceRefs and review note; records canonical audit observatory.annotation.review atomically. Operated is an ownership role and does not imply healthy. Stable resource identity is preserved; receipt returns id, accepted version and auditId.",
+    { conflict: true },
+  ),
+  "/api/v1/infrastructure/observatory/reviews/relation": observatoryPost(
+    "reviewOwnerObservatoryRelation",
+    "ObservatoryRelationChange",
+    "ObservatoryReviewReceipt",
+    "Review a versioned typed operational relationship",
+    "Reversible owner-only review requires expectedVersion, explicit evidenceRefs and review note; records canonical audit observatory.relation.review atomically. Preserve source/target direction, typed canonical endpoints and nullable environment. Set active=false to deactivate without deleting history; do not infer topology from names.",
+    { conflict: true },
+  ),
+  "/api/v1/infrastructure/observatory/reviews/provider": observatoryPost(
+    "reviewOwnerObservatoryProviderMapping",
+    "ObservatoryProviderMappingChange",
+    "ObservatoryReviewReceipt",
+    "Review a versioned provider dependency mapping",
+    "Reversible owner-only review requires expectedVersion, explicit evidenceRefs and review note; records canonical audit observatory.provider_mapping.review atomically. Map exact stable Cloudflare componentId to dependency.product with explicit control/data plane, nullable geography/environment and canonical provider identity. Set active=false to deactivate; a mapping does not assert live local impact.",
+    { conflict: true },
+  ),
+  "/api/v1/infrastructure/observatory/reviews/source": observatoryPost(
+    "reviewOwnerObservatorySource",
+    "ObservatorySourceBindingChange",
+    "ObservatoryReviewReceipt",
+    "Review a versioned operational source configuration",
+    "Sensitive owner-only review requires expectedVersion, explicit evidenceRefs and review note; records canonical audit observatory.source.review atomically. Bind an explicit canonical resource/project/environment and reviewed externalId; source kinds are infraagent-monitor, github-repository and http-readiness. Fixed readiness accepts only commandry-web-readiness; arbitrary monitoring targets and credentials are not payload fields. enabled is explicit; enabling schedules server-configured reads, while enabled=false deactivates without deleting evidence. This is not delegated machine authority.",
+    { conflict: true },
+  ),
+  "/api/v1/infrastructure/observatory/reviews/client_scope": observatoryPost(
+    "reviewOwnerObservatoryClientScope",
+    "ObservatoryClientScopeChange",
+    "ObservatoryReviewReceipt",
+    "Review a versioned client's explicit Observatory resource scope",
+    "Sensitive owner-only review requires expectedVersion, explicit evidenceRefs and review note; records canonical audit observatory.client_scope.review atomically for the existing client/project. An explicit resourceIds list cannot manufacture an owner session, new credential or broader project authority; a bearer client's existing reads do not authorize this mutation.",
+    { conflict: true },
+  ),
+  "/api/v1/infrastructure/observatory/views/create": observatoryPost(
+    "createOwnerObservatoryView",
+    "ObservatoryViewCreate",
+    "ObservatoryView",
+    "Create an owner-private presentation view",
+    "Owner-private presentation only, with canonical audit and caller-stable UUID id plus expectedVersion=0. Matching create retries recover the original receipt. Configuration never changes canonical topology, mapping, grants or health. This surface has no delegated sharing or machine mutation capability.",
+    { conflict: true },
+  ),
+  "/api/v1/infrastructure/observatory/views/update": observatoryPost(
+    "updateOwnerObservatoryView",
+    "ObservatoryViewUpdate",
+    "ObservatoryView",
+    "Update an owner-private presentation view at its expected version",
+    "Owner-private presentation mutation with canonical audit. expectedVersion and projectId are required, including explicit null for a global view; omission must not widen project scope. No shared topology, source or grant is changed.",
+    { conflict: true },
+  ),
+  "/api/v1/infrastructure/observatory/views/delete": observatoryPost(
+    "deleteOwnerObservatoryView",
+    "ObservatoryViewDelete",
+    "ObservatoryViewDeleted",
+    "Delete an owner-private presentation view at its expected version",
+    "Owner-private audited deletion requires expectedVersion and returns the exact id/version/deleted/updatedAt receipt. No source, resource, operational history or shared canonical mapping is deleted.",
+    { conflict: true },
+  ),
+  "/api/v1/infrastructure/observatory/views/read": observatoryPost(
+    "readOwnerObservatoryView",
+    "ObservatoryViewRead",
+    "ObservatoryView",
+    "Read one owner-private canonical presentation view",
+    "Low-risk owner-private read, canonically audited as observatory.view.read. Only this owner's view is visible; no delegated sharing capability, raw storage envelope, immutable creation digest or tombstone is exposed. Reading changes no health or canonical mapping.",
+  ),
+  "/api/v1/infrastructure/observatory/views/page": observatoryPost(
+    "pageOwnerObservatoryViews",
+    "ObservatoryViewPageQuery",
+    "ObservatoryViewPage",
+    "Traverse every owner-private canonical presentation view",
+    "Low-risk owner-private read, canonically audited as observatory.view.read. Omitted projectId means all this owner's views; projectId=null means global views only; a UUID selects that project. Follow the UUID nextCursor to null to reach the complete matching population; limit 1..100 (default 25) is a page size. This is not an opaque membership cursor or the structured Work/provider-feed cursor. Stored creation digests and tombstones remain private.",
+  ),
+  "/api/v1/infrastructure/observatory/work/page": observatoryPost(
+    "listOwnerObservatoryProjectWork",
+    "FoundationProjectWorkQuery",
+    "FoundationProjectWorkPage",
+    "Traverse complete canonical Work for an authorized owner project",
+    "Low-risk owner read, canonically audited as observatory.work.read. Uses the exact Foundation Project Work query and shared canonical serializer: primary project OR active related-project membership, across all types/statuses/assignments/due dates, preserving literal Work and contentDigest. Follow structured {projectId,afterId} nextCursor to null; limit 1..100 (default 25) is a page size and cursor project never grants access. INVALID_REFERENCE requires a restart. consistency=live and selectedAt is actual read time, not a snapshot cutoff or Work updatedAt. Work is not an execution-runtime record; missing actual AgentRun state remains unknown. Original captures and unrelated project context are excluded.",
+    { notFound: false },
+  ),
+};
+
 export function generateOpenApi(): string {
   const document = {
     openapi: "3.1.0",
     info: { title: "Commandry API", version: "v1" },
     paths: {
+      ...observatoryPaths,
       "/health/live": {
         get: {
           operationId: "getLiveness",
@@ -5910,6 +6193,98 @@ export function generateOpenApi(): string {
         },
       },
       schemas: {
+        ObservatorySceneQuery: component(observatorySceneQuerySchema, "input"),
+        ObservatorySceneReadResult: component(observatorySceneReadResultSchema),
+        ObservatoryMembershipQuery: component(
+          observatoryMembershipQuerySchema,
+          "input",
+        ),
+        ObservatoryMembershipPage: component(observatoryMembershipPageSchema),
+        ObservatoryRelationsQuery: component(
+          observatoryRelationsQuerySchema,
+          "input",
+        ),
+        ObservatoryRelationsResult: component(observatoryRelationsResultSchema),
+        ObservatorySignalEvidenceQuery: component(
+          observatorySignalEvidenceQuerySchema,
+          "input",
+        ),
+        ObservatorySignalEvidenceResult: component(
+          observatorySignalEvidenceResultSchema,
+        ),
+        ObservatoryProviderExplanationQuery: component(
+          observatoryProviderExplanationQuerySchema,
+          "input",
+        ),
+        ObservatoryProviderExplanationResult: component(
+          observatoryProviderExplanationResultSchema,
+        ),
+        ObservatoryOperationalEvidenceQuery: component(
+          observatoryOperationalEvidenceQuerySchema,
+          "input",
+        ),
+        ObservatoryOperationalEvidenceResult: component(
+          observatoryOperationalEvidenceResultSchema,
+        ),
+        ObservatoryCatalogueQuery: component(
+          observatoryCatalogueQuerySchema,
+          "input",
+        ),
+        ObservatoryCatalogueResult: component(observatoryCatalogueResultSchema),
+        ObservatoryProviderFeedQuery: component(
+          observatoryProviderFeedQuerySchema,
+          "input",
+        ),
+        ObservatoryProviderFeedResult: component(
+          observatoryProviderFeedResultSchema,
+        ),
+        ObservatoryAnnotationChange: component(
+          observatoryAnnotationChangeSchema,
+          "input",
+        ),
+        ObservatoryRelationChange: component(
+          observatoryRelationChangeSchema,
+          "input",
+        ),
+        ObservatoryProviderMappingChange: component(
+          observatoryProviderMappingChangeSchema,
+          "input",
+        ),
+        ObservatorySourceBindingChange: component(
+          observatorySourceBindingChangeSchema,
+          "input",
+        ),
+        ObservatoryClientScopeChange: component(
+          observatoryClientScopeChangeSchema,
+          "input",
+        ),
+        // Exact public port receipt, not a raw storage or owner identity envelope.
+        ObservatoryReviewReceipt: component(
+          z.strictObject({
+            id: observatoryAnnotationChangeSchema.shape.resourceId,
+            version: observatoryViewSchema.shape.version,
+            auditId: observatoryAnnotationChangeSchema.shape.resourceId,
+          }),
+        ),
+        ObservatoryViewCreate: component(observatoryViewCreateSchema, "input"),
+        ObservatoryViewUpdate: component(observatoryViewUpdateSchema, "input"),
+        ObservatoryViewDelete: component(observatoryViewDeleteSchema, "input"),
+        ObservatoryViewRead: component(observatoryViewReadSchema, "input"),
+        ObservatoryViewPageQuery: component(
+          observatoryViewPageQuerySchema,
+          "input",
+        ),
+        ObservatoryView: component(observatoryViewSchema),
+        ObservatoryViewPage: component(observatoryViewPageSchema),
+        ObservatoryViewDeleted: component(observatoryViewDeletedSchema),
+        FoundationProjectWorkQuery: component(
+          foundationProjectWorkQuerySchema,
+          "input",
+        ),
+        FoundationProjectWorkPage: component(foundationProjectWorkPageSchema),
+        ObservatoryInputTooLarge: component(
+          z.strictObject({ code: z.literal("INPUT_TOO_LARGE") }),
+        ),
         MnemosyneImportEnvelope: component(
           mnemosyneImportEnvelopeSchema,
           "input",
