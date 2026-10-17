@@ -1,0 +1,50 @@
+{
+  "status": "SOURCE_ACCEPTED_HOSTED_TRIAL_PENDING",
+  "sourceCommit": "1cbbd21ef9278de19183d78a43f2613ec25e30ce",
+  "rootNormalMerge": "a1b94573b6136d493600786759395d60671c6bb7",
+  "priorMain": "f30c4aa649ce213c01b39748854fdf50d7f9f2ae",
+  "workflowSha256": "e595586de6f7da78b8228a76abd5522ef6ce96e06135e07a8c3d0151f8cd7277",
+  "onlyWorkflowDelta": "Add --workers=1 to complete release browser command",
+  "otherWorkflowBytesConserved": true,
+  "productTestsAndDefaultConfigEqualPriorMain": true,
+  "defaultWorkers": 2,
+  "releaseCliWorkers": 1,
+  "preflightP1toP10": "PASS",
+  "officialPacketBuild": "PASS",
+  "rootOfficialPacketRecheck": "PASS",
+  "acceptance": {
+    "A1WorkflowFormatting": "PASS",
+    "A2ExactTrackedAndNormalUntrackedConservation": "PASS",
+    "A3InstalledCliPopulationAndRetries": "PASS"
+  },
+  "discovery": {
+    "workersCompared": [
+      1,
+      2
+    ],
+    "uniqueOriginalTestProjectPairs": 207,
+    "perProject": {
+      "desktop": 69,
+      "phone-390": 69,
+      "phone-320": 69
+    },
+    "originalIdentitySha256": "f90a13654a4a123ae9382a5b6fe25046e9c95d23d325481fb7a7fc8b375c671b",
+    "zeroRetries": true,
+    "isBrowserExecution": false
+  },
+  "independentSourceReview": {
+    "verdict": "ACCEPT",
+    "reportSha256": "8e9fe9ba6e3788b4131a3e4957a6f215203f8e475bcb1641d020a621864c3f6b"
+  },
+  "workerRuntimeAttestation": "Worker reports checking actually delivered never and danger-full-access before command work; root reviewed the report",
+  "actualFullHostedTrial": "pending",
+  "equivalentInterTestLoadClaimed": false,
+  "productSpeedOrCauseClaimed": false,
+  "priorFailedFullMainResultReclassified": false,
+  "protectedReleaseGatesRelaxed": false,
+  "publicationOccurred": false,
+  "approvalRecordCreated": false,
+  "deploymentOccurred": false,
+  "sourceActivationVerified": false,
+  "primaryCiGuidance": "https://playwright.dev/docs/ci#workers"
+}
