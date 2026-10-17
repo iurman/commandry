@@ -1,0 +1,111 @@
+{
+  "observedAt": "2026-10-17T14:56:18.596576+00:00",
+  "runId": "run-0d792666-e1cb-4de5-af36-4db36b712cdb",
+  "sourceSha": "422701f9feb6f39c913a93fb8bab8f256af53587",
+  "buildId": "lGnhe-oR9zHt2NHceC1gN",
+  "sourceClean": false,
+  "testFileSha256": "15d9fc5ef73aba74f096ef282eb45296ad6d1e264fc0a561ca4b34331ebcb0cc",
+  "cssSha256": "a8cf96d9cc504e94d44f14e10ff8b044aeed220818c1c40da0fde0e67a35f8d0",
+  "cssByteIdenticalToImmutableBase": true,
+  "actualBrowserResult": {
+    "total": 12,
+    "passed": 9,
+    "failed": 3,
+    "retryOverrides": false,
+    "deadlineOverrides": false
+  },
+  "phoneMeasurements": [
+    {
+      "settled": false,
+      "renderedWidth": 148.671875,
+      "expectedWidth": 155.76,
+      "expectedX": 287.04,
+      "expectedY": 332.046875,
+      "radius": 77.88,
+      "delta": 7.088124999999991,
+      "lens": {
+        "x": 212.6953125,
+        "y": 257.7109375,
+        "width": 148.671875,
+        "height": 148.671875,
+        "top": 257.7109375,
+        "right": 361.3671875,
+        "bottom": 406.3828125,
+        "left": 212.6953125
+      },
+      "stage": {
+        "x": 18,
+        "y": 194.046875,
+        "width": 354,
+        "height": 460,
+        "top": 194.046875,
+        "right": 372,
+        "bottom": 654.046875,
+        "left": 18
+      },
+      "inlineWidth": "155.76px",
+      "computedWidth": "148.672px",
+      "computedHeight": "148.672px",
+      "maxWidth": "42%",
+      "viewport": {
+        "width": 390,
+        "height": 844
+      },
+      "documentHidden": false
+    },
+    {
+      "settled": false,
+      "renderedWidth": 119.265625,
+      "expectedWidth": 124.96,
+      "expectedX": 233.84,
+      "expectedY": 397.765625,
+      "radius": 62.48,
+      "delta": 5.694374999999994,
+      "lens": {
+        "x": 174.1953125,
+        "y": 338.1328125,
+        "width": 119.265625,
+        "height": 119.265625,
+        "top": 338.1328125,
+        "right": 293.4609375,
+        "bottom": 457.3984375,
+        "left": 174.1953125
+      },
+      "stage": {
+        "x": 18,
+        "y": 259.765625,
+        "width": 284,
+        "height": 460,
+        "top": 259.765625,
+        "right": 302,
+        "bottom": 719.765625,
+        "left": 18
+      },
+      "inlineWidth": "124.96px",
+      "computedWidth": "119.266px",
+      "computedHeight": "119.266px",
+      "maxWidth": "42%",
+      "viewport": {
+        "width": 320,
+        "height": 720
+      },
+      "documentHidden": false
+    }
+  ],
+  "desktopFailure": "Migrated sector locator Group this sector by not present; original120000ms limit retained",
+  "originalHelperCleanup": "FAILED: previewexit143, stoppedreceipt absent; not a passing acceptance",
+  "rootCleanupRecovery": {
+    "originalHelperResult": "FAILED exit143; no stopped receipt",
+    "separateRecovery": "Exact unique BUILD_ID and server bytes matched recorded run; owner UID, actual preview/web PID and process-group absence plus already removed PG data verified before exact asset-directory retirement",
+    "ownerRuntimes": "preserved"
+  },
+  "limits": [
+    "No final source/browser acceptance",
+    "No production changes or physical-device claim"
+  ],
+  "helperCorrection": {
+    "staticIndependentReview": "ACCEPT IPC shutdown correction after installed dependency signal hook diagnosis",
+    "actualCorrectedCleanup": "pending"
+  },
+  "status": "retained-failing-baseline"
+}
