@@ -6,7 +6,14 @@
 
 ## Current phase
 
-The Observatory presentation and pointer Stop correction are deployed at
+The latest qualified application release is `8b94c75e3157604b7940715c1510b447c28083fc`,
+activated at `2026-10-18T23:33:59Z`. It includes PR 41 and the PR 42 database
+shutdown correction. The [current-main rollout record](../operations/current-main-rollout-2026-10-18.md)
+records the exact image, complete qualification, reviewed manifest, recovery
+gates and preserved canonical data. Optional provider credentials and the
+additional endpoint-check catalogue remain unactivated.
+
+The Observatory presentation and pointer Stop correction were initially deployed at
 `0caf1764ede2cb84d5b26c1989c226c507649365` as of `2026-10-18T22:28:53Z`.
 The [presentation rollout record](../operations/observatory-presentation-rollout-2026-10-18.md)
 records the exact qualified image, complete 207-identity release, fresh backup,
@@ -18,13 +25,14 @@ camera/terrain/label identities with zero measured label drift. Physical-device
 and owner-interpretation limits remain separate.
 
 The [CI/deploy performance plan](../plans/ci-deploy-performance/PLAN.md) is
-proposed, based on measured complete releases of about 37 minutes, including
-more than 22 minutes of sequential browser checks. No CI workflow, automatic
-deployment controller or production topology changed. Separate PR 41 code,
-migration and Compose changes are still subject to their own release. Its
-first full qualification failed during PostgreSQL pool shutdown after passing
-the upgrade assertions; the current qualified image remains live while the
-shutdown correction is validated.
+proposed, based on complete releases of 37 to 38 minutes, including more than
+22 minutes of sequential browser checks. The concrete pool-shutdown reliability
+fix is deployed; workflow parallelization and automatic deployment remain
+proposed. PR 41's first qualification failed after its upgrade assertions,
+published no image, and left the confirmed release serving. The corrected
+[release 39174125292](https://github.com/iurman/commandry/actions/runs/39174125292)
+passed every gate before activation. No CI workflow, automatic deployment
+controller or service topology changed.
 
 The October 18 live-connection follow-up is in progress. Production revision
 `33d0086` was verified before collector changes. The four existing collector

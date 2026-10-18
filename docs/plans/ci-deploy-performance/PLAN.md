@@ -34,8 +34,12 @@ shutdown rejections still propagate; no retry, delay or audit assertion was
 removed. Five lifecycle regressions pass, and both actual upgrade audits passed
 three consecutive executions each. The complete source checks passed.
 
-This correction is implemented separately from the proposed job redesign. Full
-main qualification and exact-image activation remain required. The
+This correction was merged in [PR 42](https://github.com/iurman/commandry/pull/42)
+and passed the complete unchanged [main release 39174125292](https://github.com/iurman/commandry/actions/runs/39174125292).
+The exact image was activated at `2026-10-18T23:33:59Z`; see the
+[current-main rollout](../../operations/current-main-rollout-2026-10-18.md).
+It is separate from the proposed job redesign. Complete qualification and
+exact-image activation remain requirements for future changes. The
 [node-postgres pool API](https://node-postgres.com/apis/pool) describes pool drain
 and background errors; the additional completion invariant is backed by the
 real probe and [lifecycle regression](../../../packages/db/src/client.test.ts).
@@ -61,9 +65,15 @@ Setup/cleanup and small intervening steps account for the remaining time. The br
 
 The corrected PR 40 [release 39169514777](https://github.com/iurman/commandry/actions/runs/39169514777) subsequently passed the same complete identity/skip census and all release gates. Its job took exactly 37 minutes and its browser stage 22 min 41 s. This corroborates the current critical path without supplying a parallel benchmark.
 
-The previous successful [release 39113508421](https://github.com/iurman/commandry/actions/runs/39113508421) spent 25 min 31 s in browsers. Two runs establish a useful baseline, not a stable performance distribution.
+The corrected PR 42 release subsequently took **38 min 17 s**. Its complete
+browser step took **23 min 21 s**, including installation; the report measured
+22 min 59.723 s of execution. All 207 identities and the five original skips
+were preserved, with no failures, flaky results or retries. This is another
+serial baseline, not a measurement of the proposed parallel workflow.
 
-The current longest desktop test took 208.18 seconds. Its attached master-scene phase log attributes 134.18 seconds to outline expansion and 1.73 seconds to fixture setup, using matched start/end timestamps by phase, theme and grouping. Some phase records overlap, so they are not an exclusive accounting of every second. The evidence points to rendered interaction work before fixture-seeding optimizations.
+The previous successful [release 39113508421](https://github.com/iurman/commandry/actions/runs/39113508421) spent 25 min 31 s in browsers. The retained runs establish a useful baseline, not a stable performance distribution.
+
+In the PR 40 release, the longest desktop test took 208.18 seconds. Its attached master-scene phase log attributes 134.18 seconds to outline expansion and 1.73 seconds to fixture setup, using matched start/end timestamps by phase, theme and grouping. Some phase records overlap, so they are not an exclusive accounting of every second. The evidence points to rendered interaction work before fixture-seeding optimizations.
 
 The first deployment in the [presentation rollout record](../../operations/observatory-presentation-rollout-2026-10-18.md) took about 106 seconds. The environment-update to backup-receipt interval was about 84.6 seconds, including Compose/database checks and backup/recovery. Most of it ran while the old release served traffic. Public sampling recorded nine HTTP 502/530 results during the switch, bounded by old-release success at `21:40:23Z` and new-release success at `21:40:44Z`. The approximately 21-second enclosing window is not an exact outage duration.
 

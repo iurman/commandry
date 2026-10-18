@@ -49,6 +49,8 @@ feature has been implemented.
   scheduling, containers, runners, and native distribution
 - [CI/deploy performance proposal](plans/ci-deploy-performance/PLAN.md) - measured
   release timings, isolated parallel checks and qualification-preserving rollout
+- [Current main rollout after shutdown correction](operations/current-main-rollout-2026-10-18.md) -
+  exact qualified image, preserved data and verified activation of PR 41/42
 - [Observatory presentation rollout](operations/observatory-presentation-rollout-2026-10-18.md) -
   exact active image, owner defaults, pointer correction and verification
 - [Agent development workflow](architecture/agent-development-workflow.md) —
