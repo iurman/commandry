@@ -36,6 +36,8 @@ A canonical resource representation, and every alias of it, carries `logo: {dige
 
 A digest that is not the resource's current logo record returns `NOT_FOUND`; restart from the scene. List `kind:"logo"` reviewed configuration for the source (upload file name, or repository, path, commit and blob SHAs) and retired records. A logo is presentation: it does not establish ownership, deployment, traffic or health.
 
+Every host whose telemetry the credential may read and whose collector reports its operating system has one `platformObservations` entry in the scene: `{resourceId, osId, osIdLike, prettyName, platform, observedAt, evidenceRef}`. The values come from the latest validated Linux host sample: os-release `ID`, `ID_LIKE` and `PRETTY_NAME`, and `platform:"proxmox-ve"` when Proxmox VE tooling is present (Proxmox reports `ID=debian`). `evidenceRef` names that sample's source envelope, the same one as the host's `host_memory_total` capacity observation. The array follows telemetry disclosure, so a credential without `observatory.signals.read` gets an empty array. It is a timestamped observation, not a role, mapping or placement input. A missing entry means the collector has not reported an identity yet (older collectors omit it); it does not mean the host is not Linux. The owner badge uses it as the host's automatic icon. Agents read it from the same scene.
+
 Read reviewed relationships and their versions before proposing configuration:
 
 ```json
@@ -91,7 +93,7 @@ These intentional omissions remain explicit:
 | Source configuration/catalogue and enable/disable | Configuration can select a monitored subject and schedule server reads. Keep sensitive changes owner reviewed. Machines use the safe operational evidence tool to inspect the outcome. |
 | Private named-view catalogue and mutations | Owner-private presentation records have no delegated sharing capability. Add a separate sharing/delegation contract before machine access. |
 | Device-local appearance/camera/TV | Local presentation only. It has no canonical remote mutation and is deliberately UI-only. |
-| Resource icon choices | A device-local picture for a resource, stored with the owner's appearance settings. It is not a mapping, role or placement input, so it is deliberately UI-only. Cross-device icon storage and observed operating-system data would need a canonical record first, with its own declared scope and audit. |
+| Resource icon choices | A picture the owner chooses for a resource. It is stored with the device's appearance settings, and an owner account view carries it to other devices in its optional `icons` map (canonical resource ID to icon key). Saving and applying use the existing owner-only view policies and `observatory.view.create`/`observatory.view.update` audits. Choices are presentation, never a mapping, role or placement input, so they stay UI-only like the rest of the private view. The automatic icon is computed from records agents can already read: `platformObservations`, the logo reference and the resource kind and name. |
 | Raw originals and credential files | Excluded from machine tools and normal owner read DTOs. No general raw-original or credential export is provided. |
 
 Unknown tool/denied authority is not an empty healthy result. Malformed input returns `INVALID_INPUT`; known authorization/reference/version failures retain safe codes; unexpected source/service failure is `UNAVAILABLE`. Preserve the distinction between denied access, missing coverage and an actual completed observation.

@@ -14,6 +14,8 @@ The full hosted main release retained all 207 browser identities: 202 passes, fi
 
 Owner-reviewed repository logos for Observatory badges (owner decisions of 2026-10-18) are implemented in [PR 35](https://github.com/iurman/commandry/pull/35); they are not deployed. Migration `0074` adds the logo record. No logo is approved in production. Repository-file import in production also needs a GitHub token with contents read access to the private repositories. The [repository logos plan](../plans/observatory-repository-logos/PLAN.md) records the design, verification and activation gate. Badges show an approved logo in place of the automatic icon from the Observatory icon change; an explicit device icon choice still wins.
 
+The Linux host collectors now report each host's operating system: os-release identity, plus Proxmox VE detected from its tooling. The scene carries it as `platformObservations` for the UI and MCP alike, and host badges use it as their automatic icon. Saved account views now carry owner icon choices to other devices. The [host platform icons record](../plans/observatory-host-platform-icons/PLAN.md) has the details. The change is not deployed, and no host collector has been updated. The release must be deployed before the collectors change, because the current receiver rejects the new field.
+
 Commandry has completed its initial product definition. ADRs 0009 through 0012
 establish the initial technology and deployment architecture. The local
 application foundation now includes a Next.js web shell and API, PostgreSQL

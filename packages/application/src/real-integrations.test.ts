@@ -74,6 +74,37 @@ describe("real source evidence", () => {
       }).success,
     ).toBe(false);
   });
+  it("accepts a reported operating system identity and keeps it in the original evidence", () => {
+    const os = {
+      id: "debian",
+      idLike: [],
+      prettyName: "Debian GNU/Linux 12 (bookworm)",
+      platform: "proxmox-ve" as const,
+    };
+    expect(
+      prepareLinuxHostObservation("electra", { ...host, os }, now).rawPayload,
+    ).toMatchObject({ os });
+    // Collectors older than the field still deliver.
+    expect(linuxHostSampleSchema.safeParse(host).success).toBe(true);
+    for (const invalid of [
+      { ...os, id: "Debian" },
+      { ...os, id: "" },
+      { ...os, idLike: ["debian", "debian"] },
+      { ...os, idLike: Array.from({ length: 9 }, (_, i) => `d${i}`) },
+      { ...os, prettyName: "" },
+      { ...os, prettyName: "x".repeat(201) },
+      { ...os, prettyName: "Debian\u0007" },
+      { ...os, platform: "truenas" },
+      { ...os, role: "hypervisor" },
+    ])
+      expect(
+        linuxHostSampleSchema.safeParse({ ...host, os: invalid }).success,
+      ).toBe(false);
+    // The sample stays strict, so a receiver must accept a field before collectors send it.
+    expect(
+      linuxHostSampleSchema.safeParse({ ...host, kernel: "6.1" }).success,
+    ).toBe(false);
+  });
   it("persists rate-limit backoff and sanitizes unexpected provider errors", async () => {
     const port = {
       claimDue: vi.fn(async () => claim),

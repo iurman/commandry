@@ -64,4 +64,41 @@ describe("Observatory resource badge mark", () => {
     );
     expect(mark().querySelector("img")).not.toBeNull();
   });
+
+  it("keeps a server glyph on a host that shows a technology", () => {
+    const { container, rerender } = render(
+      <ObservatoryResourceMark
+        kind="host"
+        icon={resourceIcon("debian")!}
+        theme="midnight"
+      />,
+    );
+    const mark = () => container.querySelector(".cmd-op-kind")!;
+    expect(mark()).toHaveAttribute("data-icon", "debian");
+    expect(mark()).toHaveAttribute("data-machine", "true");
+    expect(
+      mark().querySelector(".cmd-op-kind-machine svg path"),
+    ).toHaveAttribute("d", resourceIcon("server")!.path);
+    // A shared reference to a host draws like the host it refers to.
+    rerender(
+      <ObservatoryResourceMark
+        kind="reference"
+        subjectKind="host"
+        icon={resourceIcon("debian")!}
+        theme="midnight"
+      />,
+    );
+    expect(mark()).toHaveAttribute("data-kind", "reference");
+    expect(mark()).toHaveAttribute("data-machine", "true");
+    // The plain server glyph, other kinds and logos need no second server.
+    for (const props of [
+      { kind: "host", icon: resourceIcon("server")! },
+      { kind: "service", icon: resourceIcon("postgresql")! },
+      { kind: "host", icon: resourceIcon("debian")!, logo },
+    ]) {
+      rerender(<ObservatoryResourceMark theme="midnight" {...props} />);
+      expect(mark()).not.toHaveAttribute("data-machine");
+      expect(mark().querySelector(".cmd-op-kind-machine")).toBeNull();
+    }
+  });
 });

@@ -127,6 +127,62 @@ describe("complete semantic Observatory population", () => {
     ).toBe(60);
   });
 
+  it("discloses a host's reported platform with its evidence only alongside telemetry", () => {
+    const fixture = mixedObservatoryFixture();
+    const [first, second] = fixture.resources.filter(
+      (resource) => resource.kind === "host",
+    );
+    const platform = {
+      resourceId: first!.id,
+      osId: "debian",
+      osIdLike: [],
+      prettyName: "Debian GNU/Linux 12 (bookworm)",
+      platform: "proxmox-ve" as const,
+      observedAt: "2026-10-16T12:00:00.000Z",
+      evidenceRef: "/api/v1/source-envelopes/platform",
+    };
+    const other = {
+      ...platform,
+      resourceId: second!.id,
+      osId: "ubuntu",
+      osIdLike: ["debian"],
+      prettyName: "Ubuntu 24.04 LTS",
+      platform: null,
+    };
+    const scene = projectObservatory({
+      ...fixture,
+      platforms: [other, platform],
+    });
+    // Resource order, one per host, copied rather than shared with the input.
+    expect(scene.platformObservations).toEqual(
+      [platform, other].sort(
+        (a, b) =>
+          fixture.resources.findIndex((r) => r.id === a.resourceId) -
+          fixture.resources.findIndex((r) => r.id === b.resourceId),
+      ),
+    );
+    expect(
+      scene.platformObservations.find(
+        (item) => item.resourceId === other.resourceId,
+      )?.osIdLike,
+    ).not.toBe(other.osIdLike);
+    // Presentation evidence does not change structural identity.
+    expect(scene.projectionRevision).toBe(
+      projectObservatory(fixture).projectionRevision,
+    );
+    expect(projectObservatory(fixture).platformObservations).toEqual([]);
+    const hidden = projectObservatory({
+      ...fixture,
+      platforms: [platform, other],
+      facetAccess: [
+        { resourceId: first!.id, facet: "telemetry", state: "inaccessible" },
+      ],
+    });
+    expect(hidden.platformObservations.map((item) => item.resourceId)).toEqual([
+      second!.id,
+    ]);
+  });
+
   it.each(groupings)(
     "conserves every identity and its containment under %s, expansion and input reversal",
     (grouping) => {

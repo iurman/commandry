@@ -62,8 +62,13 @@ expand existing machine grants. Source freshness still does not establish
 service availability, and this repair adds no external action.
 
 The Linux collector reads `/proc/meminfo`, `/proc/uptime`, `/proc/loadavg` and
-filesystem counters for `/`. It needs no root access, Docker socket, SSH key
-or database credential. Its bearer token permits only submission to one host
+filesystem counters for `/`. It also reports the operating system identity from
+`/etc/os-release` (falling back to `/usr/lib/os-release`): `ID`, `ID_LIKE` and
+`PRETTY_NAME`, plus `platform:"proxmox-ve"` when `/usr/bin/pveversion` or
+`/etc/pve` exists. It checks those two paths without running a command. Values
+are clamped to the receiver contract, and an unreadable os-release omits the
+optional `os` object rather than failing the sample. It needs no root access,
+Docker socket, SSH key or database credential. Its bearer token permits only submission to one host
 integration. The receiver validates the exact hostname, counters, timestamp
 and a 128 KiB payload limit. Rotation revokes the old token. Disabled sources
 and archived project links reject new observations. Replays preserve the
@@ -176,7 +181,54 @@ The activated hosts retain their audit at
 Tests are included in `scripts/linux-host-collector.test.mjs` and require
 `python3`. They cover counter interpretation, invalid capacities, configuration
 validation, bounded truthful receipts, actual loopback delivery, redirect
-refusal and redacted CLI failures.
+refusal, redacted CLI failures, os-release quoting and clamping, Proxmox VE
+detection and a missing os-release.
+
+### Operating system identity rollout
+
+The host sample is a strict contract, so a receiver that predates the optional
+`os` field rejects samples carrying it, and that host's telemetry goes stale.
+Roll it out in this order:
+
+1. Deploy the application release that accepts `os` through the constrained
+   deployment workflow. Existing collectors keep delivering, because the field
+   is optional.
+2. Then replace only the collector script on each host:
+   `/opt/commandry/scripts/linux-host-collector.mjs` on Electra and
+   `/opt/commandry/scripts/linux-host-collector.py` on Pleiades, Maia
+   (`iu-amp`) and Titan (`iu-ionos`). Verify the installed hash. The unit,
+   timer, environment file and token are unchanged; the existing systemd
+   sandbox can already read os-release and check the Proxmox paths.
+3. Run the one-shot service once, then confirm that the persisted envelope
+   carries `os`, the scene shows a matching `platformObservations` entry, and
+   the minute cadence and capacity metrics are unchanged.
+
+Rollback restores the previous script; the receiver accepts samples without
+`os`. Existing envelopes keep their recorded identity as evidence.
+
+Rolling the application back below this release needs two extra steps, because
+older releases parse these records strictly:
+
+- Restore the previous collector scripts first, and wait for each host to
+  deliver a sample without `os`. An older receiver rejects samples that carry
+  it. An older reader also skips a latest sample that carries `os`, so that
+  host loses `host_memory_total` and RAM sizing until a newer sample arrives.
+- Account views saved with icon choices fail an older release's strict view
+  decoding, which makes the owner's whole view list unavailable. Under the
+  existing backup gate and a scoped change, remove the `icons` key from the
+  stored view envelopes first:
+
+  ```sql
+  update observatory_named_view
+  set configuration = configuration
+    #- '{configuration,icons}'
+    #- '{creation,view,configuration,icons}'
+  where configuration->'configuration' ? 'icons'
+     or configuration->'creation'->'view'->'configuration' ? 'icons';
+  ```
+
+  This keeps view IDs, names, versions and every other setting. The icon
+  choices remain on the devices that made them.
 
 Migration 0056 extends provenance and allows several named metrics per event.
 It preserves fixture records. Once real records exist, a fixture-only old image

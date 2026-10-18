@@ -1,8 +1,11 @@
 import { describe, expect, it } from "vitest";
+import { observatoryViewConfigurationSchema } from "@commandry/contracts";
 import {
+  appliedObservatoryIcons,
   authorizeObservatoryQuery,
   defaultObservatoryPreferences,
   normalizeObservatorySectors,
+  observatoryViewIcons,
   readObservatoryPreferences,
 } from "./observatory-preferences";
 
@@ -33,6 +36,48 @@ describe("version two device-local Observatory preferences", () => {
         JSON.stringify({ ...saved, reveal: "everything" }),
       ).reveal,
     ).toBe("members");
+  });
+  it("carries icon choices through an account view and keeps device choices for older views", () => {
+    const host = "00000000-0000-4000-8000-000000000001",
+      repository = "00000000-0000-4000-8000-000000000002";
+    const device = {
+      [repository]: "github",
+      [host]: "proxmox",
+      "local-only": "debian",
+      // Hex-shaped, but not an RFC UUID the view contract accepts.
+      "00000000-0000-0000-0000-000000000003": "debian",
+      [`${host.slice(0, -1)}9`]: "not-an-icon",
+    };
+    const saved = observatoryViewIcons(device);
+    // Canonical IDs naming known icons only, in a stable order.
+    expect(Object.entries(saved)).toEqual([
+      [host, "proxmox"],
+      [repository, "github"],
+    ]);
+    expect(
+      observatoryViewConfigurationSchema.parse({
+        schemaVersion: 2,
+        icons: saved,
+      }).icons,
+    ).toEqual(saved);
+    // Another device applying the view takes its exact choices.
+    expect(appliedObservatoryIcons({ [host]: "debian" }, saved)).toEqual(saved);
+    expect(appliedObservatoryIcons({ [host]: "debian" }, {})).toEqual({});
+    // A view saved before icons existed leaves this device's choices alone.
+    const older = observatoryViewConfigurationSchema.parse({
+      schemaVersion: 2,
+    });
+    expect(older.icons).toBeUndefined();
+    expect(appliedObservatoryIcons({ [host]: "debian" }, older.icons)).toEqual({
+      [host]: "debian",
+    });
+    // An icon this client does not vendor is ignored rather than stored.
+    expect(
+      appliedObservatoryIcons(
+        {},
+        { [host]: "future-icon", [repository]: "github" },
+      ),
+    ).toEqual({ [repository]: "github" });
   });
   it.each(["bad", "null", "[]", "42", '{"version":8}'])(
     "resets corrupt/unsupported data safely: %s",

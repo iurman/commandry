@@ -12,7 +12,7 @@
           "Observatory"
         ],
         "summary": "Read the complete authorized Observatory landscape",
-        "description": "Low-risk read, canonically audited as observatory.read. In password mode an actual live allowlisted owner password session and a nonempty trusted Origin are required. Only the explicitly enabled local auth-off read path permits an absent Origin; a supplied foreign Origin is always denied. No machine bearer credential grants owner authority; machines use their separately scoped MCP read tools. Reading does not probe a service, refresh observation time, create health evidence or build history. Returns the complete canonical resource population, representations, membership index, scopeDigest, projectionRevision and exact per-resource facet access. Presentation search/grouping and environment filters never grant authority. Missing or unsupported evidence remains unknown. Structural schemas use the canonical shared Zod definitions; server validation also enforces cross-field identities, authority and continuation/version refinements. UTF-8 JSON input is bounded to 262144 bytes; this transport bound is not an inventory population cap.",
+        "description": "Low-risk read, canonically audited as observatory.read. In password mode an actual live allowlisted owner password session and a nonempty trusted Origin are required. Only the explicitly enabled local auth-off read path permits an absent Origin; a supplied foreign Origin is always denied. No machine bearer credential grants owner authority; machines use their separately scoped MCP read tools. Reading does not probe a service, refresh observation time, create health evidence or build history. Returns the complete canonical resource population, representations, membership index, scopeDigest, projectionRevision and exact per-resource facet access. platformObservations carry each host's latest reported operating system identity (os-release ID, ID_LIKE, PRETTY_NAME and a detected platform such as Proxmox VE) with its observation time and source envelope; they are observations, never roles or mappings, and follow telemetry disclosure. Presentation search/grouping and environment filters never grant authority. Missing or unsupported evidence remains unknown. Structural schemas use the canonical shared Zod definitions; server validation also enforces cross-field identities, authority and continuation/version refinements. UTF-8 JSON input is bounded to 262144 bytes; this transport bound is not an inventory population cap.",
         "parameters": [
           {
             "in": "header",
@@ -18705,6 +18705,7 @@
       "post": {
         "operationId": "receiveRealHostSample",
         "summary": "Token-scoped, bounded Linux host ingestion",
+        "description": "Accepts one strict host sample. The optional os object reports os-release identity and a platform detected from local tooling; collectors omit it when os-release is unreadable. Unknown keys are rejected, so the receiver must accept a field before collectors send it.",
         "parameters": [
           {
             "in": "path",
@@ -22048,6 +22049,68 @@
                   "additionalProperties": false
                 }
               },
+              "platformObservations": {
+                "type": "array",
+                "items": {
+                  "type": "object",
+                  "properties": {
+                    "resourceId": {
+                      "type": "string",
+                      "format": "uuid",
+                      "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$"
+                    },
+                    "osId": {
+                      "type": "string",
+                      "pattern": "^[a-z0-9._-]{1,64}$"
+                    },
+                    "osIdLike": {
+                      "maxItems": 8,
+                      "type": "array",
+                      "items": {
+                        "type": "string",
+                        "pattern": "^[a-z0-9._-]{1,64}$"
+                      }
+                    },
+                    "prettyName": {
+                      "type": "string",
+                      "minLength": 1,
+                      "maxLength": 200
+                    },
+                    "platform": {
+                      "anyOf": [
+                        {
+                          "type": "string",
+                          "enum": [
+                            "proxmox-ve"
+                          ]
+                        },
+                        {
+                          "type": "null"
+                        }
+                      ]
+                    },
+                    "observedAt": {
+                      "type": "string",
+                      "format": "date-time",
+                      "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))T(?:(?:[01]\\d|2[0-3]):[0-5]\\d:[0-5]\\d(?:\\.\\d+)?(?:Z|([+-](?:[01]\\d|2[0-3]):[0-5]\\d)))$"
+                    },
+                    "evidenceRef": {
+                      "type": "string",
+                      "minLength": 1
+                    }
+                  },
+                  "required": [
+                    "resourceId",
+                    "osId",
+                    "osIdLike",
+                    "prettyName",
+                    "platform",
+                    "observedAt",
+                    "evidenceRef"
+                  ],
+                  "additionalProperties": false
+                }
+              },
               "providerExposures": {
                 "type": "array",
                 "items": {
@@ -22662,6 +22725,7 @@
               "signals",
               "sourceObservations",
               "capacityObservations",
+              "platformObservations",
               "providerExposures",
               "summary",
               "searchResults"
@@ -29599,6 +29663,18 @@
                   "earth"
                 ]
               },
+              "icons": {
+                "type": "object",
+                "propertyNames": {
+                  "type": "string",
+                  "format": "uuid",
+                  "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$"
+                },
+                "additionalProperties": {
+                  "type": "string",
+                  "pattern": "^[a-z0-9][a-z0-9-]{0,39}$"
+                }
+              },
               "ambient": {
                 "default": false,
                 "type": "boolean"
@@ -29814,6 +29890,18 @@
                   "ocean",
                   "earth"
                 ]
+              },
+              "icons": {
+                "type": "object",
+                "propertyNames": {
+                  "type": "string",
+                  "format": "uuid",
+                  "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$"
+                },
+                "additionalProperties": {
+                  "type": "string",
+                  "pattern": "^[a-z0-9][a-z0-9-]{0,39}$"
+                }
               },
               "ambient": {
                 "default": false,
@@ -30107,6 +30195,18 @@
                   "earth"
                 ]
               },
+              "icons": {
+                "type": "object",
+                "propertyNames": {
+                  "type": "string",
+                  "format": "uuid",
+                  "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$"
+                },
+                "additionalProperties": {
+                  "type": "string",
+                  "pattern": "^[a-z0-9][a-z0-9-]{0,39}$"
+                }
+              },
               "ambient": {
                 "default": false,
                 "type": "boolean"
@@ -30360,6 +30460,18 @@
                         "ocean",
                         "earth"
                       ]
+                    },
+                    "icons": {
+                      "type": "object",
+                      "propertyNames": {
+                        "type": "string",
+                        "format": "uuid",
+                        "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$"
+                      },
+                      "additionalProperties": {
+                        "type": "string",
+                        "pattern": "^[a-z0-9][a-z0-9-]{0,39}$"
+                      }
                     },
                     "ambient": {
                       "default": false,
@@ -44337,6 +44449,48 @@
             "type": "integer",
             "minimum": 0,
             "maximum": 2147483647
+          },
+          "os": {
+            "type": "object",
+            "properties": {
+              "id": {
+                "type": "string",
+                "pattern": "^[a-z0-9._-]{1,64}$"
+              },
+              "idLike": {
+                "maxItems": 8,
+                "type": "array",
+                "items": {
+                  "type": "string",
+                  "pattern": "^[a-z0-9._-]{1,64}$"
+                }
+              },
+              "prettyName": {
+                "type": "string",
+                "minLength": 1,
+                "maxLength": 200
+              },
+              "platform": {
+                "anyOf": [
+                  {
+                    "type": "string",
+                    "enum": [
+                      "proxmox-ve"
+                    ]
+                  },
+                  {
+                    "type": "null"
+                  }
+                ]
+              }
+            },
+            "required": [
+              "id",
+              "idLike",
+              "prettyName",
+              "platform"
+            ],
+            "additionalProperties": false
           }
         },
         "required": [

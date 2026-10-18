@@ -300,6 +300,45 @@ describe("shared authorized Observatory reads", () => {
         expect(serialized).not.toContain(metric.evidenceHref);
   });
 
+  it("discloses reported host platforms only with the telemetry grant and inside scope", async () => {
+    const source = inProject(mixedObservatoryFixture());
+    const [host, hidden] = source.resources.filter(
+      (resource) => resource.kind === "host",
+    );
+    const platform = {
+      resourceId: host!.id,
+      osId: "debian",
+      osIdLike: [],
+      prettyName: "Debian GNU/Linux 12 (bookworm)",
+      platform: "proxmox-ve" as const,
+      observedAt: "2026-10-16T12:00:00.000Z",
+      evidenceRef: "/api/v1/source-envelopes/platform",
+    };
+    const f = fixture({
+      ...source,
+      platforms: [platform, { ...platform, resourceId: hidden!.id }],
+    });
+    const owner = await f.service.scene("owner", {});
+    expect(owner.scene.platformObservations).toHaveLength(2);
+    f.scoped([projectId], allOperations, [host!.id]);
+    expect(
+      (await f.service.scene("one-host", { projectId })).scene
+        .platformObservations,
+    ).toEqual([platform]);
+    f.scoped([projectId], ["observatory.read"]);
+    const inventory = await f.service.scene("inventory-only", { projectId });
+    expect(inventory.scene.platformObservations).toEqual([]);
+    expect(JSON.stringify(inventory)).not.toContain(platform.evidenceRef);
+    // Stored evidence that breaks the contract fails the read; it is never repaired.
+    const broken = fixture({
+      ...source,
+      platforms: [{ ...platform, osId: "Not Valid!" }],
+    });
+    await expect(broken.service.scene("owner", {})).rejects.toThrow();
+    const duplicate = fixture({ ...source, platforms: [platform, platform] });
+    await expect(duplicate.service.scene("owner", {})).rejects.toThrow();
+  });
+
   it("grants security, provider and Work facets independently from monitoring", async () => {
     const rich = operationalObservatoryFixture();
     const f = fixture(inProject(rich));

@@ -176,6 +176,20 @@ try {
       disk: { totalBytes: 107374182400, availableBytes: 53687091200 },
       uptimeSeconds: 3600,
       load1Milli: 1500,
+      os:
+        index % 2
+          ? {
+              id: "ubuntu",
+              idLike: ["debian"],
+              prettyName: "Ubuntu 24.04.1 LTS",
+              platform: null,
+            }
+          : {
+              id: "debian",
+              idLike: [],
+              prettyName: "Debian GNU/Linux 12 (bookworm)",
+              platform: "proxmox-ve",
+            },
     });
   }
   const email = "observatory-preview@commandry.test",

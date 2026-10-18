@@ -1051,7 +1051,7 @@ const observatoryPaths = {
     "ObservatorySceneQuery",
     "ObservatorySceneReadResult",
     "Read the complete authorized Observatory landscape",
-    "Returns the complete canonical resource population, representations, membership index, scopeDigest, projectionRevision and exact per-resource facet access. Presentation search/grouping and environment filters never grant authority. Missing or unsupported evidence remains unknown.",
+    "Returns the complete canonical resource population, representations, membership index, scopeDigest, projectionRevision and exact per-resource facet access. platformObservations carry each host's latest reported operating system identity (os-release ID, ID_LIKE, PRETTY_NAME and a detected platform such as Proxmox VE) with its observation time and source envelope; they are observations, never roles or mappings, and follow telemetry disclosure. Presentation search/grouping and environment filters never grant authority. Missing or unsupported evidence remains unknown.",
     { read: true },
   ),
   "/api/v1/infrastructure/observatory/members": observatoryPost(
@@ -5661,6 +5661,8 @@ export function generateOpenApi(): string {
         post: {
           operationId: "receiveRealHostSample",
           summary: "Token-scoped, bounded Linux host ingestion",
+          description:
+            "Accepts one strict host sample. The optional os object reports os-release identity and a platform detected from local tooling; collectors omit it when os-release is unreadable. Unknown keys are rejected, so the receiver must accept a field before collectors send it.",
           parameters: [
             idParameter,
             {

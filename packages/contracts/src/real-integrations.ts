@@ -54,6 +54,32 @@ export const listRealIntegrationsResponseSchema = z.object({
   items: z.array(realIntegrationSchema),
   nextCursor: z.uuid().nullable(),
 });
+/** os-release(5) identifiers: lower-case letters, digits, ".", "_" and "-". */
+const osIdentifierSchema = z.string().regex(/^[a-z0-9._-]{1,64}$/);
+/** Platforms a collector identifies from local tooling, beyond os-release. */
+export const linuxHostPlatformSchema = z.enum(["proxmox-ve"]);
+/** Reported operating system identity. It is an observation of the host, never
+ * a role or classification; the collector clamps values to these bounds. */
+export const linuxHostOsSchema = z.strictObject({
+  id: osIdentifierSchema,
+  idLike: z
+    .array(osIdentifierSchema)
+    .max(8)
+    .refine(
+      (values) => new Set(values).size === values.length,
+      "Duplicate ID_LIKE entry",
+    ),
+  prettyName: z
+    .string()
+    .min(1)
+    .max(200)
+    // Python and JavaScript trim different whitespace, so only controls are refused.
+    .refine(
+      (value) => !/[\u0000-\u001f\u007f]/.test(value),
+      "Pretty name must not contain control characters",
+    ),
+  platform: linuxHostPlatformSchema.nullable(),
+});
 export const linuxHostSampleSchema = z
   .strictObject({
     hostname: z.string().min(1).max(253),
@@ -77,6 +103,8 @@ export const linuxHostSampleSchema = z
     }),
     uptimeSeconds: z.number().int().nonnegative().max(2147483647),
     load1Milli: z.number().int().nonnegative().max(2147483647),
+    /** Absent from collectors older than this field, or when os-release is unreadable. */
+    os: linuxHostOsSchema.optional(),
   })
   .superRefine((sample, context) => {
     if (
@@ -130,3 +158,4 @@ export type CreateRealIntegrationRequest = z.infer<
 >;
 export type RealIntegration = z.infer<typeof realIntegrationSchema>;
 export type LinuxHostSample = z.infer<typeof linuxHostSampleSchema>;
+export type LinuxHostOs = z.infer<typeof linuxHostOsSchema>;

@@ -1,4 +1,5 @@
 import { z } from "zod";
+import { linuxHostOsSchema } from "./real-integrations";
 
 const id = z.string().min(1);
 const timestamp = z.iso.datetime({ offset: true });
@@ -400,6 +401,16 @@ export const observatoryCapacityObservationSchema = z.strictObject({
   observedAt: timestamp,
   evidenceRef: id,
 });
+/** A host's reported operating system identity, from its validated sample. */
+export const observatoryPlatformObservationSchema = z.strictObject({
+  resourceId: z.uuid(),
+  osId: linuxHostOsSchema.shape.id,
+  osIdLike: linuxHostOsSchema.shape.idLike,
+  prettyName: linuxHostOsSchema.shape.prettyName,
+  platform: linuxHostOsSchema.shape.platform,
+  observedAt: timestamp,
+  evidenceRef: id,
+});
 export const observatorySceneSchema = z
   .strictObject({
     schemaVersion: z.literal(1),
@@ -435,6 +446,8 @@ export const observatorySceneSchema = z
     signals: z.array(observatorySignalSchema),
     sourceObservations: z.array(observatorySourceObservationSchema),
     capacityObservations: z.array(observatoryCapacityObservationSchema),
+    /** Reported operating system identity, one per host whose telemetry is disclosed. */
+    platformObservations: z.array(observatoryPlatformObservationSchema),
     providerExposures: z.array(observatoryProviderExposureSchema),
     summary: observatorySummarySchema,
     searchResults: z.array(observatorySearchResultSchema),
@@ -622,6 +635,12 @@ export const observatorySceneSchema = z
     }
     for (const metric of scene.capacityObservations)
       if (!resources.has(metric.resourceId)) fail("Foreign capacity subject");
+    const platforms = scene.platformObservations.map((item) => item.resourceId);
+    if (
+      new Set(platforms).size !== platforms.length ||
+      platforms.some((resourceId) => !resources.has(resourceId))
+    )
+      fail("Foreign or duplicate platform subject");
     for (const exposure of scene.providerExposures)
       if (
         !resources.has(exposure.resourceId) ||
@@ -668,6 +687,9 @@ export type ObservatoryRepresentationDto = z.infer<
   typeof observatoryRepresentationSchema
 >;
 export type ObservatorySignalDto = z.infer<typeof observatorySignalSchema>;
+export type ObservatoryPlatformObservationDto = z.infer<
+  typeof observatoryPlatformObservationSchema
+>;
 export type ObservatoryProviderExposureDto = z.infer<
   typeof observatoryProviderExposureSchema
 >;

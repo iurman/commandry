@@ -12,6 +12,59 @@ import urllib.request
 from urllib.parse import urlsplit
 from uuid import uuid4
 
+OS_RELEASE_PATHS = ("/etc/os-release", "/usr/lib/os-release")
+OS_IDENTIFIER = re.compile(r"[a-z0-9._-]{1,64}")
+
+
+def parse_os_release(text):
+    """Shell-style KEY=value assignments, as os-release(5) defines them."""
+    values = {}
+    for line in re.split(r"\r?\n", text):
+        line = line.strip()
+        if not line or line.startswith("#") or "=" not in line:
+            continue
+        key, value = line.split("=", 1)
+        if not re.fullmatch(r"[A-Z][A-Z0-9_]*", key):
+            continue
+        if len(value) >= 2 and value[0] == value[-1] and value[0] in "\"'":
+            quote, value = value[0], value[1:-1]
+            if quote == '"':
+                value = re.sub(r'\\([\\$"`])', r"\1", value)
+        values[key] = value
+    return values
+
+
+def collect_linux_os():
+    """Operating system identity, or None when os-release cannot be read.
+    Values are clamped to the receiver contract so they never cost a sample."""
+    for path in OS_RELEASE_PATHS:
+        try:
+            values = parse_os_release(Path(path).read_bytes().decode("utf-8-sig", "replace"))
+            break
+        except OSError:
+            continue
+    else:
+        return None
+    identifier = values.get("ID", "").strip().lower()
+    like = [item for item in values.get("ID_LIKE", "").lower().split() if OS_IDENTIFIER.fullmatch(item)]
+    # Drop control characters and stop at the receiver's 200 UTF-16 units.
+    pretty, units = "", 0
+    for char in values.get("PRETTY_NAME", "").strip():
+        if ord(char) < 32 or ord(char) == 127:
+            continue
+        width = 2 if ord(char) > 0xFFFF else 1
+        if units + width > 200:
+            break
+        pretty, units = pretty + char, units + width
+    # Proxmox VE reports ID=debian; its management tooling identifies it.
+    proxmox = os.path.isfile("/usr/bin/pveversion") or os.path.isdir("/etc/pve")
+    return {
+        "id": identifier if OS_IDENTIFIER.fullmatch(identifier) else "linux",
+        "idLike": list(dict.fromkeys(like))[:8],
+        "prettyName": pretty.strip() or "Linux",
+        "platform": "proxmox-ve" if proxmox else None,
+    }
+
 
 def collect_linux_host():
     memory = Path("/proc/meminfo").read_text()
@@ -39,6 +92,9 @@ def collect_linux_host():
             raise ValueError("Invalid Linux host capacity")
     if sample["uptimeSeconds"] > 2147483647 or sample["load1Milli"] > 2147483647:
         raise ValueError("Invalid Linux host counters")
+    system = collect_linux_os()
+    if system is not None:
+        sample["os"] = system
     return sample
 
 

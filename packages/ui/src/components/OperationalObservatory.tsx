@@ -47,6 +47,7 @@ import type {
   OperationalSummary,
 } from "../gravity/operational-layout";
 import {
+  appliedObservatoryIcons,
   authorizeObservatoryQuery,
   defaultObservatoryPreferences,
   legacyObservatoryStorageKey,
@@ -54,6 +55,7 @@ import {
   observatoryGroupings,
   observatoryPresentation,
   observatoryStorageKey,
+  observatoryViewIcons,
   readObservatoryPreferences,
 } from "../gravity/observatory-preferences";
 import type {
@@ -239,6 +241,7 @@ function OutlineNode({
   activate,
   toggle,
   iconFor,
+  subjectKindFor,
   logoFor,
   theme,
 }: {
@@ -250,6 +253,7 @@ function OutlineNode({
   activate: (id: string) => void;
   toggle: (id: string) => void;
   iconFor: (node: OperationalRepresentation) => ResourceIcon;
+  subjectKindFor: (node: OperationalRepresentation) => string;
   logoFor: (node: OperationalRepresentation) => string | null;
   theme: "porcelain" | "midnight";
 }) {
@@ -288,6 +292,7 @@ function OutlineNode({
         >
           <ObservatoryResourceMark
             kind={node.kind}
+            subjectKind={subjectKindFor(node)}
             icon={iconFor(node)}
             logo={logoFor(node)}
             theme={theme}
@@ -322,6 +327,7 @@ function OutlineNode({
               activate={activate}
               toggle={toggle}
               iconFor={iconFor}
+              subjectKindFor={subjectKindFor}
               logoFor={logoFor}
               theme={theme}
             />
@@ -929,9 +935,25 @@ function OperationalObservatoryView({
   }, [focusId, focusSequence, ready, reduced, focusedVisible, focusFamily]);
 
   const expanded = new Set(query.expandedRepresentationIds);
+  // Reported operating systems choose a host's automatic icon.
+  const platforms = new Map(
+    scene.platformObservations.map((item) => [item.resourceId, item]),
+  );
+  const selectedPlatform = selected?.resourceId
+    ? platforms.get(selected.resourceId)
+    : undefined;
   // A shared reference shows its canonical resource's picture.
-  const iconSubject = (node: OperationalRepresentation) =>
-    (node.referenceTo ? nodes.get(node.referenceTo) : undefined) ?? node;
+  const iconSubject = (node: OperationalRepresentation) => {
+    const subject =
+      (node.referenceTo ? nodes.get(node.referenceTo) : undefined) ?? node;
+    return {
+      kind: subject.kind,
+      label: subject.label,
+      platform: subject.resourceId
+        ? platforms.get(subject.resourceId)
+        : undefined,
+    };
+  };
   const iconFor = (node: OperationalRepresentation) =>
     resolveResourceIcon(
       iconSubject(node),
@@ -1414,6 +1436,7 @@ function OperationalObservatoryView({
                 sectors: query.sectors,
                 palette: preferences.colors,
                 palettePreset: preferences.palette,
+                icons: observatoryViewIcons(preferences.icons),
                 sizeBasis:
                   preferences.size === "total-ram"
                     ? "ram"
@@ -1437,6 +1460,10 @@ function OperationalObservatoryView({
                   sectors: configuration.sectors,
                   colors: configuration.palette,
                   palette: configuration.palettePreset,
+                  icons: appliedObservatoryIcons(
+                    preferences.icons,
+                    configuration.icons,
+                  ),
                   size:
                     configuration.sizeBasis === "ram"
                       ? "total-ram"
@@ -1595,6 +1622,7 @@ function OperationalObservatoryView({
                   >
                     <ObservatoryResourceMark
                       kind={node.kind}
+                      subjectKind={iconSubject(node).kind}
                       icon={iconFor(node)}
                       logo={logoFor(node)}
                       theme={theme}
@@ -1741,6 +1769,7 @@ function OperationalObservatoryView({
                   activate={activate}
                   toggle={toggle}
                   iconFor={iconFor}
+                  subjectKindFor={(node) => iconSubject(node).kind}
                   logoFor={logoFor}
                   theme={theme}
                 />
@@ -1860,6 +1889,20 @@ function OperationalObservatoryView({
                 </dd>
                 <dt>Unique members</dt>
                 <dd>{selected.memberCount}</dd>
+                {selectedPlatform && (
+                  <>
+                    <dt>Operating system</dt>
+                    <dd>
+                      {selectedPlatform.prettyName}
+                      {selectedPlatform.platform === "proxmox-ve"
+                        ? " / Proxmox VE"
+                        : ""}{" "}
+                      <small>
+                        (reported by the host {selectedPlatform.observedAt})
+                      </small>
+                    </dd>
+                  </>
+                )}
                 {selected.resourceId && (
                   <>
                     <dt>Physical containment</dt>
@@ -1906,6 +1949,9 @@ function OperationalObservatoryView({
                       {logoUrl && selected.logo
                         ? "Approved repository logo"
                         : resolveResourceIcon(iconSubject(selected)).title}
+                      {iconSubject(selected).kind === "host" && selectedPlatform
+                        ? " (reported operating system)"
+                        : ""}
                     </option>
                     {iconGroups.map(([group, label]) => (
                       <optgroup key={group} label={label}>
@@ -1920,6 +1966,12 @@ function OperationalObservatoryView({
                     ))}
                   </select>
                 </label>
+              )}
+              {selected.resourceId && (
+                <small className="cmd-op-icon-hint">
+                  Saving an account view carries icon choices to your other
+                  devices, such as the wallboard.
+                </small>
               )}
               <div className="cmd-op-projects">
                 {selected.projects.map((project) => (
@@ -2025,6 +2077,24 @@ function OperationalObservatoryView({
                     {source.error ? ` / ${source.error}` : ""}
                   </p>
                   <Evidence values={source.evidenceRefs} />
+                </article>
+              ))}
+            {scene.platformObservations
+              .filter((item) => focusedMembers.has(item.resourceId))
+              .map((item) => (
+                <article key={`${item.resourceId}:platform`}>
+                  <strong>
+                    Operating system: {item.prettyName}
+                    {item.platform === "proxmox-ve" ? " / Proxmox VE" : ""}
+                  </strong>
+                  <p>
+                    os-release {item.osId}
+                    {item.osIdLike.length
+                      ? ` (like ${item.osIdLike.join(", ")})`
+                      : ""}{" "}
+                    / observed {item.observedAt}
+                  </p>
+                  <Evidence values={[item.evidenceRef]} />
                 </article>
               ))}
             {scene.capacityObservations

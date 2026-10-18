@@ -143,6 +143,7 @@ test(
             projectId: string,
             totalBytes: number,
             age: number,
+            prettyName: string,
           ) => {
             const source = (await sources.create(
               {
@@ -167,11 +168,12 @@ test(
               disk: { totalBytes: 1000, availableBytes: 250 },
               uptimeSeconds: 500,
               load1Milli: totalBytes,
+              os: { id: "debian", idLike: [], prettyName, platform: null },
             });
             return source.id;
           };
-          const a = await make(projectId, 1000, 2000),
-            b = await make(otherProjectId, 42000, 1000);
+          const a = await make(projectId, 1000, 2000, "Debian A"),
+            b = await make(otherProjectId, 42000, 1000, "Private B Debian");
           const global = await runtime.db.transaction((tx) =>
             collectObservatoryRecords(tx, {
               resourceIds: [hostId],
@@ -184,6 +186,14 @@ test(
               (m) => m.name === "host_memory_total",
             )?.value,
             42000,
+          );
+          // The platform comes from the same latest validated sample as RAM.
+          assert.equal(global.platforms?.[0]?.prettyName, "Private B Debian");
+          assert.equal(
+            global.platforms?.[0]?.evidenceRef,
+            global.resources[0]?.metrics.find(
+              (m) => m.name === "host_memory_total",
+            )?.evidenceHref,
           );
           const allowed = await runtime.db.transaction((tx) =>
             collectObservatoryRecords(tx, {
@@ -202,9 +212,20 @@ test(
             )?.value,
             1000,
           );
+          assert.deepEqual(
+            allowed.platforms?.map((item) => item.prettyName),
+            ["Debian A"],
+          );
           const dto = await read.scene(request(), { projectId });
           const body = JSON.stringify(dto);
           assert.ok(body.includes(a));
+          assert.deepEqual(
+            dto.scene.platformObservations.map((item) => [
+              item.resourceId,
+              item.prettyName,
+            ]),
+            [[hostId, "Debian A"]],
+          );
           for (const hidden of [b, otherProjectId, "Private B", "42000"])
             assert.ok(!body.includes(hidden), hidden);
           const foreignRefs = global.resources[0]!.metrics.filter(
