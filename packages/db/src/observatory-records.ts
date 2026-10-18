@@ -286,7 +286,12 @@ export async function collectObservatoryRecords(
   const facetAccess: NonNullable<ObservatoryInput["facetAccess"]>[number][] =
     sources.map((source) => ({
       resourceId: source.resourceId,
-      facet: source.kind === "github-repository" ? "security" : "availability",
+      facet:
+        source.kind === "github-repository"
+          ? "security"
+          : ["cloudflare-account", "namecheap-account"].includes(source.kind)
+            ? "provider"
+            : "availability",
       state: sourceAccess(source),
     }));
   const [providerFeed] = mappings.length

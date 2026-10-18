@@ -16,7 +16,7 @@ Use the existing project-discovery and project-brief/knowledge workflow for the 
 | `list_observatory_reviewed_configuration` | `observatory.providers.read` for provider records/endpoints | Complete active/inactive annotations, relations, provider mappings or repository logos, versions and provenance. Logo rows name the image digest and source without bytes. Source configuration is intentionally excluded. |
 | `get_observatory_resource_logo` | none | One authorized resource's current approved logo as a base64 128×128 PNG with its version, by the digest from the scene. |
 | `get_observatory_signal_evidence` | `observatory.signals.read`, `observatory.security.read`, `observatory.providers.read` or `work.read`, according to selected facet | Complete selected resource/facet evidence; optional signal ID. Discovery through one grant does not authorize other facets. |
-| `get_observatory_operational_evidence` | signals for availability; `work.read` for pull_requests; security for security | Complete safe source list with observation times, freshness, state/errors and validated facet payloads. No raw originals or credentials. |
+| `get_observatory_operational_evidence` | signals for availability; `work.read` for pull_requests; security for security; separately issued `observatory.inventory.read` for inventory | Complete safe source list with observation times, freshness, state/errors and validated facet payloads. No raw originals or credentials. |
 | `list_observatory_provider_notices` | `observatory.providers.read` | Recorded public notices with complete updates/components, feed state/times and structured cursor. Limit1..100/default50. |
 | `get_observatory_provider_explanation` | `observatory.providers.read` | Complete selected-resource relevance/impact explanations, optionally one notice ID. Severity, relevance, confidence and causation remain separate. |
 
@@ -66,6 +66,15 @@ Follow its `{projectId,afterId}` cursor to null; limit defaults to25. The projec
 
 ## Current-head pull-request evidence
 
+Native `endpoint-check` sources use the same availability facet and existing
+`observatory.signals.read` grant. `payload.probe` states the actual HTTP/TCP
+protocol, target and operator-declared vantage; preserve these qualifications.
+TCP reachability and an accepted HTTP status cannot establish application
+readiness or authenticated user success. A catalogue/source mismatch is a
+configuration error, not a passing check. Target selection remains
+operator-controlled and source review remains owner-only. See the
+[native-check runbook](../../deploy/endpoint-checks.md).
+
 Use `get_observatory_operational_evidence` with `facet:"pull_requests"` and an exact authorized canonical repository resource ID from the scene. Omit `includePullRequestChecks` or pass `false` to retain the original strict public PR shape. Pass `includePullRequestChecks:true` to include current-head check-run and commit-status components; `true` is rejected for other facets. Both `observatory.read` and `work.read` are required. The same persisted safe payload feeds owner HTTP and the inspector. This read grants no rerun, merge, branch-protection, credential or runtime authority.
 
 Each supported PR records its exact head SHA and independently qualified check-run and commit-status components. Follow complete server results; do not truncate the returned lists. Checks use GitHub's `filter=latest`; commit statuses retain dated status history, including earlier states for the same context. Source completeness describes the supported endpoint/filter and its upstream limits. It does not establish all historical suites or all required checks. Required-check coverage remains explicitly unknown, and successful or empty components cannot declare branch protection satisfied.
@@ -106,3 +115,25 @@ The owner chooses an explicit resource, active canonical project binding, enviro
 For fixed Commandry readiness, external ID is exactly `commandry-web-readiness`; bind the actual Commandry web service/deployment. The worker derives `/health/ready` from trusted APP_ORIGIN and accepts no arbitrary target. The check reports one local readiness observation. Its actual integration/activation and safe disposable failure/recovery are recorded in [EXECUTION.md](../plans/observatory-operational-landscape/EXECUTION.md). A synthetic endpoint or real database with synthetic events is not production evidence. UI/API/MCP share safe persisted availability meaning; fetch time cannot freshen an older observation.
 
 Keep precise unverified production, owner-usability and physical-device checks in [COVERAGE.md](../plans/observatory-operational-landscape/COVERAGE.md). No documentation statement, record count, screenshot or mocked response replaces those acceptance gates.
+
+## Private provider inventory
+
+`cloudflare-account` and `namecheap-account` are owner-reviewed sources on an
+explicit provider resource and project. Workers use fixed official read endpoints
+and private operator startup configuration. The inventory facet returns the same
+validated records to the owner inspector and `get_observatory_operational_evidence`.
+It requires both `observatory.read` and a newly issued
+`observatory.inventory.read` grant on the authorized provider resource/project.
+That grant deliberately exposes the configured account's complete supported
+inventory. Existing `observatory.providers.read` clients retain public-status
+authority only; no migration adds a grant to an existing client. Inventory access
+does not grant actions on the account or operational access to its child resources.
+
+Read risk is read-only, approval is automatic with the explicit grant, and its
+audit operation is `observatory.inventory.read`. Source configuration remains
+sensitive and owner-only with `observatory.source.review`; scheduled observations
+record `observatory.source.observed` and canonical inventory projection records
+`observatory.inventory.reconciled` in the same lease transaction. Unreadable sections
+remain qualified, and inventory never manufactures availability signals. See
+[provider setup](../../deploy/provider-inventory.md) for permissions, pagination,
+renewal semantics and rollback.

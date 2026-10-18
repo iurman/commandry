@@ -104,6 +104,7 @@ test("operation policies enumerate every operation without expanding owner autho
     "observatory.signals.read",
     "observatory.security.read",
     "observatory.providers.read",
+    "observatory.inventory.read",
     "work.propose",
     "work.proposal.read",
     "work.proposal.review",

@@ -10,6 +10,7 @@ import {
   type OperationalSourcePort,
 } from "@commandry/application";
 import { foundationDigest } from "@commandry/domain";
+import { reconcileProviderInventory } from "./cloudflare-inventory-repository";
 import type { CommandryDatabase } from "./client";
 import {
   observatorySource as source,
@@ -68,10 +69,12 @@ export function createObservatorySourceRepository(
       !target ||
       (row.kind === "github-repository"
         ? target.kind !== "repository"
-        : row.kind === "http-readiness"
-          ? !["service", "deployment"].includes(target.kind)
-          : row.kind !== "infraagent-monitor" ||
-            !["host", "service", "deployment"].includes(target.kind))
+        : ["cloudflare-account", "namecheap-account"].includes(row.kind)
+          ? target.kind !== "provider"
+          : row.kind === "http-readiness"
+            ? !["service", "deployment"].includes(target.kind)
+            : !["infraagent-monitor", "endpoint-check"].includes(row.kind) ||
+              !["host", "service", "deployment"].includes(target.kind))
     )
       return false;
     const [owner] = await tx
@@ -132,7 +135,7 @@ export function createObservatorySourceRepository(
               sql`${source.nextAttemptAt} <= ${time}`,
               sql`(${source.leaseUntil} is null or ${source.leaseUntil} <= ${time})`,
               sql`exists (select 1 from ${link} where ${binding})`,
-              sql`exists (select 1 from ${resource} where ${resource.id} = ${source.resourceId} and ((${source.kind} = 'github-repository' and ${resource.kind} = 'repository') or (${source.kind} = 'infraagent-monitor' and ${resource.kind} in ('host','service','deployment')) or (${source.kind} = 'http-readiness' and ${resource.kind} in ('service','deployment'))))`,
+              sql`exists (select 1 from ${resource} where ${resource.id} = ${source.resourceId} and ((${source.kind} = 'github-repository' and ${resource.kind} = 'repository') or (${source.kind} = 'infraagent-monitor' and ${resource.kind} in ('host','service','deployment')) or (${source.kind} = 'http-readiness' and ${resource.kind} in ('service','deployment')) or (${source.kind} = 'endpoint-check' and ${resource.kind} in ('host','service','deployment')) or (${source.kind} in ('cloudflare-account','namecheap-account') and ${resource.kind} = 'provider')))`,
             ),
           )
           .orderBy(asc(source.nextAttemptAt), asc(source.id))
@@ -243,6 +246,27 @@ export function createObservatorySourceRepository(
               digest,
             },
           });
+        }
+        if (["cloudflare-account", "namecheap-account"].includes(row.kind)) {
+          const resourceIds = await reconcileProviderInventory(
+            tx,
+            row,
+            observation.details,
+          );
+          if (!existing)
+            await tx.insert(auditEvent).values({
+              id: randomUUID(),
+              actor: "system:operational-source",
+              operation: "observatory.inventory.reconciled",
+              details: {
+                sourceId: row.id,
+                projectId: row.projectId,
+                providerResourceId: row.resourceId,
+                resourceIdsJson: JSON.stringify(resourceIds),
+                resourceCount: resourceIds.length,
+                digest,
+              },
+            });
         }
         // Current coverage can recur even when its literal original already exists.
         // Historical deduplication controls only sealing, append and audit above.

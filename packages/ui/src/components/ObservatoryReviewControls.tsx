@@ -736,12 +736,23 @@ function ReviewPanel(
                   "sourceKind",
                   [
                     ["http-readiness", "Commandry web readiness"],
+                    ["endpoint-check", "Configured HTTP or TCP check"],
+                    ["cloudflare-account", "Cloudflare account inventory"],
+                    ["namecheap-account", "Namecheap registrations"],
                     ["github-repository", "GitHub repository"],
                     ["infraagent-monitor", "Optional InfraAgent monitor"],
                   ],
                   "Choose a source kind",
                 )}
                 {text("Reviewed external ID", "externalId")}
+                {draft.sourceKind === "endpoint-check" && (
+                  <p>
+                    Use an operator-configured check ID for this exact resource
+                    and environment. HTTP checks observe the accepted response
+                    status; TCP checks observe port reachability. Targets and
+                    credentials cannot be entered here.
+                  </p>
+                )}
                 {draft.sourceKind === "http-readiness" && (
                   <p>
                     Bind only the actual Commandry web service. Its fixed check

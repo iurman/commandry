@@ -376,12 +376,13 @@ describe("Foundation owner clients", () => {
       (screen.getByLabelText("resources.read") as HTMLInputElement).checked,
     ).toBe(false);
     const checkboxes = screen.getAllByRole("checkbox") as HTMLInputElement[];
-    expect(checkboxes).toHaveLength(19);
+    expect(checkboxes).toHaveLength(20);
     for (const operation of [
       "observatory.read",
       "observatory.signals.read",
       "observatory.security.read",
       "observatory.providers.read",
+      "observatory.inventory.read",
     ])
       expect(
         (screen.getByLabelText(operation) as HTMLInputElement).checked,

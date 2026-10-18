@@ -636,6 +636,24 @@ const operationalReaders = config.operationalSourcePolling
       appOrigin: config.appOrigin,
       allowLoopbackForTests:
         config.appEnv === "local" || config.appEnv === "test",
+      ...(config.observatoryNamecheapUsername
+        ? { namecheapUsername: config.observatoryNamecheapUsername }
+        : {}),
+      ...(config.observatoryNamecheapKeyFile
+        ? { namecheapKeyFile: config.observatoryNamecheapKeyFile }
+        : {}),
+      ...(config.observatoryNamecheapClientIp
+        ? { namecheapClientIp: config.observatoryNamecheapClientIp }
+        : {}),
+      ...(config.observatoryCloudflareAccountId
+        ? { cloudflareAccountId: config.observatoryCloudflareAccountId }
+        : {}),
+      ...(config.observatoryCloudflareTokenFile
+        ? { cloudflareTokenFile: config.observatoryCloudflareTokenFile }
+        : {}),
+      ...(config.observatoryEndpointChecksFile
+        ? { endpointChecksFile: config.observatoryEndpointChecksFile }
+        : {}),
       ...(config.observatoryGitHubTokenFile
         ? { githubTokenFile: config.observatoryGitHubTokenFile }
         : {}),

@@ -39,6 +39,7 @@ import {
   arrangeRoots,
   isPrimaryGroupKind,
   mapOperationalEvents,
+  mapOperationalCheckObservations,
   memberRings,
   observedTotalRam,
   operationalAttention,
@@ -2885,4 +2886,77 @@ describe("primary-group presentation in the actual operational component", () =>
       within(inspector).getByRole("heading", { level: 3 }),
     ).toHaveTextContent(target.textContent!);
   });
+});
+
+it("pulses new current check evidence once, without initial replay, stale traffic or invented transfers", () => {
+  const now = Date.now();
+  const observedAt = new Date(now).toISOString();
+  const signal = {
+    id: "actual-check",
+    sourceId: "configured-probe",
+    resourceId: "actual-resource",
+    facet: "availability" as const,
+    state: "passing" as const,
+    freshness: "fresh" as const,
+    observedAt,
+    freshnessMs: 60000,
+    evidenceRefs: ["source:configured-probe"],
+    sourceQualification: "current" as const,
+    environment: "production",
+    incidentId: null,
+  };
+  const projection = {
+    visibleSubjectForResource: new Map([["actual-resource", "visible-host"]]),
+  };
+  const activity = new OperationalRecordedActivity();
+  activity.synchronize(
+    {
+      events: mapOperationalCheckObservations(
+        { signals: [signal] },
+        projection,
+      ),
+    },
+    true,
+    now,
+  );
+  expect(activity.snapshot().events).toEqual([]);
+  const next = {
+    ...signal,
+    id: "next-actual-check",
+    observedAt: new Date(now + 1000).toISOString(),
+  };
+  activity.synchronize(
+    {
+      events: mapOperationalCheckObservations({ signals: [next] }, projection),
+    },
+    true,
+    now + 1000,
+  );
+  expect(activity.snapshot().events).toHaveLength(1);
+  expect(activity.snapshot().events[0]).toMatchObject({
+    from: "visible-host",
+    to: "visible-host",
+    summary: "Availability check passing",
+  });
+  expect(activity.snapshot().transfers).toEqual([]);
+  activity.synchronize(
+    {
+      events: mapOperationalCheckObservations({ signals: [next] }, projection),
+    },
+    true,
+    now + 1000,
+  );
+  expect(activity.snapshot().events).toHaveLength(1);
+  expect(
+    mapOperationalCheckObservations(
+      { signals: [{ ...next, sourceQualification: "last_known" }] },
+      projection,
+    ),
+  ).toEqual([]);
+  expect(
+    mapOperationalCheckObservations(
+      { signals: [next] },
+      { visibleSubjectForResource: new Map() },
+    ),
+  ).toEqual([]);
 });

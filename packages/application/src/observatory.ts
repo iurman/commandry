@@ -44,6 +44,7 @@ import {
   observatoryOperationalEvidenceResultSchema,
   observatoryOperationalRepositoryDetailsSchema,
   observatoryOperationalSourceRecordSchema,
+  providerInventoryEvidenceSchema,
   type ObservatoryOperationalEvidenceQuery,
 } from "@commandry/contracts";
 import {
@@ -675,8 +676,10 @@ function operationalEvidenceItems(
   if (rows.some((row) => row.resourceId !== query.resourceId)) invalid();
   const kinds =
     query.facet === "availability"
-      ? ["infraagent-monitor", "http-readiness"]
-      : ["github-repository"];
+      ? ["infraagent-monitor", "http-readiness", "endpoint-check"]
+      : query.facet === "inventory"
+        ? ["cloudflare-account", "namecheap-account"]
+        : ["github-repository"];
   const latest = (values: readonly (string | null)[]) => {
     let result: string | null = null;
     for (const value of values)
@@ -703,7 +706,11 @@ function operationalEvidenceItems(
           !Array.isArray(row.details) &&
           Object.keys(row.details).length === 0);
       if (!missing) {
-        if (query.facet === "availability") {
+        if (query.facet === "inventory") {
+          const inventory = providerInventoryEvidenceSchema.parse(row.details);
+          payload = inventory;
+          observedAt = inventory.readAt;
+        } else if (query.facet === "availability") {
           const snapshot = observatoryAvailabilityEvidenceSchema.parse(
             row.details,
           );
@@ -1034,11 +1041,13 @@ export function createObservatoryReadService<Request>(
     async operationalEvidence(request: Request, rawQuery: unknown) {
       const query = observatoryOperationalEvidenceQuerySchema.parse(rawQuery);
       const extra: FoundationOperation =
-        query.facet === "availability"
-          ? "observatory.signals.read"
-          : query.facet === "pull_requests"
-            ? "work.read"
-            : "observatory.security.read";
+        query.facet === "inventory"
+          ? "observatory.inventory.read"
+          : query.facet === "availability"
+            ? "observatory.signals.read"
+            : query.facet === "pull_requests"
+              ? "work.read"
+              : "observatory.security.read";
       return read(
         request,
         query,

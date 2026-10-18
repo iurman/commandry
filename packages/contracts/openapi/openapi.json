@@ -2769,7 +2769,7 @@
           "Observatory"
         ],
         "summary": "Review a versioned operational source configuration",
-        "description": "An actual live allowlisted owner password session and a nonempty trusted Origin are required. No machine bearer credential grants owner authority, and JSON cannot assert an owner, session, capability or grant. Sensitive owner-only review requires expectedVersion, explicit evidenceRefs and review note; records canonical audit observatory.source.review atomically. Bind an explicit canonical resource/project/environment and reviewed externalId; source kinds are infraagent-monitor, github-repository and http-readiness. Fixed readiness accepts only commandry-web-readiness; arbitrary monitoring targets and credentials are not payload fields. enabled is explicit; enabling schedules server-configured reads, while enabled=false deactivates without deleting evidence. This is not delegated machine authority. Structural schemas use the canonical shared Zod definitions; server validation also enforces cross-field identities, authority and continuation/version refinements. UTF-8 JSON input is bounded to 262144 bytes; this transport bound is not an inventory population cap.",
+        "description": "An actual live allowlisted owner password session and a nonempty trusted Origin are required. No machine bearer credential grants owner authority, and JSON cannot assert an owner, session, capability or grant. Sensitive owner-only review requires expectedVersion, explicit evidenceRefs and review note; records canonical audit observatory.source.review atomically. Bind an explicit canonical resource/project/environment and reviewed externalId; source kinds are infraagent-monitor, github-repository, http-readiness, endpoint-check, cloudflare-account and namecheap-account. Private provider inventory reads require a separately issued observatory.inventory.read grant and select a fixed server-configured account. Existing provider-status grants remain unchanged. Endpoint checks select an operator-configured ID for the exact resource/environment. Fixed readiness accepts only commandry-web-readiness; arbitrary monitoring targets and credentials are not payload fields. enabled is explicit; enabling schedules server-configured reads, while enabled=false deactivates without deleting evidence. This is not delegated machine authority. Structural schemas use the canonical shared Zod definitions; server validation also enforces cross-field identities, authority and continuation/version refinements. UTF-8 JSON input is bounded to 262144 bytes; this transport bound is not an inventory population cap.",
         "parameters": [
           {
             "in": "header",
@@ -24714,7 +24714,8 @@
             "enum": [
               "availability",
               "pull_requests",
-              "security"
+              "security",
+              "inventory"
             ]
           },
           "includePullRequestChecks": {
@@ -24729,6 +24730,521 @@
       },
       "ObservatoryOperationalEvidenceResult": {
         "oneOf": [
+          {
+            "type": "object",
+            "properties": {
+              "schemaVersion": {
+                "type": "number",
+                "const": 1
+              },
+              "scopeDigest": {
+                "type": "string",
+                "minLength": 1,
+                "maxLength": 500
+              },
+              "projectionRevision": {
+                "type": "string",
+                "minLength": 1,
+                "maxLength": 500
+              },
+              "completeness": {
+                "type": "string",
+                "const": "complete"
+              },
+              "resourceId": {
+                "type": "string",
+                "format": "uuid",
+                "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$"
+              },
+              "access": {
+                "type": "string",
+                "enum": [
+                  "available",
+                  "unavailable",
+                  "disabled",
+                  "unsupported"
+                ]
+              },
+              "facet": {
+                "type": "string",
+                "const": "inventory"
+              },
+              "items": {
+                "type": "array",
+                "items": {
+                  "type": "object",
+                  "properties": {
+                    "projectId": {
+                      "type": "string",
+                      "format": "uuid",
+                      "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$"
+                    },
+                    "resourceId": {
+                      "type": "string",
+                      "format": "uuid",
+                      "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$"
+                    },
+                    "version": {
+                      "type": "integer",
+                      "exclusiveMinimum": 0,
+                      "maximum": 9007199254740991
+                    },
+                    "environment": {
+                      "anyOf": [
+                        {
+                          "type": "string",
+                          "minLength": 1,
+                          "maxLength": 100
+                        },
+                        {
+                          "type": "null"
+                        }
+                      ]
+                    },
+                    "enabled": {
+                      "type": "boolean"
+                    },
+                    "lastAttemptAt": {
+                      "anyOf": [
+                        {
+                          "type": "string",
+                          "format": "date-time",
+                          "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))T(?:(?:[01]\\d|2[0-3]):[0-5]\\d:[0-5]\\d(?:\\.\\d+)?(?:Z|([+-](?:[01]\\d|2[0-3]):[0-5]\\d)))$"
+                        },
+                        {
+                          "type": "null"
+                        }
+                      ]
+                    },
+                    "lastSuccessAt": {
+                      "anyOf": [
+                        {
+                          "type": "string",
+                          "format": "date-time",
+                          "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))T(?:(?:[01]\\d|2[0-3]):[0-5]\\d:[0-5]\\d(?:\\.\\d+)?(?:Z|([+-](?:[01]\\d|2[0-3]):[0-5]\\d)))$"
+                        },
+                        {
+                          "type": "null"
+                        }
+                      ]
+                    },
+                    "lastError": {
+                      "anyOf": [
+                        {
+                          "type": "string",
+                          "enum": [
+                            "OPERATIONAL_INVALID_CLAIM",
+                            "OPERATIONAL_INVALID_OBSERVATION",
+                            "OPERATIONAL_INVALID_RESPONSE",
+                            "OPERATIONAL_CONFIGURATION_INVALID",
+                            "OPERATIONAL_UNSUPPORTED_SOURCE",
+                            "OPERATIONAL_UNAUTHORIZED",
+                            "OPERATIONAL_NOT_FOUND",
+                            "OPERATIONAL_RATE_LIMITED",
+                            "OPERATIONAL_TIMEOUT",
+                            "OPERATIONAL_RESPONSE_TOO_LARGE",
+                            "OPERATIONAL_UNAVAILABLE"
+                          ]
+                        },
+                        {
+                          "type": "null"
+                        }
+                      ]
+                    },
+                    "observedAt": {
+                      "anyOf": [
+                        {
+                          "type": "string",
+                          "format": "date-time",
+                          "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))T(?:(?:[01]\\d|2[0-3]):[0-5]\\d:[0-5]\\d(?:\\.\\d+)?(?:Z|([+-](?:[01]\\d|2[0-3]):[0-5]\\d)))$"
+                        },
+                        {
+                          "type": "null"
+                        }
+                      ]
+                    },
+                    "sourceId": {
+                      "type": "string",
+                      "format": "uuid",
+                      "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$"
+                    },
+                    "freshness": {
+                      "type": "string",
+                      "enum": [
+                        "fresh",
+                        "stale",
+                        "future",
+                        "unknown"
+                      ]
+                    },
+                    "kind": {
+                      "type": "string",
+                      "enum": [
+                        "cloudflare-account",
+                        "namecheap-account"
+                      ]
+                    },
+                    "payload": {
+                      "anyOf": [
+                        {
+                          "oneOf": [
+                            {
+                              "type": "object",
+                              "properties": {
+                                "provider": {
+                                  "type": "string",
+                                  "const": "cloudflare"
+                                },
+                                "accountId": {
+                                  "type": "string",
+                                  "pattern": "^[a-f0-9]{32}$"
+                                },
+                                "readAt": {
+                                  "type": "string",
+                                  "format": "date-time",
+                                  "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))T(?:(?:[01]\\d|2[0-3]):[0-5]\\d:[0-5]\\d(?:\\.\\d+)?(?:Z|([+-](?:[01]\\d|2[0-3]):[0-5]\\d)))$"
+                                },
+                                "sections": {
+                                  "minItems": 5,
+                                  "maxItems": 5,
+                                  "type": "array",
+                                  "items": {
+                                    "type": "object",
+                                    "properties": {
+                                      "kind": {
+                                        "type": "string",
+                                        "enum": [
+                                          "zone",
+                                          "worker",
+                                          "pages",
+                                          "tunnel",
+                                          "registration"
+                                        ]
+                                      },
+                                      "state": {
+                                        "type": "string",
+                                        "enum": [
+                                          "available",
+                                          "inaccessible",
+                                          "unavailable"
+                                        ]
+                                      },
+                                      "readAt": {
+                                        "type": "string",
+                                        "format": "date-time",
+                                        "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))T(?:(?:[01]\\d|2[0-3]):[0-5]\\d:[0-5]\\d(?:\\.\\d+)?(?:Z|([+-](?:[01]\\d|2[0-3]):[0-5]\\d)))$"
+                                      },
+                                      "complete": {
+                                        "type": "boolean"
+                                      },
+                                      "errorCode": {
+                                        "anyOf": [
+                                          {
+                                            "type": "string",
+                                            "maxLength": 100
+                                          },
+                                          {
+                                            "type": "null"
+                                          }
+                                        ]
+                                      },
+                                      "items": {
+                                        "type": "array",
+                                        "items": {
+                                          "type": "object",
+                                          "properties": {
+                                            "id": {
+                                              "type": "string",
+                                              "minLength": 1,
+                                              "maxLength": 250
+                                            },
+                                            "name": {
+                                              "type": "string",
+                                              "minLength": 1,
+                                              "maxLength": 500
+                                            },
+                                            "kind": {
+                                              "type": "string",
+                                              "enum": [
+                                                "zone",
+                                                "worker",
+                                                "pages",
+                                                "tunnel",
+                                                "registration"
+                                              ]
+                                            },
+                                            "externalUrl": {
+                                              "type": "string",
+                                              "format": "uri"
+                                            },
+                                            "state": {
+                                              "anyOf": [
+                                                {
+                                                  "type": "string",
+                                                  "minLength": 1,
+                                                  "maxLength": 100
+                                                },
+                                                {
+                                                  "type": "null"
+                                                }
+                                              ]
+                                            },
+                                            "expirationDate": {
+                                              "anyOf": [
+                                                {
+                                                  "anyOf": [
+                                                    {
+                                                      "type": "string",
+                                                      "format": "date-time",
+                                                      "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))T(?:(?:[01]\\d|2[0-3]):[0-5]\\d:[0-5]\\d(?:\\.\\d+)?(?:Z|([+-](?:[01]\\d|2[0-3]):[0-5]\\d)))$"
+                                                    },
+                                                    {
+                                                      "type": "string",
+                                                      "format": "date",
+                                                      "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))$"
+                                                    }
+                                                  ]
+                                                },
+                                                {
+                                                  "type": "null"
+                                                }
+                                              ]
+                                            },
+                                            "autoRenew": {
+                                              "type": [
+                                                "boolean",
+                                                "null"
+                                              ]
+                                            }
+                                          },
+                                          "required": [
+                                            "id",
+                                            "name",
+                                            "kind",
+                                            "externalUrl",
+                                            "state",
+                                            "expirationDate",
+                                            "autoRenew"
+                                          ],
+                                          "additionalProperties": false
+                                        }
+                                      }
+                                    },
+                                    "required": [
+                                      "kind",
+                                      "state",
+                                      "readAt",
+                                      "complete",
+                                      "errorCode",
+                                      "items"
+                                    ],
+                                    "additionalProperties": false
+                                  }
+                                }
+                              },
+                              "required": [
+                                "provider",
+                                "accountId",
+                                "readAt",
+                                "sections"
+                              ],
+                              "additionalProperties": false
+                            },
+                            {
+                              "type": "object",
+                              "properties": {
+                                "provider": {
+                                  "type": "string",
+                                  "const": "namecheap"
+                                },
+                                "accountId": {
+                                  "type": "string",
+                                  "pattern": "^[a-zA-Z0-9_-]{1,100}$"
+                                },
+                                "readAt": {
+                                  "type": "string",
+                                  "format": "date-time",
+                                  "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))T(?:(?:[01]\\d|2[0-3]):[0-5]\\d:[0-5]\\d(?:\\.\\d+)?(?:Z|([+-](?:[01]\\d|2[0-3]):[0-5]\\d)))$"
+                                },
+                                "sections": {
+                                  "minItems": 1,
+                                  "maxItems": 1,
+                                  "type": "array",
+                                  "items": {
+                                    "type": "object",
+                                    "properties": {
+                                      "kind": {
+                                        "type": "string",
+                                        "const": "registration"
+                                      },
+                                      "state": {
+                                        "type": "string",
+                                        "enum": [
+                                          "available",
+                                          "inaccessible",
+                                          "unavailable"
+                                        ]
+                                      },
+                                      "readAt": {
+                                        "type": "string",
+                                        "format": "date-time",
+                                        "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))T(?:(?:[01]\\d|2[0-3]):[0-5]\\d:[0-5]\\d(?:\\.\\d+)?(?:Z|([+-](?:[01]\\d|2[0-3]):[0-5]\\d)))$"
+                                      },
+                                      "complete": {
+                                        "type": "boolean"
+                                      },
+                                      "errorCode": {
+                                        "anyOf": [
+                                          {
+                                            "type": "string",
+                                            "maxLength": 100
+                                          },
+                                          {
+                                            "type": "null"
+                                          }
+                                        ]
+                                      },
+                                      "items": {
+                                        "type": "array",
+                                        "items": {
+                                          "type": "object",
+                                          "properties": {
+                                            "id": {
+                                              "type": "string",
+                                              "minLength": 1,
+                                              "maxLength": 250
+                                            },
+                                            "name": {
+                                              "type": "string",
+                                              "minLength": 1,
+                                              "maxLength": 500
+                                            },
+                                            "kind": {
+                                              "type": "string",
+                                              "enum": [
+                                                "zone",
+                                                "worker",
+                                                "pages",
+                                                "tunnel",
+                                                "registration"
+                                              ]
+                                            },
+                                            "externalUrl": {
+                                              "type": "string",
+                                              "format": "uri"
+                                            },
+                                            "state": {
+                                              "anyOf": [
+                                                {
+                                                  "type": "string",
+                                                  "minLength": 1,
+                                                  "maxLength": 100
+                                                },
+                                                {
+                                                  "type": "null"
+                                                }
+                                              ]
+                                            },
+                                            "expirationDate": {
+                                              "anyOf": [
+                                                {
+                                                  "anyOf": [
+                                                    {
+                                                      "type": "string",
+                                                      "format": "date-time",
+                                                      "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))T(?:(?:[01]\\d|2[0-3]):[0-5]\\d:[0-5]\\d(?:\\.\\d+)?(?:Z|([+-](?:[01]\\d|2[0-3]):[0-5]\\d)))$"
+                                                    },
+                                                    {
+                                                      "type": "string",
+                                                      "format": "date",
+                                                      "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))$"
+                                                    }
+                                                  ]
+                                                },
+                                                {
+                                                  "type": "null"
+                                                }
+                                              ]
+                                            },
+                                            "autoRenew": {
+                                              "type": [
+                                                "boolean",
+                                                "null"
+                                              ]
+                                            }
+                                          },
+                                          "required": [
+                                            "id",
+                                            "name",
+                                            "kind",
+                                            "externalUrl",
+                                            "state",
+                                            "expirationDate",
+                                            "autoRenew"
+                                          ],
+                                          "additionalProperties": false
+                                        }
+                                      }
+                                    },
+                                    "required": [
+                                      "kind",
+                                      "state",
+                                      "readAt",
+                                      "complete",
+                                      "errorCode",
+                                      "items"
+                                    ],
+                                    "additionalProperties": false
+                                  }
+                                }
+                              },
+                              "required": [
+                                "provider",
+                                "accountId",
+                                "readAt",
+                                "sections"
+                              ],
+                              "additionalProperties": false
+                            }
+                          ]
+                        },
+                        {
+                          "type": "null"
+                        }
+                      ]
+                    }
+                  },
+                  "required": [
+                    "projectId",
+                    "resourceId",
+                    "version",
+                    "environment",
+                    "enabled",
+                    "lastAttemptAt",
+                    "lastSuccessAt",
+                    "lastError",
+                    "observedAt",
+                    "sourceId",
+                    "freshness",
+                    "kind",
+                    "payload"
+                  ],
+                  "additionalProperties": false
+                }
+              }
+            },
+            "required": [
+              "schemaVersion",
+              "scopeDigest",
+              "projectionRevision",
+              "completeness",
+              "resourceId",
+              "access",
+              "facet",
+              "items"
+            ],
+            "additionalProperties": false
+          },
           {
             "type": "object",
             "properties": {
@@ -24880,7 +25396,8 @@
                       "type": "string",
                       "enum": [
                         "infraagent-monitor",
-                        "http-readiness"
+                        "http-readiness",
+                        "endpoint-check"
                       ]
                     },
                     "payload": {
@@ -24888,6 +25405,34 @@
                         {
                           "type": "object",
                           "properties": {
+                            "probe": {
+                              "type": "object",
+                              "properties": {
+                                "protocol": {
+                                  "type": "string",
+                                  "enum": [
+                                    "http",
+                                    "tcp"
+                                  ]
+                                },
+                                "vantage": {
+                                  "type": "string",
+                                  "minLength": 1,
+                                  "maxLength": 200
+                                },
+                                "target": {
+                                  "type": "string",
+                                  "minLength": 1,
+                                  "maxLength": 2000
+                                }
+                              },
+                              "required": [
+                                "protocol",
+                                "vantage",
+                                "target"
+                              ],
+                              "additionalProperties": false
+                            },
                             "monitorId": {
                               "type": "string",
                               "minLength": 1,
@@ -27453,7 +27998,10 @@
                       "enum": [
                         "infraagent-monitor",
                         "github-repository",
-                        "http-readiness"
+                        "http-readiness",
+                        "endpoint-check",
+                        "cloudflare-account",
+                        "namecheap-account"
                       ]
                     },
                     "externalId": {
@@ -28818,7 +29366,10 @@
             "enum": [
               "infraagent-monitor",
               "github-repository",
-              "http-readiness"
+              "http-readiness",
+              "endpoint-check",
+              "cloudflare-account",
+              "namecheap-account"
             ]
           },
           "externalId": {
@@ -36824,7 +37375,7 @@
           },
           "operations": {
             "minItems": 1,
-            "maxItems": 19,
+            "maxItems": 20,
             "type": "array",
             "items": {
               "type": "string",
@@ -36836,6 +37387,7 @@
                 "observatory.signals.read",
                 "observatory.security.read",
                 "observatory.providers.read",
+                "observatory.inventory.read",
                 "work.propose",
                 "evidence.record",
                 "memory.propose",
@@ -36899,7 +37451,7 @@
           },
           "operations": {
             "minItems": 1,
-            "maxItems": 19,
+            "maxItems": 20,
             "type": "array",
             "items": {
               "type": "string",
@@ -36911,6 +37463,7 @@
                 "observatory.signals.read",
                 "observatory.security.read",
                 "observatory.providers.read",
+                "observatory.inventory.read",
                 "work.propose",
                 "evidence.record",
                 "memory.propose",
@@ -37004,7 +37557,7 @@
               },
               "operations": {
                 "minItems": 1,
-                "maxItems": 19,
+                "maxItems": 20,
                 "type": "array",
                 "items": {
                   "type": "string",
@@ -37016,6 +37569,7 @@
                     "observatory.signals.read",
                     "observatory.security.read",
                     "observatory.providers.read",
+                    "observatory.inventory.read",
                     "work.propose",
                     "evidence.record",
                     "memory.propose",
@@ -37129,7 +37683,7 @@
                 },
                 "operations": {
                   "minItems": 1,
-                  "maxItems": 19,
+                  "maxItems": 20,
                   "type": "array",
                   "items": {
                     "type": "string",
@@ -37141,6 +37695,7 @@
                       "observatory.signals.read",
                       "observatory.security.read",
                       "observatory.providers.read",
+                      "observatory.inventory.read",
                       "work.propose",
                       "evidence.record",
                       "memory.propose",

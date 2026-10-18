@@ -17,6 +17,7 @@ type Operation =
   | "observatory.signals.read"
   | "observatory.security.read"
   | "observatory.providers.read"
+  | "observatory.inventory.read"
   | "work.read";
 export type ObservatoryMcpReads = {
   [K in keyof Service]: (
@@ -56,11 +57,13 @@ export function createObservatoryMcpReads(
       ),
     operationalEvidence: (input) => {
       const operation: Operation =
-        input.facet === "security"
-          ? "observatory.security.read"
-          : input.facet === "pull_requests"
-            ? "work.read"
-            : "observatory.signals.read";
+        input.facet === "inventory"
+          ? "observatory.inventory.read"
+          : input.facet === "security"
+            ? "observatory.security.read"
+            : input.facet === "pull_requests"
+              ? "work.read"
+              : "observatory.signals.read";
       return service(operation).operationalEvidence(
         request(operation),
         query(input),

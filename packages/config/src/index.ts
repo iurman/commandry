@@ -65,6 +65,12 @@ const environmentSchema = z.object({
     (value) => (value === "" ? undefined : value),
     z.enum(["true", "false"]).optional(),
   ),
+  OBSERVATORY_NAMECHEAP_USERNAME: optionalString,
+  OBSERVATORY_NAMECHEAP_KEY_FILE: optionalString,
+  OBSERVATORY_NAMECHEAP_CLIENT_IP: optionalString,
+  OBSERVATORY_CLOUDFLARE_ACCOUNT_ID: optionalString,
+  OBSERVATORY_CLOUDFLARE_TOKEN_FILE: optionalString,
+  OBSERVATORY_ENDPOINT_CHECKS_FILE: optionalString,
   OBSERVATORY_GITHUB_TOKEN_FILE: optionalString,
   OBSERVATORY_INFRAAGENT_ORIGIN: optionalString,
   OBSERVATORY_INFRAAGENT_KEY_FILE: optionalString,
@@ -106,6 +112,12 @@ export type RuntimeConfig = {
   bossPoolMax: number;
   providerStatusPolling: boolean;
   operationalSourcePolling: boolean;
+  observatoryNamecheapUsername?: string;
+  observatoryNamecheapKeyFile?: string;
+  observatoryNamecheapClientIp?: string;
+  observatoryCloudflareAccountId?: string;
+  observatoryCloudflareTokenFile?: string;
+  observatoryEndpointChecksFile?: string;
   observatoryGitHubTokenFile?: string;
   observatoryInfraAgentOrigin?: string;
   observatoryInfraAgentKeyFile?: string;
@@ -293,6 +305,32 @@ export function loadRuntimeConfig(
       value.OPERATIONAL_SOURCE_POLLING === "true" ||
       (value.OPERATIONAL_SOURCE_POLLING === undefined &&
         value.APP_ENV === "production"),
+    ...(value.OBSERVATORY_NAMECHEAP_USERNAME
+      ? { observatoryNamecheapUsername: value.OBSERVATORY_NAMECHEAP_USERNAME }
+      : {}),
+    ...(value.OBSERVATORY_NAMECHEAP_KEY_FILE
+      ? { observatoryNamecheapKeyFile: value.OBSERVATORY_NAMECHEAP_KEY_FILE }
+      : {}),
+    ...(value.OBSERVATORY_NAMECHEAP_CLIENT_IP
+      ? { observatoryNamecheapClientIp: value.OBSERVATORY_NAMECHEAP_CLIENT_IP }
+      : {}),
+    ...(value.OBSERVATORY_CLOUDFLARE_ACCOUNT_ID
+      ? {
+          observatoryCloudflareAccountId:
+            value.OBSERVATORY_CLOUDFLARE_ACCOUNT_ID,
+        }
+      : {}),
+    ...(value.OBSERVATORY_CLOUDFLARE_TOKEN_FILE
+      ? {
+          observatoryCloudflareTokenFile:
+            value.OBSERVATORY_CLOUDFLARE_TOKEN_FILE,
+        }
+      : {}),
+    ...(value.OBSERVATORY_ENDPOINT_CHECKS_FILE
+      ? {
+          observatoryEndpointChecksFile: value.OBSERVATORY_ENDPOINT_CHECKS_FILE,
+        }
+      : {}),
     ...(value.OBSERVATORY_GITHUB_TOKEN_FILE
       ? { observatoryGitHubTokenFile: value.OBSERVATORY_GITHUB_TOKEN_FILE }
       : {}),

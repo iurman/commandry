@@ -37,6 +37,7 @@ import {
 } from "./ObservatoryOperationalEvidence";
 import {
   mapOperationalEvents,
+  mapOperationalCheckObservations,
   operationalAttention,
   operationalMembers,
   OperationalLayout,
@@ -953,13 +954,19 @@ function OperationalObservatoryView({
     if (!projection.value) return;
     activity.setProjection(projection.value);
     activity.synchronize(
-      { events: mapOperationalEvents(snapshot, projection.value) },
+      {
+        events: [
+          ...mapOperationalEvents(snapshot, projection.value),
+          ...mapOperationalCheckObservations(scene, projection.value),
+        ],
+      },
       motion && !stopped && !delayed && !pending && !reading,
     );
     renderer.current?.refreshActivity();
   }, [
     activity,
     snapshot,
+    scene,
     projection,
     motion,
     stopped,
@@ -2235,6 +2242,7 @@ function OperationalObservatoryView({
               scopeKey={scene.scopeDigest}
               readRevision={scene.readCompletedAt}
               repository={selected.kind === "repository"}
+              provider={selected.kind === "provider"}
               loadEvidence={evidenceClient}
             />
           )}

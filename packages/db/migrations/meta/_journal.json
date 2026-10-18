@@ -526,6 +526,13 @@
       "when": 1792195200002,
       "tag": "0074_observatory_resource_logo",
       "breakpoints": true
+    },
+    {
+      "idx": 75,
+      "version": "7",
+      "when": 1792360200000,
+      "tag": "0075_observatory_endpoint_checks",
+      "breakpoints": true
     }
   ]
 }

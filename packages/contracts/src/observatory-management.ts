@@ -84,7 +84,14 @@ export const observatorySourceBindingChangeSchema = z
     resourceId: id,
     projectId: id,
     environment: z.string().trim().min(1).max(100).nullable(),
-    kind: z.enum(["infraagent-monitor", "github-repository", "http-readiness"]),
+    kind: z.enum([
+      "infraagent-monitor",
+      "github-repository",
+      "http-readiness",
+      "endpoint-check",
+      "cloudflare-account",
+      "namecheap-account",
+    ]),
     externalId: z.string().trim().min(1).max(250),
     enabled: z.boolean(),
     freshnessSeconds: z.number().int().min(30).max(86400),
@@ -92,14 +99,18 @@ export const observatorySourceBindingChangeSchema = z
   })
   .superRefine((value, context) => {
     const valid =
-      value.kind === "github-repository"
-        ? /^[A-Za-z0-9_.-]+\/[A-Za-z0-9_.-]+$/.test(value.externalId) &&
-          !value.externalId
-            .split("/")
-            .some((part) => part === "." || part === "..")
-        : value.kind === "http-readiness"
-          ? value.externalId === "commandry-web-readiness"
-          : /^[A-Za-z0-9_-]+$/.test(value.externalId);
+      value.kind === "namecheap-account"
+        ? /^[a-zA-Z0-9_-]{1,100}$/.test(value.externalId)
+        : value.kind === "cloudflare-account"
+          ? /^[a-f0-9]{32}$/.test(value.externalId)
+          : value.kind === "github-repository"
+            ? /^[A-Za-z0-9_.-]+\/[A-Za-z0-9_.-]+$/.test(value.externalId) &&
+              !value.externalId
+                .split("/")
+                .some((part) => part === "." || part === "..")
+            : value.kind === "http-readiness"
+              ? value.externalId === "commandry-web-readiness"
+              : /^[A-Za-z0-9_-]+$/.test(value.externalId);
     if (!valid)
       context.addIssue({
         code: "custom",

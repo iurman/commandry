@@ -8,6 +8,7 @@ export const FOUNDATION_OPERATIONS = Object.freeze([
   "observatory.signals.read",
   "observatory.security.read",
   "observatory.providers.read",
+  "observatory.inventory.read",
   "work.propose",
   "work.proposal.read",
   "work.proposal.review",
@@ -141,6 +142,12 @@ export const FOUNDATION_OPERATION_POLICIES = Object.freeze({
   ),
   "observatory.providers.read": operationPolicy(
     "observatory.providers.read",
+    "read_only",
+    "automatic_with_grant",
+    "read_snapshot",
+  ),
+  "observatory.inventory.read": operationPolicy(
+    "observatory.inventory.read",
     "read_only",
     "automatic_with_grant",
     "read_snapshot",

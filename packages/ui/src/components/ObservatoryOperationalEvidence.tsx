@@ -19,16 +19,18 @@ export function ObservatoryOperationalEvidence({
   scopeKey,
   readRevision = "",
   repository,
+  provider = false,
   loadEvidence,
 }: {
   resourceId: string;
   scopeKey: string;
   readRevision?: string;
   repository: boolean;
+  provider?: boolean;
   loadEvidence: ObservatoryEvidenceClient;
 }) {
   const [facet, setFacet] = useState<Facet>(
-    repository ? "pull_requests" : "availability",
+    repository ? "pull_requests" : provider ? "inventory" : "availability",
   );
   const [loaded, setLoaded] = useState<{
     key: string;
@@ -80,6 +82,7 @@ export function ObservatoryOperationalEvidence({
           <option value="availability">Availability checks</option>
           <option value="pull_requests">Repository pull requests</option>
           <option value="security">Repository security</option>
+          <option value="inventory">Provider account inventory</option>
         </select>
       </label>
       {failed ? (
@@ -109,11 +112,15 @@ export function ObservatoryOperationalEvidence({
           {result.items.map((item) => (
             <details key={item.sourceId}>
               <summary>
-                {item.kind === "infraagent-monitor"
-                  ? "Availability monitor"
-                  : item.kind === "http-readiness"
-                    ? "Commandry readiness check"
-                    : "Repository source"}{" "}
+                {["cloudflare-account", "namecheap-account"].includes(item.kind)
+                  ? "Provider inventory"
+                  : item.kind === "infraagent-monitor"
+                    ? "Availability monitor"
+                    : item.kind === "endpoint-check"
+                      ? "Native endpoint check"
+                      : item.kind === "http-readiness"
+                        ? "Commandry readiness check"
+                        : "Repository source"}{" "}
                 / {item.enabled ? "enabled" : "disabled"} / {item.freshness}
               </summary>
               <p>
@@ -152,6 +159,16 @@ export function ObservatoryOperationalEvidence({
                         : "Monitor"}{" "}
                       {item.payload.monitorId}
                     </h5>
+                    {item.payload.probe && (
+                      <p>
+                        {item.payload.probe.protocol.toUpperCase()} check from{" "}
+                        {item.payload.probe.vantage}:{" "}
+                        {item.payload.probe.target}.{" "}
+                        {item.payload.probe.protocol === "tcp"
+                          ? "Port reachability only; application readiness is unverified."
+                          : "Accepted HTTP status only; application content and user journeys are unverified."}
+                      </p>
+                    )}
                     <p>
                       Source: {item.payload.sourceState}. Reason:{" "}
                       {item.payload.reason.replaceAll("_", " ")}. Source reports{" "}
@@ -162,8 +179,14 @@ export function ObservatoryOperationalEvidence({
                         Last check: {item.payload.latestCheck.status},{" "}
                         {item.payload.latestCheck.checkedAt};{" "}
                         {item.payload.latestCheck.responseTimeMs ?? "unknown"}{" "}
-                        ms; HTTP{" "}
-                        {item.payload.latestCheck.statusCode ?? "unknown"}.
+                        ms
+                        {item.payload.probe?.protocol !== "tcp" && (
+                          <>
+                            ; HTTP{" "}
+                            {item.payload.latestCheck.statusCode ?? "unknown"}
+                          </>
+                        )}
+                        .
                       </p>
                     )}
                     {item.payload.openIncident && (
@@ -180,6 +203,53 @@ export function ObservatoryOperationalEvidence({
                         ? "One direct web/database readiness probe. This does not establish external user availability or complete uptime history."
                         : "Recent checks are limited to the latest 25 from this source. This is not complete uptime history."}
                     </p>
+                  </div>
+                ),
+            )}
+          {result.facet === "inventory" &&
+            result.items.map(
+              (item) =>
+                item.payload && (
+                  <div key={item.sourceId}>
+                    <h5>
+                      {item.payload.provider === "cloudflare"
+                        ? "Cloudflare"
+                        : "Namecheap"}{" "}
+                      account inventory
+                    </h5>
+                    <p>
+                      Account {item.payload.accountId}. Read{" "}
+                      {item.payload.readAt}. Provider inventory and
+                      configuration do not establish service availability.
+                    </p>
+                    {item.payload.sections.map((section) => (
+                      <details key={section.kind} open>
+                        <summary>
+                          {section.kind}: {section.state},{" "}
+                          {section.items.length} recorded resources
+                        </summary>
+                        <p>
+                          {section.complete
+                            ? "Complete supported provider read."
+                            : "This section could not be read completely; it is not an empty inventory."}{" "}
+                          {section.errorCode}
+                        </p>
+                        <ul>
+                          {section.items.map((entry) => (
+                            <li key={entry.id}>
+                              <a href={entry.externalUrl}>{entry.name}</a>:{" "}
+                              {entry.state ?? "state unknown"}
+                              {entry.expirationDate
+                                ? `; registration expires ${entry.expirationDate}`
+                                : ""}
+                              {entry.autoRenew !== null
+                                ? `; auto-renew ${entry.autoRenew ? "on" : "off"}`
+                                : ""}
+                            </li>
+                          ))}
+                        </ul>
+                      </details>
+                    ))}
                   </div>
                 ),
             )}

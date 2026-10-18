@@ -106,14 +106,18 @@ export const observatorySourceCatalogueItemSchema = z
   })
   .refine((value) => {
     // This is the reviewed binding syntax, applied without rewriting stored text.
-    return value.sourceKind === "github-repository"
-      ? /^[A-Za-z0-9_.-]+\/[A-Za-z0-9_.-]+$/.test(value.externalId) &&
-          !value.externalId
-            .split("/")
-            .some((part) => part === "." || part === "..")
-      : value.sourceKind === "http-readiness"
-        ? value.externalId === "commandry-web-readiness"
-        : /^[A-Za-z0-9_-]+$/.test(value.externalId);
+    return value.sourceKind === "namecheap-account"
+      ? /^[a-zA-Z0-9_-]{1,100}$/.test(value.externalId)
+      : value.sourceKind === "cloudflare-account"
+        ? /^[a-f0-9]{32}$/.test(value.externalId)
+        : value.sourceKind === "github-repository"
+          ? /^[A-Za-z0-9_.-]+\/[A-Za-z0-9_.-]+$/.test(value.externalId) &&
+            !value.externalId
+              .split("/")
+              .some((part) => part === "." || part === "..")
+          : value.sourceKind === "http-readiness"
+            ? value.externalId === "commandry-web-readiness"
+            : /^[A-Za-z0-9_-]+$/.test(value.externalId);
   }, "Invalid source identity");
 export const observatoryCatalogueItemSchema = z.discriminatedUnion("kind", [
   observatoryAnnotationCatalogueItemSchema,

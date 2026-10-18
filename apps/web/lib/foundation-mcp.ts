@@ -336,6 +336,7 @@ export function createFoundationMcpServer(
       [
         "observatory.signals.read",
         "observatory.security.read",
+        "observatory.inventory.read",
         "work.read",
       ].some((operation) =>
         capabilities.has(operation as FoundationActor["capabilities"][number]),
@@ -346,7 +347,7 @@ export function createFoundationMcpServer(
         {
           description:
             scope +
-            "Read-only reviewed availability checks, repository PRs or security evidence for one authorized resource. Each facet requires its separate capability, with canonical source-project scope and complete source lists. Raw payloads, credentials and other facets are excluded. Assignment and pull requests do not establish an active run.",
+            "Read-only reviewed availability checks, repository PRs, security evidence or provider account inventory for one authorized resource. Inventory requires a separately issued observatory.inventory.read grant. Each facet requires its separate capability, with canonical source-project scope and complete source lists. Raw payloads, credentials and other facets are excluded. Assignment and pull requests do not establish an active run.",
           inputSchema: safeSchema(
             observatoryOperationalEvidenceToolQuerySchema,
           ),
@@ -413,6 +414,7 @@ export function createFoundationMcpServer(
                         "observatory.signals.read",
                         "observatory.security.read",
                         "observatory.providers.read",
+                        "observatory.inventory.read",
                       ] as const
                     ).filter((operation) =>
                       identity.actor.capabilities.includes(operation),

@@ -83,6 +83,31 @@ services:
     command: ["node", "apps/worker/dist/index.js"]
     environment:
       <<: *runtime-env
+      OBSERVATORY_ENDPOINT_CHECKS_FILE: ${OBSERVATORY_ENDPOINT_CHECKS_FILE:-}
+      OBSERVATORY_NAMECHEAP_USERNAME: ${OBSERVATORY_NAMECHEAP_USERNAME:-}
+      OBSERVATORY_NAMECHEAP_KEY_FILE: ${OBSERVATORY_NAMECHEAP_KEY_FILE:-}
+      OBSERVATORY_NAMECHEAP_CLIENT_IP: ${OBSERVATORY_NAMECHEAP_CLIENT_IP:-}
+      OBSERVATORY_CLOUDFLARE_ACCOUNT_ID: ${OBSERVATORY_CLOUDFLARE_ACCOUNT_ID:-}
+      OBSERVATORY_CLOUDFLARE_TOKEN_FILE: ${OBSERVATORY_CLOUDFLARE_TOKEN_FILE:-}
+    volumes:
+      - type: bind
+        source: ${OBSERVATORY_NAMECHEAP_KEY_FILE:-/dev/null}
+        target: ${OBSERVATORY_NAMECHEAP_KEY_FILE:-/run/commandry-disabled-namecheap-key}
+        read_only: true
+        bind:
+          create_host_path: false
+      - type: bind
+        source: ${OBSERVATORY_CLOUDFLARE_TOKEN_FILE:-/dev/null}
+        target: ${OBSERVATORY_CLOUDFLARE_TOKEN_FILE:-/run/commandry-disabled-cloudflare-token}
+        read_only: true
+        bind:
+          create_host_path: false
+      - type: bind
+        source: ${OBSERVATORY_ENDPOINT_CHECKS_FILE:-/dev/null}
+        target: ${OBSERVATORY_ENDPOINT_CHECKS_FILE:-/run/commandry-disabled-endpoint-checks}
+        read_only: true
+        bind:
+          create_host_path: false
     depends_on:
       migrate:
         condition: service_completed_successfully

@@ -294,6 +294,251 @@ test("reviewed readiness observes actual HTTP failure and recovery through lease
         assert.ok(requests.every((path) => path === "/health/ready"));
       },
     );
+    await t.test(
+      "native endpoint review persists actual status and qualified evidence through the same owner read",
+      async () => {
+        const { createEndpointCheckReader } = await import(
+          new URL("../../platform/src/endpoint-check.ts", import.meta.url).href
+        );
+        const endpointId = randomUUID();
+        const endpointBinding = {
+          ...binding,
+          id: endpointId,
+          kind: "endpoint-check",
+          externalId: "fixture-http",
+          expectedVersion: 0,
+          enabled: false,
+        };
+        await management.review(identity, "source", endpointBinding);
+        const endpoints = createObservatorySourceRepository(runtime.db, {
+          kinds: ["endpoint-check"],
+          sealOriginal: cipher.seal,
+          now,
+          jitterSeconds: () => 0,
+        });
+        assert.equal(await endpoints.claim(), null);
+        await management.review(identity, "source", {
+          ...endpointBinding,
+          expectedVersion: 1,
+          enabled: true,
+        });
+        const endpointReader = createEndpointCheckReader({
+          catalogue: {
+            schemaVersion: 1,
+            checks: [
+              {
+                id: "fixture-http",
+                resourceId,
+                environment: "test",
+                protocol: "http",
+                url: `http://127.0.0.1:${address.port}/probe`,
+                acceptedStatuses: [200],
+                vantage: "Disposable PostgreSQL fixture",
+                timeoutMs: 2000,
+              },
+            ],
+          },
+          now,
+        });
+        mode = "not_ready";
+        const leased = await endpoints.claim();
+        assert.ok(leased);
+        await endpoints.complete(leased, await endpointReader(leased));
+        const result = await evidence();
+        assert.equal(result.facet, "availability");
+        if (result.facet !== "availability") throw new Error("Wrong facet");
+        const item = result.items.find((row) => row.sourceId === endpointId);
+        assert.equal(item?.kind, "endpoint-check");
+        assert.equal(item?.payload?.latestCheck?.statusCode, 503);
+        assert.equal(
+          item?.payload?.probe?.vantage,
+          "Disposable PostgreSQL fixture",
+        );
+        assert.equal(
+          (await scene()).scene.signals.find(
+            (signal) => signal.sourceId === endpointId,
+          )?.state,
+          "failing",
+        );
+        const persisted = await runtime.db
+          .select()
+          .from(observatoryObservation)
+          .where(eq(observatoryObservation.sourceId, endpointId));
+        assert.equal(persisted.length, 1);
+        assert.notDeepEqual(
+          persisted[0]!.rawPayload,
+          cipher.open(persisted[0]!.rawPayload),
+        );
+        await assert.rejects(
+          endpointReader({ ...leased, resourceId: hostId }),
+          { code: "OPERATIONAL_CONFIGURATION_INVALID" },
+        );
+      },
+    );
+    for (const provider of ["cloudflare", "namecheap"] as const)
+      await t.test(
+        `${provider} inventory adopts canonical resources once and preserves owner naming without inferring availability`,
+        async () => {
+          const providerId = randomUUID(),
+            inventoryId = randomUUID(),
+            zoneId = randomUUID();
+          const accountId =
+            provider === "cloudflare"
+              ? randomUUID().replaceAll("-", "")
+              : "owner";
+          const sourceKind =
+            provider === "cloudflare"
+              ? ("cloudflare-account" as const)
+              : ("namecheap-account" as const);
+          const externalUrl =
+            provider === "cloudflare"
+              ? `https://dash.cloudflare.com/${accountId}/inventory.test`
+              : "https://ap.www.namecheap.com/domains/domaincontrolpanel/inventory.test/domain";
+          await admin.db.insert(resource).values([
+            {
+              id: providerId,
+              kind: "provider",
+              name: "Reviewed Cloudflare account",
+            },
+            {
+              id: zoneId,
+              kind: provider === "cloudflare" ? "dns-zone" : "domain",
+              name: "Owner's zone name",
+              externalUrl,
+              parentResourceId: providerId,
+            },
+          ]);
+          await admin.db.insert(projectResourceLink).values({
+            id: randomUUID(),
+            projectId,
+            resourceId: providerId,
+            type: "relates_to",
+            sourceKind: "project",
+            targetKind: "resource",
+            lifecycle: "active",
+          });
+          const base = {
+            ...binding,
+            id: inventoryId,
+            resourceId: providerId,
+            kind: sourceKind,
+            externalId: accountId,
+            expectedVersion: 0,
+            enabled: false,
+          };
+          await management.review(identity, "source", base);
+          await management.review(identity, "source", {
+            ...base,
+            enabled: true,
+            expectedVersion: 1,
+          });
+          const inventory = createObservatorySourceRepository(runtime.db, {
+            kinds: [sourceKind],
+            sealOriginal: cipher.seal,
+            now,
+            jitterSeconds: () => 0,
+          });
+          const inventoryDetails = () => ({
+            provider,
+            accountId,
+            readAt: now().toISOString(),
+            sections: (provider === "cloudflare"
+              ? (["zone", "worker", "pages", "tunnel", "registration"] as const)
+              : (["registration"] as const)
+            ).map((kind) => ({
+              kind,
+              state: "available",
+              readAt: now().toISOString(),
+              complete: true,
+              errorCode: null,
+              items:
+                kind === "zone" || provider === "namecheap"
+                  ? [
+                      {
+                        id: "zone-id",
+                        name: "inventory.test",
+                        kind,
+                        externalUrl,
+                        state: "active",
+                        expirationDate: null,
+                        autoRenew: null,
+                      },
+                    ]
+                  : kind === "worker"
+                    ? [
+                        {
+                          id: "worker-id",
+                          name: "worker-id",
+                          kind,
+                          externalUrl: `https://dash.cloudflare.com/${accountId}/workers/services/view/worker-id/production`,
+                          state: null,
+                          expirationDate: null,
+                          autoRenew: null,
+                        },
+                      ]
+                    : [],
+            })),
+          });
+          const observe = async () => {
+            const leased = await inventory.claim();
+            assert.ok(leased);
+            const details = inventoryDetails();
+            await inventory.complete(leased, {
+              sourceId: inventoryId,
+              resourceId: providerId,
+              observedAt: details.readAt,
+              signals: [],
+              details,
+              rawPayload: { privateOriginal: "retained", details },
+            });
+          };
+          await observe();
+          const first = await read.operationalEvidence(
+            { identity, projectId },
+            { projectId, resourceId: providerId, facet: "inventory" },
+          );
+          assert.equal(first.facet, "inventory");
+          assert.equal(first.access, "available");
+          if (first.facet !== "inventory")
+            throw new Error("Wrong inventory facet");
+          assert.equal(
+            first.items[0]?.payload?.sections[0]?.items[0]?.name,
+            "inventory.test",
+          );
+          const adopted = await runtime.db
+            .select()
+            .from(resource)
+            .where(eq(resource.id, zoneId));
+          assert.equal(adopted[0]?.name, "Owner's zone name");
+          const children = () =>
+            runtime.db
+              .select()
+              .from(resource)
+              .where(eq(resource.parentResourceId, providerId));
+          assert.equal(
+            (await children()).length,
+            provider === "cloudflare" ? 2 : 1,
+          );
+          time += 301000;
+          await runtime.db
+            .update(observatorySource)
+            .set({ nextAttemptAt: now() })
+            .where(eq(observatorySource.id, inventoryId));
+          await observe();
+          assert.equal(
+            (await children()).length,
+            provider === "cloudflare" ? 2 : 1,
+          );
+          assert.equal(
+            (await scene()).scene.signals.some(
+              (signal) =>
+                signal.resourceId === providerId &&
+                signal.facet === "availability",
+            ),
+            false,
+          );
+        },
+      );
     await t.test("reviewed deployment monitors remain claimable", async () => {
       const deploymentId = randomUUID();
       await admin.db.insert(resource).values({
