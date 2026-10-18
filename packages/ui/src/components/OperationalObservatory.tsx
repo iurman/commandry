@@ -59,6 +59,13 @@ import type {
   RendererSettings,
 } from "../gravity/renderer";
 import type { CameraMode } from "../gravity/model";
+import {
+  legibleBrandColor,
+  resolveResourceIcon,
+  resourceIcons,
+  type ResourceIcon,
+  type ResourceIconGroup,
+} from "../gravity/resource-icons";
 import "./operational-observatory.css";
 
 export type OperationalObservatoryProps = {
@@ -112,16 +119,38 @@ const kindNames: Record<OperationalRepresentation["kind"], string> = {
   project: "Project",
   reference: "Shared reference",
 };
-const kindMarks: Record<OperationalRepresentation["kind"], string> = {
-  host: "H",
-  service: "S",
-  deployment: "D",
-  provider: "P",
-  repository: "R",
-  collection: "C",
-  project: "G",
-  reference: "Ref",
-};
+const iconGroups: [ResourceIconGroup, string][] = [
+  ["platform", "Platforms"],
+  ["os", "Operating systems"],
+  ["service", "Services"],
+  ["game", "Games"],
+  ["kind", "Resource kinds"],
+];
+/** A technology logo or kind glyph inside the kind-shaped badge. */
+function ResourceGlyph({
+  kind,
+  icon,
+  theme,
+}: {
+  kind: OperationalRepresentation["kind"];
+  icon: ResourceIcon;
+  theme: "porcelain" | "midnight";
+}) {
+  const color = legibleBrandColor(icon, theme);
+  return (
+    <span
+      className="cmd-op-kind"
+      data-kind={kind}
+      data-icon={icon.id}
+      aria-hidden="true"
+      style={color ? ({ "--op-icon": color } as CSSProperties) : undefined}
+    >
+      <svg viewBox="0 0 24 24" focusable="false">
+        <path fillRule="evenodd" d={icon.path} />
+      </svg>
+    </span>
+  );
+}
 const words = (value: string) => value.replaceAll("_", " ");
 function safeEvidence(value: string): string | null {
   if (/^\/(?!\/)/.test(value)) return value;
@@ -221,6 +250,8 @@ function OutlineNode({
   selected,
   activate,
   toggle,
+  iconFor,
+  theme,
 }: {
   id: string;
   scene: ObservatoryScene;
@@ -229,6 +260,8 @@ function OutlineNode({
   selected: string | null;
   activate: (id: string) => void;
   toggle: (id: string) => void;
+  iconFor: (node: OperationalRepresentation) => ResourceIcon;
+  theme: "porcelain" | "midnight";
 }) {
   const node = byId.get(id);
   if (!node) return null;
@@ -263,13 +296,7 @@ function OutlineNode({
           aria-pressed={selected === id}
           onClick={() => activate(id)}
         >
-          <span
-            className="cmd-op-kind"
-            data-kind={node.kind}
-            aria-hidden="true"
-          >
-            {kindMarks[node.kind]}
-          </span>
+          <ResourceGlyph kind={node.kind} icon={iconFor(node)} theme={theme} />
           <span>
             {node.label}
             <small>
@@ -299,6 +326,8 @@ function OutlineNode({
               selected={selected}
               activate={activate}
               toggle={toggle}
+              iconFor={iconFor}
+              theme={theme}
             />
           ))}
         </ul>
@@ -369,6 +398,7 @@ function OperationalObservatoryView({
     grouping: scene.grouping,
     environment: initialQuery?.environment ?? null,
     expandedRepresentationIds: initialExpanded,
+    reveal: initialQuery?.reveal ?? "members",
     search: initialQuery?.search ?? initialSearch,
     sectors: normalizeObservatorySectors(
       initialQuery?.sectors ?? [],
@@ -602,14 +632,29 @@ function OperationalObservatoryView({
       ...saved,
       grouping: untouched ? grouping : current.grouping,
       sectors: untouched ? sectors : current.sectors,
+      reveal: untouched ? saved.reveal : current.reveal,
     }));
     // A later explicit query owns its grouping; hydration only initializes it.
     if (
       untouched &&
       (grouping !== query.grouping ||
+        saved.reveal !== query.reveal ||
         JSON.stringify(sectors) !== JSON.stringify(query.sectors))
     )
-      emit({ ...query, grouping, sectors }, "composed");
+      emit({ ...query, grouping, sectors, reveal: saved.reveal }, "composed");
+  }
+  /** Expand or collapse every group on the terrain; the choice is remembered. */
+  function reveal(next: ObservatoryQuery["reveal"]) {
+    changePreferences({ reveal: next });
+    emit(
+      {
+        ...query,
+        reveal: next,
+        expandedRepresentationIds:
+          next === "groups" ? [] : query.expandedRepresentationIds,
+      },
+      camera === "manual" ? "manual" : "composed",
+    );
   }
   const actions = useRef({ activate, feature, onCameraFocus, loadPreferences });
   useEffect(() => {
@@ -742,7 +787,8 @@ function OperationalObservatoryView({
                   (anchor, index) =>
                     anchor.id === next[index]?.id &&
                     anchor.label === next[index]?.label &&
-                    anchor.nested === next[index]?.nested,
+                    anchor.nested === next[index]?.nested &&
+                    anchor.open === next[index]?.open,
                 )
                   ? previous
                   : next,
@@ -885,6 +931,14 @@ function OperationalObservatoryView({
   }, [focusId, focusSequence, ready, reduced, focusedVisible, focusFamily]);
 
   const expanded = new Set(query.expandedRepresentationIds);
+  // A shared reference shows its canonical resource's picture.
+  const iconSubject = (node: OperationalRepresentation) =>
+    (node.referenceTo ? nodes.get(node.referenceTo) : undefined) ?? node;
+  const iconFor = (node: OperationalRepresentation) =>
+    resolveResourceIcon(
+      iconSubject(node),
+      node.resourceId ? preferences.icons[node.resourceId] : undefined,
+    );
   const summary = selected?.summary ?? scene.summary;
   const exposed = scene.providerExposures.filter((item) =>
     focusedMembers.has(item.resourceId),
@@ -1420,6 +1474,7 @@ function OperationalObservatoryView({
                     grouping: "operational",
                     sectors: [],
                     expandedRepresentationIds: [],
+                    reveal: defaultObservatoryPreferences().reveal,
                     search: "",
                   },
                   "composed",
@@ -1510,6 +1565,7 @@ function OperationalObservatoryView({
                     data-kind={node.kind}
                     data-attention={attention}
                     data-nested={anchor.nested ? "true" : undefined}
+                    data-open={anchor.open ? "true" : undefined}
                     className="cmd-op-label"
                     ref={(element) => {
                       if (!element) {
@@ -1530,12 +1586,15 @@ function OperationalObservatoryView({
                     aria-label={`Inspect ${node.label}, ${kindNames[node.kind]}, ${node.memberCount} unique resources`}
                     onClick={() => activate(node.id)}
                   >
-                    <span className="cmd-op-kind" aria-hidden="true">
-                      {kindMarks[node.kind]}
-                    </span>
+                    <ResourceGlyph
+                      kind={node.kind}
+                      icon={iconFor(node)}
+                      theme={theme}
+                    />
                     <span>
                       <strong>{node.label}</strong>
-                      {(!anchor.nested || attention !== "neutral") && (
+                      {((!anchor.nested && !anchor.open) ||
+                        attention !== "neutral") && (
                         <small>
                           {kindNames[node.kind]} / {node.memberCount}
                           {node.referenceTo ? " / reference" : ""}
@@ -1593,13 +1652,29 @@ function OperationalObservatoryView({
                   ? "Stop presentation"
                   : "Start presentation"}
               </button>
+              <button
+                type="button"
+                aria-pressed={query.reveal === "members"}
+                title={
+                  query.reveal === "members"
+                    ? "Show only top-level groups. Remembered on this device."
+                    : "Show every member inside its group. Remembered on this device."
+                }
+                onClick={() =>
+                  reveal(query.reveal === "members" ? "groups" : "members")
+                }
+              >
+                {query.reveal === "members" ? "Collapse all" : "Expand all"}
+              </button>
             </div>
           </div>
           <p className="cmd-op-legend">
-            H Host / D Deployment / S Service / P Provider / R Repository / C
-            Collection / Ref Shared reference. Counts are unique within a group;
-            references do not add to the global total. Source freshness is
-            separate from service availability.
+            Each badge shows a recognised technology or the resource kind;
+            choose a resource&apos;s icon in its inspector, saved on this
+            device. Lines tie every member to the group or host that contains
+            it. Counts are unique within a group; references do not add to the
+            global total. Source freshness is separate from service
+            availability.
           </p>
           {query.search && (
             <section
@@ -1657,6 +1732,8 @@ function OperationalObservatoryView({
                   selected={focusId}
                   activate={activate}
                   toggle={toggle}
+                  iconFor={iconFor}
+                  theme={theme}
                 />
               ))}
             </ul>
@@ -1796,6 +1873,43 @@ function OperationalObservatoryView({
                   </>
                 )}
               </dl>
+              {selected.resourceId && (
+                <label className="cmd-op-icon-choice">
+                  Icon on this device
+                  <select
+                    value={preferences.icons[selected.resourceId] ?? ""}
+                    onChange={(event) => {
+                      const id = selected.resourceId!;
+                      const icons = Object.fromEntries(
+                        Object.entries(preferences.icons).filter(
+                          ([resourceId]) => resourceId !== id,
+                        ),
+                      );
+                      changePreferences({
+                        icons: event.target.value
+                          ? { ...icons, [id]: event.target.value }
+                          : icons,
+                      });
+                    }}
+                  >
+                    <option value="">
+                      Automatic:{" "}
+                      {resolveResourceIcon(iconSubject(selected)).title}
+                    </option>
+                    {iconGroups.map(([group, label]) => (
+                      <optgroup key={group} label={label}>
+                        {resourceIcons
+                          .filter((icon) => icon.group === group)
+                          .map((icon) => (
+                            <option key={icon.id} value={icon.id}>
+                              {icon.title}
+                            </option>
+                          ))}
+                      </optgroup>
+                    ))}
+                  </select>
+                </label>
+              )}
               <div className="cmd-op-projects">
                 {selected.projects.map((project) => (
                   <button

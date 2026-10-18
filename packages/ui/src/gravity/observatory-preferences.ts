@@ -1,3 +1,5 @@
+import { resourceIcon } from "./resource-icons";
+
 export const observatoryStorageKey = "commandry.infrastructure.observatory.v2";
 export const legacyObservatoryStorageKey =
   "commandry.infrastructure.gravity.v1";
@@ -16,20 +18,27 @@ export type ObservatorySector = {
   resourceIds: string[];
   grouping: Exclude<ObservatoryGrouping, "custom">;
 };
+/** "members" shows every nested member the server reveals; "groups" collapses
+ * the terrain to root groups plus explicit expansions. */
+export type ObservatoryReveal = "members" | "groups";
 export type ObservatoryQuery = {
   grouping: ObservatoryGrouping;
   environment: string | null;
   expandedRepresentationIds: string[];
+  reveal: ObservatoryReveal;
   search: string;
   sectors: ObservatorySector[];
   viewRevision: string;
 };
 export type ObservatoryPresentation = {
   grouping: ObservatoryGrouping;
+  reveal: ObservatoryReveal;
   size: "structural" | "total-ram" | "uniform";
   theme: "system" | "porcelain" | "midnight";
   palette: "semantic" | "ocean" | "earth";
   colors: Record<string, string>;
+  /** Canonical resource ID -> chosen icon. Absent means automatic. */
+  icons: Record<string, string>;
   camera: "composed" | "orbit" | "tour" | "manual";
   ambient: boolean;
   lens: boolean;
@@ -54,10 +63,12 @@ export function defaultObservatoryPreferences(): ObservatoryPreferences {
   return {
     version: 2,
     grouping: "operational",
+    reveal: "members",
     size: "structural",
     theme: "system",
     palette: "semantic",
     colors: {},
+    icons: {},
     camera: "composed",
     ambient: false,
     lens: false,
@@ -138,6 +149,7 @@ export function observatoryPresentation(
     )
       ? (saved.grouping as ObservatoryGrouping)
       : defaults.grouping,
+    reveal: saved.reveal === "groups" ? "groups" : "members",
     size:
       saved.size === "total-ram"
         ? "total-ram"
@@ -151,6 +163,12 @@ export function observatoryPresentation(
       ? (saved.palette as ObservatoryPresentation["palette"])
       : "semantic",
     colors: colors as Record<string, string>,
+    icons: Object.fromEntries(
+      Object.entries(object(saved.icons)).filter(
+        ([id, value]) =>
+          safeKey(id) && typeof value === "string" && !!resourceIcon(value),
+      ),
+    ) as Record<string, string>,
     camera: ["composed", "orbit", "tour", "manual"].includes(
       String(saved.camera),
     )
@@ -187,6 +205,10 @@ function query(
           ),
         ].sort()
       : [],
+    reveal:
+      saved.reveal === "groups" || saved.reveal === "members"
+        ? saved.reveal
+        : display.reveal,
     search: typeof saved.search === "string" ? saved.search : "",
     sectors: normalizeObservatorySectors(saved.sectors ?? display.sectors),
     viewRevision: text(saved.viewRevision, "local:1") || "local:1",

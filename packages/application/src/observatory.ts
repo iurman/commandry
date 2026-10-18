@@ -456,6 +456,7 @@ function authorizedInput(
       grouping: query.grouping,
       environment: query.environment,
       expandedRepresentationIds: query.expandedRepresentationIds,
+      reveal: query.reveal,
       search: query.search,
       sectors: query.sectors
         .map((sector) => ({

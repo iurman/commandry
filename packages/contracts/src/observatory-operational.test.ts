@@ -23,6 +23,7 @@ describe("shared owner and project-free operational tool queries", () => {
       grouping: "providers",
       environment: "production",
       expandedRepresentationIds: ["repository:expanded"],
+      reveal: "groups",
       search: " exact head ",
       sectors: [],
       viewRevision: "review-2",

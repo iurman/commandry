@@ -106,6 +106,7 @@ export default function InfrastructureOverviewScreen({
     grouping: "operational",
     environment: null,
     expandedRepresentationIds: [],
+    reveal: "members",
     search: initialQuery,
     sectors: [],
     viewRevision: "1",

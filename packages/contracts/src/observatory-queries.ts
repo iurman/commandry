@@ -41,6 +41,9 @@ export const observatorySceneQuerySchema = z.strictObject({
   grouping: observatoryGroupingSchema.default("operational"),
   environment: text(100).nullable().default(null),
   expandedRepresentationIds: representationIds.default([]),
+  /** "members" reveals nested members within the shared budget; "groups"
+   * shows root groups and only explicitly expanded members. */
+  reveal: z.enum(["members", "groups"]).default("members"),
   search: z.string().trim().max(500).default(""),
   sectors: sectors.default([]),
   viewRevision: text(200).default("1"),
