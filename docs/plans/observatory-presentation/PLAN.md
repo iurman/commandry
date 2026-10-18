@@ -94,7 +94,9 @@ No new canonical data, mutation, capability or audit event is introduced. Tour, 
 
 ## Defaults chosen during implementation
 
-Not separately decided by the owner; each is recorded in [OQ-039](../../project/open-questions.md#oq-039-how-should-the-observatory-presentation-pace-and-prioritise-groups) for confirmation:
+The owner explicitly confirmed the current defaults on October 18, 2026.
+[ADR 0017](../../decisions/0017-confirm-observatory-presentation-defaults.md)
+records the decision and resolves OQ-039:
 
 - dwell 24 s, attention dwell 36 s, travel 4.5 s, orbit 0.03 rad/s;
 - preemption only on a newly raised attention, once per raise;
@@ -121,7 +123,7 @@ The COVERAGE rows this change touches (A02, D01 to D04, E05) must be re-establis
 | Briefing | `observatoryBriefing` and `briefingAge` in `packages/ui/src/gravity/briefing.ts` |
 | UI | `DecodeText`, `ObservatoryBriefingCard`, `ObservatoryBriefingDetails` and `ObservatoryRoster` in `packages/ui/src/components/ObservatoryPresentation.tsx`; activation, watch, roster, briefing and callout rendering in `OperationalObservatory.tsx`; styles in `operational-observatory.css` |
 | Lab | The lab keeps its own controls; its tour now uses the shared director with top-level hosts as stops |
-| Docs | [Feature spec](../../features/gravity-observatory.md#presentation-watch-and-briefing), [agent workflow omission](../../architecture/observatory-agent-workflow.md), [OQ-039](../../project/open-questions.md#oq-039-how-should-the-observatory-presentation-pace-and-prioritise-groups), [status](../../project/status.md), and the coverage and execution notes |
+| Docs | [Feature spec](../../features/gravity-observatory.md#presentation-watch-and-briefing), [agent workflow omission](../../architecture/observatory-agent-workflow.md), [accepted owner defaults](../../decisions/0017-confirm-observatory-presentation-defaults.md), [status](../../project/status.md), and the coverage and execution notes |
 
 Changed tests, deliberately:
 

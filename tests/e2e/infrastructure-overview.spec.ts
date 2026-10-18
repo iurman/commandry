@@ -1613,6 +1613,18 @@ test("Gravity uses canonical resources, persisted appearance, focus and truthful
   await expect(
     gravity.getByRole("button", { name: "Stop presentation", exact: true }),
   ).toBeVisible();
+  await gravity
+    .getByRole("button", { name: "Stop presentation", exact: true })
+    .click();
+  await expect(
+    gravity.getByRole("button", { name: "Start presentation", exact: true }),
+  ).toBeVisible();
+  await gravity
+    .getByRole("button", { name: "Start presentation", exact: true })
+    .click();
+  await expect(
+    gravity.getByRole("button", { name: "Stop presentation", exact: true }),
+  ).toBeVisible();
   await canvas.scrollIntoViewIfNeeded();
   const orbit = await pose();
   await expect

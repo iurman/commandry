@@ -2701,6 +2701,39 @@ it.each([false, true])(
 );
 
 describe("primary-group presentation in the actual operational component", () => {
+  it.each(["mouse", "touch"])(
+    "stops watch and presentation through a %s pointer sequence while terrain input still interrupts",
+    async (pointerType) => {
+      const { props } = guidedTourFixture();
+      render(createElement(OperationalObservatory, props));
+      await waitFor(() => expect(engine.update).toHaveBeenCalled());
+      function pointerClick(button: HTMLElement) {
+        fireEvent.pointerDown(button, { pointerType });
+        fireEvent.pointerUp(button, { pointerType });
+        fireEvent.click(button);
+      }
+      const roster = screen.getByRole("navigation", { name: "Primary groups" });
+      pointerClick(within(roster).getAllByRole("button")[0]!);
+      expect(engine.update.mock.lastCall?.[1].cameraMode).toBe("watch");
+      pointerClick(screen.getByRole("button", { name: "Stop watching" }));
+      expect(engine.update.mock.lastCall?.[1].cameraMode).toBe("manual");
+      expect(screen.getByRole("button", { name: "Watch" })).toHaveAttribute(
+        "aria-pressed",
+        "false",
+      );
+      pointerClick(screen.getByRole("button", { name: "Start presentation" }));
+      expect(engine.update.mock.lastCall?.[1].cameraMode).toBe("tour");
+      pointerClick(screen.getByRole("button", { name: "Stop presentation" }));
+      expect(engine.update.mock.lastCall?.[1].cameraMode).toBe("manual");
+      pointerClick(screen.getByRole("button", { name: "Start presentation" }));
+      expect(engine.update.mock.lastCall?.[1].cameraMode).toBe("tour");
+      fireEvent.pointerDown(document.querySelector(".cmd-op-canvas")!, {
+        pointerType,
+      });
+      expect(engine.update.mock.lastCall?.[1].cameraMode).toBe("manual");
+    },
+  );
+
   it("watches a selected primary group, holds a sub-resource still and offers Watch for it", async () => {
     const { scene, hosts, props } = guidedTourFixture();
     render(createElement(OperationalObservatory, props));

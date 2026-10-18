@@ -36,6 +36,7 @@ contributors need. They do not record minor implementation details.
 | [0015](0015-show-the-complete-gravity-landscape.md) | Show the complete Gravity landscape | Accepted |
 
 | [0016](0016-project-the-operational-observatory.md) | Project the operational Observatory with conserved complete membership | Accepted |
+| [0017](0017-confirm-observatory-presentation-defaults.md) | Confirm the owner's Observatory presentation defaults and resolve OQ-039 | Accepted |
 
 ## Creating an ADR
 
