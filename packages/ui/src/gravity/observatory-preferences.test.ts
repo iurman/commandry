@@ -22,6 +22,18 @@ describe("version two device-local Observatory preferences", () => {
     a.colors.changed = "#123456";
     expect(b.colors).toEqual({});
   });
+  it("remembers expand-all or collapse-all and defaults to every member", () => {
+    expect(defaultObservatoryPreferences().reveal).toBe("members");
+    const saved = { ...defaultObservatoryPreferences(), reveal: "groups" };
+    expect(readObservatoryPreferences(JSON.stringify(saved)).reveal).toBe(
+      "groups",
+    );
+    expect(
+      readObservatoryPreferences(
+        JSON.stringify({ ...saved, reveal: "everything" }),
+      ).reveal,
+    ).toBe("members");
+  });
   it.each(["bad", "null", "[]", "42", '{"version":8}'])(
     "resets corrupt/unsupported data safely: %s",
     (value) => {
@@ -130,6 +142,7 @@ describe("version two device-local Observatory preferences", () => {
       grouping: "custom" as const,
       environment: null,
       expandedRepresentationIds: ["permitted", "hidden", "permitted"],
+      reveal: "members" as const,
       search: "",
       sectors: [
         {

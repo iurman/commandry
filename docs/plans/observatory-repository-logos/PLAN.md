@@ -10,14 +10,14 @@ Each repository resource in the Gravity Observatory can carry its own project lo
 
 | Question | Decision |
 | --- | --- |
-| Icon base | The Observatory icon change that this builds on (`resource-icons.ts`, `ResourceGlyph`, vendored GitHub mark) was not on `main` or any remote branch. Build the storage, review, scene, MCP and documentation now. Add an isolated logo slot to the existing badges with fallback; when the icon change lands, its resolver uses an approved logo first. |
+| Icon base | The Observatory icon change that this builds on (`resource-icons.ts`, `ResourceGlyph`, vendored GitHub mark) was not on `main` or any remote branch. Build the storage, review, scene, MCP and documentation now. Add an isolated logo slot to the existing badges with fallback; when the icon change lands, its resolver uses an approved logo first. The icon change reached `main` later the same day (51276c7); the branch merged it and the shared badge now shows the logo in place of the automatic icon. |
 | Logo source | Both: an owner upload, and an owner-named file in the bound GitHub repository read through the GitHub API at a pinned commit. Repository import works only when a production GitHub token is configured; `resupals`, `aviune` and `iyulabs` are private. |
 | Image format | Rasterize every accepted input server-side to one 128×128 transparent PNG. No SVG is ever stored or served. |
 
 Defaults stated with the questions, not separately decided by the owner:
 
 - Logos apply to `repository` resources only. Whether a deployment or service should inherit its repository's logo through a reviewed `deploys` relation is [OQ-038](../../project/open-questions.md#oq-038-should-related-resources-inherit-an-approved-repository-logo).
-- An explicit owner icon choice for a resource, when the icon change provides one, takes precedence over the approved logo on that badge.
+- An explicit owner icon choice for a resource (the device-local inspector picker) takes precedence over the approved logo on that badge.
 
 Rejected sources: the deployed site's favicon (fetching an arbitrary host is an SSRF surface, and favicons are often 16–32 px ICO files) and the GitHub social preview (usually a generated card, not a logo).
 
@@ -57,7 +57,7 @@ The owner approves exactly what is stored. Preview returns the processed PNG and
 
 ## UI
 
-- Stage labels and outline rows show the approved logo in a small badge before the label text, falling back to the current presentation when there is no logo or the image fails to load.
+- Stage labels and outline rows show the approved logo in the shared badge (`ObservatoryResourceMark`), unless an icon was explicitly chosen on the device. Without a logo, or if the image fails to load, the badge shows the resolved icon. The picker's automatic option names the approved logo.
 - The inspector for a repository resource gains a logo review section: current logo, version and source; upload or repository-path preview; approve with evidence and note; retire.
 
 ## Verification

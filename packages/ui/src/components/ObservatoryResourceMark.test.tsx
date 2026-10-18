@@ -1,94 +1,67 @@
 // @vitest-environment jsdom
 import { afterEach, describe, expect, it } from "vitest";
 import { cleanup, fireEvent, render } from "@testing-library/react";
+import { resourceIcon } from "../gravity/resource-icons";
 import { ObservatoryResourceMark } from "./ObservatoryResourceMark";
 
-const resourceId = "abcdefab-0000-4000-8000-000000000001";
-const logo = {
-  digest: "d".repeat(64),
-  mediaType: "image/png" as const,
-  width: 128 as const,
-  height: 128 as const,
-  version: 1,
-};
-const url = (id: string, digest: string) => `/logos/${id}/${digest}`;
+const github = resourceIcon("github")!;
+const logo = "/logos/abcdefab-0000-4000-8000-000000000001/" + "d".repeat(64);
 afterEach(cleanup);
 
 describe("Observatory resource badge mark", () => {
-  it("tags the outline badge with its kind and shows the approved logo", () => {
+  it("shows the approved logo in place of the icon glyph", () => {
     const { container } = render(
       <ObservatoryResourceMark
-        node={{ kind: "repository", resourceId, logo }}
-        fallback="R"
-        logoUrl={url}
-        tagKind
+        kind="repository"
+        icon={github}
+        theme="porcelain"
+        logo={logo}
       />,
     );
     const mark = container.querySelector(".cmd-op-kind")!;
     expect(mark).toHaveAttribute("data-kind", "repository");
+    expect(mark).toHaveAttribute("data-logo", "true");
     expect(mark).toHaveAttribute("aria-hidden", "true");
-    expect(mark.querySelector("img")).toHaveAttribute(
-      "src",
-      `/logos/${resourceId}/${logo.digest}`,
-    );
+    expect(mark.querySelector("img")).toHaveAttribute("src", logo);
+    expect(mark.querySelector("img")).toHaveAttribute("alt", "");
+    expect(mark.querySelector("svg")).toBeNull();
+    // A brand colour belongs to the glyph, not to a logo image.
+    expect(mark.getAttribute("style")).toBeNull();
   });
 
-  it("uses the canonical resource address for an alias of a repository", () => {
-    const { container } = render(
-      <ObservatoryResourceMark
-        node={{ kind: "reference", resourceId, logo }}
-        fallback="&"
-        logoUrl={url}
-      />,
-    );
-    expect(container.querySelector("img")).toHaveAttribute(
-      "src",
-      `/logos/${resourceId}/${logo.digest}`,
-    );
-    expect(container.querySelector(".cmd-op-kind")).not.toHaveAttribute(
-      "data-kind",
-    );
-  });
-
-  it("keeps the kind mark without a logo, an address or a loadable image", () => {
+  it("keeps the resolved glyph without a logo or after the image fails", () => {
     const { container, rerender } = render(
       <ObservatoryResourceMark
-        node={{ kind: "repository", resourceId }}
-        fallback="R"
-        logoUrl={url}
+        kind="repository"
+        icon={github}
+        theme="porcelain"
       />,
     );
-    expect(container.querySelector("img")).toBeNull();
-    expect(container).toHaveTextContent("R");
+    const mark = () => container.querySelector(".cmd-op-kind")!;
+    expect(mark().querySelector("img")).toBeNull();
+    expect(mark().querySelector("svg path")).toHaveAttribute("d", github.path);
+    expect(mark()).toHaveAttribute("data-icon", "github");
     rerender(
       <ObservatoryResourceMark
-        node={{ kind: "repository", resourceId, logo }}
-        fallback="R"
+        kind="repository"
+        icon={github}
+        theme="porcelain"
+        logo={logo}
       />,
     );
-    expect(container.querySelector("img")).toBeNull();
+    fireEvent.error(mark().querySelector("img")!);
+    expect(mark().querySelector("img")).toBeNull();
+    expect(mark().querySelector("svg")).not.toBeNull();
+    expect(mark()).not.toHaveAttribute("data-logo");
+    // A newly approved digest is a new address and is tried again.
     rerender(
       <ObservatoryResourceMark
-        node={{ kind: "repository", resourceId, logo }}
-        fallback="R"
-        logoUrl={url}
+        kind="repository"
+        icon={github}
+        theme="porcelain"
+        logo={logo.replace(/d+$/, "e".repeat(64))}
       />,
     );
-    fireEvent.error(container.querySelector("img")!);
-    expect(container.querySelector("img")).toBeNull();
-    expect(container).toHaveTextContent("R");
-    // A newly approved digest is tried again.
-    rerender(
-      <ObservatoryResourceMark
-        node={{
-          kind: "repository",
-          resourceId,
-          logo: { ...logo, digest: "e".repeat(64), version: 2 },
-        }}
-        fallback="R"
-        logoUrl={url}
-      />,
-    );
-    expect(container.querySelector("img")).not.toBeNull();
+    expect(mark().querySelector("img")).not.toBeNull();
   });
 });

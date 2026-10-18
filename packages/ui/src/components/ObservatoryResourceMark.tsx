@@ -1,44 +1,43 @@
 "use client";
 
-import { useState, type ReactNode } from "react";
+import { useState, type CSSProperties } from "react";
+import { OBSERVATORY_LOGO_SIZE } from "@commandry/contracts";
 import {
-  OBSERVATORY_LOGO_SIZE,
-  type ObservatoryRepresentationDto,
-} from "@commandry/contracts";
+  legibleBrandColor,
+  type ResourceIcon,
+} from "../gravity/resource-icons";
 
 /** The host's same-origin address for an approved logo image. */
 export type ObservatoryLogoUrl = (resourceId: string, digest: string) => string;
 
 /**
- * Label badge for one representation. An owner-approved logo replaces the
- * kind mark when the host supplies an image address; without one, or if the
- * image fails to load, the existing mark stays. The badge box has a fixed
- * size, so a late image never changes a measured label.
+ * Label badge for one representation: an owner-approved logo when the caller
+ * supplies its address, else the resolved icon glyph. A logo that fails to
+ * load falls back to the glyph. The badge box has a fixed size, so a late
+ * image never changes a measured label.
  */
 export function ObservatoryResourceMark({
-  node,
-  fallback,
-  logoUrl,
-  tagKind = false,
+  kind,
+  icon,
+  theme,
+  logo,
 }: {
-  node: Pick<ObservatoryRepresentationDto, "kind" | "resourceId" | "logo">;
-  fallback: ReactNode;
-  logoUrl?: ObservatoryLogoUrl | undefined;
-  /** Outline rows carry the kind on the badge itself; stage labels on the button. */
-  tagKind?: boolean;
+  kind: string;
+  icon: ResourceIcon;
+  theme: "porcelain" | "midnight";
+  logo?: string | null | undefined;
 }) {
   const [failed, setFailed] = useState<string | null>(null);
-  const digest = node.logo?.digest ?? null;
-  const src =
-    logoUrl && node.resourceId && digest && failed !== digest
-      ? logoUrl(node.resourceId, digest)
-      : null;
+  const src = logo && failed !== logo ? logo : null;
+  const color = src ? undefined : legibleBrandColor(icon, theme);
   return (
     <span
       className="cmd-op-kind"
-      data-kind={tagKind ? node.kind : undefined}
+      data-kind={kind}
+      data-icon={icon.id}
       data-logo={src ? "true" : undefined}
       aria-hidden="true"
+      style={color ? ({ "--op-icon": color } as CSSProperties) : undefined}
     >
       {src ? (
         // eslint-disable-next-line @next/next/no-img-element -- digest-addressed same-origin PNG; re-encoding it would change the approved bytes
@@ -49,10 +48,12 @@ export function ObservatoryResourceMark({
           height={OBSERVATORY_LOGO_SIZE}
           decoding="async"
           draggable={false}
-          onError={() => setFailed(digest)}
+          onError={() => setFailed(src)}
         />
       ) : (
-        fallback
+        <svg viewBox="0 0 24 24" focusable="false">
+          <path fillRule="evenodd" d={icon.path} />
+        </svg>
       )}
     </span>
   );

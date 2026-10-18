@@ -1051,7 +1051,12 @@ describe("nested label disclosure", () => {
     pool: false,
   };
   const population = [pool, ...members, host];
-  type Published = { id: string; visible: boolean; nested?: boolean };
+  type Published = {
+    id: string;
+    visible: boolean;
+    nested?: boolean;
+    open?: boolean;
+  };
   const latest = (anchors: ReturnType<typeof vi.fn>) =>
     new Map(
       (anchors.mock.lastCall![0] as Published[]).map((anchor) => [
@@ -1059,12 +1064,16 @@ describe("nested label disclosure", () => {
         anchor,
       ]),
     );
-  it("names members only for a selected, close or attention context", () => {
+  it("names members only when the camera spreads them apart or they need attention", () => {
     const { renderer, frame, anchors, view } = setup(population);
     try {
       frame(20);
       let shown = latest(anchors);
-      expect(shown.get("pool")).toMatchObject({ visible: true, nested: false });
+      expect(shown.get("pool")).toMatchObject({
+        visible: true,
+        nested: false,
+        open: false,
+      });
       expect(shown.get("host")).toMatchObject({ visible: true });
       expect(shown.get("member-0")).toMatchObject({
         visible: false,
@@ -1072,18 +1081,28 @@ describe("nested label disclosure", () => {
       });
       // A member that needs attention is never hidden by disclosure.
       expect(shown.get("member-2")?.visible).toBe(true);
+      // Selecting a distant group does not pin its members' names.
       renderer.update(population, { ...settings, selected: "pool" });
       frame(40);
       shown = latest(anchors);
-      expect(shown.get("member-0")?.visible).toBe(true);
-      expect(shown.get("member-1")?.visible).toBe(true);
-      renderer.update(population, settings);
+      expect(shown.get("member-0")?.visible).toBe(false);
+      expect(shown.get("member-1")?.visible).toBe(false);
+      // A selected member is still named itself.
+      renderer.update(population, { ...settings, selected: "member-1" });
       frame(60);
-      expect(latest(anchors).get("member-1")?.visible).toBe(false);
-      // Bringing the pool close enough to fill the view names its members.
-      view(0, 0);
+      shown = latest(anchors);
+      expect(shown.get("member-1")?.visible).toBe(true);
+      expect(shown.get("member-0")?.visible).toBe(false);
+      renderer.update(population, settings);
       frame(80);
-      expect(latest(anchors).get("member-1")?.visible).toBe(true);
+      expect(latest(anchors).get("member-1")?.visible).toBe(false);
+      // Zooming in until neighbours are far apart names every member and
+      // steps the parent's own label back.
+      view(0, 0);
+      frame(100);
+      shown = latest(anchors);
+      expect(shown.get("member-1")?.visible).toBe(true);
+      expect(shown.get("pool")?.open).toBe(true);
     } finally {
       renderer.dispose();
     }

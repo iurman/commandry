@@ -334,6 +334,8 @@ export type ObservatoryInput = {
   logos?: readonly (ObservatoryLogoReference & { resourceId: string })[];
   expandedRepresentationIds?: readonly string[];
   search?: string;
+  /** "groups" shows roots and explicitly expanded members only. */
+  reveal?: "members" | "groups";
   /** Default nested-detail budget; see OBSERVATORY_REVEAL_BUDGET. */
   revealBudget?: number;
 };
@@ -1581,7 +1583,10 @@ export function projectObservatory(input: ObservatoryInput): ObservatoryScene {
   }
   // Breadth-first default detail: whole sibling sets only, so a revealed group
   // never shows a partial membership. Membership conservation is unchanged.
-  const budget = Math.max(0, input.revealBudget ?? OBSERVATORY_REVEAL_BUDGET);
+  const budget =
+    input.reveal === "groups"
+      ? 0
+      : Math.max(0, input.revealBudget ?? OBSERVATORY_REVEAL_BUDGET);
   const levels: [string, number][] = scene.rootRepresentationIds.map((id) => [
     id,
     0,

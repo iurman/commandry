@@ -296,6 +296,37 @@ describe("complete semantic Observatory population", () => {
     ).toEqual([...scene.rootRepresentationIds].sort());
   });
 
+  it("collapses to root groups and explicit expansions in groups reveal mode", () => {
+    const fixture = mixedObservatoryFixture();
+    const collapsed = projectObservatory({ ...fixture, reveal: "groups" });
+    expect(collapsed.visibleRepresentationIds).toEqual(
+      [...collapsed.rootRepresentationIds].sort(),
+    );
+    expectConservation(
+      collapsed,
+      fixture.resources.map((resource) => resource.id),
+    );
+    const group = collapsed.rootRepresentationIds.find(
+      (id) => (collapsed.membershipIndex.children[id] ?? []).length,
+    )!;
+    const opened = projectObservatory({
+      ...fixture,
+      reveal: "groups",
+      expandedRepresentationIds: [group],
+    });
+    expect(opened.visibleRepresentationIds).toEqual(
+      [
+        ...collapsed.rootRepresentationIds,
+        ...collapsed.membershipIndex.children[group]!,
+      ].sort(),
+    );
+    // The reveal mode never outranks the server budget: members mode is default.
+    expect(
+      projectObservatory({ ...fixture, reveal: "members" })
+        .visibleRepresentationIds,
+    ).toEqual(projectObservatory(fixture).visibleRepresentationIds);
+  });
+
   it("reveals every collapsed unmapped repository and restores the same grouping on clear", () => {
     // Without a default detail budget, unmapped repositories start aggregated.
     const fixture = { ...mixedObservatoryFixture(), revealBudget: 0 };
