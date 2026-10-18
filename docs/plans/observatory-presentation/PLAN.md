@@ -1,6 +1,6 @@
 # Observatory presentation, labels and primary-group arrangement
 
-**Status: Operational record. The owner asked on 2026-10-18 for this work from plan through merge, without a planning hold. It is not deployed.**
+**Status: Operational. PR 39 and the PR 40 pointer-control correction are deployed and verified on 2026-10-18. Owner defaults are accepted in ADR 0017.**
 
 ## Owner request (2026-10-18)
 
@@ -110,7 +110,7 @@ records the decision and resolves OQ-039:
 - The desktop master-scene browser test (103 resources at 1920 by 1080). An earlier branch build exceeded its 300-second budget: every label settle and measurement redrew the terrain, about nine software-rendered WebGL frames per outline click. It now passes in about 3 minutes (main: about 3.7), with three frames per click.
 - Browser screenshots of the overview, a tour stop, a dense callout group and a watched sub-resource, desktop and phone, light and dark, against the 91-resource mixed fixture.
 
-The COVERAGE rows this change touches (A02, D01 to D04, E05) must be re-established by the next full release run; see the [coverage note](../observatory-operational-landscape/COVERAGE.md).
+The affected A02, D01-D04 and E05 evidence was re-established by complete release 39169514777 and live verification. The [rollout record](../../operations/observatory-presentation-rollout-2026-10-18.md) preserves exact source/image identity, the pointer defect and correction, hardware-browser layout/interaction evidence, data preservation and independent device/owner limits. The [coverage note](../observatory-operational-landscape/COVERAGE.md) retains the complete 58-scenario ledger.
 
 ## Implementation record
 

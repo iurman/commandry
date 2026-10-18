@@ -47,6 +47,10 @@ feature has been implemented.
   frameworks, data, jobs, auth, tests, and repository shape
 - [Deployment strategy](architecture/deployment-strategy.md) — VPS topology,
   scheduling, containers, runners, and native distribution
+- [CI/deploy performance proposal](plans/ci-deploy-performance/PLAN.md) - measured
+  release timings, isolated parallel checks and qualification-preserving rollout
+- [Observatory presentation rollout](operations/observatory-presentation-rollout-2026-10-18.md) -
+  exact active image, owner defaults, pointer correction and verification
 - [Agent development workflow](architecture/agent-development-workflow.md) —
   commands, previews, credentials, tests, and production gates
 - [Local experience lab](architecture/local-experience-lab.md) — development-only

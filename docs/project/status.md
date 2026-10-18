@@ -6,6 +6,26 @@
 
 ## Current phase
 
+The Observatory presentation and pointer Stop correction are deployed at
+`0caf1764ede2cb84d5b26c1989c226c507649365` as of `2026-10-18T22:28:53Z`.
+The [presentation rollout record](../operations/observatory-presentation-rollout-2026-10-18.md)
+records the exact qualified image, complete 207-identity release, fresh backup,
+restore/recovery, owner-session/worker gates and actual pointer verification.
+All original 93 resource IDs/parents, 15 projects and nine Commandry bindings
+remain; the separate inventory additions below yield 134 resources. A
+110-second hardware-browser observation of that current landscape retained
+camera/terrain/label identities with zero measured label drift. Physical-device
+and owner-interpretation limits remain separate.
+
+The [CI/deploy performance plan](../plans/ci-deploy-performance/PLAN.md) is
+proposed, based on measured complete releases of about 37 minutes, including
+more than 22 minutes of sequential browser checks. No CI workflow, automatic
+deployment controller or production topology changed. Separate PR 41 code,
+migration and Compose changes are still subject to their own release. Its
+first full qualification failed during PostgreSQL pool shutdown after passing
+the upgrade assertions; the current qualified image remains live while the
+shutdown correction is validated.
+
 The October 18 live-connection follow-up is in progress. Production revision
 `33d0086` was verified before collector changes. The four existing collector
 scripts now deliver actual OS identity, including Proxmox VE on Pleiades. The
@@ -19,17 +39,17 @@ recurring credentials and the new native probes are not yet activated. The
 live changes, tested local implementation, pending account-access decisions and
 exact-release deployment gates.
 
-The operational Gravity Observatory is live at [commandry.site](https://commandry.site/infrastructure). The approved exact-image deployment completed on 2026-10-17 at 22:12:43 UTC for revision `885b356`. The existing backup/recovery, migration, owner login, authenticated read and worker gates passed; public version/readiness and supporting-service preservation were verified. See the [production rollout record](../plans/observatory-operational-landscape/PRODUCTION-ROLLOUT.md).
+The initial operational Gravity Observatory activation at [commandry.site](https://commandry.site/infrastructure) completed on 2026-10-17 at 22:12:43 UTC for revision `885b356`. The existing backup/recovery, migration, owner login, authenticated read and worker gates passed; public version/readiness and supporting-service preservation were verified. See the [production rollout record](../plans/observatory-operational-landscape/PRODUCTION-ROLLOUT.md).
 
 The initial rollout preserved all original 91 resource IDs/parents and seven Commandry project bindings; its two canonical additions yielded 93 resources and nine project links. The follow-up above preserves those 93 while adding provider inventory. The repository, deployment, Electra host and web service now have three reviewed typed relations. A reviewed Cloudflare Tunnel data-plane dependency retains unknown geography. Native readiness is enabled and recorded an actual up/HTTP 200/passing result. Other eligible services remain explicitly unmonitored; the operational GitHub source now reads Commandry pull requests, while inaccessible security scanners remain qualified. InfraAgent remains prior art/inventory scope, and provider discovery does not imply additional mappings or DNS changes.
 
 The full hosted main release retained all 207 browser identities: 202 passes, five original skips, zero failures, flaky results or retries. The [58-scenario ledger](../plans/observatory-operational-landscape/COVERAGE.md) retains 53 source-qualified local passes and five explicit partial/unrun limits. Live activation does not certify physical-device checks, owner interpretation or complete uptime history. Earlier failed releases and deployment attempts remain in the linked execution evidence.
 
-Owner-reviewed repository logos for Observatory badges (owner decisions of 2026-10-18) are implemented in [PR 35](https://github.com/iurman/commandry/pull/35); they are not deployed. Migration `0074` adds the logo record. No logo is approved in production. Repository-file import in production also needs a GitHub token with contents read access to the private repositories. The [repository logos plan](../plans/observatory-repository-logos/PLAN.md) records the design, verification and activation gate. Badges show an approved logo in place of the automatic icon from the Observatory icon change; an explicit device icon choice still wins.
+Owner-reviewed repository logos for Observatory badges (owner decisions of 2026-10-18) are implemented in [PR 35](https://github.com/iurman/commandry/pull/35); the application capability is deployed, including migration `0074`. Production logo approval remains a separate owner operation. Repository-file import requires configured GitHub contents-read access to the private repositories. The [repository logos plan](../plans/observatory-repository-logos/PLAN.md) records the design, verification and activation gate. Badges show an approved logo in place of the automatic icon from the Observatory icon change; an explicit device icon choice still wins.
 
 The Linux host collectors now report each host's operating system: os-release identity, plus Proxmox VE detected from its tooling. The scene carries it as `platformObservations` for the UI and MCP alike, and host badges use it as their automatic icon. Saved account views now carry owner icon choices to other devices. The [host platform icons record](../plans/observatory-host-platform-icons/PLAN.md) has the details. The compatible receiver was verified in production revision `33d0086`, and all four collector scripts were updated and their actual observations verified during the October 18 live-connection follow-up.
 
-The owner's 2026-10-18 presentation request is implemented in the [presentation plan](../plans/observatory-presentation/PLAN.md); it is not deployed. Top-level groups circle their dominant group in family order. Labels are one-line pins that hold their place through brief contacts, and dense framed groups name every member in callout columns. **Start presentation** dwells and orbits each primary group, moving at once to a group whose attention is newly raised. Selecting a primary group watches it. A briefing card and a roster rail name the subject and every group. No contract, data or MCP tool changed. The owner confirmed the current presentation defaults on October 18, 2026; [ADR 0017](../decisions/0017-confirm-observatory-presentation-defaults.md) resolves OQ-039.
+The owner's 2026-10-18 presentation request is implemented and deployed as recorded in the [presentation plan](../plans/observatory-presentation/PLAN.md) and [verified rollout](../operations/observatory-presentation-rollout-2026-10-18.md). Top-level groups circle their dominant group in family order. Labels are one-line pins that hold their place through brief contacts, and dense framed groups name every member in callout columns. **Start presentation** dwells and orbits each primary group, moving at once to a group whose attention is newly raised. Selecting a primary group watches it. A briefing card and a roster rail name the subject and every group. No contract, data or MCP tool changed. The owner confirmed the current presentation defaults on October 18, 2026; [ADR 0017](../decisions/0017-confirm-observatory-presentation-defaults.md) resolves OQ-039.
 
 Commandry has completed its initial product definition. ADRs 0009 through 0012
 establish the initial technology and deployment architecture. The local
