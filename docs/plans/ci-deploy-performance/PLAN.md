@@ -18,6 +18,28 @@ The constrained production command consumes an exact approved digest, creates a 
 
 The current deployment stops Caddy and Tunnel during the application switch. Faster CI will not make that switch zero downtime.
 
+## Concrete reliability correction before orchestration
+
+The later [PR 41 release 39171649700](https://github.com/iurman/commandry/actions/runs/39171649700)
+passed its populated upgrade assertions, then failed on an unhandled idle-pool
+connection-termination error during disposable PostgreSQL shutdown. It never
+published or deployed an image; the confirmed PR 39/40 release stayed live.
+
+A real PostgreSQL probe reproduced the lifetime race: two connections existed,
+but neither had emitted its physical end when `database.close()` returned.
+`pg-pool` had drained its registry before socket completion. The database wrapper
+now waits for each connected client's end after `pool.end()`, so the same probe
+reports both connections ended before close returns. Unexpected pool errors and
+shutdown rejections still propagate; no retry, delay or audit assertion was
+removed. Five lifecycle regressions pass, and both actual upgrade audits passed
+three consecutive executions each. The complete source checks passed.
+
+This correction is implemented separately from the proposed job redesign. Full
+main qualification and exact-image activation remain required. The
+[node-postgres pool API](https://node-postgres.com/apis/pool) describes pool drain
+and background errors; the additional completion invariant is backed by the
+real probe and [lifecycle regression](../../../packages/db/src/client.test.ts).
+
 ## Measured baseline
 
 [Release 39165962511](https://github.com/iurman/commandry/actions/runs/39165962511), source `33d0086d5dd2efd08e9d567627cd00a77c2a5fad`, ran from `2026-10-18T21:01:37Z` to `21:38:32Z`: **36 minutes 55 seconds** of job execution. Queue time is separate.

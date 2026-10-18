@@ -21,7 +21,10 @@ The [CI/deploy performance plan](../plans/ci-deploy-performance/PLAN.md) is
 proposed, based on measured complete releases of about 37 minutes, including
 more than 22 minutes of sequential browser checks. No CI workflow, automatic
 deployment controller or production topology changed. Separate PR 41 code,
-migration and Compose changes are still subject to their own release.
+migration and Compose changes are still subject to their own release. Its
+first full qualification failed during PostgreSQL pool shutdown after passing
+the upgrade assertions; the current qualified image remains live while the
+shutdown correction is validated.
 
 The October 18 live-connection follow-up is in progress. Production revision
 `33d0086` was verified before collector changes. The four existing collector

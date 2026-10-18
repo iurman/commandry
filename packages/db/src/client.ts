@@ -17,6 +17,13 @@ export function createDatabase(options: {
     max: options.max ?? 5,
     connectionTimeoutMillis: 10_000,
   });
+  // Complete physical connection shutdown before callers can stop PostgreSQL.
+  const connectionsEnding = new Set<Promise<void>>();
+  pool.on("connect", (client) => {
+    const ended = new Promise<void>((done) => client.once("end", done));
+    connectionsEnding.add(ended);
+    void ended.then(() => connectionsEnding.delete(ended));
+  });
   const db = drizzle({
     client: pool,
     schema: {
@@ -29,7 +36,14 @@ export function createDatabase(options: {
       ...foundationOnboardingSchema,
     },
   });
-  return { db, pool, close: () => pool.end() };
+  return {
+    db,
+    pool,
+    close: async () => {
+      await pool.end();
+      await Promise.all(connectionsEnding);
+    },
+  };
 }
 
 export type CommandryDatabase = ReturnType<typeof createDatabase>["db"];

@@ -73,7 +73,8 @@ capture. Live terrain rendering and changing camera/frame diagnostics were
 observed in that same browser; this is environment and interaction evidence,
 not a controlled frame-rate benchmark.
 
-The deployed presentation advances naturally from Electra to Titan, with the
+The deployed presentation advances naturally between successive primary host
+groups, with the
 primary-group roster, briefing and member callouts. Selecting a primary group
 starts Watch; selecting a sub-resource leaves Watch inactive. Pause holds the
 camera pose, and deliberate resume and Overview work. Midnight theme and the
@@ -137,7 +138,10 @@ While PR 40 qualified, [PR 41](https://github.com/iurman/commandry/pull/41)
 advanced main to `3de025464f1b7a2e94ab1d03a9d7541dfe4405d3`. It includes
 migration 0075 and production Compose changes and has its own
 [release run 39171649700](https://github.com/iurman/commandry/actions/runs/39171649700).
-It is not part of this activation.
+It failed after its upgrade assertions passed, on a PostgreSQL pool shutdown
+race. No PR 41 image was published or deployed by that run; the qualified
+PR 39/40 image remains live. The follow-up reliability correction is described
+in the performance proposal. PR 41 is not part of this activation.
 
 The operator kept this owner-prioritized PR 39/40 correction frozen at its
 qualified source, verified that it is an ancestor of the new main, and
