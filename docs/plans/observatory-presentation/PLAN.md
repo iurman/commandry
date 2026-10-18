@@ -43,10 +43,11 @@ A *primary group* is a visible root representation of kind host, provider, colle
 
 `OperationalLayout` arranges the roots, replacing the hashed spiral:
 
-1. Roots sort by family (hosts, providers, other operational kinds, collections and projects, references), then layout key.
+1. Roots sort by family (hosts, providers, other operational kinds, repositories, collections and projects, references), then layout key.
 2. If the largest root's extent is at least 1.6 times the next, it anchors the centre.
-3. The rest fill rings around it in family order. Each ring is the smallest distance at which its members, each taking the angle its own extent needs plus the 2.4-unit root clearance, close the circle. A ring holds at most twelve members; more start another ring.
-4. The arrangement is cached per scope, grouping, size basis and root set. A refresh that keeps every cached position clear of its neighbours reuses it, so ordinary refreshes do not move landmarks (D01, D02). A changed root set re-arranges the ring deterministically.
+3. The rest fill rings around it in family order with the existing `memberRings` geometry, keeping caller order and the 2.4-unit root clearance. Each member takes the angle its own extent needs, and a small remainder widens one ring. Without a dominant group, up to eight share one ring around an open centre.
+4. A fresh root set (none of whose slots are cached for the scope, grouping and size basis) is arranged this way. Roots then keep their slots for the scope, and a root added later takes the nearest free spiral position as before. Ordinary refreshes therefore never move landmarks (D01, D02).
+5. `primaryGroupIds` lists the visible primary groups in visiting order: the central group, then around the ring from the side the arrangement starts on.
 
 ### Presentation tour
 
@@ -68,10 +69,10 @@ A *primary group* is a visible root representation of kind host, provider, colle
 ### Labels
 
 - **Primary-group pins** are one line: badge, name, and a count chip. Kind stays in the badge shape and the accessible name. Attention adds a text chip ("Impact" or "Exposure") as well as colour.
-- **Admission hysteresis.** A label that loses its place keeps it for 300 ms before yielding and then fades out at the normal easing. A hidden label must be clear for 200 ms before it is admitted again. Off-screen and edge tests share the same hold.
-- **Obstacles.** The briefing card and the bottom rail are rectangles labels avoid, replacing the global top inset that a taller card would otherwise push down across the whole width.
-- **Framed groups.** A tour stop or watched subject opens its direct members' names exactly as a direct focus does.
-- **Callout columns.** When a framed group's members are closer on screen than 0.9 of a compact label width (leaving at 1.2), its direct members are named in two columns beside the group's screen footprint: left-half members on the left and right-half members on the right. They stack by height, and each has an elbow leader line to its basin. Rows compress to 18 px before overflowing. An overflowing column ends with a "+N in the briefing list" row. Sides switch with hysteresis and positions ease, so an orbit moves names smoothly between rows rather than blinking. A dense framed group is fitted into the centre 62 percent of the stage width to leave room for the columns. Zoom into a nested ring (for example **Unmapped repositories**) and its members get their own callouts.
+- **Admission hysteresis.** A visible label that loses its room keeps its place for 300 ms before fading out at the normal easing, instead of dropping to near-zero opacity at once. Once released, it must have room for 200 ms before it returns. A first appearance is immediate, and a label whose subject leaves view fades at once. Reduced motion skips the holds.
+- **Panels.** The briefing card and the roster are marked `data-gravity-obstacle`. Labels step out from under them along the shorter way and are not admitted over them; this replaces the global top inset that a taller card would push down across the whole width. A panel spanning most of the stage bottom (the roster) narrows the band the camera fits subjects into, and a camera view offset centres that band.
+- **Framed groups.** A tour stop or watched subject opens its direct members' names exactly as a direct focus does, even inside a closed parent, so zooming into a nested ring names that ring. A pool around a framed nested ring moves its own label to its rim. Services and deployments are named like other members once their host is open or framed (previously only the optional lens named them).
+- **Callout columns.** When a framed group's members are closer on screen than 0.9 of a compact label width (leaving at 1.2), its direct members are named in two columns beside the group's screen footprint: left-half members on the left and right-half members on the right. Rows are compact (about 24 px), stack by height, and each has an elbow leader line to its basin. A panel overlapping a column shortens it. A full column lends the members nearest the centre to the other column; anything still left over is counted in a "+N more in the briefing list" row, attention kept first. A member changes sides only after crossing the centre by a margin, fading out and back in rather than sliding across the group. A dense framed group is fitted into the centre 62 percent of the stage width. Zoom into a nested ring (for example **Unmapped repositories**) and its members get their own callouts.
 
 ### Briefing and roster
 
@@ -79,12 +80,12 @@ A *primary group* is a visible root representation of kind host, provider, colle
   - It states only what the evidence supports. No monitoring is "No availability checks observed", never healthy. An unmapped repository is never described as undeployed or idle.
   - Repository collections group as *Deployed (reviewed relation)* (repositories with a reviewed `deploys` relation), *Project repositories*, and each nested collection with every name. Other groups list direct members, attention first, by kind.
   - Recent activity is the three most recent recorded events among the members.
-- The **stage briefing card** replaces the stage caption: eyebrow, name, decode-revealed headline and facts, and up to three issues. Without a subject it summarises the whole landscape.
+- The **stage briefing card** replaces the stage caption: eyebrow, name, decode-revealed headline and up to three facts, and up to three issues. Without a subject it shows only the landscape headline, so the overview stays clear. On phones it keeps one fact and one issue. A group's summary includes its members, so an issue is named only on the deepest resource carrying it.
 - The **inspector briefing** lists every member group in full, each member selectable.
 - The **roster rail** along the stage bottom names every primary group in arrangement order: badge, name, count and attention text.
   - The active group is marked `aria-current`, and during the tour a progress bar runs for the stop.
   - Selecting a chip selects that group (and so watches it). Hovering or focusing a chip highlights its pin.
-  - The stage controls sit at the rail's start.
+  - The stage controls sit at the rail's start. Chips wrap to a second row rather than scroll (the camera band adjusts); on phones they form one scrolling row.
 
 ### Authority and MCP
 
@@ -109,4 +110,20 @@ The COVERAGE rows this change touches (A02, D01 to D04, E05) must be re-establis
 
 ## Implementation record
 
-To be completed with the merged change.
+| Layer | Where |
+| --- | --- |
+| Arrangement | `arrangeRoots`, `isPrimaryGroupKind`, the `ordered` and `gap` options of `memberRings`, and `primaryGroupIds` in `packages/ui/src/gravity/operational-layout.ts` |
+| Tour | `PresentationTour` and `tourTiming` in `packages/ui/src/gravity/tour.ts` |
+| Camera | `orbitFrame`, `orbitPose`, `travelFrame`, `frameOfPose`, `hostTourStops` and the `band` fitting parameter in `presentation.ts`; the `watch` camera mode in `model.ts`; `RendererSettings.watch` and `stops`, the `tour` hook, program poses, panel measurement and the view offset in `renderer.ts` |
+| Labels | Admission hysteresis, obstacles, fixed anchors and `CalloutLayout` in `labels.ts`; callout placement, framed disclosure and rim labels in `renderer.ts` |
+| Briefing | `observatoryBriefing` and `briefingAge` in `packages/ui/src/gravity/briefing.ts` |
+| UI | `DecodeText`, `ObservatoryBriefingCard`, `ObservatoryBriefingDetails` and `ObservatoryRoster` in `packages/ui/src/components/ObservatoryPresentation.tsx`; activation, watch, roster, briefing and callout rendering in `OperationalObservatory.tsx`; styles in `operational-observatory.css` |
+| Lab | The lab keeps its own controls; its tour now uses the shared director with top-level hosts as stops |
+| Docs | [Feature spec](../../features/gravity-observatory.md#presentation-watch-and-briefing), [agent workflow omission](../../architecture/observatory-agent-workflow.md), [OQ-039](../../project/open-questions.md#oq-039-how-should-the-observatory-presentation-pace-and-prioritise-groups), [status](../../project/status.md), and the coverage and execution notes |
+
+Changed tests, deliberately:
+
+- Renderer tour windows now follow `tourTiming` (a stop is 28.5 seconds, not 14).
+- Breadcrumb restoration tests model the pan as the interruption it is, because selecting a primary host now watches it.
+- Tour interruption tests expect a primary-group selection to watch that group, while search, drag and reading still stop motion.
+- The lab tour test exercises the shared director and travel frames instead of the removed time-sliced host tour.

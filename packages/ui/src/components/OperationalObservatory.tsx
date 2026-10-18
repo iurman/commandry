@@ -1002,7 +1002,9 @@ function OperationalObservatoryView({
       ? logoUrl(node.resourceId, node.logo.digest)
       : null;
   const summary = selected?.summary ?? scene.summary;
+  // Reading and pause hold the camera still, whatever was requested.
   const touring = settings.cameraMode === "tour";
+  const watching = settings.cameraMode === "watch";
   const primaryGroups = (projection.value?.primaryGroupIds ?? []).flatMap(
     (id) => nodes.get(id) ?? [],
   );
@@ -1022,7 +1024,7 @@ function OperationalObservatoryView({
   const eyebrow =
     stopIndex >= 0
       ? `Presentation ${stopIndex + 1} of ${primaryGroups.length}${tourStop?.reason === "attention" ? " / attention" : ""} / ${kindNames[selected!.kind]}`
-      : settings.cameraMode === "watch" && selected
+      : watching && selected
         ? `Watching / ${kindNames[selected.kind]}`
         : selected
           ? kindNames[selected.kind]
@@ -1815,15 +1817,15 @@ function OperationalObservatoryView({
                 <button
                   type="button"
                   disabled={reduced || stopped}
-                  aria-pressed={camera === "watch"}
+                  aria-pressed={watching}
                   title={
-                    camera === "watch"
+                    watching
                       ? "Hold the camera still on this subject."
                       : `Orbit ${selected.label} slowly until you interact.`
                   }
-                  onClick={() => watch(camera !== "watch")}
+                  onClick={() => watch(!watching)}
                 >
-                  {camera === "watch" ? "Stop watching" : "Watch"}
+                  {watching ? "Stop watching" : "Watch"}
                 </button>
               )}
               <button

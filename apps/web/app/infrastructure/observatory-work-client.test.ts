@@ -753,8 +753,10 @@ it("acknowledges local Observatory selection without replaying it as a new outer
   );
   expect(requests.filter(([, options]) => !options.refit)).toHaveLength(1);
   expect(requests.filter(([, options]) => options.refit)).toHaveLength(1);
+  // Selecting a primary group watches it; its focus is still requested once.
   expect(coordinatorRenderer.settings).toMatchObject({
-    cameraMode: "manual",
+    cameraMode: "watch",
+    watch: first.id,
     selected: first.id,
   });
   const calls = coordinatorRenderer.focus.mock.calls.length;

@@ -313,6 +313,8 @@ export class ObservatoryRenderer {
   private labelObserver: ResizeObserver;
   private labelTop = 52;
   private obstacles: LabelRect[] = [];
+  /** Re-reads stage panels; their classification depends on stage size. */
+  private measurePanels: () => void = () => {};
   /** Stage space wide panels cover at the top and bottom, in CSS pixels. */
   private inset = { top: 0, bottom: 0 };
   private callouts = new CalloutLayout();
@@ -452,7 +454,7 @@ export class ObservatoryRenderer {
         "[data-gravity-obstacle]",
       ) ?? []),
     ];
-    const measureToolbar = () => {
+    const measureToolbar = (this.measurePanels = () => {
       this.labelTop = toolbar
         ? toolbar.offsetTop + toolbar.offsetHeight + 12
         : panels.length
@@ -483,7 +485,7 @@ export class ObservatoryRenderer {
         this.applyViewOffset();
       }
       this.needsDraw = true;
-    };
+    });
     this.labelObserver = new ResizeObserver(measureToolbar);
     if (toolbar) this.labelObserver.observe(toolbar);
     for (const panel of panels) this.labelObserver.observe(panel);
@@ -1043,6 +1045,7 @@ export class ObservatoryRenderer {
     this.renderer.setSize(this.width, this.height);
     this.camera.aspect = this.width / this.height;
     this.camera.updateProjectionMatrix();
+    this.measurePanels();
     this.applyViewOffset();
     this.coverLandscape([...this.wells, ...this.targets]);
     this.overlayCamera.left = -this.width / 2;
@@ -1227,8 +1230,8 @@ export class ObservatoryRenderer {
       (this.settings.cameraMode === "orbit" ||
         this.settings.cameraMode === "tour" ||
         this.settings.cameraMode === "watch");
+    // Automatic camera travel invalidates an earlier same-ID direct focus pose.
     if (automatic && moving && this.settings.cameraMode !== "orbit") {
-      // Automatic camera travel invalidates an earlier same-ID direct focus pose.
       this.presentationMoved = true;
       this.presentationElapsed += dt;
       const pose = this.programPose(dt);
@@ -1566,8 +1569,10 @@ export class ObservatoryRenderer {
       parent = parentWellId(byId.get(parent)!)
     )
       enclosing.add(parent);
+    // Services and deployments are named like any member once their host is
+    // open or framed; the optional lens still names a selected host's own.
     const anchors: Anchor[] = this.wells
-      .filter((w) => byId.has(w.id) && w.kind !== "service")
+      .filter((w) => byId.has(w.id))
       .map((well) => {
         // An open pool names its members, so its own label moves to the rim;
         // so does a pool around a framed nested ring, which it would cover.
