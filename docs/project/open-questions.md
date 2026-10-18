@@ -465,16 +465,3 @@ relations, needs its own approval per resource, or stays out. Also decide
 whether an explicit owner icon choice should always take precedence over an
 approved logo. Until then, logos stay on repositories, and an explicit icon
 choice wins where one exists.
-
-### OQ-039: How should the Observatory presentation pace and prioritise groups?
-
-The 2026-10-18 presentation change ([plan](../plans/observatory-presentation/PLAN.md))
-tours primary groups in their hub-and-ring arrangement order. Each stop travels
-for 4.5 seconds and dwells for 24 seconds (36 with attention) while orbiting at
-0.03 radians per second. A newly raised impact or exposure preempts the tour
-once per raise; attention already present when the tour starts only moves those
-groups to the front. Dense focused groups switch to callout columns at 0.9 of a
-compact label width and are framed in the centre 62 percent of the stage. These
-are implementation defaults, not owner decisions. Confirm the pacing, whether
-attention should keep recurring while it persists, whether exposure should
-preempt as well as confirmed impact, and the family order of the ring.
