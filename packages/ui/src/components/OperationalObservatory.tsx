@@ -1187,9 +1187,10 @@ function OperationalObservatoryView({
             <label>
               Camera
               <select
-                value={camera}
+                value={savedCamera(camera)}
                 onChange={(event) => {
-                  const next = event.target.value as CameraMode;
+                  const next = event.target
+                    .value as ObservatoryPreferences["camera"];
                   setReading(false);
                   setAppearanceOpen(false);
                   setCamera(next);
@@ -1443,7 +1444,7 @@ function OperationalObservatoryView({
                     : preferences.size === "uniform"
                       ? "uniform"
                       : "services",
-                camera,
+                camera: savedCamera(camera),
                 lens: preferences.lens,
                 theme: preferences.theme,
                 labels: true,
@@ -2217,6 +2218,9 @@ function OperationalObservatoryView({
     </section>
   );
 }
+/** Watching follows one selection, so a saved view keeps a still camera. */
+const savedCamera = (camera: CameraMode): ObservatoryPreferences["camera"] =>
+  camera === "watch" ? "manual" : camera;
 function placeAnchor(element: HTMLButtonElement, anchor: Anchor) {
   element.style.transform = `translate3d(${anchor.x}px,${anchor.y}px,0) translate(-50%,-100%)`;
   element.style.opacity = String(anchor.opacity);

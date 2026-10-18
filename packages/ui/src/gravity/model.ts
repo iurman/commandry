@@ -1,7 +1,8 @@
 export type ViewMode = "hosts" | "projects" | "custom";
 export type SurfaceTheme = "porcelain" | "midnight";
 export type SizeBasis = "capacity" | "services" | "uniform";
-export type CameraMode = "composed" | "orbit" | "tour" | "manual";
+/** `watch` orbits one subject slowly until direct interaction. */
+export type CameraMode = "composed" | "orbit" | "tour" | "watch" | "manual";
 export type SectorId = string;
 export type Point = { x: number; z: number };
 export type Palette = Record<SectorId, string> & {

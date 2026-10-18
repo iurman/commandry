@@ -8,6 +8,7 @@ import {
 } from "./renderer";
 import { surfaceHeight, type Well } from "./model";
 import * as basinPlanning from "./basin-geometry";
+import { tourTiming } from "./tour";
 
 vi.mock("three", async (original) => {
   const actual = await original<typeof import("three")>();
@@ -676,6 +677,8 @@ it("retains a usable mesh and disposes an exhausted local request without retryi
   }
 });
 
+/** Milliseconds from one presentation stop to the next. */
+const cycle = (tourTiming.travel + tourTiming.dwell) * 1000;
 const tourWells: Well[] = [
   { ...wells[0]!, x: -12, z: -5 },
   { ...wells[1]!, x: 16, z: 9 },
@@ -716,7 +719,7 @@ describe("natural guided-tour feature lifecycle", () => {
         { ...state },
       );
       expect(fixture.access.presentationElapsed).toBe(elapsed);
-      for (let now = 9050; now <= 22000; now += 50) fixture.frame(now);
+      for (let now = 9050; now <= cycle + 2000; now += 50) fixture.frame(now);
       expect(featured).toHaveBeenCalledTimes(2);
       const later = featured.mock.calls[1]![0];
       expect(later).not.toBe(first);
@@ -724,7 +727,7 @@ describe("natural guided-tour feature lifecycle", () => {
       expect(state.cameraMode).toBe("tour");
       expect(state.selected).toBe(later);
       expect(direct).not.toHaveBeenCalled();
-      expect(fixture.access.presentationElapsed).toBeGreaterThan(21);
+      expect(fixture.access.presentationElapsed).toBeGreaterThan(cycle / 1000);
       expect(fixture.access.presentationInterrupted).toBe(false);
       expect(
         fixture.access.camera.position.distanceTo(position),
@@ -859,7 +862,7 @@ it("refocuses an already-selected host after automatic camera movement when the 
       cameraMode: "tour",
       selected: subject.id,
     });
-    for (let now = 50; now <= 22000; now += 50) fixture.frame(now);
+    for (let now = 50; now <= cycle + 2000; now += 50) fixture.frame(now);
     expect(featured.mock.calls.length).toBeGreaterThanOrEqual(2);
     expect(fixture.access.controls.target.distanceTo(target)).toBeGreaterThan(
       1,
@@ -881,7 +884,8 @@ it("refocuses an already-selected host after automatic camera movement when the 
     );
     const elapsed = fixture.access.presentationElapsed,
       calls = featured.mock.calls.length;
-    for (let now = 22050; now <= 26000; now += 50) fixture.frame(now);
+    for (let now = cycle + 2050; now <= cycle + 6000; now += 50)
+      fixture.frame(now);
     expect(featured).toHaveBeenCalledTimes(calls);
     expect(fixture.access.presentationElapsed).toBe(elapsed);
   } finally {
@@ -915,7 +919,7 @@ it("adopts a naturally featured host without a fit and retains its shown pose th
       motion: true,
       cameraMode: "tour",
     });
-    for (let now = 50; now <= 22000; now += 50) fixture.frame(now);
+    for (let now = 50; now <= cycle + 2000; now += 50) fixture.frame(now);
     expect(featured.mock.calls.length).toBeGreaterThanOrEqual(2);
     const subject = featured.mock.lastCall![0] as string,
       child = population.find((well) => well.hostId === subject)!,
@@ -967,7 +971,8 @@ it("adopts a naturally featured host without a fit and retains its shown pose th
       1e-8,
     );
     const calls = featured.mock.calls.length;
-    for (let now = 22050; now <= 26000; now += 50) fixture.frame(now);
+    for (let now = cycle + 2050; now <= cycle + 6000; now += 50)
+      fixture.frame(now);
     expect(featured).toHaveBeenCalledTimes(calls);
     expect(fixture.access.presentationElapsed).toBe(0);
   } finally {

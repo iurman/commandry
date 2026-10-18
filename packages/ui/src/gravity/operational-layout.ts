@@ -17,6 +17,9 @@ export type OperationalLayoutResult = {
   canonical: Map<string, OperationalRepresentation>;
   members: Map<string, Set<string>>;
   visibleSubjectForResource: Map<string, string>;
+  /** Visible top-level groups in arrangement order: the central group first,
+   * then around the ring. The presentation visits them in this order. */
+  primaryGroupIds: string[];
   representedResourceIds: string[];
   ramUnavailableIds: string[];
 };
@@ -151,15 +154,17 @@ export function memberRings(
   hub: number,
   members: { id: string; extent: number }[],
   order: (a: string, b: string) => number,
+  /** `ordered` keeps the given member order across and within rings instead
+   * of filling inner rings with the largest members. */
+  options: { gap?: number; ordered?: boolean } = {},
 ) {
-  const gap = ringGap(
-    hub,
-    Math.max(0, ...members.map((member) => member.extent)),
-  );
+  const gap =
+    options.gap ??
+    ringGap(hub, Math.max(0, ...members.map((member) => member.extent)));
   const offsets = new Map<string, { x: number; z: number }>();
-  const sorted = [...members].sort(
-    (a, b) => b.extent - a.extent || order(a.id, b.id),
-  );
+  const sorted = options.ordered
+    ? [...members]
+    : [...members].sort((a, b) => b.extent - a.extent || order(a.id, b.id));
   // The angle a member needs at a distance, including half a gap each side.
   const width = (extent: number, distance: number) =>
     2 * Math.asin(Math.min(1, (extent + gap / 2) / distance));
@@ -193,7 +198,13 @@ export function memberRings(
       group = rest.length <= 8 ? rest : rest.slice(0, 6);
       distance = group.length < 2 ? 0 : fit(group, 0);
     } else {
-      const base = inner + rest[0]!.extent;
+      // Size order puts the largest remaining member first; caller order
+      // must clear the inner boundary for whichever member is largest.
+      const base =
+        inner +
+        (options.ordered
+          ? Math.max(...rest.map((member) => member.extent))
+          : rest[0]!.extent);
       const all = fit(rest, base);
       if (all <= base * 1.5) {
         // A small remainder widens one ring rather than leaving a sparse orbit.
@@ -210,7 +221,9 @@ export function memberRings(
         distance = base;
       }
     }
-    const placed = [...group].sort((a, b) => order(a.id, b.id));
+    const placed = options.ordered
+      ? group
+      : [...group].sort((a, b) => order(a.id, b.id));
     const widths = placed.map((member) =>
       placed.length < 2 ? 0 : width(member.extent, distance),
     );
@@ -232,6 +245,68 @@ export function memberRings(
     ring++;
   }
   return { offsets, extent };
+}
+
+/** Clearance between neighbouring top-level clusters. */
+export const ROOT_GAP = 2.4;
+const familyRank: Record<OperationalRepresentation["kind"], number> = {
+  host: 0,
+  provider: 1,
+  deployment: 2,
+  service: 2,
+  repository: 3,
+  collection: 4,
+  project: 4,
+  reference: 5,
+};
+
+/** Top-level groups the presentation visits and the roster names. Individual
+ * root repositories, references, services and deployments are not groups, so
+ * a repository never becomes a stop merely because it has no parent.
+ */
+export const isPrimaryGroupKind = (kind: OperationalRepresentation["kind"]) =>
+  kind === "host" ||
+  kind === "provider" ||
+  kind === "collection" ||
+  kind === "project";
+
+/** Top-level clusters around one central viewpoint: a dominant cluster (at
+ * least 1.6 times the next) anchors the centre and the others fill rings
+ * around it in family order (hosts, providers, other operational kinds,
+ * repositories, collections and projects, references), so neighbours on a
+ * ring are related and consecutive. Positions are cluster centres.
+ */
+export function arrangeRoots(
+  roots: {
+    id: string;
+    kind: OperationalRepresentation["kind"];
+    extent: number;
+  }[],
+  order: (a: string, b: string) => number,
+  gap = ROOT_GAP,
+) {
+  const positions = new Map<string, { x: number; z: number }>();
+  if (!roots.length) return positions;
+  const bySize = [...roots].sort(
+    (a, b) => b.extent - a.extent || order(a.id, b.id),
+  );
+  const hub =
+    bySize.length > 1 && bySize[0]!.extent >= bySize[1]!.extent * 1.6
+      ? bySize[0]!
+      : null;
+  const ring = roots
+    .filter((root) => root !== hub)
+    .sort(
+      (a, b) => familyRank[a.kind] - familyRank[b.kind] || order(a.id, b.id),
+    );
+  if (hub) positions.set(hub.id, { x: 0, z: 0 });
+  // memberRings measures its hub as a basin radius and adds 16 percent.
+  const arranged = memberRings(hub ? hub.extent / 1.16 : 0, ring, order, {
+    gap,
+    ordered: true,
+  });
+  for (const [id, offset] of arranged.offsets) positions.set(id, offset);
+  return positions;
 }
 
 /** Uniform grid of placed root clusters for clearance queries. */
@@ -442,8 +517,19 @@ export class OperationalLayout {
     const keyFor = (node: OperationalRepresentation) =>
       `${scene.grouping}|${options.size}|${node.layoutKey}`;
     const roots = ordered.filter((node) => !node.parentRepresentationId);
-    // Roots keep their slot for the whole scope. New roots take the nearest free
-    // spiral position that clears every placed cluster's complete extent.
+    // A fresh root set is arranged around its dominant group in family order.
+    // Roots then keep their slot for the whole scope; a root added later takes
+    // the nearest free spiral position that clears every placed cluster.
+    if (!roots.some((node) => this.slots.has(keyFor(node))))
+      for (const [id, slot] of arrangeRoots(
+        roots.map((node) => ({
+          id: node.id,
+          kind: node.kind,
+          extent: shapes.get(node.id)!.extent,
+        })),
+        byLayout,
+      ))
+        this.slots.set(keyFor(byId.get(id)!), slot);
     const occupied = new SpatialIndex();
     for (const node of roots) {
       const slot = this.slots.get(keyFor(node));
@@ -465,7 +551,7 @@ export class OperationalLayout {
         const distance = Math.sqrt(attempt) * step;
         x = Math.cos(angle + attempt * 2.399963) * distance;
         z = Math.sin(angle + attempt * 2.399963) * distance;
-        if (occupied.clear(x, z, extent, 2.4)) break;
+        if (occupied.clear(x, z, extent, ROOT_GAP)) break;
       }
       occupied.add(x, z, extent);
       this.slots.set(key, { x, z });
@@ -569,6 +655,18 @@ export class OperationalLayout {
         );
       visibleSubjectForResource.set(resourceId, current.id);
     }
+    // Around the ring from its starting side (angle pi), which the arrangement
+    // fills in family order; a central group comes first.
+    const sweep = (node: OperationalRepresentation) => {
+      const { x, z } = positions.get(node.id)!;
+      return Math.hypot(x, z) < 1e-6
+        ? -1
+        : (Math.atan2(z, x) - Math.PI + 2 * TAU) % TAU;
+    };
+    const primaryGroupIds = roots
+      .filter((node) => visible.has(node.id) && isPrimaryGroupKind(node.kind))
+      .sort((a, b) => sweep(a) - sweep(b) || byLayout(a.id, b.id))
+      .map((node) => node.id);
     return {
       wells: ordered
         .filter((node) => visible.has(node.id))
@@ -579,6 +677,7 @@ export class OperationalLayout {
       canonical,
       members,
       visibleSubjectForResource,
+      primaryGroupIds,
       representedResourceIds: [...represented].sort(),
       ramUnavailableIds,
     };

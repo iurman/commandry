@@ -36,6 +36,8 @@ import {
   observatoryFixtureInput,
 } from "@commandry/test-support";
 import {
+  arrangeRoots,
+  isPrimaryGroupKind,
   mapOperationalEvents,
   memberRings,
   observedTotalRam,
@@ -43,6 +45,7 @@ import {
   OperationalLayout,
   OperationalRecordedActivity,
   ringGap,
+  ROOT_GAP,
 } from "./operational-layout";
 import {
   defaultObservatoryPreferences,
@@ -209,6 +212,67 @@ describe("member rings", () => {
     const single = memberRings(2, [{ id: "only", extent: 0.5 }], order);
     const only = polar(single.offsets.get("only")!);
     expect(Math.cos(only.angle)).toBeCloseTo(1, 9);
+  });
+});
+
+describe("primary-group arrangement", () => {
+  const order = (a: string, b: string) => a.localeCompare(b);
+  const sweep = (offset: { x: number; z: number }) =>
+    (Math.atan2(offset.z, offset.x) - Math.PI + Math.PI * 4) % (Math.PI * 2);
+  it("anchors a dominant group at the centre and circles the rest in family order", () => {
+    const roots = [
+      { id: "z-references", kind: "reference" as const, extent: 2 },
+      { id: "repositories", kind: "collection" as const, extent: 11 },
+      { id: "b-host", kind: "host" as const, extent: 4 },
+      { id: "a-host", kind: "host" as const, extent: 2.5 },
+      { id: "provider", kind: "provider" as const, extent: 3 },
+      { id: "other", kind: "collection" as const, extent: 6 },
+    ];
+    const placed = arrangeRoots(roots, order);
+    expect(placed.get("repositories")).toEqual({ x: 0, z: 0 });
+    const ring = ["a-host", "b-host", "provider", "other", "z-references"];
+    const angles = ring.map((id) => sweep(placed.get(id)!));
+    expect([...angles].sort((a, b) => a - b)).toEqual(angles);
+    const byId = new Map(roots.map((root) => [root.id, root]));
+    for (const a of roots)
+      for (const b of roots) {
+        if (a.id >= b.id) continue;
+        const p = placed.get(a.id)!,
+          q = placed.get(b.id)!;
+        expect(Math.hypot(p.x - q.x, p.z - q.z)).toBeGreaterThanOrEqual(
+          byId.get(a.id)!.extent + byId.get(b.id)!.extent + ROOT_GAP - 1e-9,
+        );
+      }
+    expect(arrangeRoots([...roots].reverse(), order)).toEqual(placed);
+  });
+  it("keeps an open centre when no group dominates and exposes the visiting order", () => {
+    const even = ["c", "a", "b"].map((id) => ({
+      id,
+      kind: "host" as const,
+      extent: 3,
+    }));
+    const placed = arrangeRoots(even, order);
+    for (const offset of placed.values())
+      expect(Math.hypot(offset.x, offset.z)).toBeGreaterThan(3);
+    const solo = arrangeRoots([even[0]!], order).get("c")!;
+    expect(Math.hypot(solo.x, solo.z)).toBe(0);
+    const scene = projectObservatory(mixedObservatoryFixture()),
+      result = new OperationalLayout().project(scene, options);
+    const groups = result.primaryGroupIds.map((id) => result.byId.get(id)!);
+    expect(groups[0]!.label).toBe("Repositories");
+    expect(result.positions.get(groups[0]!.id)).toMatchObject({ x: 0, z: 0 });
+    expect(groups.map((node) => node.kind)).toEqual([
+      "collection",
+      "host",
+      "host",
+      "host",
+      "host",
+      "collection",
+      "collection",
+    ]);
+    expect(groups.every((node) => !node.parentRepresentationId)).toBe(true);
+    expect(isPrimaryGroupKind("repository")).toBe(false);
+    expect(isPrimaryGroupKind("reference")).toBe(false);
   });
 });
 
@@ -2253,6 +2317,7 @@ describe("breadcrumb reading-context restoration", () => {
       camera,
       controls: { target, update() {} },
       targets: [] as Well[],
+      memberSpacing: [],
       settings: { motion: false },
       focusedSubject: null,
       savedFocusPoses: new Map(),
