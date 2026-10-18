@@ -16,6 +16,7 @@ import {
   presentationPose,
 } from "./presentation";
 import { LabelLayout, labelHeight, poolLabelPoint } from "./labels";
+import { TetherRenderer } from "./tethers";
 import {
   fieldBounds,
   fieldRefinement,
@@ -60,6 +61,8 @@ export type Anchor = {
   sector: string;
   /** A member shown inside or around a visible parent; it uses a compact label. */
   nested?: boolean;
+  /** A parent whose members are named; its own label steps back to compact. */
+  open?: boolean;
   rank?: number;
   leash?: number;
 };
@@ -93,6 +96,50 @@ export type RendererHooks = {
   activity: (snapshot: ActivitySnapshot) => void;
   visibility: (visible: boolean) => void;
 };
+
+/** Closest member spacing for each visible parent, outermost parents first. */
+export function memberSpacing(wells: readonly Well[]) {
+  const byId = new Map(wells.map((well) => [well.id, well]));
+  const groups = new Map<string, Well[]>();
+  for (const well of wells) {
+    const parent = parentWellId(well);
+    if (!parent || !byId.has(parent)) continue;
+    const members = groups.get(parent) ?? [];
+    members.push(well);
+    groups.set(parent, members);
+  }
+  const depth = (well: Well) => {
+    let level = 0;
+    for (
+      let parent = parentWellId(well);
+      parent && byId.has(parent) && level < 64;
+      parent = parentWellId(byId.get(parent)!)
+    )
+      level++;
+    return level;
+  };
+  return [...groups]
+    .map(([id, members]) => {
+      const parent = byId.get(id)!;
+      let spacing = Infinity;
+      members.forEach((a, index) => {
+        const fromParent = Math.hypot(a.x - parent.x, a.z - parent.z);
+        // A resource keeps its label at its centre; an open pool names itself on
+        // its rim, and a member at a pool's centre is spaced from the ring.
+        if (!parent.pool || members.length === 1)
+          if (fromParent > 1e-3) spacing = Math.min(spacing, fromParent);
+        for (const b of members.slice(index + 1))
+          spacing = Math.min(spacing, Math.hypot(a.x - b.x, a.z - b.z));
+      });
+      return {
+        id,
+        depth: depth(parent),
+        spacing: Number.isFinite(spacing) ? spacing : parent.radius,
+      };
+    })
+    .sort((a, b) => a.depth - b.depth || a.id.localeCompare(b.id))
+    .map(({ id, spacing }) => ({ id, spacing }));
+}
 
 export class ObservatoryRenderer {
   private renderer: THREE.WebGLRenderer;
@@ -145,6 +192,10 @@ export class ObservatoryRenderer {
     vertexShader: terrainVertex,
     fragmentShader: terrainFragment,
     uniforms: this.uniforms,
+    // Draped tethers sit on the analytic surface; the mesh yields to them.
+    polygonOffset: true,
+    polygonOffsetFactor: 1,
+    polygonOffsetUnits: 1,
   });
   private terrain = new THREE.Mesh(this.geometry, this.material);
   private skyGeometry = new THREE.SphereGeometry(1, 32, 16);
@@ -165,6 +216,7 @@ export class ObservatoryRenderer {
   private targets: Well[] = [];
   private settings: RendererSettings;
   private activityRenderer = new ActivityRenderer();
+  private tethers = new TetherRenderer();
   private activitySnapshot: ActivitySnapshot;
   private nextActivity = 0;
   private width = 1;
@@ -186,11 +238,15 @@ export class ObservatoryRenderer {
   private renderedFrames = 0;
   private frames: number[] = [];
   private labelLayout = new LabelLayout();
-  /** Parent ID -> reach of its visible members from its center. */
-  private clusterExtents = new Map<string, number>();
+  /** Visible parents, outermost first, with the closest spacing (world units)
+   * between their members or between a member and the parent itself. */
+  private memberSpacing: { id: string; spacing: number }[] = [];
   private zoomDisclosed = new Set<string>();
   private lensAmount = 0;
   private focusedSubject: string | null = null;
+  /** Camera distance of the last direct focus framing; zooming out past it
+   * releases the focused group's member names. */
+  private focusFraming = Infinity;
   private savedFocusPoses = new Map<
     string | null,
     { position: THREE.Vector3; target: THREE.Vector3 }
@@ -271,6 +327,7 @@ export class ObservatoryRenderer {
     this.lens.position.z = -1;
     this.overlayScene.add(this.lens);
     this.scene.add(this.activityRenderer.group);
+    this.scene.add(this.tethers.group);
     const change = () => {
       this.needsDraw = true;
     };
@@ -636,23 +693,7 @@ export class ObservatoryRenderer {
       settings.activity.trace !== this.settings.activity.trace;
     this.targets = wells;
     this.settings = settings;
-    this.clusterExtents = new Map();
-    const parents = new Map(wells.map((well) => [well.id, well]));
-    for (const well of wells)
-      for (
-        let parent = parents.get(parentWellId(well) ?? ""), depth = 0;
-        parent && depth < 64;
-        parent = parents.get(parentWellId(parent) ?? ""), depth++
-      )
-        this.clusterExtents.set(
-          parent.id,
-          Math.max(
-            this.clusterExtents.get(parent.id) ??
-              parent.radius * Math.max(1, parent.aspect),
-            Math.hypot(well.x - parent.x, well.z - parent.z) +
-              well.radius * Math.max(1, well.aspect),
-          ),
-        );
+    this.memberSpacing = memberSpacing(wells);
     if (activityChanged) this.refreshActivity();
     if (cameraChanged) {
       this.presentationInterrupted = false;
@@ -688,6 +729,7 @@ export class ObservatoryRenderer {
   preset(preset: "overview" | "top" | "angle") {
     this.presentationMoved = false;
     this.focusedSubject = null;
+    this.focusFraming = Infinity;
     this.renderer.domElement.dataset.gravityMainFocus = "";
     const pose = fittedLandscapePose(
       this.targets,
@@ -709,6 +751,7 @@ export class ObservatoryRenderer {
   adoptSubject(id: string): boolean {
     if (!this.targets.some((well) => well.id === id)) return false;
     this.focusedSubject = id;
+    this.focusFraming = this.camera.position.distanceTo(this.controls.target);
     this.presentationMoved = false;
     this.presentationInterrupted = true;
     this.presentationEntry = null;
@@ -749,6 +792,7 @@ export class ObservatoryRenderer {
       saved?.target.clone() ??
       new THREE.Vector3(pose.target.x, pose.target.y, pose.target.z);
     this.focusedSubject = id;
+    this.focusFraming = id ? position.distanceTo(target) : Infinity;
     this.presentationMoved = false;
     this.presentationInterrupted = true;
     this.presentationEntry = null;
@@ -797,6 +841,7 @@ export class ObservatoryRenderer {
     this.height = Math.max(this.container.clientHeight, 1);
     this.hooks.viewport(this.width / this.height < 0.9);
     this.renderer.setSize(this.width, this.height);
+    this.tethers.resize(this.width, this.height);
     this.camera.aspect = this.width / this.height;
     this.camera.updateProjectionMatrix();
     this.coverLandscape([...this.wells, ...this.targets]);
@@ -924,6 +969,15 @@ export class ObservatoryRenderer {
       this.geometryTransition = false;
     }
     this.submitField(this.wells, this.settings);
+    // Tethers follow settled basins only; before this point `changing` means
+    // some basin is still moving.
+    changing =
+      this.tethers.update(
+        this.targets,
+        !changing,
+        this.settings.palette,
+        this.settings.theme === "midnight",
+      ) || changing;
     const targetNight = this.settings.theme === "midnight" ? 1 : 0;
     const oldNight = this.uniforms.uNight.value;
     this.uniforms.uNight.value = THREE.MathUtils.lerp(
@@ -1111,30 +1165,41 @@ export class ObservatoryRenderer {
     );
   }
 
-  /** Parents whose member labels are disclosed: the selected path, plus any
-   * cluster the camera has brought close. Hysteresis keeps admission steady.
+  /** Parents whose member labels are disclosed. Disclosure follows the camera:
+   * members are named once neighbours sit far enough apart on screen to hold
+   * their labels, and only inside an already open parent. A directly focused
+   * group is also named while the camera stays near its framing, but zooming
+   * back out always returns to top-level names. Hysteresis keeps admission
+   * steady; the threshold grows with large screens so an overview stays quiet.
    */
   private disclosedParents(byId: Map<string, Well>) {
     const open = new Set<string>();
-    for (
-      let id = this.settings.selected;
-      id && byId.has(id) && !open.has(id);
-      id = parentWellId(byId.get(id)!)
-    )
-      open.add(id);
-    const tangent = Math.tan((this.camera.fov * Math.PI) / 360);
-    const viewport = Math.min(this.width, this.height);
+    const focal =
+      this.height / (2 * Math.tan((this.camera.fov * Math.PI) / 360));
+    // About one label width, so a ring's names appear together, not piecemeal.
+    const threshold = Math.max(100, Math.min(this.width, this.height) * 0.14);
+    const framed =
+      this.focusedSubject &&
+      this.camera.position.distanceTo(this.controls.target) <=
+        this.focusFraming * 1.2
+        ? this.focusedSubject
+        : null;
     const center = new THREE.Vector3();
-    for (const [id, extent] of this.clusterExtents) {
+    for (const { id, spacing } of this.memberSpacing) {
       const well = byId.get(id);
-      if (!well) continue;
+      const parent = well ? parentWellId(well) : null;
+      if (!well || (parent && byId.has(parent) && !open.has(parent))) {
+        this.zoomDisclosed.delete(id);
+        continue;
+      }
       center.set(well.x, 0, well.z);
       const pixels =
-        (extent / Math.max(0.001, this.camera.position.distanceTo(center))) *
-        (this.height / (2 * tangent));
-      // A cluster must fill most of the view before its members are named.
-      const threshold = viewport * (this.zoomDisclosed.has(id) ? 0.36 : 0.42);
-      if (pixels > threshold) {
+        (spacing / Math.max(0.001, this.camera.position.distanceTo(center))) *
+        focal;
+      if (
+        id === framed ||
+        pixels > threshold * (this.zoomDisclosed.has(id) ? 0.84 : 1)
+      ) {
         this.zoomDisclosed.add(id);
         open.add(id);
       } else this.zoomDisclosed.delete(id);
@@ -1174,6 +1239,7 @@ export class ObservatoryRenderer {
           sector: well.sector,
           opacity: 0,
           nested,
+          open: open.has(well.id),
           rank: nested ? (well.pool ? 20 : 0) : 40,
           ...(nested && well.id !== this.settings.selected
             ? { leash: 44 }
@@ -1334,6 +1400,7 @@ export class ObservatoryRenderer {
     this.focusGeometry?.dispose();
     this.fieldTexture.dispose();
     this.material.dispose();
+    this.tethers.dispose();
     this.skyGeometry.dispose();
     this.skyMaterial.dispose();
     this.activityRenderer.dispose();

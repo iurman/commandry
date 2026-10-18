@@ -640,6 +640,7 @@ it("opts in only PR evidence through the actual owner coordinator and preserves 
     grouping: "operational",
     environment: null,
     expandedRepresentationIds: [],
+    reveal: "members",
     search: "",
     sectors: [],
     viewRevision: "1",

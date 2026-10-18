@@ -22,6 +22,7 @@ describe("strict public Observatory queries", () => {
       grouping: "operational",
       environment: null,
       expandedRepresentationIds: [],
+      reveal: "members",
       search: "",
       sectors: [],
       viewRevision: "1",

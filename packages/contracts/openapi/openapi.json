@@ -19254,6 +19254,14 @@
               "maxLength": 1000
             }
           },
+          "reveal": {
+            "default": "members",
+            "type": "string",
+            "enum": [
+              "members",
+              "groups"
+            ]
+          },
           "search": {
             "default": "",
             "type": "string",
@@ -21661,6 +21669,14 @@
               "maxLength": 1000
             }
           },
+          "reveal": {
+            "default": "members",
+            "type": "string",
+            "enum": [
+              "members",
+              "groups"
+            ]
+          },
           "search": {
             "default": "",
             "type": "string",
@@ -21881,6 +21897,14 @@
               "minLength": 1,
               "maxLength": 1000
             }
+          },
+          "reveal": {
+            "default": "members",
+            "type": "string",
+            "enum": [
+              "members",
+              "groups"
+            ]
           },
           "search": {
             "default": "",
@@ -22111,6 +22135,14 @@
               "minLength": 1,
               "maxLength": 1000
             }
+          },
+          "reveal": {
+            "default": "members",
+            "type": "string",
+            "enum": [
+              "members",
+              "groups"
+            ]
           },
           "search": {
             "default": "",
@@ -23123,6 +23155,14 @@
               "maxLength": 1000
             }
           },
+          "reveal": {
+            "default": "members",
+            "type": "string",
+            "enum": [
+              "members",
+              "groups"
+            ]
+          },
           "search": {
             "default": "",
             "type": "string",
@@ -23441,6 +23481,14 @@
               "minLength": 1,
               "maxLength": 1000
             }
+          },
+          "reveal": {
+            "default": "members",
+            "type": "string",
+            "enum": [
+              "members",
+              "groups"
+            ]
           },
           "search": {
             "default": "",
@@ -25585,6 +25633,14 @@
               "maxLength": 1000
             }
           },
+          "reveal": {
+            "default": "members",
+            "type": "string",
+            "enum": [
+              "members",
+              "groups"
+            ]
+          },
           "search": {
             "default": "",
             "type": "string",
@@ -26357,6 +26413,14 @@
               "minLength": 1,
               "maxLength": 1000
             }
+          },
+          "reveal": {
+            "default": "members",
+            "type": "string",
+            "enum": [
+              "members",
+              "groups"
+            ]
           },
           "search": {
             "default": "",

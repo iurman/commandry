@@ -17,6 +17,7 @@ import type {
   FoundationProjectWorkPage,
 } from "@commandry/contracts";
 import type { Well } from "./model";
+import { defaultResourceIconId } from "./resource-icons";
 import type {
   ObservatoryRenderer,
   RendererHooks,
@@ -372,6 +373,66 @@ describe("operational landscape adapter", () => {
             );
     },
   );
+  it.each(observatoryGroupings)(
+    "spaces %s members evenly on rings that face away from their own parent",
+    (grouping) => {
+      const scene = projectObservatory({
+        ...mixedObservatoryFixture(),
+        grouping,
+      });
+      const { wells } = new OperationalLayout().project(scene, options);
+      const byId = new Map(wells.map((well) => [well.id, well]));
+      let rings = 0;
+      for (const parent of wells) {
+        const members = wells.filter((well) => well.hostId === parent.id);
+        const distance = (well: Well) =>
+          Math.hypot(well.x - parent.x, well.z - parent.z);
+        const byRing = new Map<string, Well[]>();
+        for (const member of members.filter((well) => distance(well) > 1e-6)) {
+          const key = distance(member).toFixed(4);
+          byRing.set(key, [...(byRing.get(key) ?? []), member]);
+        }
+        const grandparent = parent.hostId ? byId.get(parent.hostId) : undefined;
+        for (const ring of byRing.values()) {
+          const angles = ring
+            .map((well) => Math.atan2(well.z - parent.z, well.x - parent.x))
+            .sort((a, b) => a - b);
+          if (angles.length > 1) {
+            rings++;
+            const slot = (Math.PI * 2) / angles.length;
+            angles.forEach((angle, index) => {
+              const next = angles[(index + 1) % angles.length]!;
+              const gap =
+                index === angles.length - 1
+                  ? next + Math.PI * 2 - angle
+                  : next - angle;
+              expect(gap).toBeCloseTo(slot, 6);
+            });
+          }
+          if (
+            !grandparent ||
+            Math.hypot(parent.x - grandparent.x, parent.z - grandparent.z) <
+              1e-6
+          )
+            continue;
+          // The tether from the grandparent arrives between two members.
+          const inward = Math.atan2(
+            grandparent.z - parent.z,
+            grandparent.x - parent.x,
+          );
+          for (const angle of angles) {
+            const offset = Math.abs(
+              Math.atan2(Math.sin(angle - inward), Math.cos(angle - inward)),
+            );
+            expect(offset).toBeGreaterThanOrEqual(
+              Math.PI / angles.length - 1e-6,
+            );
+          }
+        }
+      }
+      expect(rings).toBeGreaterThan(0);
+    },
+  );
   it("retains event IDs and evidence while mapping collapsed members and never invents dependency traffic", () => {
     const scene = projectObservatory(mixedObservatoryFixture()),
       result = new OperationalLayout().project(scene, options);
@@ -476,6 +537,37 @@ describe("operational component interactions with the real semantic scene", () =
     };
     return { input, scene, host, props };
   }
+  it("collapses every group from the stage, remembers the choice and expands again", async () => {
+    const { input, props } = setup();
+    const view = render(createElement(OperationalObservatory, props));
+    await waitFor(() => expect(engine.update).toHaveBeenCalled());
+    fireEvent.click(screen.getByRole("button", { name: "Collapse all" }));
+    const collapsed = props.onQueryChange.mock.lastCall![0] as ObservatoryQuery;
+    expect(collapsed).toMatchObject({
+      reveal: "groups",
+      expandedRepresentationIds: [],
+    });
+    const roots = projectObservatory({ ...input, ...collapsed });
+    expect(roots.visibleRepresentationIds).toEqual(
+      [...roots.rootRepresentationIds].sort(),
+    );
+    await waitFor(() =>
+      expect(
+        JSON.parse(localStorage.getItem(observatoryStorageKey)!).reveal,
+      ).toBe("groups"),
+    );
+    view.unmount();
+    props.onQueryChange.mockClear();
+    render(createElement(OperationalObservatory, props));
+    await waitFor(() => expect(props.onQueryChange).toHaveBeenCalledTimes(1));
+    expect(props.onQueryChange.mock.lastCall![0]).toMatchObject({
+      reveal: "groups",
+    });
+    fireEvent.click(screen.getByRole("button", { name: "Expand all" }));
+    expect(props.onQueryChange.mock.lastCall![0]).toMatchObject({
+      reveal: "members",
+    });
+  });
   it("persists implicit custom grouping from the actual add-resource action and restores it on remount", async () => {
     const { input, scene, host, props } = setup();
     localStorage.setItem(
@@ -674,6 +766,7 @@ describe("operational component interactions with the real semantic scene", () =
           search: "retained filter",
           sectors: [],
           expandedRepresentationIds: [],
+          reveal: "members",
           viewRevision: scene.viewRevision,
         },
       }),
@@ -1169,6 +1262,7 @@ describe("operational component interactions with the real semantic scene", () =
       grouping: production.grouping,
       environment: "production",
       expandedRepresentationIds: [],
+      reveal: "members" as const,
       search: "",
       sectors: [],
       viewRevision: production.viewRevision,
@@ -1206,6 +1300,7 @@ describe("operational component interactions with the real semantic scene", () =
           grouping: scene.grouping,
           environment: "production",
           expandedRepresentationIds: [],
+          reveal: "members",
           search: "",
           sectors: [],
           viewRevision: scene.viewRevision,
@@ -1246,6 +1341,40 @@ describe("operational component interactions with the real semantic scene", () =
     expect(
       await screen.findByText("Containment cycle recorded"),
     ).toBeInTheDocument();
+  });
+  it("chooses a resource icon on this device and shows it on the resource's badges", async () => {
+    const { host, props } = setup();
+    render(createElement(OperationalObservatory, props));
+    await waitFor(() => expect(engine.update).toHaveBeenCalled());
+    fireEvent.click(
+      screen.getByRole("button", {
+        name: `Inspect ${host.label}, Host, ${host.memberCount} unique resources`,
+      }),
+    );
+    const picker = within(
+      screen.getByRole("complementary", { name: "Observatory inspector" }),
+    ).getByLabelText("Icon on this device");
+    expect(picker).toHaveValue("");
+    const badge = () =>
+      document
+        .querySelector(
+          `.cmd-op-outline li[data-representation-id="${host.id}"] .cmd-op-kind`,
+        )
+        ?.getAttribute("data-icon");
+    expect(badge()).toBe(
+      defaultResourceIconId({ kind: "host", label: host.label }),
+    );
+    fireEvent.change(picker, { target: { value: "proxmox" } });
+    expect(badge()).toBe("proxmox");
+    await waitFor(() =>
+      expect(
+        JSON.parse(localStorage.getItem(observatoryStorageKey)!).icons,
+      ).toEqual({ [host.resourceId!]: "proxmox" }),
+    );
+    fireEvent.change(picker, { target: { value: "" } });
+    expect(badge()).toBe(
+      defaultResourceIconId({ kind: "host", label: host.label }),
+    );
   });
   it("inspects a group in one activation and does not refocus on unchanged data refresh", async () => {
     const { input, scene, host, props } = setup(0);
