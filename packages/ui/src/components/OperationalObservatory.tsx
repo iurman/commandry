@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useMemo, useRef, useState } from "react";
+import { memo, useCallback, useEffect, useMemo, useRef, useState } from "react";
 import type { CSSProperties } from "react";
 import type {
   InfrastructureOverview,
@@ -42,6 +42,13 @@ import {
   OperationalLayout,
   OperationalRecordedActivity,
 } from "../gravity/operational-layout";
+import { observatoryBriefing } from "../gravity/briefing";
+import type { TourStop } from "../gravity/tour";
+import {
+  ObservatoryBriefingCard,
+  ObservatoryBriefingDetails,
+  ObservatoryRoster,
+} from "./ObservatoryPresentation";
 import type {
   OperationalRepresentation,
   OperationalSummary,
@@ -338,6 +345,102 @@ function OutlineNode({
   );
 }
 
+/** The stage's floating labels and callout leader lines. Memoised: it renders
+ * again only when its anchors, nodes, icons, theme or highlight change, not on
+ * every query, focus or inspector update of the Observatory around it. */
+const StageLabels = memo(function StageLabels({
+  anchors,
+  nodes,
+  hidden,
+  highlighted,
+  theme,
+  iconSubject,
+  iconFor,
+  logoFor,
+  activate,
+  labelRef,
+  leaderRef,
+}: {
+  anchors: Anchor[];
+  nodes: Map<string, OperationalRepresentation>;
+  hidden: boolean;
+  highlighted: string | null;
+  theme: "porcelain" | "midnight";
+  iconSubject: (node: OperationalRepresentation) => { kind: string };
+  iconFor: (node: OperationalRepresentation) => ResourceIcon;
+  logoFor: (node: OperationalRepresentation) => string | null;
+  activate: (id: string) => void;
+  labelRef: (id: string) => (element: HTMLElement | null) => void;
+  leaderRef: (id: string) => (path: SVGPathElement | null) => void;
+}) {
+  return (
+    <div className="cmd-op-labels" aria-hidden={hidden}>
+      <svg className="cmd-op-callout-lines" aria-hidden="true">
+        {anchors
+          .filter((anchor) => anchor.callout)
+          .map((anchor) => (
+            <path key={anchor.id} ref={leaderRef(anchor.id)} />
+          ))}
+      </svg>
+      {anchors.map((anchor) => {
+        if (anchor.overflow)
+          return (
+            <span
+              key={anchor.id}
+              className="cmd-op-label cmd-op-callout-more"
+              data-nested="true"
+              ref={labelRef(anchor.id)}
+            >
+              +{anchor.overflow} more
+              <span className="cmd-op-visually-hidden">
+                {" "}
+                in the inspector briefing
+              </span>
+            </span>
+          );
+        const node = nodes.get(anchor.id.replace(/^lens-/, ""));
+        if (!node) return null;
+        const attention = operationalAttention(node.summary);
+        return (
+          <button
+            key={anchor.id}
+            type="button"
+            data-kind={node.kind}
+            data-attention={attention}
+            data-nested={anchor.nested ? "true" : undefined}
+            data-open={anchor.open ? "true" : undefined}
+            data-callout={anchor.callout?.side}
+            data-highlight={highlighted === node.id ? "true" : undefined}
+            className="cmd-op-label"
+            ref={labelRef(anchor.id)}
+            aria-label={`Inspect ${node.label}, ${kindNames[node.kind]}, ${node.memberCount} unique resources`}
+            onClick={() => activate(node.id)}
+          >
+            <ObservatoryResourceMark
+              kind={node.kind}
+              subjectKind={iconSubject(node).kind}
+              icon={iconFor(node)}
+              logo={logoFor(node)}
+              theme={theme}
+            />
+            <span>
+              <strong>{node.label}</strong>
+            </span>
+            {!anchor.nested && !anchor.open && (
+              <small className="cmd-op-label-count">{node.memberCount}</small>
+            )}
+            {attention !== "neutral" && (
+              <small className="cmd-op-label-attention">
+                {attention === "impact" ? "Impact" : "Exposure"}
+              </small>
+            )}
+          </button>
+        );
+      })}
+    </div>
+  );
+});
+
 /** A scope change remounts transient history, selection and event baselines so
  * previous authorized names cannot survive in the new scene's local UI cache.
  */
@@ -392,7 +495,9 @@ function OperationalObservatoryView({
     [systemDark, setSystemDark] = useState(false),
     [systemReduced, setSystemReduced] = useState(false);
   const [camera, setCamera] = useState<CameraMode>("composed"),
-    [reading, setReading] = useState(false);
+    [reading, setReading] = useState(false),
+    [tourStop, setTourStop] = useState<TourStop | null>(null),
+    [highlighted, setHighlighted] = useState<string | null>(null);
   // Terrain detail is revealed by default; the outline opens only what the
   // owner (or a remounted scope's prior query) explicitly expanded.
   const initialExpanded = (
@@ -438,8 +543,86 @@ function OperationalObservatoryView({
   const canvas = useRef<HTMLDivElement>(null),
     renderer = useRef<ObservatoryRenderer | null>(null),
     lens = useRef<HTMLDivElement>(null);
-  const elements = useRef(new Map<string, HTMLButtonElement>()),
+  const elements = useRef(new Map<string, HTMLElement>()),
+    leaders = useRef(new Map<string, SVGPathElement>()),
     anchorPositions = useRef(new Map<string, Anchor>());
+  // One stable ref per label: React calls it only on mount and unmount, and
+  // sizes arrive in one batch from a ResizeObserver instead of a forced layout
+  // per label on every render.
+  const labelRefs = useRef(
+      new Map<string, (element: HTMLElement | null) => void>(),
+    ),
+    leaderRefs = useRef(
+      new Map<string, (path: SVGPathElement | null) => void>(),
+    ),
+    labelIds = useRef(new WeakMap<Element, string>()),
+    labelSizes = useRef<ResizeObserver | null>(null);
+  const labelRef = useCallback((id: string) => {
+    let ref = labelRefs.current.get(id);
+    if (!ref) {
+      let mounted: HTMLElement | null = null;
+      ref = (element) => {
+        if (!element) {
+          if (mounted) labelSizes.current?.unobserve(mounted);
+          if (elements.current.get(id) === mounted) elements.current.delete(id);
+          mounted = null;
+          return;
+        }
+        mounted = element;
+        elements.current.set(id, element);
+        labelIds.current.set(element, id);
+        const anchor = anchorPositions.current.get(id);
+        if (anchor) placeAnchor(element, anchor);
+        if (labelSizes.current) labelSizes.current.observe(element);
+        else
+          renderer.current?.measureAnchor(
+            id,
+            element.offsetWidth,
+            element.offsetHeight,
+          );
+      };
+      labelRefs.current.set(id, ref);
+    }
+    return ref;
+  }, []);
+  const leaderRef = useCallback((id: string) => {
+    let ref = leaderRefs.current.get(id);
+    if (!ref) {
+      ref = (path) => {
+        if (!path) {
+          leaders.current.delete(id);
+          return;
+        }
+        leaders.current.set(id, path);
+        const anchor = anchorPositions.current.get(id);
+        if (anchor) placeLeader(path, anchor);
+      };
+      leaderRefs.current.set(id, ref);
+    }
+    return ref;
+  }, []);
+  useEffect(() => {
+    if (typeof ResizeObserver === "undefined") return;
+    const observer = new ResizeObserver((entries) => {
+      for (const entry of entries) {
+        const id = labelIds.current.get(entry.target);
+        const box = entry.borderBoxSize?.[0];
+        const element = entry.target as HTMLElement;
+        if (id)
+          renderer.current?.measureAnchor(
+            id,
+            box?.inlineSize ?? element.offsetWidth,
+            box?.blockSize ?? element.offsetHeight,
+          );
+      }
+    });
+    labelSizes.current = observer;
+    for (const element of elements.current.values()) observer.observe(element);
+    return () => {
+      observer.disconnect();
+      labelSizes.current = null;
+    };
+  }, []);
   const restoreCamera = useRef(false);
   const automaticFeature = useRef(false);
   const lastCameraRequest = useRef<{
@@ -466,6 +649,10 @@ function OperationalObservatoryView({
     [scene],
   );
   const selected = focusId ? (nodes.get(focusId) ?? null) : null;
+  const primaryIds = useMemo(
+    () => new Set(projection.value?.primaryGroupIds ?? []),
+    [projection],
+  );
   const focusedMembers = useMemo(
     () =>
       selected
@@ -496,12 +683,14 @@ function OperationalObservatoryView({
       motion,
       cameraMode:
         (reduced || stopped || reading) &&
-        (camera === "orbit" || camera === "tour")
+        (camera === "orbit" || camera === "tour" || camera === "watch")
           ? "manual"
           : camera,
       ambient: preferences.ambient && motion,
       selected: selected?.id ?? null,
       focus: preferences.lens && !!selected,
+      watch: camera === "watch" ? (selected?.id ?? null) : null,
+      stops: projection.value?.primaryGroupIds ?? [],
       activity: {
         source: activity,
         running: !stopped && !delayed && !pending && !reading,
@@ -558,7 +747,10 @@ function OperationalObservatoryView({
     restoreCamera.current = false;
     setFocusSequence((value) => value + 1);
     setFocusId(id);
-    setCamera("manual");
+    // Selecting a primary group watches it; any other subject holds still.
+    const next: CameraMode =
+      primaryIds.has(id) && !reduced && !stopped ? "watch" : "manual";
+    setCamera(next);
     if (node.resourceId) onSelect(node.resourceId);
     const expanded = new Set(query.expandedRepresentationIds);
     for (const parent of pathTo(scene, id))
@@ -569,15 +761,22 @@ function OperationalObservatoryView({
         (item) => !query.expandedRepresentationIds.includes(item),
       )
     )
-      emit({ ...query, expandedRepresentationIds: [...expanded] });
+      emit({ ...query, expandedRepresentationIds: [...expanded] }, next);
+  }
+  /** Orbit the selected subject, or hold still again. */
+  function watch(on: boolean) {
+    automaticFeature.current = false;
+    setReading(false);
+    setCamera(on ? "watch" : "manual");
   }
   function feature(id: string) {
     const node = nodes.get(id);
     if (
       current.current.settings.cameraMode !== "tour" ||
       !current.current.settings.motion ||
-      node?.kind !== "host" ||
-      !current.current.projection?.wells.some((well) => well.id === id)
+      !node ||
+      !current.current.projection?.primaryGroupIds.includes(id) ||
+      !current.current.projection.wells.some((well) => well.id === id)
     )
       return;
     // A tour owns its camera and does not create a manual selection/history entry.
@@ -784,6 +983,8 @@ function OperationalObservatoryView({
               for (const anchor of next) {
                 const element = elements.current.get(anchor.id);
                 if (element) placeAnchor(element, anchor);
+                const leader = leaders.current.get(anchor.id);
+                if (leader) placeLeader(leader, anchor);
               }
               setAnchors((previous) =>
                 previous.length === next.length &&
@@ -792,7 +993,9 @@ function OperationalObservatoryView({
                     anchor.id === next[index]?.id &&
                     anchor.label === next[index]?.label &&
                     anchor.nested === next[index]?.nested &&
-                    anchor.open === next[index]?.open,
+                    anchor.open === next[index]?.open &&
+                    anchor.callout?.side === next[index]?.callout?.side &&
+                    anchor.overflow === next[index]?.overflow,
                 )
                   ? previous
                   : next,
@@ -804,6 +1007,9 @@ function OperationalObservatoryView({
             },
             featured(id) {
               actions.current.feature(id);
+            },
+            tour(stop) {
+              setTourStop(stop);
             },
             interrupted() {
               setCamera("manual");
@@ -935,40 +1141,85 @@ function OperationalObservatoryView({
   }, [focusId, focusSequence, ready, reduced, focusedVisible, focusFamily]);
 
   const expanded = new Set(query.expandedRepresentationIds);
+  const icons = preferences.icons;
   // Reported operating systems choose a host's automatic icon.
-  const platforms = new Map(
-    scene.platformObservations.map((item) => [item.resourceId, item]),
+  const platforms = useMemo(
+    () =>
+      new Map(
+        scene.platformObservations.map((item) => [item.resourceId, item]),
+      ),
+    [scene.platformObservations],
   );
   const selectedPlatform = selected?.resourceId
     ? platforms.get(selected.resourceId)
     : undefined;
   // A shared reference shows its canonical resource's picture.
-  const iconSubject = (node: OperationalRepresentation) => {
-    const subject =
-      (node.referenceTo ? nodes.get(node.referenceTo) : undefined) ?? node;
-    return {
-      kind: subject.kind,
-      label: subject.label,
-      platform: subject.resourceId
-        ? platforms.get(subject.resourceId)
-        : undefined,
-    };
-  };
-  const iconFor = (node: OperationalRepresentation) =>
-    resolveResourceIcon(
-      iconSubject(node),
-      node.resourceId ? preferences.icons[node.resourceId] : undefined,
-    );
+  const iconSubject = useCallback(
+    (node: OperationalRepresentation) => {
+      const subject =
+        (node.referenceTo ? nodes.get(node.referenceTo) : undefined) ?? node;
+      return {
+        kind: subject.kind,
+        label: subject.label,
+        platform: subject.resourceId
+          ? platforms.get(subject.resourceId)
+          : undefined,
+      };
+    },
+    [nodes, platforms],
+  );
+  const iconFor = useCallback(
+    (node: OperationalRepresentation) =>
+      resolveResourceIcon(
+        iconSubject(node),
+        node.resourceId ? icons[node.resourceId] : undefined,
+      ),
+    [iconSubject, icons],
+  );
   // An explicit icon chosen on this device wins; otherwise an owner-approved
   // logo replaces the automatic icon (OQ-038 keeps this order provisional).
-  const logoFor = (node: OperationalRepresentation) =>
-    logoUrl &&
-    node.resourceId &&
-    node.logo &&
-    !resourceIcon(preferences.icons[node.resourceId])
-      ? logoUrl(node.resourceId, node.logo.digest)
-      : null;
+  const logoFor = useCallback(
+    (node: OperationalRepresentation) =>
+      logoUrl &&
+      node.resourceId &&
+      node.logo &&
+      !resourceIcon(icons[node.resourceId])
+        ? logoUrl(node.resourceId, node.logo.digest)
+        : null,
+    [logoUrl, icons],
+  );
+  const activateLabel = useCallback(
+    (id: string) => actions.current.activate(id),
+    [],
+  );
   const summary = selected?.summary ?? scene.summary;
+  // Reading and pause hold the camera still, whatever was requested.
+  const touring = settings.cameraMode === "tour";
+  const watching = settings.cameraMode === "watch";
+  const primaryGroups = (projection.value?.primaryGroupIds ?? []).flatMap(
+    (id) => nodes.get(id) ?? [],
+  );
+  const activePrimary = selected
+    ? (pathTo(scene, selected.id).find((id) => primaryIds.has(id)) ?? null)
+    : null;
+  const briefing = observatoryBriefing(
+    scene,
+    snapshot.events,
+    selected?.id ?? null,
+    projection.value?.primaryGroupIds ?? [],
+  );
+  const stopIndex =
+    touring && tourStop && tourStop.id === selected?.id
+      ? primaryGroups.findIndex((node) => node.id === tourStop.id)
+      : -1;
+  const eyebrow =
+    stopIndex >= 0
+      ? `Presentation ${stopIndex + 1} of ${primaryGroups.length}${tourStop?.reason === "attention" ? " / attention" : ""} / ${kindNames[selected!.kind]}`
+      : watching && selected
+        ? `Watching / ${kindNames[selected.kind]}`
+        : selected
+          ? kindNames[selected.kind]
+          : `Overview / ${scene.population.canonicalResourceCount} unique resources`;
   const exposed = scene.providerExposures.filter((item) =>
     focusedMembers.has(item.resourceId),
   );
@@ -1187,9 +1438,10 @@ function OperationalObservatoryView({
             <label>
               Camera
               <select
-                value={camera}
+                value={savedCamera(camera)}
                 onChange={(event) => {
-                  const next = event.target.value as CameraMode;
+                  const next = event.target
+                    .value as ObservatoryPreferences["camera"];
                   setReading(false);
                   setAppearanceOpen(false);
                   setCamera(next);
@@ -1443,7 +1695,7 @@ function OperationalObservatoryView({
                     : preferences.size === "uniform"
                       ? "uniform"
                       : "services",
-                camera,
+                camera: savedCamera(camera),
                 lens: preferences.lens,
                 theme: preferences.theme,
                 labels: true,
@@ -1568,84 +1820,26 @@ function OperationalObservatoryView({
               setCamera("manual");
             }}
           >
-            <div className="cmd-op-stage-caption" data-gravity-label-inset>
-              <span>
-                {selected
-                  ? kindNames[selected.kind]
-                  : "Complete authorized landscape"}
-              </span>
-              <strong>
-                {selected?.label ?? "A still view of what you operate"}
-              </strong>
-              <small>
-                {selected
-                  ? `${selected.memberCount} unique resources represented`
-                  : "Select a group to name and inspect its members"}
-              </small>
-            </div>
+            <ObservatoryBriefingCard
+              briefing={briefing}
+              eyebrow={eyebrow}
+              motion={motion}
+              revision={`${briefing.subjectId ?? "landscape"}:${touring ? (tourStop?.sequence ?? 0) : "still"}`}
+            />
             <div ref={canvas} className="cmd-op-canvas" />
-            <div
-              className="cmd-op-labels"
-              aria-hidden={!!error || !!projection.error}
-            >
-              {anchors.map((anchor) => {
-                const node = nodes.get(anchor.id.replace(/^lens-/, ""));
-                if (!node) return null;
-                const attention = operationalAttention(node.summary);
-                return (
-                  <button
-                    key={anchor.id}
-                    type="button"
-                    data-kind={node.kind}
-                    data-attention={attention}
-                    data-nested={anchor.nested ? "true" : undefined}
-                    data-open={anchor.open ? "true" : undefined}
-                    className="cmd-op-label"
-                    ref={(element) => {
-                      if (!element) {
-                        elements.current.delete(anchor.id);
-                        return;
-                      }
-                      elements.current.set(anchor.id, element);
-                      placeAnchor(
-                        element,
-                        anchorPositions.current.get(anchor.id) ?? anchor,
-                      );
-                      renderer.current?.measureAnchor(
-                        anchor.id,
-                        element.offsetWidth,
-                        element.offsetHeight,
-                      );
-                    }}
-                    aria-label={`Inspect ${node.label}, ${kindNames[node.kind]}, ${node.memberCount} unique resources`}
-                    onClick={() => activate(node.id)}
-                  >
-                    <ObservatoryResourceMark
-                      kind={node.kind}
-                      subjectKind={iconSubject(node).kind}
-                      icon={iconFor(node)}
-                      logo={logoFor(node)}
-                      theme={theme}
-                    />
-                    <span>
-                      <strong>{node.label}</strong>
-                      {((!anchor.nested && !anchor.open) ||
-                        attention !== "neutral") && (
-                        <small>
-                          {kindNames[node.kind]} / {node.memberCount}
-                          {node.referenceTo ? " / reference" : ""}
-                          {attention === "impact"
-                            ? " / confirmed impact"
-                            : attention === "exposure"
-                              ? " / potential exposure"
-                              : ""}
-                        </small>
-                      )}
-                    </span>
-                  </button>
-                );
-              })}
-            </div>
+            <StageLabels
+              anchors={anchors}
+              nodes={nodes}
+              hidden={!!error || !!projection.error}
+              highlighted={highlighted}
+              theme={theme}
+              iconSubject={iconSubject}
+              iconFor={iconFor}
+              logoFor={logoFor}
+              activate={activateLabel}
+              labelRef={labelRef}
+              leaderRef={leaderRef}
+            />
             {preferences.lens && selected && !error && (
               <div ref={lens} className="cmd-op-lens" aria-hidden="true">
                 <span>{selected.label}</span>
@@ -1658,7 +1852,32 @@ function OperationalObservatoryView({
                   "Loading shared terrain. The complete outline is ready below."}
               </p>
             )}
-            <div className="cmd-op-stage-actions">
+            <ObservatoryRoster
+              groups={primaryGroups}
+              activeId={activePrimary}
+              progress={
+                touring && tourStop && motion
+                  ? {
+                      id: tourStop.id,
+                      seconds: tourStop.travel + tourStop.dwell,
+                      sequence: tourStop.sequence,
+                    }
+                  : null
+              }
+              attentionFor={(node) => operationalAttention(node.summary)}
+              kindName={(node) => kindNames[node.kind]}
+              mark={(node) => (
+                <ObservatoryResourceMark
+                  kind={node.kind}
+                  subjectKind={iconSubject(node).kind}
+                  icon={iconFor(node)}
+                  logo={logoFor(node)}
+                  theme={theme}
+                />
+              )}
+              activate={activate}
+              highlight={setHighlighted}
+            >
               <button
                 type="button"
                 onClick={() => {
@@ -1688,6 +1907,21 @@ function OperationalObservatoryView({
                   ? "Stop presentation"
                   : "Start presentation"}
               </button>
+              {selected && (
+                <button
+                  type="button"
+                  disabled={reduced || stopped}
+                  aria-pressed={watching}
+                  title={
+                    watching
+                      ? "Hold the camera still on this subject."
+                      : `Orbit ${selected.label} slowly until you interact.`
+                  }
+                  onClick={() => watch(!watching)}
+                >
+                  {watching ? "Stop watching" : "Watch"}
+                </button>
+              )}
               <button
                 type="button"
                 aria-pressed={query.reveal === "members"}
@@ -1702,7 +1936,7 @@ function OperationalObservatoryView({
               >
                 {query.reveal === "members" ? "Collapse all" : "Expand all"}
               </button>
-            </div>
+            </ObservatoryRoster>
           </div>
           <p className="cmd-op-legend">
             Each badge shows a recognised technology or the resource kind;
@@ -1847,6 +2081,7 @@ function OperationalObservatoryView({
               </button>
             </p>
           )}
+          <ObservatoryBriefingDetails briefing={briefing} activate={activate} />
           <section
             className="cmd-op-availability"
             data-attention={operationalAttention(summary)}
@@ -2217,10 +2452,29 @@ function OperationalObservatoryView({
     </section>
   );
 }
-function placeAnchor(element: HTMLButtonElement, anchor: Anchor) {
+/** Watching follows one selection, so a saved view keeps a still camera. */
+const savedCamera = (camera: CameraMode): ObservatoryPreferences["camera"] =>
+  camera === "watch" ? "manual" : camera;
+function placeAnchor(element: HTMLElement, anchor: Anchor) {
   element.style.transform = `translate3d(${anchor.x}px,${anchor.y}px,0) translate(-50%,-100%)`;
   element.style.opacity = String(anchor.opacity);
   element.style.visibility =
     anchor.opacity < 0.002 || !anchor.visible ? "hidden" : "visible";
-  element.tabIndex = anchor.opacity < 0.002 || !anchor.visible ? -1 : 0;
+  if (element instanceof HTMLButtonElement)
+    element.tabIndex = anchor.opacity < 0.002 || !anchor.visible ? -1 : 0;
+}
+/** An elbow from a callout's inner edge to the member it names. */
+function placeLeader(path: SVGPathElement, anchor: Anchor) {
+  const line = anchor.callout;
+  if (!line || !anchor.visible || anchor.opacity < 0.002) {
+    path.style.visibility = "hidden";
+    return;
+  }
+  const knee = line.fromX + (line.side === "left" ? 10 : -10);
+  path.setAttribute(
+    "d",
+    `M${line.fromX.toFixed(1)} ${line.fromY.toFixed(1)}H${knee.toFixed(1)}L${line.toX.toFixed(1)} ${line.toY.toFixed(1)}`,
+  );
+  path.style.opacity = String(anchor.opacity * 0.7);
+  path.style.visibility = "visible";
 }

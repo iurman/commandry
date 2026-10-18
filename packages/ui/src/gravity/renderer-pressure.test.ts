@@ -8,6 +8,7 @@ import {
 } from "./renderer";
 import { surfaceHeight, type Well } from "./model";
 import * as basinPlanning from "./basin-geometry";
+import { tourTiming } from "./tour";
 
 vi.mock("three", async (original) => {
   const actual = await original<typeof import("three")>();
@@ -676,6 +677,8 @@ it("retains a usable mesh and disposes an exhausted local request without retryi
   }
 });
 
+/** Milliseconds from one presentation stop to the next. */
+const cycle = (tourTiming.travel + tourTiming.dwell) * 1000;
 const tourWells: Well[] = [
   { ...wells[0]!, x: -12, z: -5 },
   { ...wells[1]!, x: 16, z: 9 },
@@ -716,7 +719,7 @@ describe("natural guided-tour feature lifecycle", () => {
         { ...state },
       );
       expect(fixture.access.presentationElapsed).toBe(elapsed);
-      for (let now = 9050; now <= 22000; now += 50) fixture.frame(now);
+      for (let now = 9050; now <= cycle + 2000; now += 50) fixture.frame(now);
       expect(featured).toHaveBeenCalledTimes(2);
       const later = featured.mock.calls[1]![0];
       expect(later).not.toBe(first);
@@ -724,7 +727,7 @@ describe("natural guided-tour feature lifecycle", () => {
       expect(state.cameraMode).toBe("tour");
       expect(state.selected).toBe(later);
       expect(direct).not.toHaveBeenCalled();
-      expect(fixture.access.presentationElapsed).toBeGreaterThan(21);
+      expect(fixture.access.presentationElapsed).toBeGreaterThan(cycle / 1000);
       expect(fixture.access.presentationInterrupted).toBe(false);
       expect(
         fixture.access.camera.position.distanceTo(position),
@@ -859,7 +862,7 @@ it("refocuses an already-selected host after automatic camera movement when the 
       cameraMode: "tour",
       selected: subject.id,
     });
-    for (let now = 50; now <= 22000; now += 50) fixture.frame(now);
+    for (let now = 50; now <= cycle + 2000; now += 50) fixture.frame(now);
     expect(featured.mock.calls.length).toBeGreaterThanOrEqual(2);
     expect(fixture.access.controls.target.distanceTo(target)).toBeGreaterThan(
       1,
@@ -881,7 +884,8 @@ it("refocuses an already-selected host after automatic camera movement when the 
     );
     const elapsed = fixture.access.presentationElapsed,
       calls = featured.mock.calls.length;
-    for (let now = 22050; now <= 26000; now += 50) fixture.frame(now);
+    for (let now = cycle + 2050; now <= cycle + 6000; now += 50)
+      fixture.frame(now);
     expect(featured).toHaveBeenCalledTimes(calls);
     expect(fixture.access.presentationElapsed).toBe(elapsed);
   } finally {
@@ -915,7 +919,7 @@ it("adopts a naturally featured host without a fit and retains its shown pose th
       motion: true,
       cameraMode: "tour",
     });
-    for (let now = 50; now <= 22000; now += 50) fixture.frame(now);
+    for (let now = 50; now <= cycle + 2000; now += 50) fixture.frame(now);
     expect(featured.mock.calls.length).toBeGreaterThanOrEqual(2);
     const subject = featured.mock.lastCall![0] as string,
       child = population.find((well) => well.hostId === subject)!,
@@ -967,7 +971,8 @@ it("adopts a naturally featured host without a fit and retains its shown pose th
       1e-8,
     );
     const calls = featured.mock.calls.length;
-    for (let now = 22050; now <= 26000; now += 50) fixture.frame(now);
+    for (let now = cycle + 2050; now <= cycle + 6000; now += 50)
+      fixture.frame(now);
     expect(featured).toHaveBeenCalledTimes(calls);
     expect(fixture.access.presentationElapsed).toBe(0);
   } finally {
@@ -1075,27 +1080,25 @@ describe("nested label disclosure", () => {
         open: false,
       });
       expect(shown.get("host")).toMatchObject({ visible: true });
-      expect(shown.get("member-0")).toMatchObject({
-        visible: false,
-        nested: true,
-      });
+      // An undisclosed member has no label element until its group opens.
+      expect(shown.has("member-0")).toBe(false);
       // A member that needs attention is never hidden by disclosure.
       expect(shown.get("member-2")?.visible).toBe(true);
       // Selecting a distant group does not pin its members' names.
       renderer.update(population, { ...settings, selected: "pool" });
       frame(40);
       shown = latest(anchors);
-      expect(shown.get("member-0")?.visible).toBe(false);
-      expect(shown.get("member-1")?.visible).toBe(false);
+      expect(shown.get("member-0")?.visible ?? false).toBe(false);
+      expect(shown.get("member-1")?.visible ?? false).toBe(false);
       // A selected member is still named itself.
       renderer.update(population, { ...settings, selected: "member-1" });
       frame(60);
       shown = latest(anchors);
       expect(shown.get("member-1")?.visible).toBe(true);
-      expect(shown.get("member-0")?.visible).toBe(false);
+      expect(shown.get("member-0")?.visible ?? false).toBe(false);
       renderer.update(population, settings);
       frame(80);
-      expect(latest(anchors).get("member-1")?.visible).toBe(false);
+      expect(latest(anchors).get("member-1")?.visible ?? false).toBe(false);
       // Zooming in until neighbours are far apart names every member and
       // steps the parent's own label back.
       view(0, 0);
@@ -1105,6 +1108,138 @@ describe("nested label disclosure", () => {
       expect(shown.get("pool")?.open).toBe(true);
     } finally {
       renderer.dispose();
+    }
+  });
+  it("keeps a closing group's member names until they have faded out", () => {
+    const { renderer, frame, anchors, view, access } = setup(population);
+    const moving = { ...settings, motion: true };
+    try {
+      renderer.update(population, moving);
+      view(0, 0);
+      for (let now = 20; now <= 1500; now += 20) frame(now);
+      expect(latest(anchors).get("member-1")?.visible).toBe(true);
+      // Zoom back out: the names fade out before their elements go.
+      access.camera.position.set(9, 60, 80);
+      access.controls.target.set(0, -0.6, 0);
+      access.controls.update();
+      frame(1520);
+      const fading = latest(anchors).get("member-1") as Published & {
+        opacity: number;
+      };
+      expect(fading.visible).toBe(false);
+      expect(fading.opacity).toBeGreaterThan(0.05);
+      for (let now = 1540; now <= 4000; now += 20) frame(now);
+      expect(latest(anchors).has("member-1")).toBe(false);
+    } finally {
+      renderer.dispose();
+    }
+  });
+  it("re-places labels over the frame already drawn without redrawing the terrain", () => {
+    const { renderer, frame, anchors, canvas } = setup(population);
+    try {
+      renderer.update(population, { ...settings, motion: true });
+      for (let now = 20; now <= 1500; now += 20) frame(now);
+      const draws = canvas.dataset.gravityRenderedFrames;
+      const published = anchors.mock.calls.length;
+      // A label that measures larger moves its neighbours; the camera has not.
+      renderer.measureAnchor("pool", 520, 64);
+      for (let now = 1520; now <= 2000; now += 20) frame(now);
+      expect(anchors.mock.calls.length).toBeGreaterThan(published);
+      expect(canvas.dataset.gravityRenderedFrames).toBe(draws);
+    } finally {
+      renderer.dispose();
+    }
+  });
+});
+
+describe("watch orbit and presentation stops", () => {
+  it("orbits a watched subject at a constant distance once it arrives, without a direct-focus tween", () => {
+    const fixture = setup(tourWells);
+    const subject = tourWells[1]!;
+    const watch: RendererSettings = {
+      ...settings,
+      motion: true,
+      cameraMode: "watch",
+      watch: subject.id,
+      selected: subject.id,
+    };
+    try {
+      fixture.renderer.update(tourWells, watch);
+      expect(fixture.renderer.focusSubject(subject.id)).toBe(true);
+      expect(fixture.access.cameraTween).toBeNull();
+      expect(fixture.access.focusedSubject).toBe(subject.id);
+      for (let now = 50; now <= 6000; now += 50) fixture.frame(now);
+      const distance = () =>
+        fixture.access.camera.position.distanceTo(
+          fixture.access.controls.target,
+        );
+      const settled = distance(),
+        position = fixture.access.camera.position.clone();
+      expect(
+        Math.hypot(
+          fixture.access.controls.target.x - subject.x,
+          fixture.access.controls.target.z - subject.z,
+        ),
+      ).toBeLessThan(subject.radius * 2);
+      for (let now = 6050; now <= 12000; now += 50) fixture.frame(now);
+      expect(distance()).toBeCloseTo(settled, 1);
+      expect(
+        fixture.access.camera.position.distanceTo(position),
+      ).toBeGreaterThan(0.5);
+      expect(fixture.access.presentationInterrupted).toBe(false);
+      // Watching another subject travels there from the current pose.
+      fixture.renderer.update(tourWells, {
+        ...watch,
+        watch: tourWells[0]!.id,
+        selected: tourWells[0]!.id,
+      });
+      const before = fixture.access.camera.position.clone();
+      fixture.frame(12050);
+      expect(fixture.access.camera.position.distanceTo(before)).toBeLessThan(1);
+    } finally {
+      fixture.renderer.dispose();
+    }
+  });
+
+  it("visits named stops in order and moves at once to a group whose attention is raised", () => {
+    const groups: Well[] = [
+      { ...wells[0]!, id: "group-a", x: -20, z: 0 },
+      { ...wells[1]!, id: "group-b", kind: "project", x: 0, z: 20 },
+      { ...wells[2]!, id: "group-c", x: 20, z: 0 },
+    ];
+    const featured = vi.fn(),
+      tour = vi.fn();
+    const fixture = setup(groups, 1200, 900, 900, { featured, tour });
+    const state: RendererSettings = {
+      ...settings,
+      motion: true,
+      cameraMode: "tour",
+      stops: ["group-b", "group-c", "group-a"],
+    };
+    try {
+      fixture.renderer.update(groups, state);
+      fixture.frame(50);
+      expect(featured).toHaveBeenLastCalledWith("group-b");
+      expect(tour.mock.lastCall?.[0]).toMatchObject({
+        id: "group-b",
+        reason: "sequence",
+      });
+      for (let now = 100; now <= cycle + 1000; now += 50) fixture.frame(now);
+      expect(featured).toHaveBeenLastCalledWith("group-c");
+      fixture.renderer.update(
+        groups.map((well) =>
+          well.id === "group-a" ? { ...well, attention: true } : well,
+        ),
+        state,
+      );
+      expect(featured).toHaveBeenLastCalledWith("group-a");
+      expect(tour.mock.lastCall?.[0]).toMatchObject({
+        id: "group-a",
+        reason: "attention",
+        dwell: tourTiming.attentionDwell,
+      });
+    } finally {
+      fixture.renderer.dispose();
     }
   });
 });

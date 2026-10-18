@@ -8,6 +8,7 @@ import {
   type BufferGeometry,
 } from "three";
 import { ObservatoryRenderer, type RendererSettings } from "./renderer";
+import { PresentationTour } from "./tour";
 import {
   fieldBounds,
   fieldGeometry,
@@ -332,6 +333,8 @@ describe("identity-aware renderer terrain planning", () => {
         settings,
         fieldColors: new Map(),
         savedFocusPoses: new Map(),
+        orbitFrames: new Map(),
+        tour: new PresentationTour(),
         controls: { maxDistance: 220, target: new Vector3(0, -0.6, 0) },
         camera: new PerspectiveCamera(40, 1, 0.1, 500),
         uniforms: {

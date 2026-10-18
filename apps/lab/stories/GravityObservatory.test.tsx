@@ -21,8 +21,13 @@ import {
   fittedPose,
   fittedLandscapePose,
   landscapeBounds,
+  hostTourStops,
+  orbitFrame,
+  orbitPose,
   presentationPose,
+  travelFrame,
 } from "./gravity/presentation";
+import { PresentationTour } from "@commandry/ui/gravity/tour";
 
 const mock = vi.hoisted(() => ({
   update: vi.fn(),
@@ -319,7 +324,7 @@ describe("observatory presentation", () => {
   it("starts autoplay at the current camera bearing instead of returning to its original angle", () => {
     const wells = projectWells(fixtureHosts, "hosts", {});
     for (const bearing of [-2.8, -1, 1.7, 3.1]) {
-      const pose = presentationPose(wells, 1.5, 0, false, bearing);
+      const pose = presentationPose(wells, 1.5, 0, bearing);
       expect(
         Math.atan2(
           pose.position.x - pose.target.x,
@@ -430,28 +435,30 @@ describe("observatory presentation", () => {
   });
   it("visits every host and crosses tour handoffs without a camera jump", () => {
     const wells = projectWells(fixtureHosts, "hosts", {});
-    const visited = new Set(
-      fixtureHosts.map(
-        (_, index) =>
-          presentationPose(wells, 1.5, (index + 0.5) * 14, true).featured,
-      ),
+    const stops = hostTourStops(wells);
+    expect(new Set(stops)).toEqual(
+      new Set(fixtureHosts.map((host) => host.id)),
     );
-    expect(visited).toEqual(new Set(fixtureHosts.map((host) => host.id)));
-    const before = presentationPose(wells, 1.5, 14 - 0.0001, true);
-    const after = presentationPose(wells, 1.5, 14 + 0.0001, true);
+    const tour = new PresentationTour();
+    tour.setStops(stops.map((id) => ({ id, attention: false })));
+    const visited = new Set<string>();
+    for (let time = 0; time < stops.length * 30; time += 0.5)
+      visited.add(tour.advance(0.5)!.stop.id);
+    expect(visited).toEqual(new Set(stops));
+    // A handoff starts its travel from the previous framing, then glides.
+    const from = orbitFrame(wells, stops[0]!, 1.5)!;
+    const to = orbitFrame(wells, stops[1]!, 1.5)!;
+    expect(travelFrame(from, to, 0)).toEqual(from);
+    expect(travelFrame(from, to, 1)).toEqual(to);
+    const before = orbitPose(travelFrame(from, to, 0.5 - 0.0001), 1);
+    const after = orbitPose(travelFrame(from, to, 0.5 + 0.0001), 1);
     expect(
       Math.hypot(
         before.position.x - after.position.x,
         before.position.y - after.position.y,
         before.position.z - after.position.z,
       ),
-    ).toBeLessThan(0.01);
-    expect(
-      Math.hypot(
-        before.target.x - after.target.x,
-        before.target.z - after.target.z,
-      ),
-    ).toBeLessThan(0.01);
+    ).toBeLessThan(0.05);
   });
   it("keeps ambient waves bounded and exposes deliberate controls for presentation", () => {
     const wells = projectWells(fixtureHosts, "hosts", {});

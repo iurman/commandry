@@ -13,9 +13,24 @@ import {
 import {
   fittedLandscapePose,
   focusedLandscapePose,
+  frameOfPose,
+  hostTourStops,
+  ORBIT_ELEVATION,
+  ORBIT_RATE,
+  orbitFrame,
+  orbitPose,
   presentationPose,
+  travelFrame,
+  type OrbitFrame,
 } from "./presentation";
-import { LabelLayout, labelHeight, poolLabelPoint } from "./labels";
+import { PresentationTour, type TourStop } from "./tour";
+import {
+  CalloutLayout,
+  LabelLayout,
+  labelHeight,
+  poolLabelPoint,
+  type LabelRect,
+} from "./labels";
 import { TetherRenderer } from "./tethers";
 import {
   fieldBounds,
@@ -29,6 +44,17 @@ import {
   type BasinGeometry,
 } from "./basin-geometry";
 import type { FieldColor, PackedField } from "./field";
+
+/** Seconds a watch travels from the current pose to its orbit. */
+const WATCH_TRAVEL = 2.6;
+/** Compact label width, in CSS pixels, that member spacing is compared with. */
+const CALLOUT_LABEL = 120;
+/** Callout columns start below 0.9 of a label width and stop above 1.2. */
+const CALLOUT_ENTER = CALLOUT_LABEL * 0.9;
+const CALLOUT_EXIT = CALLOUT_LABEL * 1.2;
+const CALLOUT_MINIMUM = 3;
+/** Share of the stage width a dense framed group fills. */
+const CALLOUT_FRAMING = 0.62;
 
 export type RenderStats = {
   fps: number;
@@ -65,6 +91,18 @@ export type Anchor = {
   open?: boolean;
   rank?: number;
   leash?: number;
+  /** Placed in a callout column; the layout keeps its position. */
+  fixed?: boolean;
+  /** A callout column label and its leader line to the member. */
+  callout?: {
+    side: "left" | "right";
+    fromX: number;
+    fromY: number;
+    toX: number;
+    toY: number;
+  };
+  /** Members of the framed group a full callout column could not name. */
+  overflow?: number;
 };
 export type RendererSettings = {
   theme: SurfaceTheme;
@@ -74,6 +112,11 @@ export type RendererSettings = {
   ambient: boolean;
   selected: string | null;
   focus: boolean;
+  /** The subject a `watch` camera orbits. */
+  watch?: string | null;
+  /** Presentation stops in visiting order. Without them the tour visits
+   * top-level hosts around the landscape. */
+  stops?: string[];
   activity: {
     source: ActivitySource;
     running: boolean;
@@ -89,6 +132,8 @@ export type RendererHooks = {
    * Consumers without this hook retain the legacy select notification.
    */
   featured?: (id: string) => void;
+  /** Each presentation stop as it begins, with its timing and reason. */
+  tour?: (stop: TourStop) => void;
   interrupted: () => void;
   unavailable: (message: string) => void;
   viewport: (portrait: boolean) => void;
@@ -234,6 +279,16 @@ export class ObservatoryRenderer {
   private presentationInterrupted = false;
   private presentationMoved = false;
   private featuredId: string | null = null;
+  private tour = new PresentationTour();
+  /** The subject a tour stop or watch is framing, and where its travel began. */
+  private program: {
+    id: string;
+    origin: OrbitFrame;
+    elapsed: number;
+    sequence: number;
+  } | null = null;
+  private orbitAzimuth = 0.18;
+  private orbitFrames = new Map<string, OrbitFrame | null>();
   private nextStats = 0;
   private renderedFrames = 0;
   private frames: number[] = [];
@@ -256,6 +311,24 @@ export class ObservatoryRenderer {
   private observer: ResizeObserver;
   private labelObserver: ResizeObserver;
   private labelTop = 52;
+  private obstacles: LabelRect[] = [];
+  /** Re-reads stage panels; their classification depends on stage size. */
+  private measurePanels: () => void = () => {};
+  /** Stage space wide panels cover at the top and bottom, in CSS pixels. */
+  private inset = { top: 0, bottom: 0 };
+  private callouts = new CalloutLayout();
+  /** The group whose members are named in callout columns, if any. */
+  private calloutSubject: string | null = null;
+  /** The group currently framed by focus, tour or watch. */
+  private framed: string | null = null;
+  private calloutsChanging = false;
+  /**
+   * Labels still settling over an unchanged frame. They update the DOM layer
+   * only: redrawing the terrain for them costs a full WebGL frame.
+   */
+  private labelsChanging = false;
+  /** Labels drawn last frame; a closing group's names finish fading out. */
+  private shownLabels = new Set<string>();
   private intersection: IntersectionObserver;
   private visible = true;
   private focusCamera = new THREE.PerspectiveCamera(42, 1, 0.1, 100);
@@ -380,14 +453,48 @@ export class ObservatoryRenderer {
     const toolbar = container.parentElement?.querySelector<HTMLElement>(
       ".gravity-activity-bar, [data-gravity-label-inset]",
     );
-    const measureToolbar = () => {
+    // Overlay panels on the stage that labels avoid where they are, rather
+    // than across the whole width as a top inset does.
+    const panels = [
+      ...(container.parentElement?.querySelectorAll<HTMLElement>(
+        "[data-gravity-obstacle]",
+      ) ?? []),
+    ];
+    const measureToolbar = (this.measurePanels = () => {
       this.labelTop = toolbar
         ? toolbar.offsetTop + toolbar.offsetHeight + 12
-        : 52;
+        : panels.length
+          ? 12
+          : 52;
+      this.obstacles = panels
+        .filter((panel) => panel.offsetWidth > 0 && panel.offsetHeight > 0)
+        .map((panel) => ({
+          x: panel.offsetLeft + panel.offsetWidth / 2,
+          y: panel.offsetTop + panel.offsetHeight / 2,
+          width: panel.offsetWidth,
+          height: panel.offsetHeight,
+        }));
+      // A panel spanning most of the stage's top or bottom edge narrows the
+      // band the camera fits subjects into.
+      const inset = { top: 0, bottom: 0 };
+      for (const panel of this.obstacles) {
+        if (panel.width < this.width * 0.5) continue;
+        if (panel.y > this.height / 2)
+          inset.bottom = Math.max(
+            inset.bottom,
+            this.height - (panel.y - panel.height / 2) + 8,
+          );
+        else inset.top = Math.max(inset.top, panel.y + panel.height / 2 + 8);
+      }
+      if (inset.top !== this.inset.top || inset.bottom !== this.inset.bottom) {
+        this.inset = inset;
+        this.applyViewOffset();
+      }
       this.needsDraw = true;
-    };
+    });
     this.labelObserver = new ResizeObserver(measureToolbar);
     if (toolbar) this.labelObserver.observe(toolbar);
+    for (const panel of panels) this.labelObserver.observe(panel);
     measureToolbar();
     this.intersection = new IntersectionObserver((entries) => {
       if (entries.some((entry) => entry.target === container))
@@ -687,7 +794,11 @@ export class ObservatoryRenderer {
     this.submitField(complete, settings);
     this.coverLandscape([...this.wells, ...wells]);
     this.geometryTransition ||= layoutChanged;
-    const cameraChanged = settings.cameraMode !== this.settings.cameraMode;
+    const cameraChanged =
+      settings.cameraMode !== this.settings.cameraMode ||
+      (settings.cameraMode === "watch" &&
+        (settings.watch ?? null) !== (this.settings.watch ?? null));
+    if (layoutChanged) this.orbitFrames.clear();
     const activityChanged =
       settings.activity.source !== this.settings.activity.source ||
       settings.activity.trace !== this.settings.activity.trace;
@@ -708,7 +819,22 @@ export class ObservatoryRenderer {
         time: 0,
       };
       this.featuredId = null;
+      this.tour.reset();
+      this.program = null;
+      this.orbitAzimuth = this.presentationAzimuth;
     }
+    const byId = new Map(wells.map((well) => [well.id, well]));
+    const preempted = this.tour.setStops(
+      (settings.stops ?? hostTourStops(wells))
+        .filter((id) => byId.has(id))
+        .map((id) => ({ id, attention: byId.get(id)!.attention })),
+    );
+    if (
+      preempted &&
+      settings.cameraMode === "tour" &&
+      !this.presentationInterrupted
+    )
+      this.beginProgram(preempted);
     if (
       firstPopulation ||
       (settings.cameraMode === "composed" && (layoutChanged || cameraChanged))
@@ -717,7 +843,11 @@ export class ObservatoryRenderer {
         this.focusSubject(this.focusedSubject, { refit: true });
       else this.preset("overview");
     }
-    if (settings.cameraMode === "orbit" || settings.cameraMode === "tour")
+    if (
+      settings.cameraMode === "orbit" ||
+      settings.cameraMode === "tour" ||
+      settings.cameraMode === "watch"
+    )
       this.cameraTween = null;
     this.uniforms.uWarning.value.set(settings.palette.attention);
     this.uniforms.uReporting.value.set(settings.palette.reporting);
@@ -736,6 +866,7 @@ export class ObservatoryRenderer {
       this.camera.aspect,
       preset === "angle" ? -0.65 : 0.18,
       preset === "top" ? 1.55 : preset === "angle" ? 0.72 : 0.95,
+      this.band(),
     );
     this.cameraTween = {
       from: this.camera.position.clone(),
@@ -767,16 +898,64 @@ export class ObservatoryRenderer {
     options: { immediate?: boolean; restore?: boolean; refit?: boolean } = {},
   ): boolean {
     if (
+      id &&
+      this.settings.cameraMode === "watch" &&
+      this.settings.watch === id &&
+      !this.presentationInterrupted
+    ) {
+      // The watch orbit owns the camera; it already frames this subject.
+      if (!this.targets.some((well) => well.id === id)) return false;
+      this.focusedSubject = id;
+      this.focusFraming = Infinity;
+      this.featuredId = id;
+      this.renderer.domElement.dataset.gravityMainFocus = id;
+      this.needsDraw = true;
+      return true;
+    }
+    if (
       id === this.focusedSubject &&
       !options.refit &&
       !options.restore &&
       !this.presentationMoved
     )
       return true;
-    const pose = id
-      ? focusedLandscapePose(this.targets, id, this.camera.aspect)
-      : fittedLandscapePose(this.targets, this.camera.aspect);
+    let pose = id
+      ? focusedLandscapePose(
+          this.targets,
+          id,
+          this.camera.aspect,
+          1,
+          this.band(),
+        )
+      : fittedLandscapePose(
+          this.targets,
+          this.camera.aspect,
+          undefined,
+          undefined,
+          this.band(),
+        );
     if (!pose) return false;
+    // A dense group leaves room beside it for its callout columns.
+    if (
+      id &&
+      this.calloutDense(
+        id,
+        Math.hypot(
+          pose.position.x - pose.target.x,
+          pose.position.y - pose.target.y,
+          pose.position.z - pose.target.z,
+        ),
+        1,
+      )
+    )
+      pose =
+        focusedLandscapePose(
+          this.targets,
+          id,
+          this.camera.aspect,
+          CALLOUT_FRAMING,
+          this.band(),
+        ) ?? pose;
     if (!options.restore && !options.refit) {
       this.savedFocusPoses.set(this.focusedSubject, {
         position: this.cameraTween?.to.clone() ?? this.camera.position.clone(),
@@ -817,6 +996,35 @@ export class ObservatoryRenderer {
     return true;
   }
 
+  /** Share of the stage height between wide panels; subjects fit within it. */
+  private band() {
+    return this.height > 1
+      ? Math.max(
+          0.5,
+          (this.height - this.inset.top - this.inset.bottom) / this.height,
+        )
+      : 1;
+  }
+
+  /** Centre the view on the band between wide panels. */
+  private applyViewOffset() {
+    if (this.width <= 1 || this.height <= 1) return;
+    const shift = (this.inset.bottom - this.inset.top) / 2;
+    if (shift)
+      this.camera.setViewOffset(
+        this.width,
+        this.height,
+        0,
+        shift,
+        this.width,
+        this.height,
+      );
+    else this.camera.clearViewOffset();
+    this.camera.updateProjectionMatrix();
+    this.orbitFrames.clear();
+    this.needsDraw = true;
+  }
+
   lensViewport() {
     return {
       x: this.width * 0.76,
@@ -833,7 +1041,7 @@ export class ObservatoryRenderer {
   }
 
   measureAnchor(id: string, width: number, height: number) {
-    if (this.labelLayout.measure(id, width, height)) this.needsDraw = true;
+    if (this.labelLayout.measure(id, width, height)) this.labelsChanging = true;
   }
 
   private resize() {
@@ -843,6 +1051,8 @@ export class ObservatoryRenderer {
     this.renderer.setSize(this.width, this.height);
     this.camera.aspect = this.width / this.height;
     this.camera.updateProjectionMatrix();
+    this.measurePanels();
+    this.applyViewOffset();
     this.coverLandscape([...this.wells, ...this.targets]);
     this.overlayCamera.left = -this.width / 2;
     this.overlayCamera.right = this.width / 2;
@@ -1024,17 +1234,34 @@ export class ObservatoryRenderer {
     const automatic =
       !this.presentationInterrupted &&
       (this.settings.cameraMode === "orbit" ||
-        this.settings.cameraMode === "tour");
-    if (automatic && moving) {
-      // Automatic camera travel invalidates an earlier same-ID direct focus pose.
+        this.settings.cameraMode === "tour" ||
+        this.settings.cameraMode === "watch");
+    // Automatic camera travel invalidates an earlier same-ID direct focus pose.
+    if (automatic && moving && this.settings.cameraMode !== "orbit") {
+      this.presentationMoved = true;
+      this.presentationElapsed += dt;
+      const pose = this.programPose(dt);
+      if (pose) {
+        const smoothing = 1 - Math.exp(-dt * 6);
+        this.camera.position.lerp(
+          new THREE.Vector3(pose.position.x, pose.position.y, pose.position.z),
+          smoothing,
+        );
+        this.controls.target.lerp(
+          new THREE.Vector3(pose.target.x, pose.target.y, pose.target.z),
+          smoothing,
+        );
+      }
+      changing = true;
+    } else if (automatic && moving) {
       this.presentationMoved = true;
       this.presentationElapsed += dt;
       const pose = presentationPose(
         this.targets,
         this.camera.aspect,
         this.presentationElapsed,
-        this.settings.cameraMode === "tour",
         this.presentationAzimuth,
+        this.band(),
       );
       if (this.presentationEntry) {
         const entry = this.presentationEntry;
@@ -1064,11 +1291,6 @@ export class ObservatoryRenderer {
         new THREE.Vector3(pose.target.x, pose.target.y, pose.target.z),
         smoothing,
       );
-      if (pose.featured && pose.featured !== this.featuredId) {
-        this.featuredId = pose.featured;
-        if (this.hooks.featured) this.hooks.featured(pose.featured);
-        else this.hooks.select(pose.featured);
-      }
       changing = true;
     }
     this.controls.enableDamping =
@@ -1123,9 +1345,15 @@ export class ObservatoryRenderer {
       this.publishFieldDiagnostics();
       this.needsDraw = false;
       this.publishAnchors(dt);
-      this.needsDraw = this.labelLayout.changing || this.focusChanging;
+      this.needsDraw = this.focusChanging;
+      this.labelsChanging = this.labelLayout.changing || this.calloutsChanging;
       this.hooks.lens(this.lensAmount);
       this.frames.push(interval);
+    } else if (this.labelsChanging) {
+      // The camera and terrain are unchanged, so the last frame's projection
+      // still holds; only the label layer moves.
+      this.publishAnchors(dt);
+      this.labelsChanging = this.labelLayout.changing || this.calloutsChanging;
     }
     if (now > this.nextStats) {
       const mean =
@@ -1156,6 +1384,128 @@ export class ObservatoryRenderer {
     this.frame = requestAnimationFrame(this.animate);
   };
 
+  /** The subject an uninterrupted tour stop or watch orbit is framing. */
+  private programSubject() {
+    return !this.presentationInterrupted &&
+      (this.settings.cameraMode === "tour" ||
+        this.settings.cameraMode === "watch")
+      ? (this.program?.id ?? null)
+      : null;
+  }
+
+  /** Start framing a subject from wherever the camera is now. */
+  private beginProgram(stop: TourStop | { id: string; sequence: number }) {
+    const current = frameOfPose(this.camera.position, this.controls.target);
+    this.program = {
+      id: stop.id,
+      origin: current,
+      elapsed: 0,
+      sequence: stop.sequence,
+    };
+    if (!("reason" in stop)) return;
+    this.hooks.tour?.(stop);
+    if (stop.id !== this.featuredId) {
+      this.featuredId = stop.id;
+      if (this.hooks.featured) this.hooks.featured(stop.id);
+      else this.hooks.select(stop.id);
+    }
+  }
+
+  /** The orbit frame for a subject, narrowed for callout columns when its
+   * members are too close on screen to name in place. */
+  private subjectFrame(id: string): OrbitFrame | null {
+    const key = `${id}|${this.camera.aspect}|${this.height}`;
+    if (!this.orbitFrames.has(key)) {
+      const band = this.band();
+      const base = orbitFrame(
+        this.targets,
+        id,
+        this.camera.aspect,
+        1,
+        ORBIT_ELEVATION,
+        band,
+      );
+      this.orbitFrames.set(
+        key,
+        base && this.calloutDense(id, base.distance, 1)
+          ? orbitFrame(
+              this.targets,
+              id,
+              this.camera.aspect,
+              CALLOUT_FRAMING,
+              ORBIT_ELEVATION,
+              band,
+            )
+          : base,
+      );
+    }
+    return this.orbitFrames.get(key)!;
+  }
+
+  /** The tour or watch camera pose for this frame. */
+  private programPose(dt: number) {
+    let subject: string, elapsed: number, travel: number;
+    if (this.settings.cameraMode === "tour") {
+      const step = this.tour.advance(dt);
+      if (!step) return null;
+      if (step.changed || this.program?.sequence !== step.stop.sequence)
+        this.beginProgram(step.stop);
+      subject = step.stop.id;
+      elapsed = step.elapsed;
+      travel = step.stop.travel;
+    } else {
+      const id = this.settings.watch;
+      if (!id || !this.targets.some((well) => well.id === id)) return null;
+      if (this.program?.id !== id) this.beginProgram({ id, sequence: 0 });
+      else this.program.elapsed += dt;
+      subject = id;
+      elapsed = this.program!.elapsed;
+      travel = WATCH_TRAVEL;
+    }
+    const frame = this.subjectFrame(subject);
+    if (!frame || !this.program) return null;
+    this.orbitAzimuth += ORBIT_RATE * dt;
+    return orbitPose(
+      elapsed < travel
+        ? travelFrame(this.program.origin, frame, elapsed / travel)
+        : frame,
+      this.orbitAzimuth,
+    );
+  }
+
+  /** On-screen spacing, in CSS pixels, between a group's closest members
+   * seen from `distance`; null for a group too small for callouts. */
+  private memberPixels(id: string, distance: number) {
+    const spacing = this.memberSpacing.find((item) => item.id === id)?.spacing;
+    if (spacing === undefined) return null;
+    let members = 0;
+    for (const well of this.targets) if (parentWellId(well) === id) members++;
+    if (members < CALLOUT_MINIMUM) return null;
+    const focal =
+      this.height / (2 * Math.tan((this.camera.fov * Math.PI) / 360));
+    return (spacing / Math.max(0.001, distance)) * focal;
+  }
+
+  /** Whether a group's members sit closer on screen than a compact label,
+   * seen from `distance` with the stage narrowed to `narrow`. */
+  private calloutDense(id: string, distance: number, narrow: number) {
+    const pixels = this.memberPixels(id, distance);
+    return pixels !== null && pixels / narrow < CALLOUT_ENTER;
+  }
+
+  /** Whether the framed group names its members in callout columns now. */
+  private calloutActive(id: string, byId: Map<string, Well>) {
+    const well = byId.get(id)!;
+    const pixels = this.memberPixels(
+      id,
+      this.camera.position.distanceTo(new THREE.Vector3(well.x, 0, well.z)),
+    );
+    return (
+      pixels !== null &&
+      pixels < (this.calloutSubject === id ? CALLOUT_EXIT : CALLOUT_ENTER)
+    );
+  }
+
   private anchorHeight(well: Well) {
     return labelHeight(
       well,
@@ -1179,16 +1529,23 @@ export class ObservatoryRenderer {
     // About one label width, so a ring's names appear together, not piecemeal.
     const threshold = Math.max(100, Math.min(this.width, this.height) * 0.14);
     const framed =
-      this.focusedSubject &&
+      this.programSubject() ??
+      (this.focusedSubject &&
       this.camera.position.distanceTo(this.controls.target) <=
         this.focusFraming * 1.2
         ? this.focusedSubject
-        : null;
+        : null);
+    this.framed = framed && byId.has(framed) ? framed : null;
     const center = new THREE.Vector3();
     for (const { id, spacing } of this.memberSpacing) {
       const well = byId.get(id);
       const parent = well ? parentWellId(well) : null;
-      if (!well || (parent && byId.has(parent) && !open.has(parent))) {
+      // A framed group opens even inside a closed parent: zooming into a
+      // nested ring names that ring.
+      if (
+        !well ||
+        (id !== framed && parent && byId.has(parent) && !open.has(parent))
+      ) {
         this.zoomDisclosed.delete(id);
         continue;
       }
@@ -1214,23 +1571,45 @@ export class ObservatoryRenderer {
       x: this.controls.target.x - this.camera.position.x,
       z: this.controls.target.z - this.camera.position.z,
     };
+    const enclosing = new Set<string>();
+    for (
+      let parent = this.framed ? parentWellId(byId.get(this.framed)!) : null;
+      parent && byId.has(parent) && !enclosing.has(parent);
+      parent = parentWellId(byId.get(parent)!)
+    )
+      enclosing.add(parent);
+    // Services and deployments are named like any member once their host is
+    // open or framed; the optional lens still names a selected host's own.
+    const disclosedWell = (well: Well) => {
+      const parent = parentWellId(well);
+      return (
+        !parent ||
+        !byId.has(parent) ||
+        open.has(parent) ||
+        well.attention ||
+        well.id === this.settings.selected
+      );
+    };
+    // A member gets a label element only once its group opens (or while its
+    // label is still fading out), so the stage holds elements only for names
+    // that can be shown.
     const anchors: Anchor[] = this.wells
-      .filter((w) => byId.has(w.id) && w.kind !== "service")
+      .filter(
+        (w) =>
+          byId.has(w.id) && (disclosedWell(w) || this.shownLabels.has(w.id)),
+      )
       .map((well) => {
-        // An open pool names its members, so its own label moves to the rim.
-        const point =
-          well.pool && open.has(well.id)
-            ? poolLabelPoint(well, forward)
-            : { x: well.x, y: this.anchorHeight(well), z: well.z };
+        // An open pool names its members, so its own label moves to the rim;
+        // so does a pool around a framed nested ring, which it would cover.
+        const rim = well.pool && (open.has(well.id) || enclosing.has(well.id));
+        const point = rim
+          ? poolLabelPoint(well, forward)
+          : { x: well.x, y: this.anchorHeight(well), z: well.z };
         const projected = this.project(point.x, point.y, point.z);
         // Every basin stays rendered; nested labels wait for their context.
         const parent = parentWellId(well);
         const nested = !!parent && byId.has(parent);
-        const disclosed =
-          !nested ||
-          open.has(parent) ||
-          well.attention ||
-          well.id === this.settings.selected;
+        const disclosed = disclosedWell(well);
         return {
           id: well.id,
           label: well.label,
@@ -1239,7 +1618,7 @@ export class ObservatoryRenderer {
           sector: well.sector,
           opacity: 0,
           nested,
-          open: open.has(well.id),
+          open: open.has(well.id) || enclosing.has(well.id),
           rank: nested ? (well.pool ? 20 : 0) : 40,
           ...(nested && well.id !== this.settings.selected
             ? { leash: 44 }
@@ -1251,6 +1630,7 @@ export class ObservatoryRenderer {
     for (const anchor of anchors)
       if (anchor.kind === "project" && this.settings.focus)
         anchor.visible = false;
+    this.placeCallouts(anchors, byId, dt);
     if (this.lensAmount > 0.4) {
       for (const anchor of anchors) {
         if (
@@ -1286,17 +1666,95 @@ export class ObservatoryRenderer {
         });
       }
     }
-    this.hooks.anchors(
-      this.labelLayout.layout(
-        anchors,
-        this.width,
-        this.height,
-        dt,
-        this.settings.motion,
-        this.labelTop,
-        this.settings.selected,
-      ),
+    const placed = this.labelLayout.layout(
+      anchors,
+      this.width,
+      this.height,
+      dt,
+      this.settings.motion,
+      this.labelTop,
+      this.settings.selected,
+      this.obstacles,
     );
+    this.shownLabels = new Set(
+      placed
+        .filter((anchor) => anchor.opacity > 0.002)
+        .map((anchor) => anchor.id),
+    );
+    this.hooks.anchors(placed);
+  }
+
+  /** Name every member of a dense framed group in callout columns. */
+  private placeCallouts(
+    anchors: Anchor[],
+    byId: Map<string, Well>,
+    dt: number,
+  ) {
+    const subject =
+      this.framed && this.calloutActive(this.framed, byId) ? this.framed : null;
+    if (subject !== this.calloutSubject) {
+      this.callouts.reset();
+      this.calloutSubject = subject;
+    }
+    this.calloutsChanging = false;
+    if (!subject) return;
+    const members = anchors.filter((anchor) => {
+      const well = byId.get(anchor.id);
+      return well && parentWellId(well) === subject;
+    });
+    const centreWell = byId.get(subject)!;
+    const centre = this.project(
+      centreWell.x,
+      this.anchorHeight(centreWell),
+      centreWell.z,
+    );
+    // Stage panels, such as the roster, shorten the columns themselves.
+    const bottom = this.height - 8;
+    const { placements, more, changing } = this.callouts.layout(
+      members,
+      (id) => this.labelLayout.size(id),
+      {
+        width: this.width,
+        top: this.labelTop,
+        bottom,
+        obstacles: this.obstacles,
+      },
+      centre,
+      dt,
+      this.settings.motion,
+    );
+    this.calloutsChanging = changing;
+    const placed = new Map(placements.map((item) => [item.id, item]));
+    for (const anchor of members) {
+      const placement = placed.get(anchor.id);
+      delete anchor.leash;
+      if (!placement) {
+        anchor.visible = false;
+        continue;
+      }
+      anchor.x = placement.x;
+      anchor.y = placement.y + this.labelLayout.size(anchor.id).height / 2;
+      anchor.visible = true;
+      anchor.opacity = placement.opacity;
+      anchor.fixed = true;
+      anchor.callout = { side: placement.side, ...placement.leader };
+    }
+    for (const pill of more) {
+      const id = `overflow-${pill.side}`;
+      anchors.push({
+        id,
+        label: `+${pill.count}`,
+        kind: "project",
+        attention: false,
+        sector: "",
+        x: pill.x,
+        y: pill.y + this.labelLayout.size(id).height / 2,
+        visible: true,
+        opacity: 1,
+        fixed: true,
+        overflow: pill.count,
+      });
+    }
   }
 
   private lensRadius() {
