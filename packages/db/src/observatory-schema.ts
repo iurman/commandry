@@ -2,6 +2,7 @@ import { sql } from "drizzle-orm";
 import {
   boolean,
   check,
+  customType,
   index,
   integer,
   jsonb,
@@ -11,6 +12,7 @@ import {
   timestamp,
   uuid,
 } from "drizzle-orm/pg-core";
+import type { ObservatoryLogoSource } from "@commandry/contracts";
 import type {
   ObservatoryMetadata,
   ObservatoryProviderDependency,
@@ -187,6 +189,39 @@ export const observatoryObservation = pgTable(
     check(
       "observatory_observation_digest",
       sql`${t.contentDigest} ~ '^[a-f0-9]{64}$'`,
+    ),
+  ],
+);
+
+const pngBytes = customType<{ data: Uint8Array; driverData: Buffer }>({
+  dataType: () => "bytea",
+  toDriver: (value) =>
+    Buffer.from(value.buffer, value.byteOffset, value.byteLength),
+  fromDriver: (value) =>
+    new Uint8Array(value.buffer, value.byteOffset, value.byteLength),
+});
+/** One owner-reviewed processed logo per resource. Retiring keeps the image
+ * and its source as history; only active rows reach the scene. */
+export const observatoryResourceLogo = pgTable(
+  "observatory_resource_logo",
+  {
+    resourceId: uuid("resource_id")
+      .primaryKey()
+      .references(() => resource.id, { onDelete: "restrict" }),
+    version: integer("version").notNull(),
+    active: boolean("active").notNull(),
+    digest: text("digest").notNull(),
+    image: pngBytes("image").notNull(),
+    source: jsonb("source").$type<ObservatoryLogoSource>().notNull(),
+    provenance: jsonb("provenance")
+      .$type<ObservatoryMetadata["provenance"]>()
+      .notNull(),
+    updatedAt: at("updated_at").notNull(),
+  },
+  (t) => [
+    check(
+      "observatory_logo_valid",
+      sql`${t.version} > 0 and ${t.digest} ~ '^[a-f0-9]{64}$' and octet_length(${t.image}) between 33 and 262144 and ${t.source}->>'kind' in ('upload','repository_file')`,
     ),
   ],
 );

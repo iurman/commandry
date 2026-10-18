@@ -238,6 +238,14 @@ export type ObservatoryExpansionRef = {
   scopeDigest: string;
   projectionRevision: string;
 };
+/** An owner-approved processed logo; image bytes are read separately. */
+export type ObservatoryLogoReference = {
+  digest: string;
+  mediaType: "image/png";
+  width: 128;
+  height: 128;
+  version: number;
+};
 export type ObservatoryRepresentation = {
   id: string;
   kind: ObservatoryKind;
@@ -252,6 +260,8 @@ export type ObservatoryRepresentation = {
   memberDigest: string;
   expansionRef: ObservatoryExpansionRef;
   summary: ObservatorySummary;
+  /** Present only when the represented resource has an active approved logo. */
+  logo?: ObservatoryLogoReference | undefined;
 };
 export type ObservatoryScene = {
   schemaVersion: 1;
@@ -320,6 +330,8 @@ export type ObservatoryInput = {
   providerNotices?: readonly ObservatoryProviderNotice[];
   attributions?: readonly ObservatoryAttribution[];
   sectors?: readonly ObservatorySector[];
+  /** Active approved logos, one per resource. */
+  logos?: readonly (ObservatoryLogoReference & { resourceId: string })[];
   expandedRepresentationIds?: readonly string[];
   search?: string;
   /** Default nested-detail budget; see OBSERVATORY_REVEAL_BUDGET. */
@@ -1046,6 +1058,9 @@ export function projectObservatory(input: ObservatoryInput): ObservatoryScene {
   }
   const nodes = new Map<string, ObservatoryRepresentation>();
   const directMembers: Record<string, string[]> = Object.create(null);
+  const logos = new Map(
+    (input.logos ?? []).map(({ resourceId, ...logo }) => [resourceId, logo]),
+  );
   const add = (
     id: string,
     kind: ObservatoryKind,
@@ -1073,6 +1088,9 @@ export function projectObservatory(input: ObservatoryInput): ObservatoryScene {
         projectionRevision: "",
       },
       summary: emptySummary,
+      ...(resource && logos.has(resource.id)
+        ? { logo: { ...logos.get(resource.id)! } }
+        : {}),
     });
     directMembers[id] = resource && !referenceTo ? [resource.id] : [];
     return id;

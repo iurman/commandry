@@ -58,6 +58,12 @@ import {
   observatoryProviderFeedRecordsSchema,
   observatoryProviderFeedResultSchema,
 } from "@commandry/contracts";
+import {
+  OBSERVATORY_LOGO_SIZE,
+  observatoryLogoQuerySchema,
+  observatoryLogoReadResultSchema,
+  observatoryLogoReferenceSchema,
+} from "@commandry/contracts";
 
 /** Server-established scope, never public request JSON or a new credential system. */
 export interface ObservatoryReadAccess {
@@ -78,6 +84,8 @@ export interface ObservatoryReadRecords {
   /** Complete scoped canonical configuration, including inactive records.
    * No raw source payloads, credentials, sessions or secret configuration. */
   readCatalogue?(): Promise<unknown[]>;
+  /** The current approved-logo image for one in-scope resource, or null. */
+  readLogo?(resourceId: string): Promise<unknown>;
   /** Recorded public status only, within the same authorized transaction. */
   readProviderFeed?(input: {
     afterId?: string;
@@ -434,6 +442,23 @@ function authorizedInput(
           })
       : [];
     unique(attributions.map((item) => `${item.noticeId}:${item.resourceId}`));
+    const logos = (candidate.logos ?? [])
+      .filter((item) => subject(item.resourceId))
+      .map((item) => {
+        if (
+          !item ||
+          typeof item !== "object" ||
+          Object.keys(item).sort().join(",") !==
+            "digest,height,mediaType,resourceId,version,width"
+        )
+          invalid();
+        const { resourceId, ...reference } = item;
+        return {
+          resourceId: uuid.parse(resourceId),
+          ...observatoryLogoReferenceSchema.parse(reference),
+        };
+      });
+    unique(logos.map((item) => item.resourceId));
     const scopeDigest = foundationDigest({
       authorizedScope: access.scopeDigest,
       owner: access.owner,
@@ -471,6 +496,7 @@ function authorizedInput(
       providerDependencies,
       providerNotices,
       attributions,
+      logos,
     };
   } catch (error) {
     if (error instanceof FoundationError) throw error;
@@ -550,7 +576,8 @@ function catalogueItems(
       subjectIds.some((id) => resources.get(id)!.kind === "provider")
     )
       continue;
-    if (query.environment !== null) {
+    // A logo is presentation for the resource itself, in every environment.
+    if (query.environment !== null && kind !== "logo") {
       const details =
         kind === "source"
           ? row
@@ -1052,6 +1079,48 @@ export function createObservatoryReadService<Request>(
             })),
           ),
         }),
+      );
+    },
+    /** Approved logo bytes for one authorized resource, addressed by digest. */
+    async logo(request: Request, rawQuery: unknown) {
+      const query = observatoryLogoQuerySchema.parse(rawQuery);
+      return read(
+        request,
+        query,
+        null,
+        (input, row: unknown) => {
+          if (row === null) throw new FoundationError("NOT_FOUND");
+          if (
+            !row ||
+            typeof row !== "object" ||
+            Object.keys(row).sort().join(",") !==
+              "dataBase64,digest,resourceId,version"
+          )
+            invalid();
+          const stored = row as Record<string, unknown>;
+          if (stored.resourceId !== query.resourceId) invalid();
+          if (stored.digest !== query.digest)
+            throw new FoundationError("NOT_FOUND");
+          return observatoryLogoReadResultSchema.parse({
+            schemaVersion: 1,
+            scopeDigest: input.scopeDigest,
+            resourceId: query.resourceId,
+            version: stored.version,
+            image: {
+              digest: stored.digest,
+              mediaType: "image/png",
+              width: OBSERVATORY_LOGO_SIZE,
+              height: OBSERVATORY_LOGO_SIZE,
+              dataBase64: stored.dataBase64,
+            },
+          });
+        },
+        async (input, records) => {
+          requireSubject(input, query.resourceId);
+          if (!records.readLogo)
+            throw new Error("Observatory logo is unavailable");
+          return records.readLogo(query.resourceId);
+        },
       );
     },
     async members(request: Request, rawQuery: unknown) {

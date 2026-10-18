@@ -21,6 +21,7 @@ import {
   collectObservatoryRecords,
   readObservatoryOperationalRecords,
   readObservatoryCatalogueRecords,
+  readObservatoryLogoRecord,
   collectObservatoryProviderFeedRecords,
 } from "./observatory-records";
 
@@ -69,6 +70,12 @@ export function createObservatoryMachineReadRepository(
             projectId: request.projectId,
             ...(await scope()),
           }),
+        readLogo: async (resourceId: string) =>
+          readObservatoryLogoRecord(
+            tx,
+            { projectId: request.projectId, ...(await scope()) },
+            resourceId,
+          ),
         readProviderFeed: (input: { afterId?: string; limit: number }) =>
           collectObservatoryProviderFeedRecords(tx, input, now()),
         readOperationalEvidence: async (resourceId: string) =>
@@ -195,6 +202,16 @@ export function createObservatoryOwnerReadRepository(
                 resourceIds: null,
                 scopeDigest,
               }),
+            readLogo: (resourceId: string) =>
+              readObservatoryLogoRecord(
+                tx,
+                {
+                  ...(projectId ? { projectId: projectId } : {}),
+                  resourceIds: null,
+                  scopeDigest,
+                },
+                resourceId,
+              ),
             readProviderFeed: (input: { afterId?: string; limit: number }) =>
               collectObservatoryProviderFeedRecords(tx, input, guard()),
             readOperationalEvidence: (resourceId: string) =>
