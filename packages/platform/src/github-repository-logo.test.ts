@@ -264,3 +264,33 @@ describe("GitHub repository logo reader", () => {
     ).not.toThrow();
   });
 });
+
+describe("GitHub repository logo reader input and response shape", () => {
+  it("reports an impossible repository name as not found without a request", async () => {
+    const { fetch, calls } = github();
+    expect(
+      await code(
+        read(createGitHubRepositoryLogoReader({ fetch }), {
+          repository: "my_org/app",
+        }),
+      ),
+    ).toBe("LOGO_SOURCE_NOT_FOUND");
+    expect(calls).toHaveLength(0);
+  });
+
+  it("refuses a JSON endpoint that answers with another content type", async () => {
+    const { fetch } = github({
+      "/repos/iurman/aviune": () =>
+        new Response(
+          JSON.stringify({
+            full_name: "iurman/aviune",
+            default_branch: "main",
+          }),
+          { headers: { "content-type": "text/html" } },
+        ),
+    });
+    expect(await code(read(createGitHubRepositoryLogoReader({ fetch })))).toBe(
+      "LOGO_SOURCE_UNAVAILABLE",
+    );
+  });
+});

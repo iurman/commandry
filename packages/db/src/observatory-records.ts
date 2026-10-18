@@ -347,9 +347,6 @@ export async function collectObservatoryRecords(
       annotations: annotations.map((a) => [a.resourceId, a.version]),
       relations: relations.map((r) => [r.id, r.version]),
       mappings: mappings.map((m) => [m.id, m.version]),
-      ...(logos.length
-        ? { logos: logos.map((l) => [l.resourceId, l.version, l.digest]) }
-        : {}),
     }),
     readStartedAt: started,
     readCompletedAt: now.toISOString(),

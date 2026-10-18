@@ -3642,7 +3642,14 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "$ref": "#/components/schemas/FoundationFailure"
+                  "oneOf": [
+                    {
+                      "$ref": "#/components/schemas/FoundationFailure"
+                    },
+                    {
+                      "$ref": "#/components/schemas/ObservatoryLogoFailure"
+                    }
+                  ]
                 }
               }
             }
@@ -3726,7 +3733,14 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "$ref": "#/components/schemas/FoundationFailure"
+                  "oneOf": [
+                    {
+                      "$ref": "#/components/schemas/FoundationFailure"
+                    },
+                    {
+                      "$ref": "#/components/schemas/ObservatoryLogoFailure"
+                    }
+                  ]
                 }
               }
             }
@@ -3754,7 +3768,42 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "$ref": "#/components/schemas/ObservatoryInputTooLarge"
+                  "oneOf": [
+                    {
+                      "$ref": "#/components/schemas/ObservatoryInputTooLarge"
+                    },
+                    {
+                      "$ref": "#/components/schemas/ObservatoryLogoFailure"
+                    }
+                  ]
+                }
+              }
+            }
+          },
+          "502": {
+            "description": "GitHub refused the read; LOGO_SOURCE_UNAUTHORIZED",
+            "headers": {
+              "Cache-Control": {
+                "description": "Owner results and safe failures are never cached",
+                "schema": {
+                  "type": "string",
+                  "const": "no-store"
+                }
+              },
+              "X-Correlation-Id": {
+                "description": "Accepted safe request correlation ID, otherwise a new server UUID",
+                "schema": {
+                  "type": "string",
+                  "minLength": 1,
+                  "maxLength": 100,
+                  "pattern": "^[a-zA-Z0-9_-]+$"
+                }
+              }
+            },
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ObservatoryLogoFailure"
                 }
               }
             }
@@ -3782,7 +3831,14 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "$ref": "#/components/schemas/FoundationFailure"
+                  "oneOf": [
+                    {
+                      "$ref": "#/components/schemas/FoundationFailure"
+                    },
+                    {
+                      "$ref": "#/components/schemas/ObservatoryLogoFailure"
+                    }
+                  ]
                 }
               }
             }
@@ -3885,7 +3941,14 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "$ref": "#/components/schemas/FoundationFailure"
+                  "oneOf": [
+                    {
+                      "$ref": "#/components/schemas/FoundationFailure"
+                    },
+                    {
+                      "$ref": "#/components/schemas/ObservatoryLogoFailure"
+                    }
+                  ]
                 }
               }
             }
@@ -3969,7 +4032,14 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "$ref": "#/components/schemas/FoundationFailure"
+                  "oneOf": [
+                    {
+                      "$ref": "#/components/schemas/FoundationFailure"
+                    },
+                    {
+                      "$ref": "#/components/schemas/ObservatoryLogoFailure"
+                    }
+                  ]
                 }
               }
             }
@@ -4025,7 +4095,42 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "$ref": "#/components/schemas/ObservatoryInputTooLarge"
+                  "oneOf": [
+                    {
+                      "$ref": "#/components/schemas/ObservatoryInputTooLarge"
+                    },
+                    {
+                      "$ref": "#/components/schemas/ObservatoryLogoFailure"
+                    }
+                  ]
+                }
+              }
+            }
+          },
+          "502": {
+            "description": "GitHub refused the read; LOGO_SOURCE_UNAUTHORIZED",
+            "headers": {
+              "Cache-Control": {
+                "description": "Owner results and safe failures are never cached",
+                "schema": {
+                  "type": "string",
+                  "const": "no-store"
+                }
+              },
+              "X-Correlation-Id": {
+                "description": "Accepted safe request correlation ID, otherwise a new server UUID",
+                "schema": {
+                  "type": "string",
+                  "minLength": 1,
+                  "maxLength": 100,
+                  "pattern": "^[a-zA-Z0-9_-]+$"
+                }
+              }
+            },
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ObservatoryLogoFailure"
                 }
               }
             }
@@ -4053,7 +4158,14 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "$ref": "#/components/schemas/FoundationFailure"
+                  "oneOf": [
+                    {
+                      "$ref": "#/components/schemas/FoundationFailure"
+                    },
+                    {
+                      "$ref": "#/components/schemas/ObservatoryLogoFailure"
+                    }
+                  ]
                 }
               }
             }
@@ -29309,6 +29421,27 @@
           "expectedDigest",
           "input",
           "review"
+        ],
+        "additionalProperties": false
+      },
+      "ObservatoryLogoFailure": {
+        "type": "object",
+        "properties": {
+          "code": {
+            "type": "string",
+            "enum": [
+              "LOGO_UNSUPPORTED_IMAGE",
+              "LOGO_TOO_LARGE",
+              "LOGO_REPOSITORY_NOT_REVIEWED",
+              "LOGO_SOURCE_NOT_FOUND",
+              "LOGO_SOURCE_UNAUTHORIZED",
+              "LOGO_SOURCE_UNAVAILABLE",
+              "LOGO_PROCESSING_UNAVAILABLE"
+            ]
+          }
+        },
+        "required": [
+          "code"
         ],
         "additionalProperties": false
       },

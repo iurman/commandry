@@ -7,6 +7,7 @@ import {
   observatoryLogoPreviewSchema,
   observatoryLogoSourceSchema,
   type ObservatoryLogoChange,
+  type ObservatoryLogoFailureCode,
   type ObservatoryLogoPreviewInput,
   type ObservatoryLogoReviewInput,
   type ObservatoryLogoSource,
@@ -16,14 +17,7 @@ import type { ObservatoryOwnerIdentity } from "./observatory-management";
 
 export type ObservatoryLogoMediaType =
   "image/png" | "image/jpeg" | "image/webp" | "image/svg+xml";
-export type ObservatoryLogoErrorCode =
-  | "LOGO_UNSUPPORTED_IMAGE"
-  | "LOGO_TOO_LARGE"
-  | "LOGO_REPOSITORY_NOT_REVIEWED"
-  | "LOGO_SOURCE_NOT_FOUND"
-  | "LOGO_SOURCE_UNAUTHORIZED"
-  | "LOGO_SOURCE_UNAVAILABLE"
-  | "LOGO_PROCESSING_UNAVAILABLE";
+export type ObservatoryLogoErrorCode = ObservatoryLogoFailureCode;
 /** Safe, owner-facing outcome codes. No provider text or file content escapes. */
 export class ObservatoryLogoError extends Error {
   constructor(public readonly code: ObservatoryLogoErrorCode) {
@@ -65,7 +59,11 @@ export interface ObservatoryLogoPort {
   inspect(
     owner: ObservatoryOwnerIdentity,
     resourceId: string,
-    preview: { sourceKind: ObservatoryLogoSource["kind"] } | null,
+    preview: {
+      sourceKind: ObservatoryLogoSource["kind"];
+      /** Upload file name, or owner/name:path@ref that the server will read. */
+      target: string;
+    } | null,
   ): Promise<{ repositories: readonly string[] }>;
   /** Recheck session, kind, version and repository identity in one audited write. */
   review(
@@ -94,6 +92,35 @@ function safeReference(value: string): boolean {
     /^data:image\/(?:png|jpeg|webp);base64,[A-Za-z0-9+/=\s]*$/.test(trimmed)
   );
 }
+const named: Record<string, string> = {
+  lt: "<",
+  gt: ">",
+  amp: "&",
+  quot: '"',
+  apos: "'",
+};
+/** Expand XML character references; null when one is malformed. */
+function expandReferences(text: string): string | null {
+  let valid = true;
+  const result = text.replace(
+    /&(#x[0-9a-fA-F]+|#[0-9]+|[A-Za-z][A-Za-z0-9]*);/g,
+    (_match, reference: string) => {
+      if (reference.startsWith("#")) {
+        const code = reference.startsWith("#x")
+          ? Number.parseInt(reference.slice(2), 16)
+          : Number.parseInt(reference.slice(1), 10);
+        if (!Number.isSafeInteger(code) || code < 1 || code > 0x10ffff) {
+          valid = false;
+          return "";
+        }
+        return String.fromCodePoint(code);
+      }
+      // Other named entities need a DOCTYPE, which is refused anyway.
+      return named[reference] ?? ((valid = false), "");
+    },
+  );
+  return valid ? result : null;
+}
 /** Defence in depth before rasterizing: the renderer receives a buffer with no
  * base path, but declarations, scripts and outside references are refused. */
 function validateSvg(bytes: Uint8Array): void {
@@ -104,30 +131,37 @@ function validateSvg(bytes: Uint8Array): void {
     throw unsupported();
   }
   if (text.charCodeAt(0) === 0xfeff) text = text.slice(1);
+  // Check what the parser will see: character references are expanded before
+  // CSS or attributes are read, and CSS escapes are refused outright.
+  const decoded = expandReferences(text);
+  if (decoded === null || decoded.includes("\\")) throw unsupported();
   const body = text
     .replace(/^\s*<\?xml\s[^>]*\?>/, "")
     .replace(/^(?:\s*<!--[\s\S]*?-->)*\s*/, "");
   if (!/^<svg[\s>]/.test(body) || text.includes("\u0000")) throw unsupported();
   if (
-    /<!(?:DOCTYPE|ENTITY|ATTLIST|ELEMENT)/i.test(text) ||
-    /<\?xml-stylesheet/i.test(text) ||
+    /<!(?:DOCTYPE|ENTITY|ATTLIST|ELEMENT)/i.test(decoded) ||
+    /<\?xml-stylesheet/i.test(decoded) ||
     /<(?:[A-Za-z_][\w.-]*:)?(?:script|foreignObject|iframe|object|embed|audio|video)\b/i.test(
-      text,
+      decoded,
     ) ||
-    /@import/i.test(text)
+    /@import/i.test(decoded)
   )
     throw unsupported();
-  for (const match of text.matchAll(
-    /\b(?:xlink:)?href\s*=\s*(?:"([^"]*)"|'([^']*)')/gi,
-  ))
-    if (!safeReference(match[1] ?? match[2] ?? "")) throw unsupported();
-  // An unquoted or unusual href form is refused rather than interpreted.
-  if (/\b(?:xlink:)?href\s*=\s*[^\s"']/i.test(text)) throw unsupported();
-  for (const match of text.matchAll(
-    /url\(\s*(?:"([^"]*)"|'([^']*)'|([^)]*))\)/gi,
-  ))
-    if (!safeReference(match[1] ?? match[2] ?? match[3] ?? ""))
-      throw unsupported();
+  // Expanded quotes could re-shape attributes, so both forms are checked.
+  for (const form of [text, decoded]) {
+    for (const match of form.matchAll(
+      /\b(?:xlink:)?href\s*=\s*(?:"([^"]*)"|'([^']*)')/gi,
+    ))
+      if (!safeReference(match[1] ?? match[2] ?? "")) throw unsupported();
+    // An unquoted or unusual href form is refused rather than interpreted.
+    if (/\b(?:xlink:)?href\s*=\s*[^\s"']/i.test(form)) throw unsupported();
+    for (const match of form.matchAll(
+      /url\(\s*(?:"([^"]*)"|'([^']*)'|([^)]*))\)/gi,
+    ))
+      if (!safeReference(match[1] ?? match[2] ?? match[3] ?? ""))
+        throw unsupported();
+  }
 }
 /** Identify the input by its bytes, never by a file name or declared type. */
 export function sniffObservatoryLogo(
@@ -237,8 +271,13 @@ export function createObservatoryLogoService(dependencies: {
   return {
     async preview(owner: ObservatoryOwnerIdentity, raw: unknown) {
       const request = observatoryLogoPreviewSchema.parse(raw);
+      const input = request.input;
       const { repositories } = await port.inspect(owner, request.resourceId, {
-        sourceKind: request.input.kind,
+        sourceKind: input.kind,
+        target:
+          input.kind === "upload"
+            ? input.fileName
+            : `${input.repository}:${input.path}@${input.ref ?? "default"}`,
       });
       const result = await obtain(request.input, repositories);
       return observatoryLogoPreviewResultSchema.parse({

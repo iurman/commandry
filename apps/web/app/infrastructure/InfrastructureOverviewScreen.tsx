@@ -187,14 +187,14 @@ export default function InfrastructureOverviewScreen({
       }),
     [sceneQuery, scope.projectId],
   );
+  // The logo catalogue depends only on project scope, not search or expansion.
   const logoReviewClient = useMemo(
     () =>
       createObservatoryLogoClient({
         schemaVersion: 1,
-        ...sceneQuery,
         ...(scope.projectId ? { projectId: scope.projectId } : {}),
       }),
-    [sceneQuery, scope.projectId],
+    [scope.projectId],
   );
   const logoUrl = useMemo(
     () => observatoryLogoUrl(scope.projectId || undefined),

@@ -1,6 +1,6 @@
 # Observatory repository logos
 
-**Status: Operational record. The owner made the design decisions on 2026-10-18. The implementation is on branch `claude/ecstatic-fermi-m2sx9r`; it is not merged or deployed.**
+**Status: Operational record. The owner made the design decisions on 2026-10-18. The implementation is in [PR 35](https://github.com/iurman/commandry/pull/35); it is not deployed.**
 
 ## Goal
 
@@ -49,7 +49,7 @@ The owner approves exactly what is stored. Preview returns the processed PNG and
 
 ## Scene, image route and MCP parity
 
-- Each scene representation whose canonical resource has an active approved logo carries `logo: {digest, mediaType: "image/png", width, height, version}`; references (aliases) carry their target's logo. Absence means no approved logo. The reviewed-logo versions and digests join `viewRevision`.
+- Each scene representation whose canonical resource has an active approved logo carries `logo: {digest, mediaType: "image/png", width, height, version}`; references (aliases) carry their target's logo. Absence means no approved logo. A logo does not change `projectionRevision`, which stays structural; clients see a changed logo as a new digest on the next scene read.
 - POST `/api/v1/infrastructure/observatory/logo` (owner/local read) and MCP `get_observatory_resource_logo` (`observatory.read`) share one application read. It confirms the resource is inside the authorized population and returns the PNG as base64 with its digest.
 - GET `/api/v1/infrastructure/observatory/logos/{resourceId}/{digest}` serves the same read as `image/png` with `nosniff`, a restrictive CSP and private immutable caching for badge `<img>` elements. Same-origin only; the browser never hotlinks an outside URL.
 - `list_observatory_reviewed_configuration` and the owner catalogue gain `kind:"logo"` with versions, source and provenance, including retired records.
@@ -80,10 +80,18 @@ The owner approves exactly what is stored. Preview returns the processed PNG and
 
 A preview audit records an authorized attempt, including one that then fails on the image or source. A digest mismatch is refused before the write transaction, like other input validation, so it leaves no denied review audit.
 
+## Pre-merge review decisions (2026-10-18)
+
+An independent review of the PR diff led to these fixes: inspector controls always release after a superseded request, the logo client is keyed by project scope only, OpenAPI documents the exact logo failure bodies (including 502), SVG checks run on expanded character references and refuse CSS escapes, the preview audit names its target, GitHub JSON responses must declare a JSON content type, an impossible repository name reads as not found, and an unused revision input was removed. Three findings were kept as they are, deliberately:
+
+- **Badge images use the full authorized read.** Each image GET goes through the same shared Observatory read as the scene (population, scope, audit), rather than a second, lighter authorization path. Digest-addressed, private and immutable caching means each browser fetches each logo once. The count is limited to repositories with approved logos.
+- **A disabled `github-repository` source binding still identifies its repository.** Disabling stops polling; it does not withdraw the reviewed identity. Only the signed-in owner can preview or approve. To withdraw an identity, change or remove the binding or the canonical URL. The write transaction rechecks the identity.
+- **The GitHub logo reader stays separate from the PR/security reader.** Both use the same fixed origin, redirect refusal, timeout, size bounds and status mapping. Extracting a shared request helper would change the existing operational reader, so that is left to its own change.
+
 ## Verification (2026-10-18)
 
 - `pnpm check` passed: 0 lint errors, and the existing warnings were not increased.
-- `pnpm test` passed: 177 vitest files with 3,047 tests, 33 lab tests, then the Node script (111), foundation registry (11) and both preview suites (4 each). The commission tests need `ssh-keygen`, which the cloud container lacked until `openssh-client` was installed.
+- `pnpm test` passed: 178 vitest files with 3,070 tests (after merging `main`), 33 lab tests, then the Node script (111), foundation registry (11) and both preview suites (4 each). The commission tests need `ssh-keygen`, which the cloud container lacked until `openssh-client` was installed.
 - PostgreSQL 18 (embedded harness bootstrap, run as an unprivileged user): `packages/platform/src/observatory-logo.integration.test.ts` passed 10/10. It covers concurrent approval, audits, scope, the repository-identity recheck and retire.
 - A built standalone server in password mode (scratch check, not committed) passed:
   - sharp rasterized an upload inside the production bundle, and an outside-reference SVG was refused.

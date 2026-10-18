@@ -150,6 +150,28 @@ describe("Observatory logo input recognition", () => {
       encode('<?xml-stylesheet href="a.css"?><svg></svg>'),
     ],
     [
+      "a CSS-escaped import",
+      svg('<style>@\\69mport "https://e.example/x.css";</style>'),
+    ],
+    [
+      "a CSS-escaped url",
+      svg('<rect style="fill:\\75rl(https://e.example/p)"/>'),
+    ],
+    [
+      "a character-reference import",
+      svg("<style>&#64;import 'https://e.example/a.css';</style>"),
+    ],
+    [
+      "a character-reference url",
+      svg('<rect style="fill:u&#x72;l(https://e.example/p)"/>'),
+    ],
+    [
+      "an encoded outside href",
+      svg('<image href="h&#116;tps://e.example/a.png"/>'),
+    ],
+    ["an encoded script element", svg("<style>a{}</style>&#60;script&#62;")],
+    ["an undeclared entity", svg("<text>&copy;</text>")],
+    [
       "invalid UTF-8",
       new Uint8Array([
         0x3c, 0x73, 0x76, 0x67, 0x20, 0xff, 0xfe, 0x3e, 0, 0, 0, 0,
@@ -203,6 +225,7 @@ describe("Observatory logo preview", () => {
     });
     expect(port.inspect).toHaveBeenCalledWith(owner, resourceId, {
       sourceKind: "upload",
+      target: "ResuPals.svg",
     });
     expect(port.review).not.toHaveBeenCalled();
     expect(result.image).toMatchObject({
@@ -221,7 +244,7 @@ describe("Observatory logo preview", () => {
   });
 
   it("reads a reviewed repository file at the resolved commit", async () => {
-    const { reader, service, svgFile } = harness({
+    const { port, reader, service, svgFile } = harness({
       repositories: ["iurman/aviune"],
     });
     const result = await service.preview(owner, {
@@ -238,6 +261,10 @@ describe("Observatory logo preview", () => {
       path: "public/favicon.svg",
       ref: null,
       commitSha: null,
+    });
+    expect(port.inspect).toHaveBeenCalledWith(owner, resourceId, {
+      sourceKind: "repository_file",
+      target: "iurman/Aviune:public/favicon.svg@default",
     });
     expect(result.source).toMatchObject({
       kind: "repository_file",

@@ -158,7 +158,8 @@ export function ObservatoryLogoReview({
       if (generation.current === ticket)
         setError(message(failure, "The preview could not be produced."));
     } finally {
-      if (generation.current === ticket) setBusy(false);
+      // Always release the controls, even if a newer load superseded this one.
+      setBusy(false);
     }
   }
   async function submit(active: boolean) {
@@ -229,7 +230,8 @@ export function ObservatoryLogoReview({
               ),
         );
     } finally {
-      if (generation.current === ticket) setBusy(false);
+      // Always release the controls, even if a newer load superseded this one.
+      setBusy(false);
     }
   }
   const current = item && logoUrl ? logoUrl(resource.id, item.digest) : null;

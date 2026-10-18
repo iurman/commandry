@@ -18,8 +18,9 @@ function identity(repository: string) {
     /^([a-zA-Z0-9](?:[a-zA-Z0-9-]{0,37}[a-zA-Z0-9])?)\/([a-zA-Z0-9_.-]{1,100})$/.exec(
       repository,
     );
+  // No GitHub repository can have this name, so it cannot be read later either.
   if (!parts || parts[1]!.includes("--") || [".", ".."].includes(parts[2]!))
-    throw unavailable();
+    throw notFound();
   return { owner: parts[1]!, name: parts[2]! };
 }
 const encodePath = (value: string) =>
@@ -111,6 +112,13 @@ export function createGitHubRepositoryLogoReader(
                 : notFound()
               : unavailable();
       }
+      if (
+        accept === "application/vnd.github+json" &&
+        !/^application\/(?:json|vnd\.github\+json)(?:\s*;\s*charset\s*=\s*"?utf-8"?)?\s*$/i.test(
+          response.headers.get("content-type") ?? "",
+        )
+      )
+        throw unavailable();
       const length = response.headers.get("content-length");
       if (
         length !== null &&

@@ -344,3 +344,56 @@ describe("Observatory logo review without a readable record", () => {
     expect(api.review).not.toHaveBeenCalled();
   });
 });
+
+describe("Observatory logo review while the client changes", () => {
+  it("releases its controls when a reload supersedes an in-flight preview", async () => {
+    const api = client([[], []]);
+    let finish: (value: unknown) => void = () => {};
+    api.preview.mockImplementationOnce(
+      () => new Promise((resolve) => (finish = resolve)),
+    );
+    const view = render(
+      <ObservatoryLogoReview
+        resource={resource}
+        client={api}
+        onReviewed={vi.fn()}
+      />,
+    );
+    await screen.findByText(/No logo is approved/);
+    fireEvent.change(screen.getByLabelText(/Logo file/), {
+      target: { files: [new File([new Uint8Array([1])], "a.png")] },
+    });
+    fireEvent.click(screen.getByRole("button", { name: "Preview logo" }));
+    await waitFor(() =>
+      expect(
+        screen.getByRole("button", { name: "Preview logo" }),
+      ).toBeDisabled(),
+    );
+    // A new client object re-runs the record load and supersedes the preview.
+    view.rerender(
+      <ObservatoryLogoReview
+        resource={resource}
+        client={{ ...api }}
+        onReviewed={vi.fn()}
+      />,
+    );
+    finish(
+      previewOf({
+        kind: "upload",
+        fileName: "a.png",
+        originalMediaType: "image/png",
+        originalByteLength: 1,
+        originalDigest: "e".repeat(64),
+      }),
+    );
+    await waitFor(() =>
+      expect(
+        screen.getByRole("button", { name: "Preview logo" }),
+      ).toBeEnabled(),
+    );
+    // The superseded result is not shown as an approvable preview.
+    expect(
+      screen.queryByAltText("Preview of the logo for ResuPals"),
+    ).toBeNull();
+  });
+});

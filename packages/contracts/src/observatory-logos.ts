@@ -6,6 +6,19 @@ import {
 } from "./observatory";
 import { observatorySceneQuerySchema } from "./observatory-queries";
 
+/** Safe owner-facing logo failure codes returned by preview and review. */
+export const observatoryLogoFailureCodeSchema = z.enum([
+  "LOGO_UNSUPPORTED_IMAGE",
+  "LOGO_TOO_LARGE",
+  "LOGO_REPOSITORY_NOT_REVIEWED",
+  "LOGO_SOURCE_NOT_FOUND",
+  "LOGO_SOURCE_UNAUTHORIZED",
+  "LOGO_SOURCE_UNAVAILABLE",
+  "LOGO_PROCESSING_UNAVAILABLE",
+]);
+export const observatoryLogoFailureSchema = z.strictObject({
+  code: observatoryLogoFailureCodeSchema,
+});
 /** Original input bound before decoding; the processed PNG is always smaller. */
 export const OBSERVATORY_LOGO_MAX_INPUT_BYTES = 524288;
 const identity = z.uuid().toLowerCase();
@@ -189,6 +202,9 @@ export const observatoryLogoCatalogueItemSchema = z
     "Logo identity must match its resource",
   );
 
+export type ObservatoryLogoFailureCode = z.infer<
+  typeof observatoryLogoFailureCodeSchema
+>;
 export type ObservatoryLogoPreview = z.infer<
   typeof observatoryLogoPreviewSchema
 >;

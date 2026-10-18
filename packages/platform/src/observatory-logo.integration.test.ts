@@ -178,6 +178,7 @@ test(
         assert.deepEqual(audit?.details, {
           targetId: repoId,
           sourceKind: "upload",
+          target: "resupals.png",
           decision: "allowed",
         });
         assert.deepEqual(await rows(repoId), []);

@@ -36,7 +36,7 @@ async function post(path: string, input: unknown): Promise<unknown> {
   return body;
 }
 export function createObservatoryLogoClient(
-  query: ObservatorySceneQuery,
+  query: Pick<ObservatorySceneQuery, "schemaVersion" | "projectId">,
 ): ObservatoryLogoReviewClient {
   return {
     loadLogo: (resourceId) =>

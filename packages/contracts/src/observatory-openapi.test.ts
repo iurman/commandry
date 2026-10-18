@@ -39,6 +39,8 @@ import {
   observatoryLogoPreviewSchema,
   observatoryLogoPreviewResultSchema,
   observatoryLogoChangeSchema,
+  observatoryLogoFailureSchema,
+  observatoryLogoFailureCodeSchema,
 } from "./index";
 
 type Shape = {
@@ -99,6 +101,7 @@ type Route = {
   conflict?: boolean;
   notFound?: boolean;
   maximumBytes?: number;
+  logo?: boolean;
 };
 /** The one non-POST Observatory route: digest-addressed badge images. */
 const imagePath = base + "logos/{resourceId}/{digest}";
@@ -182,6 +185,7 @@ const routes: Route[] = [
     output: "ObservatoryLogoPreviewResult",
     outputSchema: observatoryLogoPreviewResultSchema,
     maximumBytes: 786432,
+    logo: true,
   },
   {
     path: "reviews/logo",
@@ -190,6 +194,7 @@ const routes: Route[] = [
     output: "ObservatoryReviewReceipt",
     conflict: true,
     maximumBytes: 786432,
+    logo: true,
   },
   {
     path: "reviews/annotation",
@@ -386,6 +391,7 @@ describe("generated owner Observatory HTTP contract", () => {
         ...(route.notFound === false ? [] : ["404"]),
         ...(route.conflict ? ["409"] : []),
         "413",
+        ...(route.logo ? ["502"] : []),
         "503",
       ];
       expect(Object.keys(post.responses).sort()).toEqual(statuses.sort());
@@ -399,10 +405,21 @@ describe("generated owner Observatory HTTP contract", () => {
           minLength: 1,
           maxLength: 100,
         });
-        if (status !== "200")
-          expect(response.content["application/json"].schema).toEqual({
-            $ref: `#/components/schemas/${status === "413" ? "ObservatoryInputTooLarge" : "FoundationFailure"}`,
-          });
+        if (status === "200") continue;
+        const base = {
+          $ref: `#/components/schemas/${status === "413" ? "ObservatoryInputTooLarge" : "FoundationFailure"}`,
+        };
+        const logo = { $ref: "#/components/schemas/ObservatoryLogoFailure" };
+        expect(response.content["application/json"].schema).toEqual(
+          !route.logo ||
+            status === "401" ||
+            status === "403" ||
+            status === "409"
+            ? base
+            : status === "502"
+              ? logo
+              : { oneOf: [base, logo] },
+        );
       }
     },
   );
@@ -429,6 +446,15 @@ describe("generated owner Observatory HTTP contract", () => {
       type: "string",
       const: "private, max-age=31536000, immutable",
     });
+  });
+
+  it("documents the exact safe logo failure codes the owner routes return", () => {
+    expect(schema("ObservatoryLogoFailure")).toEqual(
+      canonical(observatoryLogoFailureSchema, "output"),
+    );
+    expect(schema("ObservatoryLogoFailure").properties?.code?.enum).toEqual(
+      observatoryLogoFailureCodeSchema.options,
+    );
   });
 
   it("documents logo preview and review as owner operations with explicit audit and digest binding", () => {

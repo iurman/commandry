@@ -74,6 +74,8 @@ export function createObservatoryLogoRepository(
             details: {
               targetId: resourceId,
               sourceKind: preview.sourceKind,
+              // What was authorized to be read; the read itself may still fail.
+              target: preview.target,
               decision: "allowed",
             },
           });
