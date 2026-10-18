@@ -139,3 +139,15 @@ read-only checks run under the configured worker and append
   contracts locally. They remain private and unsubmitted until release activation.
 - A separate main presentation release was already in progress during this work;
   this follow-up did not interrupt its release workflow or change deployment controls.
+
+- Full `pnpm test:smoke` exited successfully after the runtime dependency fix.
+  This includes the full disposable database integration suite and built-app
+  web/worker, real-host API, Foundation/Knowledge MCP and owner-auth rehearsals.
+- The merged-main source check passed again.
+- Three browser-evidenced repository-to-Worker `deploys` relationships were
+  accepted and read back through the existing owner review API. Audit receipts
+  and the provenance capture are retained privately. One incorrectly copied
+  resource UUID was rejected without changing a relationship; the accepted
+  requests used exact IDs from the canonical catalogue.
+- Implementation is available in [PR 41](https://github.com/iurman/commandry/pull/41).
+  Release publication and activation remain subject to the gates above.
