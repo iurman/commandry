@@ -322,6 +322,13 @@ export class ObservatoryRenderer {
   /** The group currently framed by focus, tour or watch. */
   private framed: string | null = null;
   private calloutsChanging = false;
+  /**
+   * Labels still settling over an unchanged frame. They update the DOM layer
+   * only: redrawing the terrain for them costs a full WebGL frame.
+   */
+  private labelsChanging = false;
+  /** Labels drawn last frame; a closing group's names finish fading out. */
+  private shownLabels = new Set<string>();
   private intersection: IntersectionObserver;
   private visible = true;
   private focusCamera = new THREE.PerspectiveCamera(42, 1, 0.1, 100);
@@ -1034,7 +1041,7 @@ export class ObservatoryRenderer {
   }
 
   measureAnchor(id: string, width: number, height: number) {
-    if (this.labelLayout.measure(id, width, height)) this.needsDraw = true;
+    if (this.labelLayout.measure(id, width, height)) this.labelsChanging = true;
   }
 
   private resize() {
@@ -1338,12 +1345,15 @@ export class ObservatoryRenderer {
       this.publishFieldDiagnostics();
       this.needsDraw = false;
       this.publishAnchors(dt);
-      this.needsDraw =
-        this.labelLayout.changing ||
-        this.focusChanging ||
-        this.calloutsChanging;
+      this.needsDraw = this.focusChanging;
+      this.labelsChanging = this.labelLayout.changing || this.calloutsChanging;
       this.hooks.lens(this.lensAmount);
       this.frames.push(interval);
+    } else if (this.labelsChanging) {
+      // The camera and terrain are unchanged, so the last frame's projection
+      // still holds; only the label layer moves.
+      this.publishAnchors(dt);
+      this.labelsChanging = this.labelLayout.changing || this.calloutsChanging;
     }
     if (now > this.nextStats) {
       const mean =
@@ -1570,8 +1580,24 @@ export class ObservatoryRenderer {
       enclosing.add(parent);
     // Services and deployments are named like any member once their host is
     // open or framed; the optional lens still names a selected host's own.
+    const disclosedWell = (well: Well) => {
+      const parent = parentWellId(well);
+      return (
+        !parent ||
+        !byId.has(parent) ||
+        open.has(parent) ||
+        well.attention ||
+        well.id === this.settings.selected
+      );
+    };
+    // A member gets a label element only once its group opens (or while its
+    // label is still fading out), so the stage holds elements only for names
+    // that can be shown.
     const anchors: Anchor[] = this.wells
-      .filter((w) => byId.has(w.id))
+      .filter(
+        (w) =>
+          byId.has(w.id) && (disclosedWell(w) || this.shownLabels.has(w.id)),
+      )
       .map((well) => {
         // An open pool names its members, so its own label moves to the rim;
         // so does a pool around a framed nested ring, which it would cover.
@@ -1583,11 +1609,7 @@ export class ObservatoryRenderer {
         // Every basin stays rendered; nested labels wait for their context.
         const parent = parentWellId(well);
         const nested = !!parent && byId.has(parent);
-        const disclosed =
-          !nested ||
-          open.has(parent) ||
-          well.attention ||
-          well.id === this.settings.selected;
+        const disclosed = disclosedWell(well);
         return {
           id: well.id,
           label: well.label,
@@ -1644,18 +1666,22 @@ export class ObservatoryRenderer {
         });
       }
     }
-    this.hooks.anchors(
-      this.labelLayout.layout(
-        anchors,
-        this.width,
-        this.height,
-        dt,
-        this.settings.motion,
-        this.labelTop,
-        this.settings.selected,
-        this.obstacles,
-      ),
+    const placed = this.labelLayout.layout(
+      anchors,
+      this.width,
+      this.height,
+      dt,
+      this.settings.motion,
+      this.labelTop,
+      this.settings.selected,
+      this.obstacles,
     );
+    this.shownLabels = new Set(
+      placed
+        .filter((anchor) => anchor.opacity > 0.002)
+        .map((anchor) => anchor.id),
+    );
+    this.hooks.anchors(placed);
   }
 
   /** Name every member of a dense framed group in callout columns. */

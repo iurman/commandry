@@ -1080,27 +1080,25 @@ describe("nested label disclosure", () => {
         open: false,
       });
       expect(shown.get("host")).toMatchObject({ visible: true });
-      expect(shown.get("member-0")).toMatchObject({
-        visible: false,
-        nested: true,
-      });
+      // An undisclosed member has no label element until its group opens.
+      expect(shown.has("member-0")).toBe(false);
       // A member that needs attention is never hidden by disclosure.
       expect(shown.get("member-2")?.visible).toBe(true);
       // Selecting a distant group does not pin its members' names.
       renderer.update(population, { ...settings, selected: "pool" });
       frame(40);
       shown = latest(anchors);
-      expect(shown.get("member-0")?.visible).toBe(false);
-      expect(shown.get("member-1")?.visible).toBe(false);
+      expect(shown.get("member-0")?.visible ?? false).toBe(false);
+      expect(shown.get("member-1")?.visible ?? false).toBe(false);
       // A selected member is still named itself.
       renderer.update(population, { ...settings, selected: "member-1" });
       frame(60);
       shown = latest(anchors);
       expect(shown.get("member-1")?.visible).toBe(true);
-      expect(shown.get("member-0")?.visible).toBe(false);
+      expect(shown.get("member-0")?.visible ?? false).toBe(false);
       renderer.update(population, settings);
       frame(80);
-      expect(latest(anchors).get("member-1")?.visible).toBe(false);
+      expect(latest(anchors).get("member-1")?.visible ?? false).toBe(false);
       // Zooming in until neighbours are far apart names every member and
       // steps the parent's own label back.
       view(0, 0);
@@ -1108,6 +1106,46 @@ describe("nested label disclosure", () => {
       shown = latest(anchors);
       expect(shown.get("member-1")?.visible).toBe(true);
       expect(shown.get("pool")?.open).toBe(true);
+    } finally {
+      renderer.dispose();
+    }
+  });
+  it("keeps a closing group's member names until they have faded out", () => {
+    const { renderer, frame, anchors, view, access } = setup(population);
+    const moving = { ...settings, motion: true };
+    try {
+      renderer.update(population, moving);
+      view(0, 0);
+      for (let now = 20; now <= 1500; now += 20) frame(now);
+      expect(latest(anchors).get("member-1")?.visible).toBe(true);
+      // Zoom back out: the names fade out before their elements go.
+      access.camera.position.set(9, 60, 80);
+      access.controls.target.set(0, -0.6, 0);
+      access.controls.update();
+      frame(1520);
+      const fading = latest(anchors).get("member-1") as Published & {
+        opacity: number;
+      };
+      expect(fading.visible).toBe(false);
+      expect(fading.opacity).toBeGreaterThan(0.05);
+      for (let now = 1540; now <= 4000; now += 20) frame(now);
+      expect(latest(anchors).has("member-1")).toBe(false);
+    } finally {
+      renderer.dispose();
+    }
+  });
+  it("re-places labels over the frame already drawn without redrawing the terrain", () => {
+    const { renderer, frame, anchors, canvas } = setup(population);
+    try {
+      renderer.update(population, { ...settings, motion: true });
+      for (let now = 20; now <= 1500; now += 20) frame(now);
+      const draws = canvas.dataset.gravityRenderedFrames;
+      const published = anchors.mock.calls.length;
+      // A label that measures larger moves its neighbours; the camera has not.
+      renderer.measureAnchor("pool", 520, 64);
+      for (let now = 1520; now <= 2000; now += 20) frame(now);
+      expect(anchors.mock.calls.length).toBeGreaterThan(published);
+      expect(canvas.dataset.gravityRenderedFrames).toBe(draws);
     } finally {
       renderer.dispose();
     }
