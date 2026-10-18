@@ -27,7 +27,7 @@ const journal = JSON.parse(
 );
 assert.equal(
   journal.entries.at(-1).idx,
-  73,
+  74,
   "Review this audit when the migration sequence changes",
 );
 const directory = await mkdtemp(
@@ -253,6 +253,28 @@ try {
       ),
       journal.entries.length,
     );
+    assert.equal(
+      Number(
+        (
+          await runtime.pool.query(
+            "select count(*) as n from observatory_resource_logo",
+          )
+        ).rows[0].n,
+      ),
+      0,
+      "Upgrade must not invent approved repository logos",
+    );
+    for (const privilege of ["SELECT", "INSERT", "UPDATE", "DELETE"])
+      assert.equal(
+        (
+          await runtime.pool.query(
+            "select has_table_privilege(current_user, 'observatory_resource_logo', $1) as allowed",
+            [privilege],
+          )
+        ).rows[0].allowed,
+        true,
+        `The upgraded runtime needs ${privilege} on reviewed logos`,
+      );
   }
   await assert.rejects(
     () =>
@@ -281,7 +303,7 @@ try {
   assert.equal(feed.items.length, 0);
   console.log(
     JSON.stringify({
-      scenario: "populated_0067_to_0073_and_repeat",
+      scenario: "populated_0067_to_0074_and_repeat",
       result: "PASS",
       postgres: 18,
       resources: 91,
