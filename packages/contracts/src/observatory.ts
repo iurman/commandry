@@ -323,6 +323,15 @@ export const observatoryExpansionRefSchema = z.strictObject({
   scopeDigest: id,
   projectionRevision: id,
 });
+export const OBSERVATORY_LOGO_SIZE = 128;
+/** An owner-approved processed logo. Bytes are read separately by digest. */
+export const observatoryLogoReferenceSchema = z.strictObject({
+  digest: z.string().regex(/^[a-f0-9]{64}$/),
+  mediaType: z.literal("image/png"),
+  width: z.literal(OBSERVATORY_LOGO_SIZE),
+  height: z.literal(OBSERVATORY_LOGO_SIZE),
+  version: z.number().int().positive(),
+});
 export const observatoryRepresentationSchema = z
   .strictObject({
     id,
@@ -338,8 +347,15 @@ export const observatoryRepresentationSchema = z
     memberDigest: id,
     expansionRef: observatoryExpansionRefSchema,
     summary: observatorySummarySchema,
+    /** Present only when the represented resource has an active approved logo. */
+    logo: observatoryLogoReferenceSchema.optional(),
   })
   .superRefine((value, context) => {
+    if (value.logo && value.resourceId === null)
+      context.addIssue({
+        code: "custom",
+        message: "Only a canonical resource representation carries a logo",
+      });
     const valid =
       value.kind === "reference"
         ? value.resourceId !== null &&
@@ -501,6 +517,9 @@ export const observatorySceneSchema = z
         roots.has(node.id) !== (node.parentRepresentationId === null)
       )
         fail("Invalid canonical reference or parent");
+      const target = node.referenceTo ? nodes.get(node.referenceTo) : null;
+      if (target && target.logo?.digest !== node.logo?.digest)
+        fail("Reference logo disagrees with its canonical representation");
       if (
         !Object.hasOwn(scene.membershipIndex.directMembers, node.id) ||
         !Object.hasOwn(scene.membershipIndex.children, node.id)

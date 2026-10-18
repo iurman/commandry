@@ -51,6 +51,23 @@ export const OBSERVATORY_REVIEW_POLICIES = Object.freeze({
     auditEvent: "observatory.client_scope.review",
     concurrency: "expected_version",
   },
+  logo: {
+    scope: "resource",
+    risk: "reversible",
+    capability: "owner",
+    approval: "owner_only",
+    auditEvent: "observatory.logo.review",
+    concurrency: "expected_version",
+  },
+  /** Writes nothing, but may read one owner-named file from api.github.com. */
+  logo_preview: {
+    scope: "resource",
+    risk: "read_only",
+    capability: "owner",
+    approval: "owner_session",
+    auditEvent: "observatory.logo.preview",
+    concurrency: "none",
+  },
 });
 const schemas = {
   annotation: observatoryAnnotationChangeSchema,

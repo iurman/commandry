@@ -12,6 +12,14 @@ import {
 } from "./ObservatoryCanonicalViews";
 import { FloatingSurface } from "./FloatingSurface";
 import {
+  ObservatoryResourceMark,
+  type ObservatoryLogoUrl,
+} from "./ObservatoryResourceMark";
+import {
+  ObservatoryLogoReview,
+  type ObservatoryLogoReviewClient,
+} from "./ObservatoryLogoReview";
+import {
   ObservatoryWorkDock,
   type ObservatoryWorkDockProps,
 } from "./ObservatoryWorkDock";
@@ -60,8 +68,8 @@ import type {
 } from "../gravity/renderer";
 import type { CameraMode } from "../gravity/model";
 import {
-  legibleBrandColor,
   resolveResourceIcon,
+  resourceIcon,
   resourceIcons,
   type ResourceIcon,
   type ResourceIconGroup,
@@ -88,6 +96,10 @@ export type OperationalObservatoryProps = {
   providerFeedClient?: ObservatoryProviderFeedClient;
   reviewClient?: ObservatoryReviewClient;
   onReviewed?: () => void;
+  /** Same-origin address for approved logos; without it badges keep kind marks. */
+  logoUrl?: ObservatoryLogoUrl;
+  /** Owner logo preview/review for repository resources. */
+  logoReviewClient?: ObservatoryLogoReviewClient;
   scopeProjectId?: string | null;
   paused?: boolean;
   delayed?: boolean;
@@ -127,30 +139,6 @@ const iconGroups: [ResourceIconGroup, string][] = [
   ["kind", "Resource kinds"],
 ];
 /** A technology logo or kind glyph inside the kind-shaped badge. */
-function ResourceGlyph({
-  kind,
-  icon,
-  theme,
-}: {
-  kind: OperationalRepresentation["kind"];
-  icon: ResourceIcon;
-  theme: "porcelain" | "midnight";
-}) {
-  const color = legibleBrandColor(icon, theme);
-  return (
-    <span
-      className="cmd-op-kind"
-      data-kind={kind}
-      data-icon={icon.id}
-      aria-hidden="true"
-      style={color ? ({ "--op-icon": color } as CSSProperties) : undefined}
-    >
-      <svg viewBox="0 0 24 24" focusable="false">
-        <path fillRule="evenodd" d={icon.path} />
-      </svg>
-    </span>
-  );
-}
 const words = (value: string) => value.replaceAll("_", " ");
 function safeEvidence(value: string): string | null {
   if (/^\/(?!\/)/.test(value)) return value;
@@ -251,6 +239,7 @@ function OutlineNode({
   activate,
   toggle,
   iconFor,
+  logoFor,
   theme,
 }: {
   id: string;
@@ -261,6 +250,7 @@ function OutlineNode({
   activate: (id: string) => void;
   toggle: (id: string) => void;
   iconFor: (node: OperationalRepresentation) => ResourceIcon;
+  logoFor: (node: OperationalRepresentation) => string | null;
   theme: "porcelain" | "midnight";
 }) {
   const node = byId.get(id);
@@ -296,7 +286,12 @@ function OutlineNode({
           aria-pressed={selected === id}
           onClick={() => activate(id)}
         >
-          <ResourceGlyph kind={node.kind} icon={iconFor(node)} theme={theme} />
+          <ObservatoryResourceMark
+            kind={node.kind}
+            icon={iconFor(node)}
+            logo={logoFor(node)}
+            theme={theme}
+          />
           <span>
             {node.label}
             <small>
@@ -327,6 +322,7 @@ function OutlineNode({
               activate={activate}
               toggle={toggle}
               iconFor={iconFor}
+              logoFor={logoFor}
               theme={theme}
             />
           ))}
@@ -360,6 +356,8 @@ function OperationalObservatoryView({
   providerFeedClient,
   reviewClient,
   onReviewed,
+  logoUrl,
+  logoReviewClient,
   workClient,
   workProjectIds,
   scopeProjectId = null,
@@ -939,6 +937,15 @@ function OperationalObservatoryView({
       iconSubject(node),
       node.resourceId ? preferences.icons[node.resourceId] : undefined,
     );
+  // An explicit icon chosen on this device wins; otherwise an owner-approved
+  // logo replaces the automatic icon (OQ-038 keeps this order provisional).
+  const logoFor = (node: OperationalRepresentation) =>
+    logoUrl &&
+    node.resourceId &&
+    node.logo &&
+    !resourceIcon(preferences.icons[node.resourceId])
+      ? logoUrl(node.resourceId, node.logo.digest)
+      : null;
   const summary = selected?.summary ?? scene.summary;
   const exposed = scene.providerExposures.filter((item) =>
     focusedMembers.has(item.resourceId),
@@ -1586,9 +1593,10 @@ function OperationalObservatoryView({
                     aria-label={`Inspect ${node.label}, ${kindNames[node.kind]}, ${node.memberCount} unique resources`}
                     onClick={() => activate(node.id)}
                   >
-                    <ResourceGlyph
+                    <ObservatoryResourceMark
                       kind={node.kind}
                       icon={iconFor(node)}
+                      logo={logoFor(node)}
                       theme={theme}
                     />
                     <span>
@@ -1733,6 +1741,7 @@ function OperationalObservatoryView({
                   activate={activate}
                   toggle={toggle}
                   iconFor={iconFor}
+                  logoFor={logoFor}
                   theme={theme}
                 />
               ))}
@@ -1894,7 +1903,9 @@ function OperationalObservatoryView({
                   >
                     <option value="">
                       Automatic:{" "}
-                      {resolveResourceIcon(iconSubject(selected)).title}
+                      {logoUrl && selected.logo
+                        ? "Approved repository logo"
+                        : resolveResourceIcon(iconSubject(selected)).title}
                     </option>
                     {iconGroups.map(([group, label]) => (
                       <optgroup key={group} label={label}>
@@ -1940,6 +1951,23 @@ function OperationalObservatoryView({
               loadEvidence={evidenceClient}
             />
           )}
+          {selected?.resourceId &&
+            !selected.referenceTo &&
+            selected.kind === "repository" &&
+            logoReviewClient &&
+            onReviewed && (
+              <ObservatoryLogoReview
+                key={`logo:${scene.scopeDigest}:${selected.resourceId}`}
+                resource={{
+                  id: selected.resourceId,
+                  name: selected.label,
+                  kind: selected.kind,
+                }}
+                client={logoReviewClient}
+                logoUrl={logoUrl}
+                onReviewed={onReviewed}
+              />
+            )}
           {selected?.resourceId &&
             reviewClient &&
             onReviewed &&

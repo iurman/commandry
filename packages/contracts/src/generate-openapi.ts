@@ -353,6 +353,12 @@ import {
   observatoryOperationalEvidenceResultSchema,
   observatoryCatalogueQuerySchema,
   observatoryCatalogueResultSchema,
+  observatoryLogoQuerySchema,
+  observatoryLogoReadResultSchema,
+  observatoryLogoPreviewSchema,
+  observatoryLogoPreviewResultSchema,
+  observatoryLogoChangeSchema,
+  observatoryLogoFailureSchema,
   observatoryProviderFeedQuerySchema,
   observatoryProviderFeedResultSchema,
   observatoryAnnotationChangeSchema,
@@ -942,8 +948,16 @@ function observatoryPost(
   output: string,
   summary: string,
   description: string,
-  options: { read?: boolean; conflict?: boolean; notFound?: boolean } = {},
+  options: {
+    read?: boolean;
+    conflict?: boolean;
+    notFound?: boolean;
+    maximumBytes?: number;
+    /** Also documents ObservatoryLogoFailure bodies, including 502. */
+    logo?: boolean;
+  } = {},
 ) {
+  const maximumBytes = options.maximumBytes ?? 262144;
   const failures = {
     "400":
       "Malformed JSON, invalid shared input or invalid subject/cursor reference",
@@ -959,8 +973,29 @@ function observatoryPost(
             "Expected version or stable record identity conflicts with current canonical state",
         }
       : {}),
-    "413": "UTF-8 JSON request body exceeds 262144 bytes; INPUT_TOO_LARGE",
+    "413": `UTF-8 JSON request body exceeds ${maximumBytes} bytes; INPUT_TOO_LARGE`,
+    ...(options.logo
+      ? { "502": "GitHub refused the read; LOGO_SOURCE_UNAUTHORIZED" }
+      : {}),
     "503": "Canonical service, database or validated result is unavailable",
+  };
+  const failureContent = (status: string) => {
+    const base = jsonContent(
+      status === "413" ? "ObservatoryInputTooLarge" : "FoundationFailure",
+    );
+    if (!options.logo) return base;
+    if (status === "502") return jsonContent("ObservatoryLogoFailure");
+    if (!["400", "404", "413", "503"].includes(status)) return base;
+    return {
+      "application/json": {
+        schema: {
+          oneOf: [
+            base["application/json"].schema,
+            { $ref: "#/components/schemas/ObservatoryLogoFailure" },
+          ],
+        },
+      },
+    };
   };
   return {
     post: {
@@ -970,7 +1005,7 @@ function observatoryPost(
       description:
         (options.read ? observatoryReadAuthority : observatoryOwnerAuthority) +
         description +
-        " Structural schemas use the canonical shared Zod definitions; server validation also enforces cross-field identities, authority and continuation/version refinements. UTF-8 JSON input is bounded to 262144 bytes; this transport bound is not an inventory population cap.",
+        ` Structural schemas use the canonical shared Zod definitions; server validation also enforces cross-field identities, authority and continuation/version refinements. UTF-8 JSON input is bounded to ${maximumBytes} bytes; this transport bound is not an inventory population cap.`,
       parameters: [
         {
           ...ownerOriginParameter,
@@ -1001,11 +1036,7 @@ function observatoryPost(
             {
               description: failure,
               headers: observatoryResponseHeaders,
-              content: jsonContent(
-                status === "413"
-                  ? "ObservatoryInputTooLarge"
-                  : "FoundationFailure",
-              ),
+              content: failureContent(status),
             },
           ]),
         ),
@@ -1119,6 +1150,88 @@ const observatoryPaths = {
     "Sensitive owner-only review requires expectedVersion, explicit evidenceRefs and review note; records canonical audit observatory.client_scope.review atomically for the existing client/project. An explicit resourceIds list cannot manufacture an owner session, new credential or broader project authority; a bearer client's existing reads do not authorize this mutation.",
     { conflict: true },
   ),
+  "/api/v1/infrastructure/observatory/logo": observatoryPost(
+    "readOwnerObservatoryLogo",
+    "ObservatoryLogoQuery",
+    "ObservatoryLogoReadResult",
+    "Read one approved resource logo by digest",
+    "Returns the stored 128x128 PNG for an authorized resource whose current logo record has the requested digest, as base64 with its version. The scene representation's logo reference supplies the digest; a retired logo remains readable by its digest as history. The resource must be inside the authorized population. MCP get_observatory_resource_logo shares this read.",
+    { read: true },
+  ),
+  "/api/v1/infrastructure/observatory/logo-preview": observatoryPost(
+    "previewOwnerObservatoryLogo",
+    "ObservatoryLogoPreview",
+    "ObservatoryLogoPreviewResult",
+    "Preview a repository logo without storing it",
+    "Read-only owner operation, audited as observatory.logo.preview. Accepts an upload (base64, at most 524288 bytes before encoding) or an owner-named file in a repository already reviewed for this repository resource, read from api.github.com with the server-held token at the resolved commit. Input is recognised by its bytes (PNG, JPEG, WebP or SVG; SVG with declarations, scripts or outside references is refused) and rasterized to one 128x128 PNG. Returns that PNG, its digest and the source with commit and blob SHAs. Nothing is written. Safe failures: 400 LOGO_UNSUPPORTED_IMAGE or LOGO_REPOSITORY_NOT_REVIEWED, 404 LOGO_SOURCE_NOT_FOUND, 413 LOGO_TOO_LARGE, 502 LOGO_SOURCE_UNAUTHORIZED, 503 LOGO_SOURCE_UNAVAILABLE or LOGO_PROCESSING_UNAVAILABLE.",
+    { maximumBytes: 786432, logo: true },
+  ),
+  "/api/v1/infrastructure/observatory/reviews/logo": observatoryPost(
+    "reviewOwnerObservatoryLogo",
+    "ObservatoryLogoChange",
+    "ObservatoryReviewReceipt",
+    "Approve or retire a versioned repository logo",
+    "Reversible owner-only review requires expectedVersion, explicit evidenceRefs and review note; records canonical audit observatory.logo.review atomically. Approval resubmits the previewed source (a repository file names the preview's commitSha) with expectedDigest; the server processes it again and returns 409 VERSION_CONFLICT if the result differs from what the owner saw. Only repository resources accept a logo. active=false retires the logo without deleting its image or source, and takes neither input nor digest. Same safe logo failures as preview.",
+    { conflict: true, maximumBytes: 786432, logo: true },
+  ),
+  "/api/v1/infrastructure/observatory/logos/{resourceId}/{digest}": {
+    get: {
+      operationId: "getOwnerObservatoryLogoImage",
+      tags: ["Observatory"],
+      summary: "Serve one approved resource logo as an image",
+      description:
+        observatoryReadAuthority +
+        "Same authorized read as POST /api/v1/infrastructure/observatory/logo, for badge image elements. Same-origin only: a cross-site Sec-Fetch-Site is refused. The response is private and immutable because the path names the content digest; it carries nosniff, a restrictive Content-Security-Policy and Cross-Origin-Resource-Policy same-origin.",
+      parameters: [
+        {
+          in: "path",
+          name: "resourceId",
+          required: true,
+          schema: { type: "string", format: "uuid" },
+        },
+        {
+          in: "path",
+          name: "digest",
+          required: true,
+          schema: { type: "string", pattern: "^[a-f0-9]{64}$" },
+        },
+      ],
+      responses: {
+        "200": {
+          description: "The 128x128 PNG",
+          headers: {
+            "Cache-Control": {
+              description: "Digest-addressed content never changes",
+              schema: {
+                type: "string",
+                const: "private, max-age=31536000, immutable",
+              },
+            },
+          },
+          content: {
+            "image/png": { schema: { type: "string", format: "binary" } },
+          },
+        },
+        ...Object.fromEntries(
+          Object.entries({
+            "400": "Invalid resource or digest",
+            "401": "Missing, invalid or expired actual owner password session",
+            "403": "Cross-site request, untrusted Origin or inaccessible scope",
+            "404": "No current logo with this digest for the resource",
+            "503":
+              "Canonical service, database or validated result is unavailable",
+          }).map(([status, failure]) => [
+            status,
+            {
+              description: failure,
+              headers: observatoryResponseHeaders,
+              content: jsonContent("FoundationFailure"),
+            },
+          ]),
+        ),
+      },
+    },
+  },
   "/api/v1/infrastructure/observatory/views/create": observatoryPost(
     "createOwnerObservatoryView",
     "ObservatoryViewCreate",
@@ -6258,6 +6371,17 @@ export function generateOpenApi(): string {
           observatoryClientScopeChangeSchema,
           "input",
         ),
+        ObservatoryLogoQuery: component(observatoryLogoQuerySchema, "input"),
+        ObservatoryLogoReadResult: component(observatoryLogoReadResultSchema),
+        ObservatoryLogoPreview: component(
+          observatoryLogoPreviewSchema,
+          "input",
+        ),
+        ObservatoryLogoPreviewResult: component(
+          observatoryLogoPreviewResultSchema,
+        ),
+        ObservatoryLogoChange: component(observatoryLogoChangeSchema, "input"),
+        ObservatoryLogoFailure: component(observatoryLogoFailureSchema),
         // Exact public port receipt, not a raw storage or owner identity envelope.
         ObservatoryReviewReceipt: component(
           z.strictObject({

@@ -48,6 +48,51 @@ describe("versioned Observatory DTO", () => {
     },
   );
 
+  it("carries an approved logo on a repository's canonical node and every alias of it", () => {
+    const fixture = mixedObservatoryFixture();
+    const shared = fixture.resources.find(
+      (resource) =>
+        resource.kind === "repository" && resource.projects.length > 1,
+    )!;
+    const logo = {
+      digest: "f".repeat(64),
+      mediaType: "image/png" as const,
+      width: 128 as const,
+      height: 128 as const,
+      version: 3,
+    };
+    const scene: ObservatorySceneDto = projectObservatory({
+      ...fixture,
+      grouping: "projects",
+      logos: [{ resourceId: shared.id, ...logo }],
+    });
+    expect(observatorySceneSchema.parse(scene)).toEqual(scene);
+    const carrying = scene.representations.filter((node) => node.logo);
+    expect(carrying.length).toBeGreaterThan(1);
+    for (const node of carrying) {
+      expect(node.resourceId).toBe(shared.id);
+      expect(node.logo).toEqual(logo);
+    }
+    expect(
+      carrying.filter((node) => node.referenceTo).length,
+    ).toBeGreaterThanOrEqual(1);
+    // Presentation data does not change structural identity or membership.
+    const without = projectObservatory({ ...fixture, grouping: "projects" });
+    expect(scene.projectionRevision).toBe(without.projectionRevision);
+    expect(scene.population).toEqual(without.population);
+    const alias = carrying.find((node) => node.referenceTo)!;
+    expect(
+      observatorySceneSchema.safeParse({
+        ...scene,
+        representations: scene.representations.map((node) =>
+          node.id === alias.id
+            ? { ...node, logo: { ...logo, digest: "e".repeat(64) } }
+            : node,
+        ),
+      }).success,
+    ).toBe(false);
+  });
+
   it("accepts operational evidence and empty scenes without claiming live adapter or GPU proof", () => {
     const fixture = operationalObservatoryFixture();
     expect(

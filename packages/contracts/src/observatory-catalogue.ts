@@ -8,6 +8,7 @@ import {
 } from "./observatory";
 import { observatorySourceBindingChangeSchema } from "./observatory-management";
 import { observatorySceneQuerySchema } from "./observatory-queries";
+import { observatoryLogoCatalogueItemSchema } from "./observatory-logos";
 
 // Canonical row identities retain their recorded spelling; public query UUIDs use
 // the same normalization as the existing scene query.
@@ -29,6 +30,7 @@ export const observatoryCatalogueKindSchema = z.enum([
   "relation",
   "provider",
   "source",
+  "logo",
 ]);
 export const observatoryCatalogueQuerySchema =
   observatorySceneQuerySchema.extend({
@@ -118,6 +120,7 @@ export const observatoryCatalogueItemSchema = z.discriminatedUnion("kind", [
   observatoryRelationCatalogueItemSchema,
   observatoryProviderCatalogueItemSchema,
   observatorySourceCatalogueItemSchema,
+  observatoryLogoCatalogueItemSchema,
 ]);
 const envelope = {
   schemaVersion: z.literal(1),
@@ -146,6 +149,11 @@ export const observatoryCatalogueResultSchema = z
       ...envelope,
       kind: z.literal("source"),
       items: z.array(observatorySourceCatalogueItemSchema),
+    }),
+    z.strictObject({
+      ...envelope,
+      kind: z.literal("logo"),
+      items: z.array(observatoryLogoCatalogueItemSchema),
     }),
   ])
   .refine(

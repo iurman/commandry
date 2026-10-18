@@ -1,0 +1,39 @@
+.cmd-observatory-logo form,
+.cmd-observatory-logo > label {
+  display: grid;
+  gap: 0.5rem;
+  margin-block: 0.75rem;
+}
+.cmd-observatory-logo fieldset {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.75rem;
+  margin: 0;
+  padding: 0;
+  border: 0;
+}
+.cmd-observatory-logo figure {
+  display: flex;
+  gap: 0.75rem;
+  align-items: center;
+  margin: 0.75rem 0;
+}
+.cmd-observatory-logo figure img {
+  flex: 0 0 64px;
+  width: 64px;
+  height: 64px;
+  object-fit: contain;
+  /* A checkerboard shows transparency without inventing a background colour. */
+  background: repeating-conic-gradient(
+      var(--review-line) 0% 25%,
+      transparent 0% 50%
+    )
+    50% / 12px 12px;
+  border: 1px solid var(--review-line);
+  border-radius: 0.35rem;
+}
+.cmd-observatory-logo__actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+}

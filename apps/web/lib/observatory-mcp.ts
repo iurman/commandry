@@ -71,6 +71,11 @@ export function createObservatoryMcpReads(
         request("observatory.read"),
         query(input),
       ),
+    logo: (input) =>
+      service("observatory.read").logo(
+        request("observatory.read"),
+        query(input),
+      ),
     members: (input) =>
       service("observatory.read").members(
         request("observatory.read"),

@@ -22,6 +22,7 @@ import {
   observatoryAnnotation,
   observatoryProviderMapping,
   observatoryRelation,
+  observatoryResourceLogo,
   observatorySource,
 } from "./observatory-schema";
 import {
@@ -111,6 +112,20 @@ export async function collectObservatoryRecords(
     .from(observatoryAnnotation)
     .where(inArray(observatoryAnnotation.resourceId, ids))
     .orderBy(asc(observatoryAnnotation.resourceId));
+  const logos = await tx
+    .select({
+      resourceId: observatoryResourceLogo.resourceId,
+      version: observatoryResourceLogo.version,
+      digest: observatoryResourceLogo.digest,
+    })
+    .from(observatoryResourceLogo)
+    .where(
+      and(
+        eq(observatoryResourceLogo.active, true),
+        inArray(observatoryResourceLogo.resourceId, ids),
+      ),
+    )
+    .orderBy(asc(observatoryResourceLogo.resourceId));
   const relations = await tx
     .select()
     .from(observatoryRelation)
@@ -336,6 +351,12 @@ export async function collectObservatoryRecords(
     readStartedAt: started,
     readCompletedAt: now.toISOString(),
     now: now.toISOString(),
+    logos: logos.map((logo) => ({
+      ...logo,
+      mediaType: "image/png" as const,
+      width: 128 as const,
+      height: 128 as const,
+    })),
     metadata: annotations.map((a) => a.metadata),
     requirements: annotations.map((a) => ({
       id: `requirement:${a.resourceId}`,
@@ -493,14 +514,68 @@ export async function readObservatoryCatalogueRecords(
           : undefined,
       ),
     );
+  const logos = await tx
+    .select({
+      resourceId: observatoryResourceLogo.resourceId,
+      version: observatoryResourceLogo.version,
+      active: observatoryResourceLogo.active,
+      digest: observatoryResourceLogo.digest,
+      source: observatoryResourceLogo.source,
+      provenance: observatoryResourceLogo.provenance,
+    })
+    .from(observatoryResourceLogo)
+    .where(inArray(observatoryResourceLogo.resourceId, ids));
   return [
     ...annotations.map((item) => ({
       kind: "annotation",
       id: item.resourceId,
       ...item,
     })),
+    // Image bytes stay out of the catalogue; they are read by digest.
+    ...logos.map((item) => ({
+      kind: "logo",
+      id: item.resourceId,
+      ...item,
+      mediaType: "image/png",
+      width: 128,
+      height: 128,
+    })),
     ...relations.map((item) => ({ kind: "relation", ...item })),
     ...mappings.map((item) => ({ kind: "provider", ...item })),
     ...sources.map((item) => ({ kind: "source", ...item })),
   ];
+}
+
+/** The current logo row for one resource inside the authorized population, or
+ * null. The shared service checks the digest and the subject's authorization. */
+export async function readObservatoryLogoRecord(
+  tx: Transaction,
+  scope: ObservatoryRecordScope,
+  resourceId: string,
+): Promise<unknown> {
+  if (scope.resourceIds !== null && !scope.resourceIds.includes(resourceId))
+    return null;
+  const [row] = await tx
+    .select({
+      resourceId: observatoryResourceLogo.resourceId,
+      version: observatoryResourceLogo.version,
+      digest: observatoryResourceLogo.digest,
+      image: observatoryResourceLogo.image,
+    })
+    .from(observatoryResourceLogo)
+    .where(
+      and(
+        eq(observatoryResourceLogo.resourceId, resourceId),
+        scope.projectId
+          ? sql`exists (select 1 from ${projectResourceLink} where ${projectResourceLink.resourceId} = ${observatoryResourceLogo.resourceId} and ${projectResourceLink.projectId} = ${scope.projectId} and ${projectResourceLink.lifecycle} = 'active')`
+          : undefined,
+      ),
+    );
+  if (!row) return null;
+  return {
+    resourceId: row.resourceId,
+    version: row.version,
+    digest: row.digest,
+    dataBase64: Buffer.from(row.image).toString("base64"),
+  };
 }

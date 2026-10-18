@@ -1188,6 +1188,162 @@ describe("operational component interactions with the real semantic scene", () =
       ).toHaveLength(0);
     });
   });
+  it("shows an approved repository logo on its stage badge and falls back to the resolved icon", async () => {
+    const { input, scene: plain, props } = setup();
+    const labelled = plain.representations.filter(
+      (node) =>
+        node.kind === "repository" &&
+        !node.referenceTo &&
+        plain.visibleRepresentationIds.includes(node.id),
+    );
+    expect(labelled.length).toBeGreaterThan(1);
+    const [approved, other] = labelled as [
+      (typeof labelled)[number],
+      (typeof labelled)[number],
+    ];
+    const digest = "d".repeat(64);
+    const scene = projectObservatory({
+      ...input,
+      logos: [
+        {
+          resourceId: approved.resourceId!,
+          digest,
+          mediaType: "image/png",
+          width: 128,
+          height: 128,
+          version: 1,
+        },
+      ],
+    });
+    const logoUrl = vi.fn(
+      (resourceId: string, value: string) => `/logos/${resourceId}/${value}`,
+    );
+    const badge = (node: { label: string }) =>
+      screen
+        .getAllByRole("button", {
+          name: new RegExp(`^Inspect ${node.label},`),
+        })[0]!
+        .querySelector(".cmd-op-kind")!;
+    const view = render(
+      createElement(OperationalObservatory, { ...props, scene, logoUrl }),
+    );
+    await waitFor(() =>
+      expect(badge(approved).querySelector("img")).not.toBeNull(),
+    );
+    const image = badge(approved).querySelector("img")!;
+    expect(image.getAttribute("src")).toBe(
+      `/logos/${approved.resourceId}/${digest}`,
+    );
+    expect(image.getAttribute("alt")).toBe("");
+    expect(badge(approved).getAttribute("data-logo")).toBe("true");
+    expect(badge(other).querySelector("img")).toBeNull();
+    expect(badge(other).querySelector("svg")).not.toBeNull();
+    expect(badge(other).getAttribute("data-icon")).toBe("github");
+    // A broken image restores the icon glyph instead of an empty badge.
+    fireEvent.error(image);
+    await waitFor(() =>
+      expect(badge(approved).querySelector("img")).toBeNull(),
+    );
+    expect(badge(approved).querySelector("svg")).not.toBeNull();
+    // Without a host-supplied address no image is requested at all.
+    view.rerender(createElement(OperationalObservatory, { ...props, scene }));
+    expect(document.querySelectorAll(".cmd-op-kind img")).toHaveLength(0);
+  });
+
+  it("lets an explicit device icon choice take precedence over an approved logo", async () => {
+    const { input, scene: plain, props } = setup();
+    const approved = plain.representations.find(
+      (node) =>
+        node.kind === "repository" &&
+        !node.referenceTo &&
+        plain.visibleRepresentationIds.includes(node.id),
+    )!;
+    const scene = projectObservatory({
+      ...input,
+      logos: [
+        {
+          resourceId: approved.resourceId!,
+          digest: "d".repeat(64),
+          mediaType: "image/png",
+          width: 128,
+          height: 128,
+          version: 1,
+        },
+      ],
+    });
+    const badge = () =>
+      screen
+        .getAllByRole("button", {
+          name: new RegExp(`^Inspect ${approved.label},`),
+        })[0]!
+        .querySelector(".cmd-op-kind")!;
+    render(
+      createElement(OperationalObservatory, {
+        ...props,
+        scene,
+        selectedId: approved.resourceId,
+        logoUrl: (resourceId: string, digest: string) =>
+          `/logos/${resourceId}/${digest}`,
+      }),
+    );
+    await waitFor(() => expect(badge().querySelector("img")).not.toBeNull());
+    const choice = screen.getByLabelText("Icon on this device");
+    expect(
+      within(choice).getByRole("option", {
+        name: "Automatic: Approved repository logo",
+      }),
+    ).toBeInTheDocument();
+    fireEvent.change(choice, { target: { value: "docker" } });
+    await waitFor(() => expect(badge().querySelector("img")).toBeNull());
+    expect(badge().getAttribute("data-icon")).toBe("docker");
+    fireEvent.change(choice, { target: { value: "" } });
+    await waitFor(() => expect(badge().querySelector("img")).not.toBeNull());
+  });
+
+  it("offers logo review only for a selected canonical repository", async () => {
+    const { input, scene, props } = setup();
+    const repository = input.resources.find(
+      (resource) => resource.kind === "repository",
+    )!;
+    const host = input.resources.find((resource) => resource.kind === "host")!;
+    const logoReviewClient = {
+      loadLogo: vi.fn(async () => ({
+        schemaVersion: 1,
+        scopeDigest: scene.scopeDigest,
+        projectionRevision: scene.projectionRevision,
+        completeness: "complete",
+        kind: "logo",
+        items: [],
+      })),
+      preview: vi.fn(),
+      review: vi.fn(),
+    };
+    const clientProps = {
+      ...props,
+      logoReviewClient,
+      onReviewed: vi.fn(),
+      selectedId: repository.id,
+    };
+    const view = render(createElement(OperationalObservatory, clientProps));
+    await waitFor(() =>
+      expect(screen.getByText("Repository logo")).toBeInTheDocument(),
+    );
+    await waitFor(() =>
+      expect(screen.getByText(/No logo is approved/)).toBeInTheDocument(),
+    );
+    expect(logoReviewClient.loadLogo).toHaveBeenCalledWith(repository.id);
+    view.rerender(
+      createElement(OperationalObservatory, {
+        ...clientProps,
+        selectedId: host.id,
+      }),
+    );
+    await waitFor(() =>
+      expect(screen.queryByText("Repository logo")).toBeNull(),
+    );
+    expect(logoReviewClient.preview).not.toHaveBeenCalled();
+  });
+
   it("keeps canonical Work explicitly unavailable without a client in a collapsed panel below recorded observations", async () => {
     const { props } = setup();
     render(createElement(OperationalObservatory, props));

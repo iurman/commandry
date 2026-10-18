@@ -452,3 +452,16 @@ unverified. Identify a supported source or canonical alert contract before
 adding that observation; retain original checks, incident identity and source
 time. The generic proposed alert vocabulary does not supply this capability.
 InfraAgent is optional prior art and its activation is outside this upgrade.
+
+### OQ-038: Should related resources inherit an approved repository logo?
+
+The Observatory shows an owner-approved logo only on the repository resource it
+was reviewed for ([repository logos plan](../plans/observatory-repository-logos/PLAN.md)).
+A deployment or service connected by a reviewed `deploys` or `provides_service`
+relation could reuse that logo, which would make a project's running pieces
+easier to recognise. It could also suggest an ownership or deployment link the
+relation does not establish. Decide whether inheritance follows reviewed
+relations, needs its own approval per resource, or stays out. Also decide
+whether an explicit owner icon choice should always take precedence over an
+approved logo. Until then, logos stay on repositories, and an explicit icon
+choice wins where one exists.

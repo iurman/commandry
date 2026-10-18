@@ -80,6 +80,8 @@ export * from "./provider-status";
 
 export * from "./observatory-management";
 
+export * from "./observatory-logos";
+
 export * from "./observatory";
 
 export * from "./observatory-observations";
