@@ -37,12 +37,24 @@ const operations: FoundationOperation[] = [
 async function fixture(grants = operations, operationalRows?: unknown[]) {
   const original = mixedObservatoryFixture();
   const project = original.projects[0]!;
+  const repository = original.resources.find(
+    (resource) => resource.kind === "repository",
+  )!;
+  const logo = {
+    resourceId: repository.id,
+    digest: "f".repeat(64),
+    mediaType: "image/png" as const,
+    width: 128 as const,
+    height: 128 as const,
+    version: 2,
+  };
   const input = {
     ...original,
     resources: original.resources.map((resource) => ({
       ...resource,
       projects: [project],
     })),
+    logos: [logo],
   };
   const access: ObservatoryReadAccess = {
     owner: false,
@@ -81,6 +93,15 @@ async function fixture(grants = operations, operationalRows?: unknown[]) {
               ? { readOperationalEvidence: async () => operationalRows }
               : {}),
             readCatalogue: async () => [],
+            readLogo: async (resourceId: string) =>
+              resourceId === logo.resourceId
+                ? {
+                    resourceId,
+                    version: logo.version,
+                    digest: logo.digest,
+                    dataBase64: "iVBORw0KGgo=",
+                  }
+                : null,
             readProviderFeed: async () => ({
               state: "unknown",
               lastSuccessAt: null,
@@ -127,6 +148,7 @@ async function fixture(grants = operations, operationalRows?: unknown[]) {
     requests,
     project,
     input,
+    logo,
     close: async () => {
       await client.close();
       await handler.close();
@@ -357,6 +379,7 @@ describe("Observatory discovery and reads over the actual MCP SDK", () => {
         [
           "get_observatory_operational_evidence",
           "get_observatory_provider_explanation",
+          "get_observatory_resource_logo",
           "get_observatory_scene",
           "get_observatory_signal_evidence",
           "list_observatory_members",
@@ -440,6 +463,81 @@ describe("Observatory discovery and reads over the actual MCP SDK", () => {
           (r) => r.targetId === null && r.environment === "test",
         ),
       ).toBe(true);
+    } finally {
+      await f.close();
+    }
+  });
+  it("shares approved logo references and images with the owner read service", async () => {
+    const f = await fixture(["observatory.read"]);
+    try {
+      const scene = observatorySceneReadResultSchema.parse(
+        (
+          await f.client.callTool({
+            name: "get_observatory_scene",
+            arguments: {},
+          })
+        ).structuredContent,
+      );
+      const node = scene.scene.representations.find(
+        (item) => item.resourceId === f.logo.resourceId && !item.referenceTo,
+      )!;
+      expect(node.logo).toEqual({
+        digest: f.logo.digest,
+        mediaType: "image/png",
+        width: 128,
+        height: 128,
+        version: f.logo.version,
+      });
+      expect(
+        scene.scene.representations
+          .filter((item) => item.logo)
+          .every((item) => item.resourceId === f.logo.resourceId),
+      ).toBe(true);
+      const image = await f.client.callTool({
+        name: "get_observatory_resource_logo",
+        arguments: { resourceId: f.logo.resourceId, digest: f.logo.digest },
+      });
+      expect(image.isError).not.toBe(true);
+      expect(image.structuredContent).toEqual(
+        await f.reads.logo({
+          resourceId: f.logo.resourceId,
+          digest: f.logo.digest,
+        }),
+      );
+      expect(image.structuredContent).toMatchObject({
+        resourceId: f.logo.resourceId,
+        version: 2,
+        image: { digest: f.logo.digest, mediaType: "image/png" },
+      });
+      const stale = await f.client.callTool({
+        name: "get_observatory_resource_logo",
+        arguments: { resourceId: f.logo.resourceId, digest: "0".repeat(64) },
+      });
+      expect(stale.isError).toBe(true);
+      expect(stale.structuredContent).toEqual({ code: "NOT_FOUND" });
+      const catalogue = await f.client.callTool({
+        name: "list_observatory_reviewed_configuration",
+        arguments: { kind: "logo" },
+      });
+      expect(catalogue.isError).not.toBe(true);
+      expect(catalogue.structuredContent).toMatchObject({
+        kind: "logo",
+        items: [],
+      });
+      for (const extra of [
+        { projectId: f.project.id },
+        { dataBase64: "AAAA" },
+      ]) {
+        const denied = await f.client.callTool({
+          name: "get_observatory_resource_logo",
+          arguments: {
+            resourceId: f.logo.resourceId,
+            digest: f.logo.digest,
+            ...extra,
+          },
+        });
+        expect(denied.structuredContent).toEqual({ code: "INVALID_INPUT" });
+      }
     } finally {
       await f.close();
     }

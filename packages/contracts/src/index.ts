@@ -3513,3 +3513,4 @@ export * from "./observatory-operational";
 export * from "./observatory-provider-feed";
 
 export * from "./observatory-catalogue";
+export * from "./observatory-logos";

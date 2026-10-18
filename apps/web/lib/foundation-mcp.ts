@@ -44,6 +44,7 @@ import {
   observatorySignalEvidenceQuerySchema,
   observatoryProviderExplanationQuerySchema,
   observatoryCatalogueQuerySchema,
+  observatoryLogoQuerySchema,
   observatoryProviderFeedQuerySchema,
   type FoundationActor,
 } from "@commandry/contracts";
@@ -232,10 +233,10 @@ export function createFoundationMcpServer(
       {
         description:
           scope +
-          "Read-only complete canonical annotations, relations and provider mappings, including inactive records, versions and provenance. Provider records and provider endpoint relations require the separate provider grant. Source configuration and all mapping changes remain signed-in owner operations. No raw originals or credentials are returned.",
+          "Read-only complete canonical annotations, relations, provider mappings and repository logos, including inactive or retired records, versions and provenance. Logo records name their image digest and source (owner upload, or repository file at a commit) without image bytes. Provider records and provider endpoint relations require the separate provider grant. Source configuration and all mapping or logo changes remain signed-in owner operations. No raw originals or credentials are returned.",
         inputSchema: safeSchema(
           observatoryCatalogueQuerySchema.omit({ projectId: true }).extend({
-            kind: z.enum(["annotation", "relation", "provider"]),
+            kind: z.enum(["annotation", "relation", "provider", "logo"]),
           }),
         ),
         annotations: readAnnotations,
@@ -268,6 +269,19 @@ export function createFoundationMcpServer(
         annotations: readAnnotations,
       },
       (input) => result(() => observatory.scene(input)),
+    );
+    register(
+      "get_observatory_resource_logo",
+      {
+        description:
+          scope +
+          "Read-only owner-approved logo for one authorized resource, as the 128x128 PNG in base64 with its version. Take resourceId and digest from a scene representation's logo reference; a digest that is not the resource's current logo record returns NOT_FOUND, while a retired logo stays readable by its digest as history. A logo is presentation only: it does not establish ownership, deployment or health. Approving or retiring a logo remains a signed-in owner operation.",
+        inputSchema: safeSchema(
+          observatoryLogoQuerySchema.omit({ projectId: true }),
+        ),
+        annotations: readAnnotations,
+      },
+      (input) => result(() => observatory.logo(input)),
     );
     register(
       "list_observatory_members",

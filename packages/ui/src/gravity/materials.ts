@@ -64,18 +64,23 @@ void main() {
       d.x * s / (w.z * shape.x) + d.y * c / w.z
     );
     gradient += derivative * radial;
-    float settle = min(1.0, w.w * 3.0) * 4.0 * exp(-r2 * 0.9);
+    // The rim saturates early, so a shallow pool's edge reads as clearly as a
+    // deep host well's; only a basin fading out of the scene loses it.
+    float shade = min(1.0, w.w * 3.0);
+    float settle = shade * 4.0 * exp(-r2 * 0.9);
     calm += settle;
     calmGradient -= 0.9 * settle * radial;
+    // Contour ink and tint stay depth-weighted: a shallow pool must not ink the
+    // floor swell around it.
     float influence = exp(-r2 * 0.45) * strength;
     tint += color.rgb * influence;
     weight += influence;
     vInfluence = max(vInfluence, influence);
     vDepth = max(vDepth, wellDepth);
     // Small basins get a proportionally wider rim so it spans whole mesh cells.
-    float rim = exp(-gravitySquare((r - 1.08) * min(20.0, w.z * 8.0))) * strength;
+    float rim = exp(-gravitySquare((r - 1.08) * min(20.0, w.z * 8.0))) * shade;
     vRim = max(vRim, rim);
-    vAlert = max(vAlert, color.a * exp(-r2 * 0.25) * strength);
+    vAlert = max(vAlert, color.a * exp(-r2 * 0.25) * shade);
     vDash = max(vDash, rim * color.a * step(0.0, sin(atan(d.y, d.x) * 22.0)));
   }
   // Basins calm the decorative floor swell; the analytic normal includes it.

@@ -37,6 +37,10 @@ import { observatoryViewsClient } from "./observatory-views-client";
 import { createObservatoryProviderFeedClient } from "./observatory-provider-client";
 import { createObservatoryReviewClient } from "./observatory-review-client";
 import {
+  createObservatoryLogoClient,
+  observatoryLogoUrl,
+} from "./observatory-logo-client";
+import {
   loadObservatoryWorkPage,
   loadCompleteObservatoryWorkProjects,
 } from "./observatory-work-client";
@@ -106,6 +110,7 @@ export default function InfrastructureOverviewScreen({
     grouping: "operational",
     environment: null,
     expandedRepresentationIds: [],
+    reveal: "members",
     search: initialQuery,
     sectors: [],
     viewRevision: "1",
@@ -181,6 +186,19 @@ export default function InfrastructureOverviewScreen({
         ...(scope.projectId ? { projectId: scope.projectId } : {}),
       }),
     [sceneQuery, scope.projectId],
+  );
+  // The logo catalogue depends only on project scope, not search or expansion.
+  const logoReviewClient = useMemo(
+    () =>
+      createObservatoryLogoClient({
+        schemaVersion: 1,
+        ...(scope.projectId ? { projectId: scope.projectId } : {}),
+      }),
+    [scope.projectId],
+  );
+  const logoUrl = useMemo(
+    () => observatoryLogoUrl(scope.projectId || undefined),
+    [scope.projectId],
   );
   const onReviewed = useCallback(() => setEpoch((value) => value + 1), []);
   const [fullscreenError, setFullscreenError] = useState<string | null>(null);
@@ -826,6 +844,8 @@ export default function InfrastructureOverviewScreen({
                   evidenceClient={evidenceClient}
                   providerFeedClient={providerFeedClient}
                   reviewClient={reviewClient}
+                  logoReviewClient={logoReviewClient}
+                  logoUrl={logoUrl}
                   onReviewed={onReviewed}
                   scopeProjectId={scope.projectId || null}
                   paused={paused}

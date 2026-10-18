@@ -34,6 +34,13 @@ import {
   observatoryViewSchema,
   observatoryViewPageSchema,
   observatoryViewDeletedSchema,
+  observatoryLogoQuerySchema,
+  observatoryLogoReadResultSchema,
+  observatoryLogoPreviewSchema,
+  observatoryLogoPreviewResultSchema,
+  observatoryLogoChangeSchema,
+  observatoryLogoFailureSchema,
+  observatoryLogoFailureCodeSchema,
 } from "./index";
 
 type Shape = {
@@ -77,7 +84,7 @@ type Operation = {
 };
 type Document = {
   openapi: string;
-  paths: Record<string, { post?: Operation }>;
+  paths: Record<string, { post?: Operation; get?: Operation }>;
   components: { schemas: Record<string, Shape> };
 };
 const document = JSON.parse(
@@ -93,7 +100,11 @@ type Route = {
   read?: boolean;
   conflict?: boolean;
   notFound?: boolean;
+  maximumBytes?: number;
+  logo?: boolean;
 };
+/** The one non-POST Observatory route: digest-addressed badge images. */
+const imagePath = base + "logos/{resourceId}/{digest}";
 const routes: Route[] = [
   {
     path: "scene",
@@ -158,6 +169,32 @@ const routes: Route[] = [
     output: "ObservatoryProviderFeedResult",
     outputSchema: observatoryProviderFeedResultSchema,
     read: true,
+  },
+  {
+    path: "logo",
+    input: "ObservatoryLogoQuery",
+    inputSchema: observatoryLogoQuerySchema,
+    output: "ObservatoryLogoReadResult",
+    outputSchema: observatoryLogoReadResultSchema,
+    read: true,
+  },
+  {
+    path: "logo-preview",
+    input: "ObservatoryLogoPreview",
+    inputSchema: observatoryLogoPreviewSchema,
+    output: "ObservatoryLogoPreviewResult",
+    outputSchema: observatoryLogoPreviewResultSchema,
+    maximumBytes: 786432,
+    logo: true,
+  },
+  {
+    path: "reviews/logo",
+    input: "ObservatoryLogoChange",
+    inputSchema: observatoryLogoChangeSchema,
+    output: "ObservatoryReviewReceipt",
+    conflict: true,
+    maximumBytes: 786432,
+    logo: true,
   },
   {
     path: "reviews/annotation",
@@ -264,12 +301,15 @@ function nonNull(value: Shape): Shape {
 }
 
 describe("generated owner Observatory HTTP contract", () => {
-  it("lists exactly all 19 concrete POST routes while retaining the entire prior 210-path population", () => {
+  it("lists exactly all 22 concrete POST routes and the image GET while retaining the entire prior 210-path population", () => {
     const paths = Object.keys(document.paths),
-      actual = paths.filter((path) => path.startsWith(base)).sort();
+      actual = paths
+        .filter((path) => path.startsWith(base) && path !== imagePath)
+        .sort();
     expect(actual).toEqual(routes.map((route) => base + route.path).sort());
     for (const path of actual)
       expect(Object.keys(document.paths[path]!)).toEqual(["post"]);
+    expect(Object.keys(document.paths[imagePath]!)).toEqual(["get"]);
     const prior = paths.filter((path) => !path.startsWith(base)).sort();
     expect(prior).toHaveLength(210);
     expect(
@@ -277,7 +317,7 @@ describe("generated owner Observatory HTTP contract", () => {
     ).toBe("9586a88696e5af528f19527b525f2551d358dbe18cac43b6a5474a1619ea86d0");
     expect(
       new Set(routes.map((route) => operation(route.path).operationId)).size,
-    ).toBe(19);
+    ).toBe(22);
     expect(document.openapi).toBe("3.1.0");
   });
 
@@ -324,7 +364,7 @@ describe("generated owner Observatory HTTP contract", () => {
       expect(post.description).toContain(
         "No machine bearer credential grants owner authority",
       );
-      expect(post.description).toContain("262144");
+      expect(post.description).toContain(String(route.maximumBytes ?? 262144));
       expect(post.description).toContain("cross-field");
       const origin = post.parameters.find(
         (parameter) => parameter.name === "Origin",
@@ -351,6 +391,7 @@ describe("generated owner Observatory HTTP contract", () => {
         ...(route.notFound === false ? [] : ["404"]),
         ...(route.conflict ? ["409"] : []),
         "413",
+        ...(route.logo ? ["502"] : []),
         "503",
       ];
       expect(Object.keys(post.responses).sort()).toEqual(statuses.sort());
@@ -364,13 +405,71 @@ describe("generated owner Observatory HTTP contract", () => {
           minLength: 1,
           maxLength: 100,
         });
-        if (status !== "200")
-          expect(response.content["application/json"].schema).toEqual({
-            $ref: `#/components/schemas/${status === "413" ? "ObservatoryInputTooLarge" : "FoundationFailure"}`,
-          });
+        if (status === "200") continue;
+        const base = {
+          $ref: `#/components/schemas/${status === "413" ? "ObservatoryInputTooLarge" : "FoundationFailure"}`,
+        };
+        const logo = { $ref: "#/components/schemas/ObservatoryLogoFailure" };
+        expect(response.content["application/json"].schema).toEqual(
+          !route.logo ||
+            status === "401" ||
+            status === "403" ||
+            status === "409"
+            ? base
+            : status === "502"
+              ? logo
+              : { oneOf: [base, logo] },
+        );
       }
     },
   );
+
+  it("serves approved logos as same-origin digest-addressed PNG without a request body", () => {
+    const get = document.paths[imagePath]!.get!;
+    expect(get.operationId).toBe("getOwnerObservatoryLogoImage");
+    expect(get.description).toContain(
+      "canonically audited as observatory.read",
+    );
+    expect(get.description).toContain("Sec-Fetch-Site");
+    expect(get.description).toContain("nosniff");
+    expect(get).not.toHaveProperty("requestBody");
+    expect(get.parameters.map((parameter) => parameter.name)).toEqual([
+      "resourceId",
+      "digest",
+    ]);
+    expect(Object.keys(get.responses).sort()).toEqual(
+      ["200", "400", "401", "403", "404", "503"].sort(),
+    );
+    expect(get.responses["200"]!.content).toHaveProperty("image/png");
+    expect(get.responses["200"]!.content).not.toHaveProperty("image/svg+xml");
+    expect(get.responses["200"]!.headers["Cache-Control"]?.schema).toEqual({
+      type: "string",
+      const: "private, max-age=31536000, immutable",
+    });
+  });
+
+  it("documents the exact safe logo failure codes the owner routes return", () => {
+    expect(schema("ObservatoryLogoFailure")).toEqual(
+      canonical(observatoryLogoFailureSchema, "output"),
+    );
+    expect(schema("ObservatoryLogoFailure").properties?.code?.enum).toEqual(
+      observatoryLogoFailureCodeSchema.options,
+    );
+  });
+
+  it("documents logo preview and review as owner operations with explicit audit and digest binding", () => {
+    const preview = operation("logo-preview"),
+      review = operation("reviews/logo");
+    expect(preview.description).toContain("observatory.logo.preview");
+    expect(preview.description).toContain("Nothing is written");
+    expect(preview.description).toContain("api.github.com");
+    expect(review.description).toContain("observatory.logo.review");
+    expect(review.description).toContain("expectedDigest");
+    expect(review.description).toContain("409 VERSION_CONFLICT");
+    expect(
+      schema("ObservatoryLogoPreviewResult").properties,
+    ).not.toHaveProperty("originalBase64");
+  });
 
   it("documents the exact code-only oversized body and strict public review receipt", () => {
     expect(schema("ObservatoryInputTooLarge")).toEqual(
@@ -469,6 +568,7 @@ describe("generated owner Observatory HTTP contract", () => {
       "relation",
       "provider",
       "source",
+      "logo",
     ]);
     const result = schema("ObservatoryCatalogueResult");
     const variants = result.oneOf ?? result.anyOf ?? [];
@@ -477,7 +577,16 @@ describe("generated owner Observatory HTTP contract", () => {
       "relation",
       "provider",
       "source",
+      "logo",
     ]);
+    const logo = variants.find(
+      (variant) => variant.properties?.kind?.const === "logo",
+    )!.properties!.items!.items!;
+    // Catalogue rows describe the image; the bytes are a separate digest read.
+    expect(logo.properties).not.toHaveProperty("dataBase64");
+    expect(logo.required).toEqual(
+      expect.arrayContaining(["digest", "source", "provenance", "active"]),
+    );
     for (const variant of variants) {
       expect(variant.additionalProperties).toBe(false);
       expect(variant.properties?.items?.maxItems).toBeUndefined();
@@ -523,6 +632,7 @@ describe("generated owner Observatory HTTP contract", () => {
     ["provider", "reversible", "observatory.provider_mapping.review"],
     ["source", "sensitive", "observatory.source.review"],
     ["client_scope", "sensitive", "observatory.client_scope.review"],
+    ["logo", "reversible", "observatory.logo.review"],
   ])(
     "keeps %s review evidence, actual version preconditions, declared risk and canonical audit",
     (kind, risk, audit) => {

@@ -5,7 +5,6 @@ import type {
 import type { Palette, Well } from "./model";
 import type { ObservatoryPresentation } from "./observatory-preferences";
 import { RecordedInfrastructureActivity } from "./infrastructure";
-import { enclose, packCircles } from "./packing";
 
 export type OperationalRepresentation =
   ObservatoryScene["representations"][number];
@@ -133,57 +132,104 @@ function coreRadius(
   );
 }
 
-/** Evenly spaced orbit rings around a resource basin. Each member keeps its own
- * angular sector, so members of different sizes never overlap.
+/** Clearance between a hub and its first ring, between rings and between
+ * neighbours on a ring. It grows with the cluster so tethers stay visible.
  */
-function orbit(
-  core: number,
+export const ringGap = (hub: number, largest: number) =>
+  0.3 + Math.max(hub, largest) * 0.12;
+
+/** Members on concentric rings around a hub. A ring's members share one
+ * distance and each takes the angle its own size needs, with equal gaps
+ * between neighbours, so a small member beside a large one does not widen the
+ * whole ring. Larger members fill the inner rings; each ring keeps layout order.
+ * Without a hub (a pool with no dominant member) the centre stays open and a
+ * small population forms a single ring. Offsets face +x as "outward": the
+ * inward direction always falls mid-gap, so a nested cluster never puts a
+ * member on the tether from its own parent.
+ */
+export function memberRings(
+  hub: number,
   members: { id: string; extent: number }[],
-  start: number,
+  order: (a: string, b: string) => number,
 ) {
-  const gap = 0.2 + core * 0.1;
+  const gap = ringGap(
+    hub,
+    Math.max(0, ...members.map((member) => member.extent)),
+  );
   const offsets = new Map<string, { x: number; z: number }>();
-  let inner = core * 1.16 + gap,
-    extent = core * 1.15,
-    angle = start,
-    index = 0;
-  while (index < members.length) {
-    const ring: {
-      id: string;
-      distance: number;
-      width: number;
-      reach: number;
-    }[] = [];
-    let used = 0;
-    while (index < members.length) {
-      const member = members[index]!;
-      const distance = inner + member.extent;
-      const width =
-        2 * Math.asin(Math.min(1, (member.extent + gap / 2) / distance));
-      if (ring.length && used + width > TAU) break;
-      ring.push({
-        id: member.id,
-        distance,
-        width,
-        reach: distance + member.extent,
-      });
-      used += width;
-      index++;
+  const sorted = [...members].sort(
+    (a, b) => b.extent - a.extent || order(a.id, b.id),
+  );
+  // The angle a member needs at a distance, including half a gap each side.
+  const width = (extent: number, distance: number) =>
+    2 * Math.asin(Math.min(1, (extent + gap / 2) / distance));
+  const needed = (group: typeof sorted, distance: number) =>
+    group.reduce((sum, member) => sum + width(member.extent, distance), 0);
+  // The smallest distance, at least `floor`, at which a group closes a circle.
+  const fit = (group: typeof sorted, floor: number) => {
+    let low = Math.max(
+      floor,
+      ...group.map((member) => member.extent + gap / 2),
+    );
+    if (group.length < 2 || needed(group, low) <= TAU) return low;
+    let high = low * 2;
+    while (needed(group, high) > TAU) high *= 2;
+    for (let step = 0; step < 40; step++) {
+      const middle = (low + high) / 2;
+      if (needed(group, middle) > TAU) low = middle;
+      else high = middle;
     }
-    const slack = Math.max(0, TAU - used) / ring.length;
-    let outer = inner;
-    for (const item of ring) {
-      const direction = angle + item.width / 2;
-      offsets.set(item.id, {
-        x: Math.cos(direction) * item.distance,
-        z: Math.sin(direction) * item.distance,
-      });
-      angle += item.width + slack;
-      outer = Math.max(outer, item.reach);
-      extent = Math.max(extent, item.reach);
+    return high;
+  };
+  let inner = hub > 0 ? hub * 1.16 + gap : 0,
+    extent = hub * 1.15,
+    index = 0,
+    ring = 0;
+  while (index < sorted.length) {
+    const rest = sorted.slice(index);
+    let group: typeof sorted, distance: number;
+    if (inner === 0) {
+      // An open centre: up to eight members share one ring, more start a hexagon.
+      group = rest.length <= 8 ? rest : rest.slice(0, 6);
+      distance = group.length < 2 ? 0 : fit(group, 0);
+    } else {
+      const base = inner + rest[0]!.extent;
+      const all = fit(rest, base);
+      if (all <= base * 1.5) {
+        // A small remainder widens one ring rather than leaving a sparse orbit.
+        group = rest;
+        distance = all;
+      } else {
+        let count = 1;
+        while (
+          count < rest.length &&
+          needed(rest.slice(0, count + 1), base) <= TAU
+        )
+          count++;
+        group = rest.slice(0, count);
+        distance = base;
+      }
     }
-    inner = outer + gap;
-    angle += slack / 2;
+    const placed = [...group].sort((a, b) => order(a.id, b.id));
+    const widths = placed.map((member) =>
+      placed.length < 2 ? 0 : width(member.extent, distance),
+    );
+    const slack =
+      (TAU - widths.reduce((sum, value) => sum + value, 0)) / placed.length;
+    let angle = Math.PI + slack / 2 + (ring % 2 ? Math.PI / placed.length : 0);
+    placed.forEach((member, slot) => {
+      angle += widths[slot]! / 2;
+      offsets.set(member.id, {
+        x: Math.cos(angle) * distance,
+        z: Math.sin(angle) * distance,
+      });
+      angle += widths[slot]! / 2 + slack;
+    });
+    const reach = Math.max(...group.map((member) => member.extent));
+    extent = Math.max(extent, distance + reach);
+    inner = distance + reach + gap;
+    index += group.length;
+    ring++;
   }
   return { offsets, extent };
 }
@@ -358,32 +404,19 @@ export class OperationalLayout {
         let offsets: Map<string, { x: number; z: number }>, reach: number;
         if (sorted.length >= 3 && largest!.extent > second!.extent * 1.8) {
           // One dominant member (a nested pool) anchors the floor; the rest
-          // ring it instead of crowding one side of a front chain.
-          const arranged = orbit(
+          // ring it evenly.
+          const arranged = memberRings(
             largest!.extent / 1.15,
-            sorted.slice(1).sort((a, b) => byLayout(a.id, b.id)),
-            ((hash(node.layoutKey) % 3600) / 3600) * TAU,
+            sorted.slice(1),
+            byLayout,
           );
           offsets = arranged.offsets;
           offsets.set(largest!.id, { x: 0, z: 0 });
           reach = arranged.extent;
         } else {
-          // Larger members first gives a compact, deterministic front chain.
-          const circles = sorted.map((kid) => ({
-            id: kid.id,
-            r: kid.extent + 0.1 + kid.extent * 0.1,
-            x: 0,
-            z: 0,
-          }));
-          packCircles(circles);
-          const bound = enclose(circles);
-          offsets = new Map(
-            circles.map((circle) => [
-              circle.id,
-              { x: circle.x - bound.x, z: circle.z - bound.z },
-            ]),
-          );
-          reach = bound.r;
+          const arranged = memberRings(0, sorted, byLayout);
+          offsets = arranged.offsets;
+          reach = arranged.extent;
         }
         const radius = Math.max(core, reach / poolFloor);
         shapes.set(node.id, { radius, extent: radius * 1.12, offsets });
@@ -397,8 +430,7 @@ export class OperationalLayout {
             reduction.set(kid.id, limit / kid.extent);
             kid.extent = limit;
           }
-        const start = ((hash(node.layoutKey) % 3600) / 3600) * TAU;
-        const arranged = orbit(core * aspect, kids, start);
+        const arranged = memberRings(core * aspect, kids, byLayout);
         shapes.set(node.id, {
           radius: core,
           extent: arranged.extent,
@@ -439,6 +471,8 @@ export class OperationalLayout {
       this.slots.set(key, { x, z });
     }
     const positions = new Map<string, Well>();
+    // Direction each member ring's "outward" slot axis points, per parent.
+    const facing = new Map<string, number>();
     const palette: Palette = {
       attention: options.colors.attention ?? "#ca812e",
       unhealthy: options.colors.unhealthy ?? "#bd4b51",
@@ -465,7 +499,18 @@ export class OperationalLayout {
         ? shapes.get(parent.id)!.offsets.get(node.id)!
         : this.slots.get(keyFor(node))!;
       const outer = parent ? frame.get(parent.id)! : 1;
-      const offset = { x: local.x * outer, z: local.z * outer };
+      // Member rings face away from the parent's own tether.
+      const turn = parent ? facing.get(parent.id)! : 0;
+      const offset = {
+        x: (local.x * Math.cos(turn) - local.z * Math.sin(turn)) * outer,
+        z: (local.x * Math.sin(turn) + local.z * Math.cos(turn)) * outer,
+      };
+      facing.set(
+        node.id,
+        Math.hypot(offset.x, offset.z) > 1e-6 && parent
+          ? Math.atan2(offset.z, offset.x)
+          : ((hash(node.layoutKey) % 3600) / 3600) * TAU,
+      );
       const kind: Well["kind"] =
         node.kind === "host"
           ? "host"

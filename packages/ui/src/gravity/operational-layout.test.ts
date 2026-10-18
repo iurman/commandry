@@ -17,6 +17,7 @@ import type {
   FoundationProjectWorkPage,
 } from "@commandry/contracts";
 import type { Well } from "./model";
+import { defaultResourceIconId } from "./resource-icons";
 import type {
   ObservatoryRenderer,
   RendererHooks,
@@ -36,10 +37,12 @@ import {
 } from "@commandry/test-support";
 import {
   mapOperationalEvents,
+  memberRings,
   observedTotalRam,
   operationalAttention,
   OperationalLayout,
   OperationalRecordedActivity,
+  ringGap,
 } from "./operational-layout";
 import {
   defaultObservatoryPreferences,
@@ -113,6 +116,102 @@ afterEach(() => {
   cleanup();
   vi.unstubAllGlobals();
 });
+describe("member rings", () => {
+  const order = (a: string, b: string) => a.localeCompare(b);
+  const polar = (offset: { x: number; z: number }) => ({
+    distance: Math.hypot(offset.x, offset.z),
+    angle: Math.atan2(offset.z, offset.x),
+  });
+  it("keeps one ring and equal edge gaps when one member is much larger", () => {
+    const members = [
+      { id: "a-host", extent: 2 },
+      ...["b", "c", "d", "e", "f"].map((id) => ({ id, extent: 0.5 })),
+    ];
+    const hub = 1.5,
+      gap = ringGap(hub, 2);
+    const { offsets, extent } = memberRings(hub, members, order);
+    const placed = members.map((member) => ({
+      ...member,
+      ...polar(offsets.get(member.id)!),
+    }));
+    const distance = placed[0]!.distance;
+    for (const member of placed)
+      expect(member.distance).toBeCloseTo(distance, 9);
+    expect(distance).toBeGreaterThanOrEqual(hub * 1.16 + gap + 2 - 1e-9);
+    expect(extent).toBeCloseTo(distance + 2, 9);
+    // Sized slots: far tighter than six slots each wide enough for the host.
+    expect(distance).toBeLessThan((2 + gap / 2) / Math.sin(Math.PI / 6));
+    const half = (member: { extent: number }) =>
+      Math.asin((member.extent + gap / 2) / distance);
+    const sorted = [...placed].sort((a, b) => a.angle - b.angle);
+    const gaps = sorted.map((member, index) => {
+      const next = sorted[(index + 1) % sorted.length]!;
+      const turn =
+        next.angle -
+        member.angle +
+        (index === sorted.length - 1 ? Math.PI * 2 : 0);
+      return { from: member, size: turn - half(member) - half(next) };
+    });
+    for (const item of gaps) {
+      expect(item.size).toBeGreaterThanOrEqual(0);
+      expect(item.size).toBeCloseTo(gaps[0]!.size, 9);
+    }
+    // The inward direction (offsets face +x outward) sits in the middle of a gap.
+    const inward = gaps.find((item) => {
+      const start = item.from.angle + half(item.from);
+      const end = start + item.size;
+      const target = Math.PI;
+      const shifted = target < start ? target + Math.PI * 2 : target;
+      return shifted >= start && shifted <= end;
+    })!;
+    const middle = inward.from.angle + half(inward.from) + inward.size / 2;
+    expect(Math.cos(middle - Math.PI)).toBeCloseTo(1, 9);
+  });
+  it("spaces equal members at equal angles, opens a pool centre and starts outward for one", () => {
+    const equal = Array.from({ length: 7 }, (_, index) => ({
+      id: `m${index}`,
+      extent: 0.6,
+    }));
+    const pool = memberRings(0, equal, order);
+    const angles = equal
+      .map((member) => polar(pool.offsets.get(member.id)!))
+      .sort((a, b) => a.angle - b.angle);
+    for (const item of angles)
+      expect(item.distance).toBeCloseTo(angles[0]!.distance, 9);
+    angles.forEach((item, index) => {
+      if (!index) return;
+      expect(item.angle - angles[index - 1]!.angle).toBeCloseTo(
+        (Math.PI * 2) / 7,
+        9,
+      );
+    });
+    // More than eight members around an open centre start with a hexagon.
+    const many = Array.from({ length: 20 }, (_, index) => ({
+      id: `n${index}`,
+      extent: 0.6,
+    }));
+    const crowded = memberRings(0, many, order);
+    const innermost = Math.min(
+      ...many.map((member) => polar(crowded.offsets.get(member.id)!).distance),
+    );
+    expect(
+      many.filter(
+        (member) =>
+          Math.abs(
+            polar(crowded.offsets.get(member.id)!).distance - innermost,
+          ) < 1e-9,
+      ),
+    ).toHaveLength(6);
+    const solo = memberRings(0, [{ id: "solo", extent: 1 }], order).offsets.get(
+      "solo",
+    )!;
+    expect(Math.hypot(solo.x, solo.z)).toBe(0);
+    const single = memberRings(2, [{ id: "only", extent: 0.5 }], order);
+    const only = polar(single.offsets.get("only")!);
+    expect(Math.cos(only.angle)).toBeCloseTo(1, 9);
+  });
+});
+
 describe("operational landscape adapter", () => {
   it.each(observatoryGroupings)(
     "conserves all 91 canonical identities in %s without repository tour hosts",
@@ -372,6 +471,75 @@ describe("operational landscape adapter", () => {
             );
     },
   );
+  it.each(observatoryGroupings)(
+    "spaces %s members evenly on rings that face away from their own parent",
+    (grouping) => {
+      const scene = projectObservatory({
+        ...mixedObservatoryFixture(),
+        grouping,
+      });
+      const { wells } = new OperationalLayout().project(scene, options);
+      const byId = new Map(wells.map((well) => [well.id, well]));
+      let rings = 0;
+      for (const parent of wells) {
+        const members = wells.filter((well) => well.hostId === parent.id);
+        const distance = (well: Well) =>
+          Math.hypot(well.x - parent.x, well.z - parent.z);
+        const byRing = new Map<string, Well[]>();
+        for (const member of members.filter((well) => distance(well) > 1e-6)) {
+          const key = distance(member).toFixed(4);
+          byRing.set(key, [...(byRing.get(key) ?? []), member]);
+        }
+        const grandparent = parent.hostId ? byId.get(parent.hostId) : undefined;
+        for (const ring of byRing.values()) {
+          const angles = ring
+            .map((well) => Math.atan2(well.z - parent.z, well.x - parent.x))
+            .sort((a, b) => a - b);
+          // Same-size leaf members sit at equal angles; mixed sizes keep equal
+          // edge gaps instead (see the memberRings unit tests).
+          const uniform =
+            ring.every(
+              (well) =>
+                well.radius === ring[0]!.radius &&
+                !wells.some((other) => other.hostId === well.id),
+            ) && angles.length > 1;
+          if (uniform) {
+            rings++;
+            const slot = (Math.PI * 2) / angles.length;
+            angles.forEach((angle, index) => {
+              const next = angles[(index + 1) % angles.length]!;
+              const gap =
+                index === angles.length - 1
+                  ? next + Math.PI * 2 - angle
+                  : next - angle;
+              expect(gap).toBeCloseTo(slot, 6);
+            });
+          }
+          if (
+            !grandparent ||
+            Math.hypot(parent.x - grandparent.x, parent.z - grandparent.z) <
+              1e-6
+          )
+            continue;
+          const inward = Math.atan2(
+            grandparent.z - parent.z,
+            grandparent.x - parent.x,
+          );
+          // The tether from the grandparent arrives clear of every member.
+          for (const well of ring) {
+            const angle = Math.atan2(well.z - parent.z, well.x - parent.x);
+            const offset = Math.abs(
+              Math.atan2(Math.sin(angle - inward), Math.cos(angle - inward)),
+            );
+            expect(offset).toBeGreaterThan(
+              Math.asin(Math.min(1, well.radius / distance(well))),
+            );
+          }
+        }
+      }
+      expect(rings).toBeGreaterThan(0);
+    },
+  );
   it("retains event IDs and evidence while mapping collapsed members and never invents dependency traffic", () => {
     const scene = projectObservatory(mixedObservatoryFixture()),
       result = new OperationalLayout().project(scene, options);
@@ -476,6 +644,37 @@ describe("operational component interactions with the real semantic scene", () =
     };
     return { input, scene, host, props };
   }
+  it("collapses every group from the stage, remembers the choice and expands again", async () => {
+    const { input, props } = setup();
+    const view = render(createElement(OperationalObservatory, props));
+    await waitFor(() => expect(engine.update).toHaveBeenCalled());
+    fireEvent.click(screen.getByRole("button", { name: "Collapse all" }));
+    const collapsed = props.onQueryChange.mock.lastCall![0] as ObservatoryQuery;
+    expect(collapsed).toMatchObject({
+      reveal: "groups",
+      expandedRepresentationIds: [],
+    });
+    const roots = projectObservatory({ ...input, ...collapsed });
+    expect(roots.visibleRepresentationIds).toEqual(
+      [...roots.rootRepresentationIds].sort(),
+    );
+    await waitFor(() =>
+      expect(
+        JSON.parse(localStorage.getItem(observatoryStorageKey)!).reveal,
+      ).toBe("groups"),
+    );
+    view.unmount();
+    props.onQueryChange.mockClear();
+    render(createElement(OperationalObservatory, props));
+    await waitFor(() => expect(props.onQueryChange).toHaveBeenCalledTimes(1));
+    expect(props.onQueryChange.mock.lastCall![0]).toMatchObject({
+      reveal: "groups",
+    });
+    fireEvent.click(screen.getByRole("button", { name: "Expand all" }));
+    expect(props.onQueryChange.mock.lastCall![0]).toMatchObject({
+      reveal: "members",
+    });
+  });
   it("persists implicit custom grouping from the actual add-resource action and restores it on remount", async () => {
     const { input, scene, host, props } = setup();
     localStorage.setItem(
@@ -674,6 +873,7 @@ describe("operational component interactions with the real semantic scene", () =
           search: "retained filter",
           sectors: [],
           expandedRepresentationIds: [],
+          reveal: "members",
           viewRevision: scene.viewRevision,
         },
       }),
@@ -988,6 +1188,162 @@ describe("operational component interactions with the real semantic scene", () =
       ).toHaveLength(0);
     });
   });
+  it("shows an approved repository logo on its stage badge and falls back to the resolved icon", async () => {
+    const { input, scene: plain, props } = setup();
+    const labelled = plain.representations.filter(
+      (node) =>
+        node.kind === "repository" &&
+        !node.referenceTo &&
+        plain.visibleRepresentationIds.includes(node.id),
+    );
+    expect(labelled.length).toBeGreaterThan(1);
+    const [approved, other] = labelled as [
+      (typeof labelled)[number],
+      (typeof labelled)[number],
+    ];
+    const digest = "d".repeat(64);
+    const scene = projectObservatory({
+      ...input,
+      logos: [
+        {
+          resourceId: approved.resourceId!,
+          digest,
+          mediaType: "image/png",
+          width: 128,
+          height: 128,
+          version: 1,
+        },
+      ],
+    });
+    const logoUrl = vi.fn(
+      (resourceId: string, value: string) => `/logos/${resourceId}/${value}`,
+    );
+    const badge = (node: { label: string }) =>
+      screen
+        .getAllByRole("button", {
+          name: new RegExp(`^Inspect ${node.label},`),
+        })[0]!
+        .querySelector(".cmd-op-kind")!;
+    const view = render(
+      createElement(OperationalObservatory, { ...props, scene, logoUrl }),
+    );
+    await waitFor(() =>
+      expect(badge(approved).querySelector("img")).not.toBeNull(),
+    );
+    const image = badge(approved).querySelector("img")!;
+    expect(image.getAttribute("src")).toBe(
+      `/logos/${approved.resourceId}/${digest}`,
+    );
+    expect(image.getAttribute("alt")).toBe("");
+    expect(badge(approved).getAttribute("data-logo")).toBe("true");
+    expect(badge(other).querySelector("img")).toBeNull();
+    expect(badge(other).querySelector("svg")).not.toBeNull();
+    expect(badge(other).getAttribute("data-icon")).toBe("github");
+    // A broken image restores the icon glyph instead of an empty badge.
+    fireEvent.error(image);
+    await waitFor(() =>
+      expect(badge(approved).querySelector("img")).toBeNull(),
+    );
+    expect(badge(approved).querySelector("svg")).not.toBeNull();
+    // Without a host-supplied address no image is requested at all.
+    view.rerender(createElement(OperationalObservatory, { ...props, scene }));
+    expect(document.querySelectorAll(".cmd-op-kind img")).toHaveLength(0);
+  });
+
+  it("lets an explicit device icon choice take precedence over an approved logo", async () => {
+    const { input, scene: plain, props } = setup();
+    const approved = plain.representations.find(
+      (node) =>
+        node.kind === "repository" &&
+        !node.referenceTo &&
+        plain.visibleRepresentationIds.includes(node.id),
+    )!;
+    const scene = projectObservatory({
+      ...input,
+      logos: [
+        {
+          resourceId: approved.resourceId!,
+          digest: "d".repeat(64),
+          mediaType: "image/png",
+          width: 128,
+          height: 128,
+          version: 1,
+        },
+      ],
+    });
+    const badge = () =>
+      screen
+        .getAllByRole("button", {
+          name: new RegExp(`^Inspect ${approved.label},`),
+        })[0]!
+        .querySelector(".cmd-op-kind")!;
+    render(
+      createElement(OperationalObservatory, {
+        ...props,
+        scene,
+        selectedId: approved.resourceId,
+        logoUrl: (resourceId: string, digest: string) =>
+          `/logos/${resourceId}/${digest}`,
+      }),
+    );
+    await waitFor(() => expect(badge().querySelector("img")).not.toBeNull());
+    const choice = screen.getByLabelText("Icon on this device");
+    expect(
+      within(choice).getByRole("option", {
+        name: "Automatic: Approved repository logo",
+      }),
+    ).toBeInTheDocument();
+    fireEvent.change(choice, { target: { value: "docker" } });
+    await waitFor(() => expect(badge().querySelector("img")).toBeNull());
+    expect(badge().getAttribute("data-icon")).toBe("docker");
+    fireEvent.change(choice, { target: { value: "" } });
+    await waitFor(() => expect(badge().querySelector("img")).not.toBeNull());
+  });
+
+  it("offers logo review only for a selected canonical repository", async () => {
+    const { input, scene, props } = setup();
+    const repository = input.resources.find(
+      (resource) => resource.kind === "repository",
+    )!;
+    const host = input.resources.find((resource) => resource.kind === "host")!;
+    const logoReviewClient = {
+      loadLogo: vi.fn(async () => ({
+        schemaVersion: 1,
+        scopeDigest: scene.scopeDigest,
+        projectionRevision: scene.projectionRevision,
+        completeness: "complete",
+        kind: "logo",
+        items: [],
+      })),
+      preview: vi.fn(),
+      review: vi.fn(),
+    };
+    const clientProps = {
+      ...props,
+      logoReviewClient,
+      onReviewed: vi.fn(),
+      selectedId: repository.id,
+    };
+    const view = render(createElement(OperationalObservatory, clientProps));
+    await waitFor(() =>
+      expect(screen.getByText("Repository logo")).toBeInTheDocument(),
+    );
+    await waitFor(() =>
+      expect(screen.getByText(/No logo is approved/)).toBeInTheDocument(),
+    );
+    expect(logoReviewClient.loadLogo).toHaveBeenCalledWith(repository.id);
+    view.rerender(
+      createElement(OperationalObservatory, {
+        ...clientProps,
+        selectedId: host.id,
+      }),
+    );
+    await waitFor(() =>
+      expect(screen.queryByText("Repository logo")).toBeNull(),
+    );
+    expect(logoReviewClient.preview).not.toHaveBeenCalled();
+  });
+
   it("keeps canonical Work explicitly unavailable without a client in a collapsed panel below recorded observations", async () => {
     const { props } = setup();
     render(createElement(OperationalObservatory, props));
@@ -1169,6 +1525,7 @@ describe("operational component interactions with the real semantic scene", () =
       grouping: production.grouping,
       environment: "production",
       expandedRepresentationIds: [],
+      reveal: "members" as const,
       search: "",
       sectors: [],
       viewRevision: production.viewRevision,
@@ -1206,6 +1563,7 @@ describe("operational component interactions with the real semantic scene", () =
           grouping: scene.grouping,
           environment: "production",
           expandedRepresentationIds: [],
+          reveal: "members",
           search: "",
           sectors: [],
           viewRevision: scene.viewRevision,
@@ -1246,6 +1604,40 @@ describe("operational component interactions with the real semantic scene", () =
     expect(
       await screen.findByText("Containment cycle recorded"),
     ).toBeInTheDocument();
+  });
+  it("chooses a resource icon on this device and shows it on the resource's badges", async () => {
+    const { host, props } = setup();
+    render(createElement(OperationalObservatory, props));
+    await waitFor(() => expect(engine.update).toHaveBeenCalled());
+    fireEvent.click(
+      screen.getByRole("button", {
+        name: `Inspect ${host.label}, Host, ${host.memberCount} unique resources`,
+      }),
+    );
+    const picker = within(
+      screen.getByRole("complementary", { name: "Observatory inspector" }),
+    ).getByLabelText("Icon on this device");
+    expect(picker).toHaveValue("");
+    const badge = () =>
+      document
+        .querySelector(
+          `.cmd-op-outline li[data-representation-id="${host.id}"] .cmd-op-kind`,
+        )
+        ?.getAttribute("data-icon");
+    expect(badge()).toBe(
+      defaultResourceIconId({ kind: "host", label: host.label }),
+    );
+    fireEvent.change(picker, { target: { value: "proxmox" } });
+    expect(badge()).toBe("proxmox");
+    await waitFor(() =>
+      expect(
+        JSON.parse(localStorage.getItem(observatoryStorageKey)!).icons,
+      ).toEqual({ [host.resourceId!]: "proxmox" }),
+    );
+    fireEvent.change(picker, { target: { value: "" } });
+    expect(badge()).toBe(
+      defaultResourceIconId({ kind: "host", label: host.label }),
+    );
   });
   it("inspects a group in one activation and does not refocus on unchanged data refresh", async () => {
     const { input, scene, host, props } = setup(0);

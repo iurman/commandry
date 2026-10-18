@@ -3304,6 +3304,1067 @@
         }
       }
     },
+    "/api/v1/infrastructure/observatory/logo": {
+      "post": {
+        "operationId": "readOwnerObservatoryLogo",
+        "tags": [
+          "Observatory"
+        ],
+        "summary": "Read one approved resource logo by digest",
+        "description": "Low-risk read, canonically audited as observatory.read. In password mode an actual live allowlisted owner password session and a nonempty trusted Origin are required. Only the explicitly enabled local auth-off read path permits an absent Origin; a supplied foreign Origin is always denied. No machine bearer credential grants owner authority; machines use their separately scoped MCP read tools. Reading does not probe a service, refresh observation time, create health evidence or build history. Returns the stored 128x128 PNG for an authorized resource whose current logo record has the requested digest, as base64 with its version. The scene representation's logo reference supplies the digest; a retired logo remains readable by its digest as history. The resource must be inside the authorized population. MCP get_observatory_resource_logo shares this read. Structural schemas use the canonical shared Zod definitions; server validation also enforces cross-field identities, authority and continuation/version refinements. UTF-8 JSON input is bounded to 262144 bytes; this transport bound is not an inventory population cap.",
+        "parameters": [
+          {
+            "in": "header",
+            "name": "Origin",
+            "required": false,
+            "description": "Nonempty configured application/trusted local Origin is required in password mode. Only the explicit local auth-off read mode permits omission; supplied foreign origins are denied.",
+            "schema": {
+              "type": "string",
+              "format": "uri",
+              "minLength": 1
+            }
+          },
+          {
+            "in": "header",
+            "name": "X-Correlation-Id",
+            "required": false,
+            "description": "Optional safe correlation ID; invalid values are replaced by a server UUID",
+            "schema": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 100,
+              "pattern": "^[a-zA-Z0-9_-]+$"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ObservatoryLogoQuery"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Strict current canonical result; no-store",
+            "headers": {
+              "Cache-Control": {
+                "description": "Owner results and safe failures are never cached",
+                "schema": {
+                  "type": "string",
+                  "const": "no-store"
+                }
+              },
+              "X-Correlation-Id": {
+                "description": "Accepted safe request correlation ID, otherwise a new server UUID",
+                "schema": {
+                  "type": "string",
+                  "minLength": 1,
+                  "maxLength": 100,
+                  "pattern": "^[a-zA-Z0-9_-]+$"
+                }
+              }
+            },
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ObservatoryLogoReadResult"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Malformed JSON, invalid shared input or invalid subject/cursor reference",
+            "headers": {
+              "Cache-Control": {
+                "description": "Owner results and safe failures are never cached",
+                "schema": {
+                  "type": "string",
+                  "const": "no-store"
+                }
+              },
+              "X-Correlation-Id": {
+                "description": "Accepted safe request correlation ID, otherwise a new server UUID",
+                "schema": {
+                  "type": "string",
+                  "minLength": 1,
+                  "maxLength": 100,
+                  "pattern": "^[a-zA-Z0-9_-]+$"
+                }
+              }
+            },
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/FoundationFailure"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Missing, invalid or expired actual owner password session",
+            "headers": {
+              "Cache-Control": {
+                "description": "Owner results and safe failures are never cached",
+                "schema": {
+                  "type": "string",
+                  "const": "no-store"
+                }
+              },
+              "X-Correlation-Id": {
+                "description": "Accepted safe request correlation ID, otherwise a new server UUID",
+                "schema": {
+                  "type": "string",
+                  "minLength": 1,
+                  "maxLength": 100,
+                  "pattern": "^[a-zA-Z0-9_-]+$"
+                }
+              }
+            },
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/FoundationFailure"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Untrusted or missing required Origin, denied authority or inaccessible scope",
+            "headers": {
+              "Cache-Control": {
+                "description": "Owner results and safe failures are never cached",
+                "schema": {
+                  "type": "string",
+                  "const": "no-store"
+                }
+              },
+              "X-Correlation-Id": {
+                "description": "Accepted safe request correlation ID, otherwise a new server UUID",
+                "schema": {
+                  "type": "string",
+                  "minLength": 1,
+                  "maxLength": 100,
+                  "pattern": "^[a-zA-Z0-9_-]+$"
+                }
+              }
+            },
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/FoundationFailure"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Operation or canonical record not found",
+            "headers": {
+              "Cache-Control": {
+                "description": "Owner results and safe failures are never cached",
+                "schema": {
+                  "type": "string",
+                  "const": "no-store"
+                }
+              },
+              "X-Correlation-Id": {
+                "description": "Accepted safe request correlation ID, otherwise a new server UUID",
+                "schema": {
+                  "type": "string",
+                  "minLength": 1,
+                  "maxLength": 100,
+                  "pattern": "^[a-zA-Z0-9_-]+$"
+                }
+              }
+            },
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/FoundationFailure"
+                }
+              }
+            }
+          },
+          "413": {
+            "description": "UTF-8 JSON request body exceeds 262144 bytes; INPUT_TOO_LARGE",
+            "headers": {
+              "Cache-Control": {
+                "description": "Owner results and safe failures are never cached",
+                "schema": {
+                  "type": "string",
+                  "const": "no-store"
+                }
+              },
+              "X-Correlation-Id": {
+                "description": "Accepted safe request correlation ID, otherwise a new server UUID",
+                "schema": {
+                  "type": "string",
+                  "minLength": 1,
+                  "maxLength": 100,
+                  "pattern": "^[a-zA-Z0-9_-]+$"
+                }
+              }
+            },
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ObservatoryInputTooLarge"
+                }
+              }
+            }
+          },
+          "503": {
+            "description": "Canonical service, database or validated result is unavailable",
+            "headers": {
+              "Cache-Control": {
+                "description": "Owner results and safe failures are never cached",
+                "schema": {
+                  "type": "string",
+                  "const": "no-store"
+                }
+              },
+              "X-Correlation-Id": {
+                "description": "Accepted safe request correlation ID, otherwise a new server UUID",
+                "schema": {
+                  "type": "string",
+                  "minLength": 1,
+                  "maxLength": 100,
+                  "pattern": "^[a-zA-Z0-9_-]+$"
+                }
+              }
+            },
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/FoundationFailure"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/infrastructure/observatory/logo-preview": {
+      "post": {
+        "operationId": "previewOwnerObservatoryLogo",
+        "tags": [
+          "Observatory"
+        ],
+        "summary": "Preview a repository logo without storing it",
+        "description": "An actual live allowlisted owner password session and a nonempty trusted Origin are required. No machine bearer credential grants owner authority, and JSON cannot assert an owner, session, capability or grant. Read-only owner operation, audited as observatory.logo.preview. Accepts an upload (base64, at most 524288 bytes before encoding) or an owner-named file in a repository already reviewed for this repository resource, read from api.github.com with the server-held token at the resolved commit. Input is recognised by its bytes (PNG, JPEG, WebP or SVG; SVG with declarations, scripts or outside references is refused) and rasterized to one 128x128 PNG. Returns that PNG, its digest and the source with commit and blob SHAs. Nothing is written. Safe failures: 400 LOGO_UNSUPPORTED_IMAGE or LOGO_REPOSITORY_NOT_REVIEWED, 404 LOGO_SOURCE_NOT_FOUND, 413 LOGO_TOO_LARGE, 502 LOGO_SOURCE_UNAUTHORIZED, 503 LOGO_SOURCE_UNAVAILABLE or LOGO_PROCESSING_UNAVAILABLE. Structural schemas use the canonical shared Zod definitions; server validation also enforces cross-field identities, authority and continuation/version refinements. UTF-8 JSON input is bounded to 786432 bytes; this transport bound is not an inventory population cap.",
+        "parameters": [
+          {
+            "in": "header",
+            "name": "Origin",
+            "required": true,
+            "description": "Nonempty configured application or trusted local Origin is required for this owner POST, including private-view and Work reads. No auth-off fallback.",
+            "schema": {
+              "type": "string",
+              "format": "uri",
+              "minLength": 1
+            }
+          },
+          {
+            "in": "header",
+            "name": "X-Correlation-Id",
+            "required": false,
+            "description": "Optional safe correlation ID; invalid values are replaced by a server UUID",
+            "schema": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 100,
+              "pattern": "^[a-zA-Z0-9_-]+$"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ObservatoryLogoPreview"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Strict current canonical result; no-store",
+            "headers": {
+              "Cache-Control": {
+                "description": "Owner results and safe failures are never cached",
+                "schema": {
+                  "type": "string",
+                  "const": "no-store"
+                }
+              },
+              "X-Correlation-Id": {
+                "description": "Accepted safe request correlation ID, otherwise a new server UUID",
+                "schema": {
+                  "type": "string",
+                  "minLength": 1,
+                  "maxLength": 100,
+                  "pattern": "^[a-zA-Z0-9_-]+$"
+                }
+              }
+            },
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ObservatoryLogoPreviewResult"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Malformed JSON, invalid shared input or invalid subject/cursor reference",
+            "headers": {
+              "Cache-Control": {
+                "description": "Owner results and safe failures are never cached",
+                "schema": {
+                  "type": "string",
+                  "const": "no-store"
+                }
+              },
+              "X-Correlation-Id": {
+                "description": "Accepted safe request correlation ID, otherwise a new server UUID",
+                "schema": {
+                  "type": "string",
+                  "minLength": 1,
+                  "maxLength": 100,
+                  "pattern": "^[a-zA-Z0-9_-]+$"
+                }
+              }
+            },
+            "content": {
+              "application/json": {
+                "schema": {
+                  "oneOf": [
+                    {
+                      "$ref": "#/components/schemas/FoundationFailure"
+                    },
+                    {
+                      "$ref": "#/components/schemas/ObservatoryLogoFailure"
+                    }
+                  ]
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Missing, invalid or expired actual owner password session",
+            "headers": {
+              "Cache-Control": {
+                "description": "Owner results and safe failures are never cached",
+                "schema": {
+                  "type": "string",
+                  "const": "no-store"
+                }
+              },
+              "X-Correlation-Id": {
+                "description": "Accepted safe request correlation ID, otherwise a new server UUID",
+                "schema": {
+                  "type": "string",
+                  "minLength": 1,
+                  "maxLength": 100,
+                  "pattern": "^[a-zA-Z0-9_-]+$"
+                }
+              }
+            },
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/FoundationFailure"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Untrusted or missing required Origin, denied authority or inaccessible scope",
+            "headers": {
+              "Cache-Control": {
+                "description": "Owner results and safe failures are never cached",
+                "schema": {
+                  "type": "string",
+                  "const": "no-store"
+                }
+              },
+              "X-Correlation-Id": {
+                "description": "Accepted safe request correlation ID, otherwise a new server UUID",
+                "schema": {
+                  "type": "string",
+                  "minLength": 1,
+                  "maxLength": 100,
+                  "pattern": "^[a-zA-Z0-9_-]+$"
+                }
+              }
+            },
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/FoundationFailure"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Operation or canonical record not found",
+            "headers": {
+              "Cache-Control": {
+                "description": "Owner results and safe failures are never cached",
+                "schema": {
+                  "type": "string",
+                  "const": "no-store"
+                }
+              },
+              "X-Correlation-Id": {
+                "description": "Accepted safe request correlation ID, otherwise a new server UUID",
+                "schema": {
+                  "type": "string",
+                  "minLength": 1,
+                  "maxLength": 100,
+                  "pattern": "^[a-zA-Z0-9_-]+$"
+                }
+              }
+            },
+            "content": {
+              "application/json": {
+                "schema": {
+                  "oneOf": [
+                    {
+                      "$ref": "#/components/schemas/FoundationFailure"
+                    },
+                    {
+                      "$ref": "#/components/schemas/ObservatoryLogoFailure"
+                    }
+                  ]
+                }
+              }
+            }
+          },
+          "413": {
+            "description": "UTF-8 JSON request body exceeds 786432 bytes; INPUT_TOO_LARGE",
+            "headers": {
+              "Cache-Control": {
+                "description": "Owner results and safe failures are never cached",
+                "schema": {
+                  "type": "string",
+                  "const": "no-store"
+                }
+              },
+              "X-Correlation-Id": {
+                "description": "Accepted safe request correlation ID, otherwise a new server UUID",
+                "schema": {
+                  "type": "string",
+                  "minLength": 1,
+                  "maxLength": 100,
+                  "pattern": "^[a-zA-Z0-9_-]+$"
+                }
+              }
+            },
+            "content": {
+              "application/json": {
+                "schema": {
+                  "oneOf": [
+                    {
+                      "$ref": "#/components/schemas/ObservatoryInputTooLarge"
+                    },
+                    {
+                      "$ref": "#/components/schemas/ObservatoryLogoFailure"
+                    }
+                  ]
+                }
+              }
+            }
+          },
+          "502": {
+            "description": "GitHub refused the read; LOGO_SOURCE_UNAUTHORIZED",
+            "headers": {
+              "Cache-Control": {
+                "description": "Owner results and safe failures are never cached",
+                "schema": {
+                  "type": "string",
+                  "const": "no-store"
+                }
+              },
+              "X-Correlation-Id": {
+                "description": "Accepted safe request correlation ID, otherwise a new server UUID",
+                "schema": {
+                  "type": "string",
+                  "minLength": 1,
+                  "maxLength": 100,
+                  "pattern": "^[a-zA-Z0-9_-]+$"
+                }
+              }
+            },
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ObservatoryLogoFailure"
+                }
+              }
+            }
+          },
+          "503": {
+            "description": "Canonical service, database or validated result is unavailable",
+            "headers": {
+              "Cache-Control": {
+                "description": "Owner results and safe failures are never cached",
+                "schema": {
+                  "type": "string",
+                  "const": "no-store"
+                }
+              },
+              "X-Correlation-Id": {
+                "description": "Accepted safe request correlation ID, otherwise a new server UUID",
+                "schema": {
+                  "type": "string",
+                  "minLength": 1,
+                  "maxLength": 100,
+                  "pattern": "^[a-zA-Z0-9_-]+$"
+                }
+              }
+            },
+            "content": {
+              "application/json": {
+                "schema": {
+                  "oneOf": [
+                    {
+                      "$ref": "#/components/schemas/FoundationFailure"
+                    },
+                    {
+                      "$ref": "#/components/schemas/ObservatoryLogoFailure"
+                    }
+                  ]
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/infrastructure/observatory/reviews/logo": {
+      "post": {
+        "operationId": "reviewOwnerObservatoryLogo",
+        "tags": [
+          "Observatory"
+        ],
+        "summary": "Approve or retire a versioned repository logo",
+        "description": "An actual live allowlisted owner password session and a nonempty trusted Origin are required. No machine bearer credential grants owner authority, and JSON cannot assert an owner, session, capability or grant. Reversible owner-only review requires expectedVersion, explicit evidenceRefs and review note; records canonical audit observatory.logo.review atomically. Approval resubmits the previewed source (a repository file names the preview's commitSha) with expectedDigest; the server processes it again and returns 409 VERSION_CONFLICT if the result differs from what the owner saw. Only repository resources accept a logo. active=false retires the logo without deleting its image or source, and takes neither input nor digest. Same safe logo failures as preview. Structural schemas use the canonical shared Zod definitions; server validation also enforces cross-field identities, authority and continuation/version refinements. UTF-8 JSON input is bounded to 786432 bytes; this transport bound is not an inventory population cap.",
+        "parameters": [
+          {
+            "in": "header",
+            "name": "Origin",
+            "required": true,
+            "description": "Nonempty configured application or trusted local Origin is required for this owner POST, including private-view and Work reads. No auth-off fallback.",
+            "schema": {
+              "type": "string",
+              "format": "uri",
+              "minLength": 1
+            }
+          },
+          {
+            "in": "header",
+            "name": "X-Correlation-Id",
+            "required": false,
+            "description": "Optional safe correlation ID; invalid values are replaced by a server UUID",
+            "schema": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 100,
+              "pattern": "^[a-zA-Z0-9_-]+$"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ObservatoryLogoChange"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Strict current canonical result; no-store",
+            "headers": {
+              "Cache-Control": {
+                "description": "Owner results and safe failures are never cached",
+                "schema": {
+                  "type": "string",
+                  "const": "no-store"
+                }
+              },
+              "X-Correlation-Id": {
+                "description": "Accepted safe request correlation ID, otherwise a new server UUID",
+                "schema": {
+                  "type": "string",
+                  "minLength": 1,
+                  "maxLength": 100,
+                  "pattern": "^[a-zA-Z0-9_-]+$"
+                }
+              }
+            },
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ObservatoryReviewReceipt"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Malformed JSON, invalid shared input or invalid subject/cursor reference",
+            "headers": {
+              "Cache-Control": {
+                "description": "Owner results and safe failures are never cached",
+                "schema": {
+                  "type": "string",
+                  "const": "no-store"
+                }
+              },
+              "X-Correlation-Id": {
+                "description": "Accepted safe request correlation ID, otherwise a new server UUID",
+                "schema": {
+                  "type": "string",
+                  "minLength": 1,
+                  "maxLength": 100,
+                  "pattern": "^[a-zA-Z0-9_-]+$"
+                }
+              }
+            },
+            "content": {
+              "application/json": {
+                "schema": {
+                  "oneOf": [
+                    {
+                      "$ref": "#/components/schemas/FoundationFailure"
+                    },
+                    {
+                      "$ref": "#/components/schemas/ObservatoryLogoFailure"
+                    }
+                  ]
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Missing, invalid or expired actual owner password session",
+            "headers": {
+              "Cache-Control": {
+                "description": "Owner results and safe failures are never cached",
+                "schema": {
+                  "type": "string",
+                  "const": "no-store"
+                }
+              },
+              "X-Correlation-Id": {
+                "description": "Accepted safe request correlation ID, otherwise a new server UUID",
+                "schema": {
+                  "type": "string",
+                  "minLength": 1,
+                  "maxLength": 100,
+                  "pattern": "^[a-zA-Z0-9_-]+$"
+                }
+              }
+            },
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/FoundationFailure"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Untrusted or missing required Origin, denied authority or inaccessible scope",
+            "headers": {
+              "Cache-Control": {
+                "description": "Owner results and safe failures are never cached",
+                "schema": {
+                  "type": "string",
+                  "const": "no-store"
+                }
+              },
+              "X-Correlation-Id": {
+                "description": "Accepted safe request correlation ID, otherwise a new server UUID",
+                "schema": {
+                  "type": "string",
+                  "minLength": 1,
+                  "maxLength": 100,
+                  "pattern": "^[a-zA-Z0-9_-]+$"
+                }
+              }
+            },
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/FoundationFailure"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Operation or canonical record not found",
+            "headers": {
+              "Cache-Control": {
+                "description": "Owner results and safe failures are never cached",
+                "schema": {
+                  "type": "string",
+                  "const": "no-store"
+                }
+              },
+              "X-Correlation-Id": {
+                "description": "Accepted safe request correlation ID, otherwise a new server UUID",
+                "schema": {
+                  "type": "string",
+                  "minLength": 1,
+                  "maxLength": 100,
+                  "pattern": "^[a-zA-Z0-9_-]+$"
+                }
+              }
+            },
+            "content": {
+              "application/json": {
+                "schema": {
+                  "oneOf": [
+                    {
+                      "$ref": "#/components/schemas/FoundationFailure"
+                    },
+                    {
+                      "$ref": "#/components/schemas/ObservatoryLogoFailure"
+                    }
+                  ]
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "Expected version or stable record identity conflicts with current canonical state",
+            "headers": {
+              "Cache-Control": {
+                "description": "Owner results and safe failures are never cached",
+                "schema": {
+                  "type": "string",
+                  "const": "no-store"
+                }
+              },
+              "X-Correlation-Id": {
+                "description": "Accepted safe request correlation ID, otherwise a new server UUID",
+                "schema": {
+                  "type": "string",
+                  "minLength": 1,
+                  "maxLength": 100,
+                  "pattern": "^[a-zA-Z0-9_-]+$"
+                }
+              }
+            },
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/FoundationFailure"
+                }
+              }
+            }
+          },
+          "413": {
+            "description": "UTF-8 JSON request body exceeds 786432 bytes; INPUT_TOO_LARGE",
+            "headers": {
+              "Cache-Control": {
+                "description": "Owner results and safe failures are never cached",
+                "schema": {
+                  "type": "string",
+                  "const": "no-store"
+                }
+              },
+              "X-Correlation-Id": {
+                "description": "Accepted safe request correlation ID, otherwise a new server UUID",
+                "schema": {
+                  "type": "string",
+                  "minLength": 1,
+                  "maxLength": 100,
+                  "pattern": "^[a-zA-Z0-9_-]+$"
+                }
+              }
+            },
+            "content": {
+              "application/json": {
+                "schema": {
+                  "oneOf": [
+                    {
+                      "$ref": "#/components/schemas/ObservatoryInputTooLarge"
+                    },
+                    {
+                      "$ref": "#/components/schemas/ObservatoryLogoFailure"
+                    }
+                  ]
+                }
+              }
+            }
+          },
+          "502": {
+            "description": "GitHub refused the read; LOGO_SOURCE_UNAUTHORIZED",
+            "headers": {
+              "Cache-Control": {
+                "description": "Owner results and safe failures are never cached",
+                "schema": {
+                  "type": "string",
+                  "const": "no-store"
+                }
+              },
+              "X-Correlation-Id": {
+                "description": "Accepted safe request correlation ID, otherwise a new server UUID",
+                "schema": {
+                  "type": "string",
+                  "minLength": 1,
+                  "maxLength": 100,
+                  "pattern": "^[a-zA-Z0-9_-]+$"
+                }
+              }
+            },
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ObservatoryLogoFailure"
+                }
+              }
+            }
+          },
+          "503": {
+            "description": "Canonical service, database or validated result is unavailable",
+            "headers": {
+              "Cache-Control": {
+                "description": "Owner results and safe failures are never cached",
+                "schema": {
+                  "type": "string",
+                  "const": "no-store"
+                }
+              },
+              "X-Correlation-Id": {
+                "description": "Accepted safe request correlation ID, otherwise a new server UUID",
+                "schema": {
+                  "type": "string",
+                  "minLength": 1,
+                  "maxLength": 100,
+                  "pattern": "^[a-zA-Z0-9_-]+$"
+                }
+              }
+            },
+            "content": {
+              "application/json": {
+                "schema": {
+                  "oneOf": [
+                    {
+                      "$ref": "#/components/schemas/FoundationFailure"
+                    },
+                    {
+                      "$ref": "#/components/schemas/ObservatoryLogoFailure"
+                    }
+                  ]
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/infrastructure/observatory/logos/{resourceId}/{digest}": {
+      "get": {
+        "operationId": "getOwnerObservatoryLogoImage",
+        "tags": [
+          "Observatory"
+        ],
+        "summary": "Serve one approved resource logo as an image",
+        "description": "Low-risk read, canonically audited as observatory.read. In password mode an actual live allowlisted owner password session and a nonempty trusted Origin are required. Only the explicitly enabled local auth-off read path permits an absent Origin; a supplied foreign Origin is always denied. No machine bearer credential grants owner authority; machines use their separately scoped MCP read tools. Reading does not probe a service, refresh observation time, create health evidence or build history. Same authorized read as POST /api/v1/infrastructure/observatory/logo, for badge image elements. Same-origin only: a cross-site Sec-Fetch-Site is refused. The response is private and immutable because the path names the content digest; it carries nosniff, a restrictive Content-Security-Policy and Cross-Origin-Resource-Policy same-origin.",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "resourceId",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          },
+          {
+            "in": "path",
+            "name": "digest",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "pattern": "^[a-f0-9]{64}$"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "The 128x128 PNG",
+            "headers": {
+              "Cache-Control": {
+                "description": "Digest-addressed content never changes",
+                "schema": {
+                  "type": "string",
+                  "const": "private, max-age=31536000, immutable"
+                }
+              }
+            },
+            "content": {
+              "image/png": {
+                "schema": {
+                  "type": "string",
+                  "format": "binary"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Invalid resource or digest",
+            "headers": {
+              "Cache-Control": {
+                "description": "Owner results and safe failures are never cached",
+                "schema": {
+                  "type": "string",
+                  "const": "no-store"
+                }
+              },
+              "X-Correlation-Id": {
+                "description": "Accepted safe request correlation ID, otherwise a new server UUID",
+                "schema": {
+                  "type": "string",
+                  "minLength": 1,
+                  "maxLength": 100,
+                  "pattern": "^[a-zA-Z0-9_-]+$"
+                }
+              }
+            },
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/FoundationFailure"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Missing, invalid or expired actual owner password session",
+            "headers": {
+              "Cache-Control": {
+                "description": "Owner results and safe failures are never cached",
+                "schema": {
+                  "type": "string",
+                  "const": "no-store"
+                }
+              },
+              "X-Correlation-Id": {
+                "description": "Accepted safe request correlation ID, otherwise a new server UUID",
+                "schema": {
+                  "type": "string",
+                  "minLength": 1,
+                  "maxLength": 100,
+                  "pattern": "^[a-zA-Z0-9_-]+$"
+                }
+              }
+            },
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/FoundationFailure"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Cross-site request, untrusted Origin or inaccessible scope",
+            "headers": {
+              "Cache-Control": {
+                "description": "Owner results and safe failures are never cached",
+                "schema": {
+                  "type": "string",
+                  "const": "no-store"
+                }
+              },
+              "X-Correlation-Id": {
+                "description": "Accepted safe request correlation ID, otherwise a new server UUID",
+                "schema": {
+                  "type": "string",
+                  "minLength": 1,
+                  "maxLength": 100,
+                  "pattern": "^[a-zA-Z0-9_-]+$"
+                }
+              }
+            },
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/FoundationFailure"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "No current logo with this digest for the resource",
+            "headers": {
+              "Cache-Control": {
+                "description": "Owner results and safe failures are never cached",
+                "schema": {
+                  "type": "string",
+                  "const": "no-store"
+                }
+              },
+              "X-Correlation-Id": {
+                "description": "Accepted safe request correlation ID, otherwise a new server UUID",
+                "schema": {
+                  "type": "string",
+                  "minLength": 1,
+                  "maxLength": 100,
+                  "pattern": "^[a-zA-Z0-9_-]+$"
+                }
+              }
+            },
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/FoundationFailure"
+                }
+              }
+            }
+          },
+          "503": {
+            "description": "Canonical service, database or validated result is unavailable",
+            "headers": {
+              "Cache-Control": {
+                "description": "Owner results and safe failures are never cached",
+                "schema": {
+                  "type": "string",
+                  "const": "no-store"
+                }
+              },
+              "X-Correlation-Id": {
+                "description": "Accepted safe request correlation ID, otherwise a new server UUID",
+                "schema": {
+                  "type": "string",
+                  "minLength": 1,
+                  "maxLength": 100,
+                  "pattern": "^[a-zA-Z0-9_-]+$"
+                }
+              }
+            },
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/FoundationFailure"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/api/v1/infrastructure/observatory/views/create": {
       "post": {
         "operationId": "createOwnerObservatoryView",
@@ -19254,6 +20315,14 @@
               "maxLength": 1000
             }
           },
+          "reveal": {
+            "default": "members",
+            "type": "string",
+            "enum": [
+              "members",
+              "groups"
+            ]
+          },
           "search": {
             "default": "",
             "type": "string",
@@ -19929,6 +20998,40 @@
                         "provider",
                         "work",
                         "incidentIds"
+                      ],
+                      "additionalProperties": false
+                    },
+                    "logo": {
+                      "type": "object",
+                      "properties": {
+                        "digest": {
+                          "type": "string",
+                          "pattern": "^[a-f0-9]{64}$"
+                        },
+                        "mediaType": {
+                          "type": "string",
+                          "const": "image/png"
+                        },
+                        "width": {
+                          "type": "number",
+                          "const": 128
+                        },
+                        "height": {
+                          "type": "number",
+                          "const": 128
+                        },
+                        "version": {
+                          "type": "integer",
+                          "exclusiveMinimum": 0,
+                          "maximum": 9007199254740991
+                        }
+                      },
+                      "required": [
+                        "digest",
+                        "mediaType",
+                        "width",
+                        "height",
+                        "version"
                       ],
                       "additionalProperties": false
                     }
@@ -21661,6 +22764,14 @@
               "maxLength": 1000
             }
           },
+          "reveal": {
+            "default": "members",
+            "type": "string",
+            "enum": [
+              "members",
+              "groups"
+            ]
+          },
           "search": {
             "default": "",
             "type": "string",
@@ -21881,6 +22992,14 @@
               "minLength": 1,
               "maxLength": 1000
             }
+          },
+          "reveal": {
+            "default": "members",
+            "type": "string",
+            "enum": [
+              "members",
+              "groups"
+            ]
           },
           "search": {
             "default": "",
@@ -22111,6 +23230,14 @@
               "minLength": 1,
               "maxLength": 1000
             }
+          },
+          "reveal": {
+            "default": "members",
+            "type": "string",
+            "enum": [
+              "members",
+              "groups"
+            ]
           },
           "search": {
             "default": "",
@@ -23123,6 +24250,14 @@
               "maxLength": 1000
             }
           },
+          "reveal": {
+            "default": "members",
+            "type": "string",
+            "enum": [
+              "members",
+              "groups"
+            ]
+          },
           "search": {
             "default": "",
             "type": "string",
@@ -23441,6 +24576,14 @@
               "minLength": 1,
               "maxLength": 1000
             }
+          },
+          "reveal": {
+            "default": "members",
+            "type": "string",
+            "enum": [
+              "members",
+              "groups"
+            ]
           },
           "search": {
             "default": "",
@@ -25585,6 +26728,14 @@
               "maxLength": 1000
             }
           },
+          "reveal": {
+            "default": "members",
+            "type": "string",
+            "enum": [
+              "members",
+              "groups"
+            ]
+          },
           "search": {
             "default": "",
             "type": "string",
@@ -25646,7 +26797,8 @@
               "annotation",
               "relation",
               "provider",
-              "source"
+              "source",
+              "logo"
             ]
           },
           "resourceId": {
@@ -26308,6 +27460,231 @@
               "items"
             ],
             "additionalProperties": false
+          },
+          {
+            "type": "object",
+            "properties": {
+              "schemaVersion": {
+                "type": "number",
+                "const": 1
+              },
+              "scopeDigest": {
+                "type": "string",
+                "minLength": 1,
+                "maxLength": 500
+              },
+              "projectionRevision": {
+                "type": "string",
+                "minLength": 1,
+                "maxLength": 500
+              },
+              "completeness": {
+                "type": "string",
+                "const": "complete"
+              },
+              "kind": {
+                "type": "string",
+                "const": "logo"
+              },
+              "items": {
+                "type": "array",
+                "items": {
+                  "type": "object",
+                  "properties": {
+                    "kind": {
+                      "type": "string",
+                      "const": "logo"
+                    },
+                    "id": {
+                      "type": "string",
+                      "format": "uuid",
+                      "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$"
+                    },
+                    "resourceId": {
+                      "type": "string",
+                      "format": "uuid",
+                      "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$"
+                    },
+                    "version": {
+                      "type": "integer",
+                      "exclusiveMinimum": 0,
+                      "maximum": 9007199254740991
+                    },
+                    "active": {
+                      "type": "boolean"
+                    },
+                    "digest": {
+                      "type": "string",
+                      "pattern": "^[a-f0-9]{64}$"
+                    },
+                    "mediaType": {
+                      "type": "string",
+                      "const": "image/png"
+                    },
+                    "width": {
+                      "type": "number",
+                      "const": 128
+                    },
+                    "height": {
+                      "type": "number",
+                      "const": 128
+                    },
+                    "source": {
+                      "oneOf": [
+                        {
+                          "type": "object",
+                          "properties": {
+                            "kind": {
+                              "type": "string",
+                              "const": "upload"
+                            },
+                            "fileName": {
+                              "type": "string",
+                              "minLength": 1,
+                              "maxLength": 255
+                            },
+                            "originalMediaType": {
+                              "type": "string",
+                              "enum": [
+                                "image/png",
+                                "image/jpeg",
+                                "image/webp",
+                                "image/svg+xml"
+                              ]
+                            },
+                            "originalByteLength": {
+                              "type": "integer",
+                              "exclusiveMinimum": 0,
+                              "maximum": 524288
+                            },
+                            "originalDigest": {
+                              "type": "string",
+                              "pattern": "^[a-f0-9]{64}$"
+                            }
+                          },
+                          "required": [
+                            "kind",
+                            "fileName",
+                            "originalMediaType",
+                            "originalByteLength",
+                            "originalDigest"
+                          ],
+                          "additionalProperties": false
+                        },
+                        {
+                          "type": "object",
+                          "properties": {
+                            "kind": {
+                              "type": "string",
+                              "const": "repository_file"
+                            },
+                            "repository": {
+                              "type": "string",
+                              "maxLength": 200,
+                              "pattern": "^[A-Za-z0-9_.-]+\\/[A-Za-z0-9_.-]+$"
+                            },
+                            "path": {
+                              "type": "string",
+                              "minLength": 1,
+                              "maxLength": 300,
+                              "pattern": "^[A-Za-z0-9_.@+-]+(?:\\/[A-Za-z0-9_.@+-]+)*$"
+                            },
+                            "commitSha": {
+                              "type": "string",
+                              "pattern": "^[a-f0-9]{40}$"
+                            },
+                            "blobSha": {
+                              "type": "string",
+                              "pattern": "^[a-f0-9]{40}$"
+                            },
+                            "originalMediaType": {
+                              "type": "string",
+                              "enum": [
+                                "image/png",
+                                "image/jpeg",
+                                "image/webp",
+                                "image/svg+xml"
+                              ]
+                            },
+                            "originalByteLength": {
+                              "type": "integer",
+                              "exclusiveMinimum": 0,
+                              "maximum": 524288
+                            },
+                            "originalDigest": {
+                              "type": "string",
+                              "pattern": "^[a-f0-9]{64}$"
+                            }
+                          },
+                          "required": [
+                            "kind",
+                            "repository",
+                            "path",
+                            "commitSha",
+                            "blobSha",
+                            "originalMediaType",
+                            "originalByteLength",
+                            "originalDigest"
+                          ],
+                          "additionalProperties": false
+                        }
+                      ]
+                    },
+                    "provenance": {
+                      "type": "object",
+                      "properties": {
+                        "actorId": {
+                          "type": "string",
+                          "minLength": 1
+                        },
+                        "recordedAt": {
+                          "type": "string",
+                          "format": "date-time",
+                          "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))T(?:(?:[01]\\d|2[0-3]):[0-5]\\d:[0-5]\\d(?:\\.\\d+)?(?:Z|([+-](?:[01]\\d|2[0-3]):[0-5]\\d)))$"
+                        },
+                        "evidenceRefs": {
+                          "minItems": 1,
+                          "type": "array",
+                          "items": {
+                            "type": "string",
+                            "minLength": 1
+                          }
+                        }
+                      },
+                      "required": [
+                        "actorId",
+                        "recordedAt",
+                        "evidenceRefs"
+                      ],
+                      "additionalProperties": false
+                    }
+                  },
+                  "required": [
+                    "kind",
+                    "id",
+                    "resourceId",
+                    "version",
+                    "active",
+                    "digest",
+                    "mediaType",
+                    "width",
+                    "height",
+                    "source",
+                    "provenance"
+                  ],
+                  "additionalProperties": false
+                }
+              }
+            },
+            "required": [
+              "schemaVersion",
+              "scopeDigest",
+              "projectionRevision",
+              "completeness",
+              "kind",
+              "items"
+            ],
+            "additionalProperties": false
           }
         ]
       },
@@ -26357,6 +27734,14 @@
               "minLength": 1,
               "maxLength": 1000
             }
+          },
+          "reveal": {
+            "default": "members",
+            "type": "string",
+            "enum": [
+              "members",
+              "groups"
+            ]
           },
           "search": {
             "default": "",
@@ -27475,6 +28860,588 @@
           "expectedVersion",
           "resourceIds",
           "review"
+        ],
+        "additionalProperties": false
+      },
+      "ObservatoryLogoQuery": {
+        "type": "object",
+        "properties": {
+          "schemaVersion": {
+            "default": 1,
+            "type": "number",
+            "const": 1
+          },
+          "projectId": {
+            "type": "string",
+            "format": "uuid",
+            "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$"
+          },
+          "grouping": {
+            "default": "operational",
+            "type": "string",
+            "enum": [
+              "operational",
+              "hosts",
+              "projects",
+              "providers",
+              "inventory",
+              "custom"
+            ]
+          },
+          "environment": {
+            "default": null,
+            "anyOf": [
+              {
+                "type": "string",
+                "minLength": 1,
+                "maxLength": 100
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "expandedRepresentationIds": {
+            "default": [],
+            "type": "array",
+            "items": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 1000
+            }
+          },
+          "reveal": {
+            "default": "members",
+            "type": "string",
+            "enum": [
+              "members",
+              "groups"
+            ]
+          },
+          "search": {
+            "default": "",
+            "type": "string",
+            "maxLength": 500
+          },
+          "sectors": {
+            "default": [],
+            "type": "array",
+            "items": {
+              "type": "object",
+              "properties": {
+                "id": {
+                  "type": "string",
+                  "minLength": 1,
+                  "maxLength": 100
+                },
+                "label": {
+                  "type": "string",
+                  "minLength": 1,
+                  "maxLength": 100
+                },
+                "resourceIds": {
+                  "type": "array",
+                  "items": {
+                    "type": "string",
+                    "format": "uuid",
+                    "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$"
+                  }
+                },
+                "grouping": {
+                  "type": "string",
+                  "enum": [
+                    "operational",
+                    "hosts",
+                    "projects",
+                    "providers",
+                    "inventory"
+                  ]
+                }
+              },
+              "required": [
+                "id",
+                "label",
+                "resourceIds",
+                "grouping"
+              ],
+              "additionalProperties": false
+            }
+          },
+          "viewRevision": {
+            "default": "1",
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 200
+          },
+          "resourceId": {
+            "type": "string",
+            "format": "uuid",
+            "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$"
+          },
+          "digest": {
+            "type": "string",
+            "pattern": "^[a-f0-9]{64}$"
+          }
+        },
+        "required": [
+          "resourceId",
+          "digest"
+        ],
+        "additionalProperties": false
+      },
+      "ObservatoryLogoReadResult": {
+        "type": "object",
+        "properties": {
+          "schemaVersion": {
+            "type": "number",
+            "const": 1
+          },
+          "scopeDigest": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 500
+          },
+          "resourceId": {
+            "type": "string",
+            "format": "uuid",
+            "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$"
+          },
+          "version": {
+            "type": "integer",
+            "exclusiveMinimum": 0,
+            "maximum": 9007199254740991
+          },
+          "image": {
+            "type": "object",
+            "properties": {
+              "digest": {
+                "type": "string",
+                "pattern": "^[a-f0-9]{64}$"
+              },
+              "mediaType": {
+                "type": "string",
+                "const": "image/png"
+              },
+              "width": {
+                "type": "number",
+                "const": 128
+              },
+              "height": {
+                "type": "number",
+                "const": 128
+              },
+              "dataBase64": {
+                "type": "string",
+                "minLength": 4
+              }
+            },
+            "required": [
+              "digest",
+              "mediaType",
+              "width",
+              "height",
+              "dataBase64"
+            ],
+            "additionalProperties": false
+          }
+        },
+        "required": [
+          "schemaVersion",
+          "scopeDigest",
+          "resourceId",
+          "version",
+          "image"
+        ],
+        "additionalProperties": false
+      },
+      "ObservatoryLogoPreview": {
+        "type": "object",
+        "properties": {
+          "resourceId": {
+            "type": "string",
+            "format": "uuid",
+            "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$"
+          },
+          "input": {
+            "oneOf": [
+              {
+                "type": "object",
+                "properties": {
+                  "kind": {
+                    "type": "string",
+                    "const": "upload"
+                  },
+                  "fileName": {
+                    "type": "string",
+                    "minLength": 1,
+                    "maxLength": 255
+                  },
+                  "dataBase64": {
+                    "type": "string",
+                    "minLength": 4,
+                    "maxLength": 699052,
+                    "pattern": "^(?:[A-Za-z0-9+/]{4})*(?:[A-Za-z0-9+/]{2}==|[A-Za-z0-9+/]{3}=)?$"
+                  }
+                },
+                "required": [
+                  "kind",
+                  "fileName",
+                  "dataBase64"
+                ],
+                "additionalProperties": false
+              },
+              {
+                "type": "object",
+                "properties": {
+                  "kind": {
+                    "type": "string",
+                    "const": "repository_file"
+                  },
+                  "repository": {
+                    "type": "string",
+                    "maxLength": 200,
+                    "pattern": "^[A-Za-z0-9_.-]+\\/[A-Za-z0-9_.-]+$"
+                  },
+                  "path": {
+                    "type": "string",
+                    "minLength": 1,
+                    "maxLength": 300,
+                    "pattern": "^[A-Za-z0-9_.@+-]+(?:\\/[A-Za-z0-9_.@+-]+)*$"
+                  },
+                  "ref": {
+                    "anyOf": [
+                      {
+                        "type": "string",
+                        "minLength": 1,
+                        "maxLength": 200,
+                        "pattern": "^[A-Za-z0-9_.-]+(?:\\/[A-Za-z0-9_.-]+)*$"
+                      },
+                      {
+                        "type": "null"
+                      }
+                    ]
+                  }
+                },
+                "required": [
+                  "kind",
+                  "repository",
+                  "path",
+                  "ref"
+                ],
+                "additionalProperties": false
+              }
+            ]
+          }
+        },
+        "required": [
+          "resourceId",
+          "input"
+        ],
+        "additionalProperties": false
+      },
+      "ObservatoryLogoPreviewResult": {
+        "type": "object",
+        "properties": {
+          "schemaVersion": {
+            "type": "number",
+            "const": 1
+          },
+          "resourceId": {
+            "type": "string",
+            "format": "uuid",
+            "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$"
+          },
+          "image": {
+            "type": "object",
+            "properties": {
+              "digest": {
+                "type": "string",
+                "pattern": "^[a-f0-9]{64}$"
+              },
+              "mediaType": {
+                "type": "string",
+                "const": "image/png"
+              },
+              "width": {
+                "type": "number",
+                "const": 128
+              },
+              "height": {
+                "type": "number",
+                "const": 128
+              },
+              "dataBase64": {
+                "type": "string",
+                "minLength": 4
+              }
+            },
+            "required": [
+              "digest",
+              "mediaType",
+              "width",
+              "height",
+              "dataBase64"
+            ],
+            "additionalProperties": false
+          },
+          "source": {
+            "oneOf": [
+              {
+                "type": "object",
+                "properties": {
+                  "kind": {
+                    "type": "string",
+                    "const": "upload"
+                  },
+                  "fileName": {
+                    "type": "string",
+                    "minLength": 1,
+                    "maxLength": 255
+                  },
+                  "originalMediaType": {
+                    "type": "string",
+                    "enum": [
+                      "image/png",
+                      "image/jpeg",
+                      "image/webp",
+                      "image/svg+xml"
+                    ]
+                  },
+                  "originalByteLength": {
+                    "type": "integer",
+                    "exclusiveMinimum": 0,
+                    "maximum": 524288
+                  },
+                  "originalDigest": {
+                    "type": "string",
+                    "pattern": "^[a-f0-9]{64}$"
+                  }
+                },
+                "required": [
+                  "kind",
+                  "fileName",
+                  "originalMediaType",
+                  "originalByteLength",
+                  "originalDigest"
+                ],
+                "additionalProperties": false
+              },
+              {
+                "type": "object",
+                "properties": {
+                  "kind": {
+                    "type": "string",
+                    "const": "repository_file"
+                  },
+                  "repository": {
+                    "type": "string",
+                    "maxLength": 200,
+                    "pattern": "^[A-Za-z0-9_.-]+\\/[A-Za-z0-9_.-]+$"
+                  },
+                  "path": {
+                    "type": "string",
+                    "minLength": 1,
+                    "maxLength": 300,
+                    "pattern": "^[A-Za-z0-9_.@+-]+(?:\\/[A-Za-z0-9_.@+-]+)*$"
+                  },
+                  "commitSha": {
+                    "type": "string",
+                    "pattern": "^[a-f0-9]{40}$"
+                  },
+                  "blobSha": {
+                    "type": "string",
+                    "pattern": "^[a-f0-9]{40}$"
+                  },
+                  "originalMediaType": {
+                    "type": "string",
+                    "enum": [
+                      "image/png",
+                      "image/jpeg",
+                      "image/webp",
+                      "image/svg+xml"
+                    ]
+                  },
+                  "originalByteLength": {
+                    "type": "integer",
+                    "exclusiveMinimum": 0,
+                    "maximum": 524288
+                  },
+                  "originalDigest": {
+                    "type": "string",
+                    "pattern": "^[a-f0-9]{64}$"
+                  }
+                },
+                "required": [
+                  "kind",
+                  "repository",
+                  "path",
+                  "commitSha",
+                  "blobSha",
+                  "originalMediaType",
+                  "originalByteLength",
+                  "originalDigest"
+                ],
+                "additionalProperties": false
+              }
+            ]
+          }
+        },
+        "required": [
+          "schemaVersion",
+          "resourceId",
+          "image",
+          "source"
+        ],
+        "additionalProperties": false
+      },
+      "ObservatoryLogoChange": {
+        "type": "object",
+        "properties": {
+          "expectedVersion": {
+            "type": "integer",
+            "minimum": 0,
+            "maximum": 9007199254740991
+          },
+          "resourceId": {
+            "type": "string",
+            "format": "uuid",
+            "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$"
+          },
+          "active": {
+            "type": "boolean"
+          },
+          "expectedDigest": {
+            "anyOf": [
+              {
+                "type": "string",
+                "pattern": "^[a-f0-9]{64}$"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "input": {
+            "anyOf": [
+              {
+                "oneOf": [
+                  {
+                    "type": "object",
+                    "properties": {
+                      "kind": {
+                        "type": "string",
+                        "const": "upload"
+                      },
+                      "fileName": {
+                        "type": "string",
+                        "minLength": 1,
+                        "maxLength": 255
+                      },
+                      "dataBase64": {
+                        "type": "string",
+                        "minLength": 4,
+                        "maxLength": 699052,
+                        "pattern": "^(?:[A-Za-z0-9+/]{4})*(?:[A-Za-z0-9+/]{2}==|[A-Za-z0-9+/]{3}=)?$"
+                      }
+                    },
+                    "required": [
+                      "kind",
+                      "fileName",
+                      "dataBase64"
+                    ],
+                    "additionalProperties": false
+                  },
+                  {
+                    "type": "object",
+                    "properties": {
+                      "kind": {
+                        "type": "string",
+                        "const": "repository_file"
+                      },
+                      "repository": {
+                        "type": "string",
+                        "maxLength": 200,
+                        "pattern": "^[A-Za-z0-9_.-]+\\/[A-Za-z0-9_.-]+$"
+                      },
+                      "path": {
+                        "type": "string",
+                        "minLength": 1,
+                        "maxLength": 300,
+                        "pattern": "^[A-Za-z0-9_.@+-]+(?:\\/[A-Za-z0-9_.@+-]+)*$"
+                      },
+                      "commitSha": {
+                        "type": "string",
+                        "pattern": "^[a-f0-9]{40}$"
+                      }
+                    },
+                    "required": [
+                      "kind",
+                      "repository",
+                      "path",
+                      "commitSha"
+                    ],
+                    "additionalProperties": false
+                  }
+                ]
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "review": {
+            "type": "object",
+            "properties": {
+              "evidenceRefs": {
+                "minItems": 1,
+                "type": "array",
+                "items": {
+                  "type": "string",
+                  "minLength": 1,
+                  "maxLength": 2000
+                }
+              },
+              "note": {
+                "type": "string",
+                "minLength": 1,
+                "maxLength": 4000
+              }
+            },
+            "required": [
+              "evidenceRefs",
+              "note"
+            ],
+            "additionalProperties": false
+          }
+        },
+        "required": [
+          "expectedVersion",
+          "resourceId",
+          "active",
+          "expectedDigest",
+          "input",
+          "review"
+        ],
+        "additionalProperties": false
+      },
+      "ObservatoryLogoFailure": {
+        "type": "object",
+        "properties": {
+          "code": {
+            "type": "string",
+            "enum": [
+              "LOGO_UNSUPPORTED_IMAGE",
+              "LOGO_TOO_LARGE",
+              "LOGO_REPOSITORY_NOT_REVIEWED",
+              "LOGO_SOURCE_NOT_FOUND",
+              "LOGO_SOURCE_UNAUTHORIZED",
+              "LOGO_SOURCE_UNAVAILABLE",
+              "LOGO_PROCESSING_UNAVAILABLE"
+            ]
+          }
+        },
+        "required": [
+          "code"
         ],
         "additionalProperties": false
       },
