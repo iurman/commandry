@@ -38,6 +38,8 @@ export function fittedPose(
   azimuth = 0.18,
   elevation = 0.95,
   subjects: Bounds[] = [bounds],
+  /** Share of the stage height free of overlay panels to fit within. */
+  band = 1,
 ): CameraPose {
   const direction = {
     x: Math.sin(azimuth) * Math.cos(elevation),
@@ -65,7 +67,7 @@ export function fittedPose(
             Math.abs(x * right.x + z * right.z) /
               (tangent * Math.max(0.2, aspect)) +
               depth,
-            Math.abs(x * up.x + y * up.y + z * up.z) / tangent + depth,
+            Math.abs(x * up.x + y * up.y + z * up.z) / (tangent * band) + depth,
           );
         }
   distance *= 1.18;
@@ -85,6 +87,7 @@ export function fittedLandscapePose(
   aspect: number,
   azimuth = 0.18,
   elevation = 0.95,
+  band = 1,
 ): CameraPose {
   const bounds = landscapeBounds(wells);
   const subjects = wells.map((well) => ({
@@ -98,6 +101,7 @@ export function fittedLandscapePose(
     azimuth,
     elevation,
     subjects.length ? subjects : [bounds],
+    band,
   );
 }
 
@@ -130,10 +134,11 @@ export function focusedLandscapePose(
   subjectId: string,
   aspect: number,
   narrow = 1,
+  band = 1,
 ): CameraPose | null {
   const members = family(wells, subjectId);
   if (!members) return null;
-  const pose = fittedLandscapePose(members, aspect * narrow, 0.28, 0.78);
+  const pose = fittedLandscapePose(members, aspect * narrow, 0.28, 0.78, band);
   return { ...pose, featured: subjectId };
 }
 
@@ -156,6 +161,7 @@ export function orbitFrame(
   aspect: number,
   narrow = 1,
   elevation = ORBIT_ELEVATION,
+  band = 1,
 ): OrbitFrame | null {
   const members = family(wells, subjectId);
   if (!members) return null;
@@ -167,6 +173,7 @@ export function orbitFrame(
       aspect * narrow,
       (step * Math.PI) / 4,
       elevation,
+      band,
     );
     target = pose.target;
     distance = Math.max(
@@ -249,12 +256,14 @@ export function presentationPose(
   aspect: number,
   time: number,
   startAzimuth = 0.18,
+  band = 1,
 ): CameraPose {
   return fittedLandscapePose(
     wells,
     aspect,
     startAzimuth + time * 0.025,
     0.23 + Math.sin(time * 0.08) * 0.025,
+    band,
   );
 }
 

@@ -42,6 +42,13 @@ import {
   OperationalLayout,
   OperationalRecordedActivity,
 } from "../gravity/operational-layout";
+import { observatoryBriefing } from "../gravity/briefing";
+import type { TourStop } from "../gravity/tour";
+import {
+  ObservatoryBriefingCard,
+  ObservatoryBriefingDetails,
+  ObservatoryRoster,
+} from "./ObservatoryPresentation";
 import type {
   OperationalRepresentation,
   OperationalSummary,
@@ -392,7 +399,9 @@ function OperationalObservatoryView({
     [systemDark, setSystemDark] = useState(false),
     [systemReduced, setSystemReduced] = useState(false);
   const [camera, setCamera] = useState<CameraMode>("composed"),
-    [reading, setReading] = useState(false);
+    [reading, setReading] = useState(false),
+    [tourStop, setTourStop] = useState<TourStop | null>(null),
+    [highlighted, setHighlighted] = useState<string | null>(null);
   // Terrain detail is revealed by default; the outline opens only what the
   // owner (or a remounted scope's prior query) explicitly expanded.
   const initialExpanded = (
@@ -438,7 +447,8 @@ function OperationalObservatoryView({
   const canvas = useRef<HTMLDivElement>(null),
     renderer = useRef<ObservatoryRenderer | null>(null),
     lens = useRef<HTMLDivElement>(null);
-  const elements = useRef(new Map<string, HTMLButtonElement>()),
+  const elements = useRef(new Map<string, HTMLElement>()),
+    leaders = useRef(new Map<string, SVGPathElement>()),
     anchorPositions = useRef(new Map<string, Anchor>());
   const restoreCamera = useRef(false);
   const automaticFeature = useRef(false);
@@ -466,6 +476,10 @@ function OperationalObservatoryView({
     [scene],
   );
   const selected = focusId ? (nodes.get(focusId) ?? null) : null;
+  const primaryIds = useMemo(
+    () => new Set(projection.value?.primaryGroupIds ?? []),
+    [projection],
+  );
   const focusedMembers = useMemo(
     () =>
       selected
@@ -496,12 +510,14 @@ function OperationalObservatoryView({
       motion,
       cameraMode:
         (reduced || stopped || reading) &&
-        (camera === "orbit" || camera === "tour")
+        (camera === "orbit" || camera === "tour" || camera === "watch")
           ? "manual"
           : camera,
       ambient: preferences.ambient && motion,
       selected: selected?.id ?? null,
       focus: preferences.lens && !!selected,
+      watch: camera === "watch" ? (selected?.id ?? null) : null,
+      stops: projection.value?.primaryGroupIds ?? [],
       activity: {
         source: activity,
         running: !stopped && !delayed && !pending && !reading,
@@ -558,7 +574,10 @@ function OperationalObservatoryView({
     restoreCamera.current = false;
     setFocusSequence((value) => value + 1);
     setFocusId(id);
-    setCamera("manual");
+    // Selecting a primary group watches it; any other subject holds still.
+    const next: CameraMode =
+      primaryIds.has(id) && !reduced && !stopped ? "watch" : "manual";
+    setCamera(next);
     if (node.resourceId) onSelect(node.resourceId);
     const expanded = new Set(query.expandedRepresentationIds);
     for (const parent of pathTo(scene, id))
@@ -569,15 +588,22 @@ function OperationalObservatoryView({
         (item) => !query.expandedRepresentationIds.includes(item),
       )
     )
-      emit({ ...query, expandedRepresentationIds: [...expanded] });
+      emit({ ...query, expandedRepresentationIds: [...expanded] }, next);
+  }
+  /** Orbit the selected subject, or hold still again. */
+  function watch(on: boolean) {
+    automaticFeature.current = false;
+    setReading(false);
+    setCamera(on ? "watch" : "manual");
   }
   function feature(id: string) {
     const node = nodes.get(id);
     if (
       current.current.settings.cameraMode !== "tour" ||
       !current.current.settings.motion ||
-      node?.kind !== "host" ||
-      !current.current.projection?.wells.some((well) => well.id === id)
+      !node ||
+      !current.current.projection?.primaryGroupIds.includes(id) ||
+      !current.current.projection.wells.some((well) => well.id === id)
     )
       return;
     // A tour owns its camera and does not create a manual selection/history entry.
@@ -784,6 +810,8 @@ function OperationalObservatoryView({
               for (const anchor of next) {
                 const element = elements.current.get(anchor.id);
                 if (element) placeAnchor(element, anchor);
+                const leader = leaders.current.get(anchor.id);
+                if (leader) placeLeader(leader, anchor);
               }
               setAnchors((previous) =>
                 previous.length === next.length &&
@@ -792,7 +820,9 @@ function OperationalObservatoryView({
                     anchor.id === next[index]?.id &&
                     anchor.label === next[index]?.label &&
                     anchor.nested === next[index]?.nested &&
-                    anchor.open === next[index]?.open,
+                    anchor.open === next[index]?.open &&
+                    anchor.callout?.side === next[index]?.callout?.side &&
+                    anchor.overflow === next[index]?.overflow,
                 )
                   ? previous
                   : next,
@@ -804,6 +834,9 @@ function OperationalObservatoryView({
             },
             featured(id) {
               actions.current.feature(id);
+            },
+            tour(stop) {
+              setTourStop(stop);
             },
             interrupted() {
               setCamera("manual");
@@ -969,6 +1002,31 @@ function OperationalObservatoryView({
       ? logoUrl(node.resourceId, node.logo.digest)
       : null;
   const summary = selected?.summary ?? scene.summary;
+  const touring = settings.cameraMode === "tour";
+  const primaryGroups = (projection.value?.primaryGroupIds ?? []).flatMap(
+    (id) => nodes.get(id) ?? [],
+  );
+  const activePrimary = selected
+    ? (pathTo(scene, selected.id).find((id) => primaryIds.has(id)) ?? null)
+    : null;
+  const briefing = observatoryBriefing(
+    scene,
+    snapshot.events,
+    selected?.id ?? null,
+    projection.value?.primaryGroupIds ?? [],
+  );
+  const stopIndex =
+    touring && tourStop && tourStop.id === selected?.id
+      ? primaryGroups.findIndex((node) => node.id === tourStop.id)
+      : -1;
+  const eyebrow =
+    stopIndex >= 0
+      ? `Presentation ${stopIndex + 1} of ${primaryGroups.length}${tourStop?.reason === "attention" ? " / attention" : ""} / ${kindNames[selected!.kind]}`
+      : settings.cameraMode === "watch" && selected
+        ? `Watching / ${kindNames[selected.kind]}`
+        : selected
+          ? kindNames[selected.kind]
+          : `Overview / ${scene.population.canonicalResourceCount} unique resources`;
   const exposed = scene.providerExposures.filter((item) =>
     focusedMembers.has(item.resourceId),
   );
@@ -1569,27 +1627,64 @@ function OperationalObservatoryView({
               setCamera("manual");
             }}
           >
-            <div className="cmd-op-stage-caption" data-gravity-label-inset>
-              <span>
-                {selected
-                  ? kindNames[selected.kind]
-                  : "Complete authorized landscape"}
-              </span>
-              <strong>
-                {selected?.label ?? "A still view of what you operate"}
-              </strong>
-              <small>
-                {selected
-                  ? `${selected.memberCount} unique resources represented`
-                  : "Select a group to name and inspect its members"}
-              </small>
-            </div>
+            <ObservatoryBriefingCard
+              briefing={briefing}
+              eyebrow={eyebrow}
+              motion={motion}
+              revision={`${briefing.subjectId ?? "landscape"}:${touring ? (tourStop?.sequence ?? 0) : "still"}`}
+            />
             <div ref={canvas} className="cmd-op-canvas" />
             <div
               className="cmd-op-labels"
               aria-hidden={!!error || !!projection.error}
             >
+              <svg className="cmd-op-callout-lines" aria-hidden="true">
+                {anchors
+                  .filter((anchor) => anchor.callout)
+                  .map((anchor) => (
+                    <path
+                      key={anchor.id}
+                      ref={(path) => {
+                        if (!path) {
+                          leaders.current.delete(anchor.id);
+                          return;
+                        }
+                        leaders.current.set(anchor.id, path);
+                        placeLeader(
+                          path,
+                          anchorPositions.current.get(anchor.id) ?? anchor,
+                        );
+                      }}
+                    />
+                  ))}
+              </svg>
               {anchors.map((anchor) => {
+                if (anchor.overflow)
+                  return (
+                    <span
+                      key={anchor.id}
+                      className="cmd-op-label cmd-op-callout-more"
+                      data-nested="true"
+                      ref={(element) => {
+                        if (!element) {
+                          elements.current.delete(anchor.id);
+                          return;
+                        }
+                        elements.current.set(anchor.id, element);
+                        placeAnchor(
+                          element,
+                          anchorPositions.current.get(anchor.id) ?? anchor,
+                        );
+                        renderer.current?.measureAnchor(
+                          anchor.id,
+                          element.offsetWidth,
+                          element.offsetHeight,
+                        );
+                      }}
+                    >
+                      +{anchor.overflow} more in the briefing list
+                    </span>
+                  );
                 const node = nodes.get(anchor.id.replace(/^lens-/, ""));
                 if (!node) return null;
                 const attention = operationalAttention(node.summary);
@@ -1601,6 +1696,10 @@ function OperationalObservatoryView({
                     data-attention={attention}
                     data-nested={anchor.nested ? "true" : undefined}
                     data-open={anchor.open ? "true" : undefined}
+                    data-callout={anchor.callout?.side}
+                    data-highlight={
+                      highlighted === node.id ? "true" : undefined
+                    }
                     className="cmd-op-label"
                     ref={(element) => {
                       if (!element) {
@@ -1630,19 +1729,17 @@ function OperationalObservatoryView({
                     />
                     <span>
                       <strong>{node.label}</strong>
-                      {((!anchor.nested && !anchor.open) ||
-                        attention !== "neutral") && (
-                        <small>
-                          {kindNames[node.kind]} / {node.memberCount}
-                          {node.referenceTo ? " / reference" : ""}
-                          {attention === "impact"
-                            ? " / confirmed impact"
-                            : attention === "exposure"
-                              ? " / potential exposure"
-                              : ""}
-                        </small>
-                      )}
                     </span>
+                    {!anchor.nested && !anchor.open && (
+                      <small className="cmd-op-label-count">
+                        {node.memberCount}
+                      </small>
+                    )}
+                    {attention !== "neutral" && (
+                      <small className="cmd-op-label-attention">
+                        {attention === "impact" ? "Impact" : "Exposure"}
+                      </small>
+                    )}
                   </button>
                 );
               })}
@@ -1659,7 +1756,32 @@ function OperationalObservatoryView({
                   "Loading shared terrain. The complete outline is ready below."}
               </p>
             )}
-            <div className="cmd-op-stage-actions">
+            <ObservatoryRoster
+              groups={primaryGroups}
+              activeId={activePrimary}
+              progress={
+                touring && tourStop && motion
+                  ? {
+                      id: tourStop.id,
+                      seconds: tourStop.travel + tourStop.dwell,
+                      sequence: tourStop.sequence,
+                    }
+                  : null
+              }
+              attentionFor={(node) => operationalAttention(node.summary)}
+              kindName={(node) => kindNames[node.kind]}
+              mark={(node) => (
+                <ObservatoryResourceMark
+                  kind={node.kind}
+                  subjectKind={iconSubject(node).kind}
+                  icon={iconFor(node)}
+                  logo={logoFor(node)}
+                  theme={theme}
+                />
+              )}
+              activate={activate}
+              highlight={setHighlighted}
+            >
               <button
                 type="button"
                 onClick={() => {
@@ -1689,6 +1811,21 @@ function OperationalObservatoryView({
                   ? "Stop presentation"
                   : "Start presentation"}
               </button>
+              {selected && (
+                <button
+                  type="button"
+                  disabled={reduced || stopped}
+                  aria-pressed={camera === "watch"}
+                  title={
+                    camera === "watch"
+                      ? "Hold the camera still on this subject."
+                      : `Orbit ${selected.label} slowly until you interact.`
+                  }
+                  onClick={() => watch(camera !== "watch")}
+                >
+                  {camera === "watch" ? "Stop watching" : "Watch"}
+                </button>
+              )}
               <button
                 type="button"
                 aria-pressed={query.reveal === "members"}
@@ -1703,7 +1840,7 @@ function OperationalObservatoryView({
               >
                 {query.reveal === "members" ? "Collapse all" : "Expand all"}
               </button>
-            </div>
+            </ObservatoryRoster>
           </div>
           <p className="cmd-op-legend">
             Each badge shows a recognised technology or the resource kind;
@@ -1848,6 +1985,7 @@ function OperationalObservatoryView({
               </button>
             </p>
           )}
+          <ObservatoryBriefingDetails briefing={briefing} activate={activate} />
           <section
             className="cmd-op-availability"
             data-attention={operationalAttention(summary)}
@@ -2221,10 +2359,26 @@ function OperationalObservatoryView({
 /** Watching follows one selection, so a saved view keeps a still camera. */
 const savedCamera = (camera: CameraMode): ObservatoryPreferences["camera"] =>
   camera === "watch" ? "manual" : camera;
-function placeAnchor(element: HTMLButtonElement, anchor: Anchor) {
+function placeAnchor(element: HTMLElement, anchor: Anchor) {
   element.style.transform = `translate3d(${anchor.x}px,${anchor.y}px,0) translate(-50%,-100%)`;
   element.style.opacity = String(anchor.opacity);
   element.style.visibility =
     anchor.opacity < 0.002 || !anchor.visible ? "hidden" : "visible";
-  element.tabIndex = anchor.opacity < 0.002 || !anchor.visible ? -1 : 0;
+  if (element instanceof HTMLButtonElement)
+    element.tabIndex = anchor.opacity < 0.002 || !anchor.visible ? -1 : 0;
+}
+/** An elbow from a callout's inner edge to the member it names. */
+function placeLeader(path: SVGPathElement, anchor: Anchor) {
+  const line = anchor.callout;
+  if (!line || !anchor.visible || anchor.opacity < 0.002) {
+    path.style.visibility = "hidden";
+    return;
+  }
+  const knee = line.fromX + (line.side === "left" ? 10 : -10);
+  path.setAttribute(
+    "d",
+    `M${line.fromX.toFixed(1)} ${line.fromY.toFixed(1)}H${knee.toFixed(1)}L${line.toX.toFixed(1)} ${line.toY.toFixed(1)}`,
+  );
+  path.style.opacity = String(anchor.opacity * 0.7);
+  path.style.visibility = "visible";
 }

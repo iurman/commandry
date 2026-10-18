@@ -1,5 +1,12 @@
 import { describe, expect, it } from "vitest";
-import { LabelLayout, type LabelPosition } from "./labels";
+import {
+  CalloutLayout,
+  LABEL_RELEASE,
+  LabelLayout,
+  type CalloutPlacement,
+  type LabelPosition,
+  type LabelRect,
+} from "./labels";
 
 const label = (id: string, x = 450, y = 160): LabelPosition => ({
   id,
@@ -813,6 +820,7 @@ function settleLabels<T extends LabelPosition>(
   height = 500,
   top = 52,
   selected: string | null = null,
+  obstacles: LabelRect[] = [],
 ) {
   let frames = 0;
   let result: T[];
@@ -825,6 +833,7 @@ function settleLabels<T extends LabelPosition>(
       motion,
       top,
       selected,
+      obstacles,
     );
     frames++;
   } while (layout.changing && frames < 600);
@@ -1179,4 +1188,187 @@ it("bounds retained collision and measurement maps to the current population dur
   for (const map of retainedMaps()) expect(map.size).toBe(0);
   expect(layout.layout([], 900, 500, 1 / 60, false)).toEqual([]);
   expect(layout.changing).toBe(false);
+});
+
+describe("steady admission while the camera moves", () => {
+  it("keeps a name through a brief contact and fades it only after the hold", () => {
+    const layout = new LabelLayout();
+    layout.measure("high", 120, 32);
+    layout.measure("low", 120, 32);
+    // A leashed label is hidden, not displaced, when it would leave its subject.
+    const apart = [
+      { ...label("high", 200, 200), rank: 40 },
+      { ...label("low", 600, 200), leash: 12 },
+    ];
+    for (let i = 0; i < 60; i++) layout.layout(apart, 900, 500, 1 / 60, true);
+    // The lower-priority label is crowded for a moment, then has room again.
+    const crowded = [apart[0]!, { ...apart[1]!, x: 205, y: 205 }];
+    let low = layout.layout(crowded, 900, 500, 1 / 60, true)[1]!;
+    for (let i = 0; i < 6; i++)
+      low = layout
+        .layout(crowded, 900, 500, 1 / 60, true)
+        .find((item) => item.id === "low")!;
+    expect(low.opacity).toBeGreaterThan(0.9);
+    for (let i = 0; i < 60; i++)
+      low = layout
+        .layout(apart, 900, 500, 1 / 60, true)
+        .find((item) => item.id === "low")!;
+    expect(low.opacity).toBeGreaterThan(0.99);
+    // A lasting contact releases it, and it fades rather than vanishing.
+    let frames = 0;
+    do {
+      low = layout
+        .layout(crowded, 900, 500, 1 / 60, true)
+        .find((item) => item.id === "low")!;
+      frames++;
+    } while (low.opacity > 0.9 && frames < 120);
+    expect(frames).toBeGreaterThanOrEqual(Math.floor(LABEL_RELEASE * 60));
+    const fading = layout
+      .layout(crowded, 900, 500, 1 / 60, true)
+      .find((item) => item.id === "low")!;
+    expect(fading.opacity).toBeGreaterThan(0.05);
+    // Once released it waits for room to persist before returning.
+    const back = layout
+      .layout(apart, 900, 500, 1 / 60, true)
+      .find((item) => item.id === "low")!;
+    expect(back.opacity).toBeLessThan(fading.opacity);
+  });
+
+  it("steps labels out from under stage panels and keeps fixed labels where their caller put them", () => {
+    const layout = new LabelLayout();
+    layout.measure("pin", 120, 32);
+    layout.measure("callout", 140, 22);
+    const panel = { x: 150, y: 80, width: 300, height: 140 };
+    const result = settleLabels(
+      layout,
+      [
+        label("pin", 140, 100),
+        { ...label("callout", 700, 300), fixed: true, opacity: 0.6 },
+      ],
+      false,
+      900,
+      500,
+      12,
+      null,
+      [panel],
+    ).result;
+    const pin = result.find((item) => item.id === "pin")!;
+    expect(pin.opacity).toBe(1);
+    const top = pin.y - 32;
+    const left = pin.x - 60;
+    expect(
+      top >= panel.y + panel.height / 2 || left >= panel.x + panel.width / 2,
+    ).toBe(true);
+    expect(result.find((item) => item.id === "callout")).toMatchObject({
+      x: 700,
+      y: 300,
+      opacity: 0.6,
+    });
+  });
+});
+
+describe("callout columns", () => {
+  const size = () => ({ width: 130, height: 22 });
+  const region = { width: 1000, top: 20, bottom: 600 };
+  const ring = (count: number, cx = 500, cy = 300, radius = 120) =>
+    Array.from({ length: count }, (_, index) => {
+      const angle = (index / count) * Math.PI * 2;
+      return {
+        id: `m${String(index).padStart(2, "0")}`,
+        x: cx + Math.cos(angle) * radius,
+        y: cy + Math.sin(angle) * radius,
+        visible: true,
+      };
+    });
+  const overlaps = (items: CalloutPlacement[]) =>
+    items.some((a, i) =>
+      items
+        .slice(i + 1)
+        .some(
+          (b) =>
+            a.side === b.side &&
+            Math.abs(a.y - b.y) < 22 &&
+            Math.abs(a.x - b.x) < 130,
+        ),
+    );
+
+  it("names every member beside the group without overlap, each side by position", () => {
+    const callouts = new CalloutLayout();
+    const members = ring(24);
+    const { placements, overflow } = callouts.layout(
+      members,
+      size,
+      region,
+      { x: 500, y: 300 },
+      1,
+      false,
+    );
+    expect(placements).toHaveLength(24);
+    expect(overflow).toEqual({ left: 0, right: 0 });
+    expect(overlaps(placements)).toBe(false);
+    for (const placement of placements) {
+      const member = members.find((item) => item.id === placement.id)!;
+      if (member.x < 490) expect(placement.side).toBe("left");
+      if (member.x > 510) expect(placement.side).toBe("right");
+      expect(placement.leader).toMatchObject({ toX: member.x, toY: member.y });
+      expect(placement.opacity).toBe(1);
+      if (placement.side === "left")
+        expect(placement.x + 65).toBeLessThanOrEqual(380 - 25);
+      else expect(placement.x - 65).toBeGreaterThanOrEqual(620 + 25);
+    }
+  });
+
+  it("lends members across a full column, counts real overflow and keeps attention", () => {
+    const callouts = new CalloutLayout();
+    const members = ring(60).map((member, index) => ({
+      ...member,
+      attention: index === 30,
+    }));
+    const panel = { x: 300, y: 120, width: 600, height: 200 };
+    const { placements, overflow } = callouts.layout(
+      members,
+      size,
+      { ...region, obstacles: [panel] },
+      { x: 500, y: 300 },
+      1,
+      false,
+    );
+    expect(overlaps(placements)).toBe(false);
+    const left = placements.filter((item) => item.side === "left");
+    const right = placements.filter((item) => item.side === "right");
+    expect(right.length).toBeGreaterThan(left.length);
+    expect(
+      left.every((item) => item.y - 11 >= panel.y + panel.height / 2),
+    ).toBe(true);
+    expect(placements.length + overflow.left + overflow.right).toBe(60);
+    expect(overflow.left + overflow.right).toBeGreaterThan(0);
+    expect(placements.some((item) => item.id === "m30")).toBe(true);
+  });
+
+  it("moves a member to the other side only after it crosses the centre, fading between them", () => {
+    const callouts = new CalloutLayout();
+    const place = (x: number) =>
+      callouts.layout(
+        [
+          { id: "a", x: 380, y: 300, visible: true },
+          { id: "b", x: 620, y: 300, visible: true },
+          { id: "moving", x, y: 250, visible: true },
+        ],
+        size,
+        region,
+        { x: 500, y: 300 },
+        1 / 60,
+        true,
+      ).placements;
+    for (let i = 0; i < 90; i++) place(490);
+    expect(place(505).find((item) => item.id === "moving")!.side).toBe("left");
+    let seen = place(600).find((item) => item.id === "moving");
+    expect(seen!.side).toBe("left");
+    for (let i = 0; i < 120 && seen?.side !== "right"; i++)
+      seen = place(600).find((item) => item.id === "moving");
+    expect(seen?.side).toBe("right");
+    expect(seen!.opacity).toBeLessThan(0.5);
+    callouts.reset();
+    expect(place(600).find((item) => item.id === "moving")!.side).toBe("right");
+  });
 });

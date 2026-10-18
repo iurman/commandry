@@ -15,6 +15,7 @@ import {
   focusedLandscapePose,
   frameOfPose,
   hostTourStops,
+  ORBIT_ELEVATION,
   ORBIT_RATE,
   orbitFrame,
   orbitPose,
@@ -312,6 +313,8 @@ export class ObservatoryRenderer {
   private labelObserver: ResizeObserver;
   private labelTop = 52;
   private obstacles: LabelRect[] = [];
+  /** Stage space wide panels cover at the top and bottom, in CSS pixels. */
+  private inset = { top: 0, bottom: 0 };
   private callouts = new CalloutLayout();
   /** The group whose members are named in callout columns, if any. */
   private calloutSubject: string | null = null;
@@ -463,6 +466,22 @@ export class ObservatoryRenderer {
           width: panel.offsetWidth,
           height: panel.offsetHeight,
         }));
+      // A panel spanning most of the stage's top or bottom edge narrows the
+      // band the camera fits subjects into.
+      const inset = { top: 0, bottom: 0 };
+      for (const panel of this.obstacles) {
+        if (panel.width < this.width * 0.5) continue;
+        if (panel.y > this.height / 2)
+          inset.bottom = Math.max(
+            inset.bottom,
+            this.height - (panel.y - panel.height / 2) + 8,
+          );
+        else inset.top = Math.max(inset.top, panel.y + panel.height / 2 + 8);
+      }
+      if (inset.top !== this.inset.top || inset.bottom !== this.inset.bottom) {
+        this.inset = inset;
+        this.applyViewOffset();
+      }
       this.needsDraw = true;
     };
     this.labelObserver = new ResizeObserver(measureToolbar);
@@ -839,6 +858,7 @@ export class ObservatoryRenderer {
       this.camera.aspect,
       preset === "angle" ? -0.65 : 0.18,
       preset === "top" ? 1.55 : preset === "angle" ? 0.72 : 0.95,
+      this.band(),
     );
     this.cameraTween = {
       from: this.camera.position.clone(),
@@ -892,8 +912,20 @@ export class ObservatoryRenderer {
     )
       return true;
     let pose = id
-      ? focusedLandscapePose(this.targets, id, this.camera.aspect)
-      : fittedLandscapePose(this.targets, this.camera.aspect);
+      ? focusedLandscapePose(
+          this.targets,
+          id,
+          this.camera.aspect,
+          1,
+          this.band(),
+        )
+      : fittedLandscapePose(
+          this.targets,
+          this.camera.aspect,
+          undefined,
+          undefined,
+          this.band(),
+        );
     if (!pose) return false;
     // A dense group leaves room beside it for its callout columns.
     if (
@@ -914,6 +946,7 @@ export class ObservatoryRenderer {
           id,
           this.camera.aspect,
           CALLOUT_FRAMING,
+          this.band(),
         ) ?? pose;
     if (!options.restore && !options.refit) {
       this.savedFocusPoses.set(this.focusedSubject, {
@@ -955,6 +988,35 @@ export class ObservatoryRenderer {
     return true;
   }
 
+  /** Share of the stage height between wide panels; subjects fit within it. */
+  private band() {
+    return this.height > 1
+      ? Math.max(
+          0.5,
+          (this.height - this.inset.top - this.inset.bottom) / this.height,
+        )
+      : 1;
+  }
+
+  /** Centre the view on the band between wide panels. */
+  private applyViewOffset() {
+    if (this.width <= 1 || this.height <= 1) return;
+    const shift = (this.inset.bottom - this.inset.top) / 2;
+    if (shift)
+      this.camera.setViewOffset(
+        this.width,
+        this.height,
+        0,
+        shift,
+        this.width,
+        this.height,
+      );
+    else this.camera.clearViewOffset();
+    this.camera.updateProjectionMatrix();
+    this.orbitFrames.clear();
+    this.needsDraw = true;
+  }
+
   lensViewport() {
     return {
       x: this.width * 0.76,
@@ -981,6 +1043,7 @@ export class ObservatoryRenderer {
     this.renderer.setSize(this.width, this.height);
     this.camera.aspect = this.width / this.height;
     this.camera.updateProjectionMatrix();
+    this.applyViewOffset();
     this.coverLandscape([...this.wells, ...this.targets]);
     this.overlayCamera.left = -this.width / 2;
     this.overlayCamera.right = this.width / 2;
@@ -1189,6 +1252,7 @@ export class ObservatoryRenderer {
         this.camera.aspect,
         this.presentationElapsed,
         this.presentationAzimuth,
+        this.band(),
       );
       if (this.presentationEntry) {
         const entry = this.presentationEntry;
@@ -1340,11 +1404,26 @@ export class ObservatoryRenderer {
   private subjectFrame(id: string): OrbitFrame | null {
     const key = `${id}|${this.camera.aspect}|${this.height}`;
     if (!this.orbitFrames.has(key)) {
-      const base = orbitFrame(this.targets, id, this.camera.aspect);
+      const band = this.band();
+      const base = orbitFrame(
+        this.targets,
+        id,
+        this.camera.aspect,
+        1,
+        ORBIT_ELEVATION,
+        band,
+      );
       this.orbitFrames.set(
         key,
         base && this.calloutDense(id, base.distance, 1)
-          ? orbitFrame(this.targets, id, this.camera.aspect, CALLOUT_FRAMING)
+          ? orbitFrame(
+              this.targets,
+              id,
+              this.camera.aspect,
+              CALLOUT_FRAMING,
+              ORBIT_ELEVATION,
+              band,
+            )
           : base,
       );
     }
@@ -1449,7 +1528,12 @@ export class ObservatoryRenderer {
     for (const { id, spacing } of this.memberSpacing) {
       const well = byId.get(id);
       const parent = well ? parentWellId(well) : null;
-      if (!well || (parent && byId.has(parent) && !open.has(parent))) {
+      // A framed group opens even inside a closed parent: zooming into a
+      // nested ring names that ring.
+      if (
+        !well ||
+        (id !== framed && parent && byId.has(parent) && !open.has(parent))
+      ) {
         this.zoomDisclosed.delete(id);
         continue;
       }
@@ -1475,14 +1559,22 @@ export class ObservatoryRenderer {
       x: this.controls.target.x - this.camera.position.x,
       z: this.controls.target.z - this.camera.position.z,
     };
+    const enclosing = new Set<string>();
+    for (
+      let parent = this.framed ? parentWellId(byId.get(this.framed)!) : null;
+      parent && byId.has(parent) && !enclosing.has(parent);
+      parent = parentWellId(byId.get(parent)!)
+    )
+      enclosing.add(parent);
     const anchors: Anchor[] = this.wells
       .filter((w) => byId.has(w.id) && w.kind !== "service")
       .map((well) => {
-        // An open pool names its members, so its own label moves to the rim.
-        const point =
-          well.pool && open.has(well.id)
-            ? poolLabelPoint(well, forward)
-            : { x: well.x, y: this.anchorHeight(well), z: well.z };
+        // An open pool names its members, so its own label moves to the rim;
+        // so does a pool around a framed nested ring, which it would cover.
+        const rim = well.pool && (open.has(well.id) || enclosing.has(well.id));
+        const point = rim
+          ? poolLabelPoint(well, forward)
+          : { x: well.x, y: this.anchorHeight(well), z: well.z };
         const projected = this.project(point.x, point.y, point.z);
         // Every basin stays rendered; nested labels wait for their context.
         const parent = parentWellId(well);
@@ -1500,7 +1592,7 @@ export class ObservatoryRenderer {
           sector: well.sector,
           opacity: 0,
           nested,
-          open: open.has(well.id),
+          open: open.has(well.id) || enclosing.has(well.id),
           rank: nested ? (well.pool ? 20 : 0) : 40,
           ...(nested && well.id !== this.settings.selected
             ? { leash: 44 }
@@ -1586,8 +1678,8 @@ export class ObservatoryRenderer {
       this.anchorHeight(centreWell),
       centreWell.z,
     );
-    const bottom =
-      this.height - Math.max(36, Math.min(100, this.height * 0.15));
+    // Stage panels, such as the roster, shorten the columns themselves.
+    const bottom = this.height - 8;
     const { placements, overflow, changing } = this.callouts.layout(
       members,
       (id) => this.labelLayout.size(id),

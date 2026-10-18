@@ -1113,3 +1113,95 @@ describe("nested label disclosure", () => {
     }
   });
 });
+
+describe("watch orbit and presentation stops", () => {
+  it("orbits a watched subject at a constant distance once it arrives, without a direct-focus tween", () => {
+    const fixture = setup(tourWells);
+    const subject = tourWells[1]!;
+    const watch: RendererSettings = {
+      ...settings,
+      motion: true,
+      cameraMode: "watch",
+      watch: subject.id,
+      selected: subject.id,
+    };
+    try {
+      fixture.renderer.update(tourWells, watch);
+      expect(fixture.renderer.focusSubject(subject.id)).toBe(true);
+      expect(fixture.access.cameraTween).toBeNull();
+      expect(fixture.access.focusedSubject).toBe(subject.id);
+      for (let now = 50; now <= 6000; now += 50) fixture.frame(now);
+      const distance = () =>
+        fixture.access.camera.position.distanceTo(
+          fixture.access.controls.target,
+        );
+      const settled = distance(),
+        position = fixture.access.camera.position.clone();
+      expect(
+        Math.hypot(
+          fixture.access.controls.target.x - subject.x,
+          fixture.access.controls.target.z - subject.z,
+        ),
+      ).toBeLessThan(subject.radius * 2);
+      for (let now = 6050; now <= 12000; now += 50) fixture.frame(now);
+      expect(distance()).toBeCloseTo(settled, 1);
+      expect(
+        fixture.access.camera.position.distanceTo(position),
+      ).toBeGreaterThan(0.5);
+      expect(fixture.access.presentationInterrupted).toBe(false);
+      // Watching another subject travels there from the current pose.
+      fixture.renderer.update(tourWells, {
+        ...watch,
+        watch: tourWells[0]!.id,
+        selected: tourWells[0]!.id,
+      });
+      const before = fixture.access.camera.position.clone();
+      fixture.frame(12050);
+      expect(fixture.access.camera.position.distanceTo(before)).toBeLessThan(1);
+    } finally {
+      fixture.renderer.dispose();
+    }
+  });
+
+  it("visits named stops in order and moves at once to a group whose attention is raised", () => {
+    const groups: Well[] = [
+      { ...wells[0]!, id: "group-a", x: -20, z: 0 },
+      { ...wells[1]!, id: "group-b", kind: "project", x: 0, z: 20 },
+      { ...wells[2]!, id: "group-c", x: 20, z: 0 },
+    ];
+    const featured = vi.fn(),
+      tour = vi.fn();
+    const fixture = setup(groups, 1200, 900, 900, { featured, tour });
+    const state: RendererSettings = {
+      ...settings,
+      motion: true,
+      cameraMode: "tour",
+      stops: ["group-b", "group-c", "group-a"],
+    };
+    try {
+      fixture.renderer.update(groups, state);
+      fixture.frame(50);
+      expect(featured).toHaveBeenLastCalledWith("group-b");
+      expect(tour.mock.lastCall?.[0]).toMatchObject({
+        id: "group-b",
+        reason: "sequence",
+      });
+      for (let now = 100; now <= cycle + 1000; now += 50) fixture.frame(now);
+      expect(featured).toHaveBeenLastCalledWith("group-c");
+      fixture.renderer.update(
+        groups.map((well) =>
+          well.id === "group-a" ? { ...well, attention: true } : well,
+        ),
+        state,
+      );
+      expect(featured).toHaveBeenLastCalledWith("group-a");
+      expect(tour.mock.lastCall?.[0]).toMatchObject({
+        id: "group-a",
+        reason: "attention",
+        dwell: tourTiming.attentionDwell,
+      });
+    } finally {
+      fixture.renderer.dispose();
+    }
+  });
+});

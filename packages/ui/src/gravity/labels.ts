@@ -138,6 +138,7 @@ export class LabelLayout {
       height,
       top,
       selected,
+      obstacles,
       boxes.map(({ anchor, width, height }) => [
         anchor.id,
         anchor.x,
@@ -193,6 +194,21 @@ export class LabelLayout {
               Math.max(0, gap - direction * (a[axis] - b[axis])) / 2;
             a[axis] += correction * direction;
             b[axis] -= correction * direction;
+          }
+        }
+        // Step out from under overlay panels along the shorter way.
+        for (const box of boxes) {
+          if (!box.anchor.visible || box.anchor.fixed) continue;
+          for (const panel of obstacles) {
+            const overlapX =
+              (box.width + panel.width) / 2 + 8 - Math.abs(box.x - panel.x);
+            const overlapY =
+              (box.height + panel.height) / 2 + 8 - Math.abs(box.y - panel.y);
+            if (overlapX <= 0 || overlapY <= 0) continue;
+            box.engaged = true;
+            if (overlapX < overlapY)
+              box.x += overlapX * (box.x < panel.x ? -1 : 1);
+            else box.y += overlapY * (box.y < panel.y ? -1 : 1);
           }
         }
       }
@@ -299,7 +315,11 @@ export class LabelLayout {
         if (item.wants) state.pending = 0;
         continue;
       }
-      if (!item.wants || overlapping(item.rendered, admitted)) {
+      // A fixed label's caller already keeps it clear of the others.
+      if (
+        !item.wants ||
+        (!anchor.fixed && overlapping(item.rendered, admitted))
+      ) {
         state.pending = 0;
         continue;
       }
@@ -420,33 +440,12 @@ export class CalloutLayout {
         Math.abs(target.right - edges.right) >
       0.05;
     const margin = Math.max(12, (maxX - minX) * 0.06);
-    const columns = {
-      left: [] as CalloutMember[],
-      right: [] as CalloutMember[],
-    };
-    const desired = new Map<string, "left" | "right">();
-    for (const member of shown) {
-      const state = this.states.get(member.id);
-      const offset = member.x - centre.x;
-      const side: "left" | "right" =
-        state && Math.abs(offset) < margin
-          ? state.side
-          : offset < 0
-            ? "left"
-            : "right";
-      desired.set(member.id, side);
-      columns[state?.side ?? side].push(member);
-    }
-    const placements: CalloutPlacement[] = [];
-    for (const side of ["left", "right"] as const) {
-      const column = columns[side];
-      if (!column.length) continue;
-      const widest = Math.max(...column.map((member) => size(member.id).width));
+    // Panels overlapping a column shorten it from their own end.
+    const bounds = (side: "left" | "right", widest: number) => {
       const span =
         side === "left"
           ? { from: edges.left - widest, to: edges.left }
           : { from: edges.right, to: edges.right + widest };
-      // Panels overlapping this column shorten it from their own end.
       let top = region.top,
         bottom = region.bottom;
       const middle = (region.top + region.bottom) / 2;
@@ -460,6 +459,65 @@ export class CalloutLayout {
           top = Math.max(top, obstacle.y + obstacle.height / 2 + 6);
         else bottom = Math.min(bottom, obstacle.y - obstacle.height / 2 - 6);
       }
+      return { top, bottom };
+    };
+    const desired = new Map<string, "left" | "right">();
+    for (const member of shown) {
+      const state = this.states.get(member.id);
+      const offset = member.x - centre.x;
+      desired.set(
+        member.id,
+        state && Math.abs(offset) < margin
+          ? state.side
+          : offset < 0
+            ? "left"
+            : "right",
+      );
+    }
+    // A column that cannot hold its side lends the members nearest the
+    // centre to the other column while it has room.
+    const widestAll = Math.max(...shown.map((member) => size(member.id).width));
+    const rows = Math.max(...shown.map((member) => size(member.id).height));
+    const capacity = (side: "left" | "right") => {
+      const { top, bottom } = bounds(side, widestAll);
+      return Math.max(
+        0,
+        Math.floor((bottom - top + CALLOUT_GAP) / (rows + CALLOUT_GAP)),
+      );
+    };
+    for (const [from, to] of [
+      ["left", "right"],
+      ["right", "left"],
+    ] as const) {
+      const giving = shown
+        .filter((member) => desired.get(member.id) === from)
+        .sort((a, b) => (from === "left" ? b.x - a.x : a.x - b.x));
+      let room =
+        capacity(to) -
+        shown.filter((member) => desired.get(member.id) === to).length;
+      for (const member of giving.slice(
+        0,
+        Math.max(0, giving.length - capacity(from)),
+      )) {
+        if (room-- <= 0) break;
+        desired.set(member.id, to);
+      }
+    }
+    const columns = {
+      left: [] as CalloutMember[],
+      right: [] as CalloutMember[],
+    };
+    for (const member of shown)
+      columns[this.states.get(member.id)?.side ?? desired.get(member.id)!].push(
+        member,
+      );
+    const placements: CalloutPlacement[] = [];
+    for (const side of ["left", "right"] as const) {
+      const column = columns[side];
+      if (!column.length) continue;
+      const widest = Math.max(...column.map((member) => size(member.id).width));
+      const { top } = bounds(side, widest);
+      let { bottom } = bounds(side, widest);
       const available = Math.max(0, bottom - top);
       // Keep attention, then earlier identities, when the column is full.
       const kept = [...column].sort(

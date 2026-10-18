@@ -1952,9 +1952,11 @@ function guidedTourFixture(revealBudget?: number) {
       ...(revealBudget === undefined ? {} : { revealBudget }),
     },
     scene = projectObservatory(input),
+    // Top-level hosts: primary groups the presentation visits.
     hosts = scene.representations.filter(
       (node) =>
         node.kind === "host" &&
+        !node.parentRepresentationId &&
         scene.visibleRepresentationIds.includes(node.id),
     );
   const props = {
@@ -2036,7 +2038,7 @@ describe("direct operational presentation interruptions", () => {
     "drag",
     "inspector reading",
   ])(
-    "keeps %s manual after an automatic feature until explicit Start presentation",
+    "stops the tour on %s and resumes it only by explicit Start presentation",
     async (action) => {
       const { hosts, props } = guidedTourFixture();
       render(createElement(OperationalObservatory, props));
@@ -2082,15 +2084,19 @@ describe("direct operational presentation interruptions", () => {
             }),
           ).getByRole("button", { name: "Back" }),
         );
-      expect(engine.update.mock.lastCall?.[1].cameraMode).toBe("manual");
-      if (action === "selection" || action === "keyboard activation") {
+      // Selecting a primary group deliberately watches it instead.
+      const direct = action === "selection" || action === "keyboard activation";
+      const held = direct ? "watch" : "manual";
+      expect(engine.update.mock.lastCall?.[1].cameraMode).toBe(held);
+      if (direct) {
+        expect(engine.update.mock.lastCall?.[1].watch).toBe(hosts[0]!.id);
         expect(props.onSelect).toHaveBeenLastCalledWith(hosts[0]!.resourceId);
         expect(props.onCameraFocus).toHaveBeenCalledTimes(focusCalls + 1);
         expect(props.onCameraFocus.mock.lastCall?.[1]).toBe(hosts[0]!.id);
       }
       act(() => engine.hooks?.featured?.(hosts[1]!.id));
       await act(async () => {});
-      expect(engine.update.mock.lastCall?.[1].cameraMode).toBe("manual");
+      expect(engine.update.mock.lastCall?.[1].cameraMode).toBe(held);
       expect(engine.update.mock.lastCall?.[1].selected).toBe(hosts[0]!.id);
       fireEvent.click(
         screen.getByRole("button", { name: "Start presentation" }),
@@ -2106,16 +2112,24 @@ describe("direct operational presentation interruptions", () => {
       });
     },
   );
-  it("keeps pause and reduced motion static, rejects foreign/non-host features, and resets denied scope state", async () => {
+  it("keeps pause and reduced motion static, rejects foreign and non-primary features, and resets denied scope state", async () => {
     const { scene, hosts, props } = guidedTourFixture(),
       view = render(createElement(OperationalObservatory, props));
     await waitFor(() => expect(engine.update).toHaveBeenCalled());
     fireEvent.click(screen.getByRole("button", { name: "Start presentation" }));
     act(() => engine.hooks?.featured?.(hosts[0]!.id));
-    const nonHost = scene.representations.find((node) => node.kind !== "host")!;
+    const nested = scene.representations.find(
+      (node) =>
+        node.parentRepresentationId &&
+        scene.visibleRepresentationIds.includes(node.id),
+    )!;
+    const repository = scene.representations.find(
+      (node) => node.kind === "repository",
+    )!;
     act(() => {
       engine.hooks?.featured?.("foreign");
-      engine.hooks?.featured?.(nonHost.id);
+      engine.hooks?.featured?.(nested.id);
+      engine.hooks?.featured?.(repository.id);
     });
     expect(engine.update.mock.lastCall?.[1].selected).toBe(hosts[0]!.id);
     fireEvent.click(screen.getByRole("button", { name: "Pause scene" }));
@@ -2417,7 +2431,14 @@ describe("breadcrumb reading-context restoration", () => {
         target: target.clone(),
       };
       await select(host.id);
+      // Selecting a primary group starts its watch orbit.
+      expect(engine.update.mock.lastCall![1]).toMatchObject({
+        cameraMode: "watch",
+        watch: node(host.id).id,
+      });
       const savedQuery = props.onQueryChange.mock.lastCall![0];
+      // Panning is direct interaction: it stops the orbit at this pose.
+      act(() => engine.hooks!.interrupted());
       camera.position.set(13, 19, 27);
       target.set(3, -2, 7);
       const reading = {
@@ -2678,3 +2699,157 @@ it.each([false, true])(
     }
   },
 );
+
+describe("primary-group presentation in the actual operational component", () => {
+  it("watches a selected primary group, holds a sub-resource still and offers Watch for it", async () => {
+    const { scene, hosts, props } = guidedTourFixture();
+    render(createElement(OperationalObservatory, props));
+    await waitFor(() => expect(engine.update).toHaveBeenCalled());
+    const primary = new OperationalLayout().project(
+      scene,
+      options,
+    ).primaryGroupIds;
+    expect(engine.update.mock.lastCall?.[1].stops).toEqual(primary);
+    fireEvent.click(
+      screen.getByRole("button", {
+        name: `Inspect ${hosts[0]!.label}, Host, ${hosts[0]!.memberCount} unique resources`,
+      }),
+    );
+    expect(engine.update.mock.lastCall?.[1]).toMatchObject({
+      cameraMode: "watch",
+      watch: hosts[0]!.id,
+      selected: hosts[0]!.id,
+    });
+    expect(
+      screen.getByRole("button", { name: "Stop watching" }),
+    ).toHaveAttribute("aria-pressed", "true");
+    const card = document.querySelector(".cmd-op-briefing-card")!;
+    expect(card).toHaveTextContent("Watching / Host");
+    expect(card.querySelector("strong")).toHaveTextContent(hosts[0]!.label);
+    const member = scene.representations.find(
+      (node) =>
+        node.parentRepresentationId === hosts[0]!.id &&
+        scene.visibleRepresentationIds.includes(node.id),
+    )!;
+    act(() => engine.hooks!.select(member.id));
+    expect(engine.update.mock.lastCall?.[1]).toMatchObject({
+      cameraMode: "manual",
+      watch: null,
+      selected: member.id,
+    });
+    fireEvent.click(screen.getByRole("button", { name: "Watch" }));
+    expect(engine.update.mock.lastCall?.[1]).toMatchObject({
+      cameraMode: "watch",
+      watch: member.id,
+    });
+    fireEvent.click(screen.getByRole("button", { name: "Stop watching" }));
+    expect(engine.update.mock.lastCall?.[1].cameraMode).toBe("manual");
+    // The roster marks the primary group that contains the selection.
+    const roster = screen.getByRole("navigation", { name: "Primary groups" });
+    expect(
+      within(roster)
+        .getAllByRole("button")
+        .map((button) => button.getAttribute("aria-label")!.split(":")[0]),
+    ).toEqual(
+      primary.map(
+        (id) => scene.representations.find((node) => node.id === id)!.label,
+      ),
+    );
+    expect(
+      within(roster).getByRole("button", { current: true }),
+    ).toHaveAccessibleName(
+      `${hosts[0]!.label}: Host, ${hosts[0]!.memberCount} unique resources`,
+    );
+    fireEvent.click(screen.getByRole("button", { name: "Start presentation" }));
+    expect(engine.update.mock.lastCall?.[1].cameraMode).toBe("tour");
+  });
+
+  it("selects and watches a group from its roster chip and names the stop the tour reports", async () => {
+    const { scene, props } = guidedTourFixture();
+    render(createElement(OperationalObservatory, props));
+    await waitFor(() => expect(engine.update).toHaveBeenCalled());
+    const primary = new OperationalLayout().project(
+      scene,
+      options,
+    ).primaryGroupIds;
+    const last = scene.representations.find(
+      (node) => node.id === primary.at(-1),
+    )!;
+    const roster = screen.getByRole("navigation", { name: "Primary groups" });
+    fireEvent.click(
+      within(roster).getByRole("button", {
+        name: new RegExp(`^${last.label}:`),
+      }),
+    );
+    expect(engine.update.mock.lastCall?.[1]).toMatchObject({
+      cameraMode: "watch",
+      watch: last.id,
+    });
+    expect(props.onCameraFocus.mock.lastCall?.[1]).toBe(last.id);
+    fireEvent.click(screen.getByRole("button", { name: "Start presentation" }));
+    const first = scene.representations.find((node) => node.id === primary[0])!;
+    act(() => {
+      engine.hooks!.tour?.({
+        id: first.id,
+        reason: "sequence",
+        travel: 4.5,
+        dwell: 24,
+        sequence: 1,
+      });
+      engine.hooks!.featured?.(first.id);
+    });
+    const card = document.querySelector(".cmd-op-briefing-card")!;
+    expect(card).toHaveTextContent(`Presentation 1 of ${primary.length}`);
+    expect(card.querySelector("strong")).toHaveTextContent(first.label);
+    expect(
+      within(roster).getByRole("button", { current: true }),
+    ).toHaveAccessibleName(new RegExp(`^${first.label}:`));
+    expect(roster.querySelector(".cmd-op-roster-progress")).toHaveStyle({
+      animationDuration: "28.5s",
+    });
+  });
+
+  it("keeps a primary-group selection still under reduced motion and lists every member in the inspector briefing", async () => {
+    vi.mocked(matchMedia).mockImplementation(
+      (query: string) =>
+        ({
+          matches: query.includes("reduce"),
+          addEventListener: vi.fn(),
+          removeEventListener: vi.fn(),
+        }) as unknown as MediaQueryList,
+    );
+    const { scene, props } = guidedTourFixture();
+    render(createElement(OperationalObservatory, props));
+    await waitFor(() => expect(engine.update).toHaveBeenCalled());
+    const repositories = scene.representations.find(
+      (node) => node.kind === "collection" && node.label === "Repositories",
+    )!;
+    const roster = screen.getByRole("navigation", { name: "Primary groups" });
+    fireEvent.click(
+      within(roster).getByRole("button", { name: /^Repositories:/ }),
+    );
+    await waitFor(() =>
+      expect(engine.update.mock.lastCall?.[1].selected).toBe(repositories.id),
+    );
+    expect(engine.update.mock.lastCall?.[1].cameraMode).toBe("manual");
+    expect(screen.getByRole("button", { name: "Watch" })).toBeDisabled();
+    const inspector = screen.getByRole("complementary", {
+      name: "Observatory inspector",
+    });
+    const unmapped = within(inspector).getByRole("list", {
+      name: "Unmapped repositories",
+    });
+    expect(within(unmapped).getAllByRole("button")).toHaveLength(48);
+    const card = document.querySelector(".cmd-op-briefing-card")!;
+    // Without motion the briefing is shown complete, once.
+    expect(card.querySelector(".cmd-op-decode")).toBeNull();
+    expect(card).toHaveTextContent(
+      "60 repositories: 12 linked to projects, 48 unmapped.",
+    );
+    const target = within(unmapped).getAllByRole("button")[0]!;
+    fireEvent.click(target);
+    expect(
+      within(inspector).getByRole("heading", { level: 3 }),
+    ).toHaveTextContent(target.textContent!);
+  });
+});
