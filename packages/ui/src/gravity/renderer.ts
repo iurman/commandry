@@ -1,6 +1,6 @@
 import * as THREE from "three";
 import { OrbitControls } from "three/addons/controls/OrbitControls.js";
-import { surfaceHeight } from "./model";
+import { parentWellId, surfaceHeight } from "./model";
 import type { CameraMode, Palette, SurfaceTheme, Well } from "./model";
 import type { ActivitySnapshot, ActivitySource } from "./activity-types";
 import { ActivityRenderer } from "./activity-renderer";
@@ -15,7 +15,7 @@ import {
   focusedLandscapePose,
   presentationPose,
 } from "./presentation";
-import { LabelLayout, labelHeight } from "./labels";
+import { LabelLayout, labelHeight, poolLabelPoint } from "./labels";
 import {
   fieldBounds,
   fieldRefinement,
@@ -58,6 +58,10 @@ export type Anchor = {
   opacity: number;
   attention: boolean;
   sector: string;
+  /** A member shown inside or around a visible parent; it uses a compact label. */
+  nested?: boolean;
+  rank?: number;
+  leash?: number;
 };
 export type RendererSettings = {
   theme: SurfaceTheme;
@@ -182,6 +186,9 @@ export class ObservatoryRenderer {
   private renderedFrames = 0;
   private frames: number[] = [];
   private labelLayout = new LabelLayout();
+  /** Parent ID -> reach of its visible members from its center. */
+  private clusterExtents = new Map<string, number>();
+  private zoomDisclosed = new Set<string>();
   private lensAmount = 0;
   private focusedSubject: string | null = null;
   private savedFocusPoses = new Map<
@@ -629,6 +636,23 @@ export class ObservatoryRenderer {
       settings.activity.trace !== this.settings.activity.trace;
     this.targets = wells;
     this.settings = settings;
+    this.clusterExtents = new Map();
+    const parents = new Map(wells.map((well) => [well.id, well]));
+    for (const well of wells)
+      for (
+        let parent = parents.get(parentWellId(well) ?? ""), depth = 0;
+        parent && depth < 64;
+        parent = parents.get(parentWellId(parent) ?? ""), depth++
+      )
+        this.clusterExtents.set(
+          parent.id,
+          Math.max(
+            this.clusterExtents.get(parent.id) ??
+              parent.radius * Math.max(1, parent.aspect),
+            Math.hypot(well.x - parent.x, well.z - parent.z) +
+              well.radius * Math.max(1, well.aspect),
+          ),
+        );
     if (activityChanged) this.refreshActivity();
     if (cameraChanged) {
       this.presentationInterrupted = false;
@@ -1087,22 +1111,77 @@ export class ObservatoryRenderer {
     );
   }
 
+  /** Parents whose member labels are disclosed: the selected path, plus any
+   * cluster the camera has brought close. Hysteresis keeps admission steady.
+   */
+  private disclosedParents(byId: Map<string, Well>) {
+    const open = new Set<string>();
+    for (
+      let id = this.settings.selected;
+      id && byId.has(id) && !open.has(id);
+      id = parentWellId(byId.get(id)!)
+    )
+      open.add(id);
+    const tangent = Math.tan((this.camera.fov * Math.PI) / 360);
+    const viewport = Math.min(this.width, this.height);
+    const center = new THREE.Vector3();
+    for (const [id, extent] of this.clusterExtents) {
+      const well = byId.get(id);
+      if (!well) continue;
+      center.set(well.x, 0, well.z);
+      const pixels =
+        (extent / Math.max(0.001, this.camera.position.distanceTo(center))) *
+        (this.height / (2 * tangent));
+      // A cluster must fill most of the view before its members are named.
+      const threshold = viewport * (this.zoomDisclosed.has(id) ? 0.36 : 0.42);
+      if (pixels > threshold) {
+        this.zoomDisclosed.add(id);
+        open.add(id);
+      } else this.zoomDisclosed.delete(id);
+    }
+    return open;
+  }
+
   private publishAnchors(dt: number) {
+    const byId = new Map(this.targets.map((target) => [target.id, target]));
+    const open = this.disclosedParents(byId);
+    const forward = {
+      x: this.controls.target.x - this.camera.position.x,
+      z: this.controls.target.z - this.camera.position.z,
+    };
     const anchors: Anchor[] = this.wells
-      .filter(
-        (w) =>
-          this.targets.some((target) => target.id === w.id) &&
-          w.kind !== "service",
-      )
-      .map((well) => ({
-        id: well.id,
-        label: well.label,
-        kind: well.kind,
-        attention: well.attention,
-        sector: well.sector,
-        opacity: 0,
-        ...this.project(well.x, this.anchorHeight(well), well.z),
-      }));
+      .filter((w) => byId.has(w.id) && w.kind !== "service")
+      .map((well) => {
+        // An open pool names its members, so its own label moves to the rim.
+        const point =
+          well.pool && open.has(well.id)
+            ? poolLabelPoint(well, forward)
+            : { x: well.x, y: this.anchorHeight(well), z: well.z };
+        const projected = this.project(point.x, point.y, point.z);
+        // Every basin stays rendered; nested labels wait for their context.
+        const parent = parentWellId(well);
+        const nested = !!parent && byId.has(parent);
+        const disclosed =
+          !nested ||
+          open.has(parent) ||
+          well.attention ||
+          well.id === this.settings.selected;
+        return {
+          id: well.id,
+          label: well.label,
+          kind: well.kind,
+          attention: well.attention,
+          sector: well.sector,
+          opacity: 0,
+          nested,
+          rank: nested ? (well.pool ? 20 : 0) : 40,
+          ...(nested && well.id !== this.settings.selected
+            ? { leash: 44 }
+            : {}),
+          ...projected,
+          visible: projected.visible && disclosed,
+        };
+      });
     for (const anchor of anchors)
       if (anchor.kind === "project" && this.settings.focus)
         anchor.visible = false;

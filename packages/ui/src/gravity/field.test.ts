@@ -460,7 +460,14 @@ describe("pressure view detail policy", () => {
   const subject = { ...well(0), x: 18, z: 18, radius: 2, aspect: 1, depth: 4 };
   it("follows the close view independently of selection and keeps overview work coarse", () => {
     const close = fieldRefinement([subject], { x: 18, z: 18 }, 9, 900)!;
-    expect(close).toEqual({ x: 18, z: 18, radius: 8, step: 2 / 12 });
+    // Pixel size is octave-quantized: 2 * 9 * tan(20deg) / 900 is about 2^-7.
+    expect(close).toEqual({
+      x: 18,
+      z: 18,
+      radius: 8,
+      step: 2 / 12,
+      pixel: 2 ** -7,
+    });
     expect(fieldRefinement([subject], { x: 18.4, z: 17.7 }, 9, 900)).toEqual(
       close,
     );

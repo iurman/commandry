@@ -144,12 +144,53 @@ export function basinGeometry(
       throw new RangeError(
         "Terrain refinement must have finite positive bounds and step.",
       );
+  // Inside a view window, basins are refined locally at the finest scale the
+  // window's share of the budget allows. A uniform window step alone is coarser
+  // than small nested basins, which then show stair-stepped contours.
+  // No cell needs to be finer than a few screen pixels, so basins that are small
+  // on screen cost little and close basins get their full contour detail.
+  const windowShare = (maximumLeaves * 0.5) / Math.max(1, refinement.length);
+  const windows = refinement.map((region) => {
+    const floor = (region.pixel ?? 0) * 3;
+    let local = 0;
+    for (const basin of basins) {
+      const dx = Math.max(
+        0,
+        basin.centerMinX - region.x,
+        region.x - basin.centerMaxX,
+      );
+      const dz = Math.max(
+        0,
+        basin.centerMinZ - region.z,
+        region.z - basin.centerMaxZ,
+      );
+      const outside = Math.hypot(dx, dz) - region.radius;
+      // Matches the 12,000-leaf unfloored estimate: three refinement bands with
+      // dyadic overshoot. An outer basin contributes its coarse bands only.
+      const bands = (major: number, minor: number) =>
+        4.86 *
+        Math.PI *
+        major *
+        major *
+        (3.24 / Math.max(minor / 12, floor) ** 2 +
+          9.01 / Math.max(minor / 5, floor) ** 2 +
+          23.75 / Math.max(minor / 2, floor) ** 2);
+      if (outside <= basin.major * 1.8)
+        local += bands(basin.major, basin.minor);
+      else if (outside <= basin.major * 6)
+        local += Math.min(2_000, bands(basin.major, basin.minor) / 6);
+    }
+    const scale =
+      2 ** Math.max(0, Math.ceil(Math.log2(Math.sqrt(local / windowShare))));
+    return { region, floor, scale, leaves: local / scale ** 2 };
+  });
   // A dyadic cell can be almost twice as fine as the requested step on each
   // axis. Reserve that worst-case square, including overlapping lens requests.
   const reservedLeaves =
     estimatedLeaves > maximumLeaves
-      ? refinement.reduce(
-          (sum, region) => sum + 4 * ((2 * region.radius) / region.step) ** 2,
+      ? windows.reduce(
+          (sum, { region, leaves }) =>
+            sum + 4 * ((2 * region.radius) / region.step) ** 2 + leaves,
           0,
         )
       : 0;
@@ -184,6 +225,21 @@ export function basinGeometry(
         worldZ = minZ + (z + half) * unit;
       const worldSize = size * unit;
       let step = background * detailScale;
+      // Refinement changes only the joined triangulation. The shader continues to
+      // evaluate every field contribution and exact analytic height and normal.
+      let basinScale = detailScale,
+        basinFloor = 0;
+      if (detailScale > 1)
+        for (const { region, scale, floor } of windows) {
+          const dx = Math.max(0, Math.abs(worldX - region.x) - worldSize / 2);
+          const dz = Math.max(0, Math.abs(worldZ - region.z) - worldSize / 2);
+          if (dx * dx + dz * dz > region.radius * region.radius) continue;
+          step = Math.min(step, region.step);
+          if (scale < basinScale) {
+            basinScale = scale;
+            basinFloor = floor;
+          }
+        }
       const relevant: typeof basins = [];
       // Pass only intersecting candidates down the tree. Testing every basin in
       // every fine cell made dense planning quadratic in otherwise distant wells.
@@ -253,17 +309,11 @@ export function basinGeometry(
                 ? 2
                 : 0;
         if (divisions)
-          step = Math.min(step, (basin.minor / divisions) * detailScale);
+          step = Math.min(
+            step,
+            Math.max(basin.minor / divisions, basinFloor) * basinScale,
+          );
       }
-      // Refinement changes only the joined triangulation. The shader continues to
-      // evaluate every field contribution and exact analytic height and normal.
-      if (detailScale > 1)
-        for (const region of refinement) {
-          const dx = Math.max(0, Math.abs(worldX - region.x) - worldSize / 2);
-          const dz = Math.max(0, Math.abs(worldZ - region.z) - worldSize / 2);
-          if (dx * dx + dz * dz <= region.radius * region.radius)
-            step = Math.min(step, region.step);
-        }
       if (worldSize > step && size > 1) {
         return (
           subdivide(x, z, half, relevant) &&

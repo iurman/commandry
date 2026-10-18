@@ -5,6 +5,7 @@ import type {
 import type { Palette, Well } from "./model";
 import type { ObservatoryPresentation } from "./observatory-preferences";
 import { RecordedInfrastructureActivity } from "./infrastructure";
+import { enclose, packCircles } from "./packing";
 
 export type OperationalRepresentation =
   ObservatoryScene["representations"][number];
@@ -89,6 +90,129 @@ export function observedTotalRam(
   return observations[0]?.value ?? null;
 }
 
+const operationalKinds = new Set(["host", "service", "deployment"]);
+/** Aggregates are pools: their basin encloses every packed member. */
+const poolKinds = new Set(["collection", "project"]);
+// Members may sit on the pool floor up to this fraction of its radius; the
+// steep profile keeps the wall and rim outside that floor.
+const poolFloor = 0.84;
+const poolProfile = 2.4;
+const TAU = Math.PI * 2;
+
+/** Intrinsic basin radius before any members are arranged around or inside it. */
+function coreRadius(
+  node: OperationalRepresentation,
+  level: number,
+  operationalDescendants: number,
+  members: number,
+  ram: number | null,
+  size: ObservatoryPresentation["size"],
+) {
+  const root = level === 0;
+  let radius: number;
+  if (size === "uniform") radius = root ? 1.45 : 0.6;
+  else if (node.kind === "host")
+    radius =
+      ram !== null
+        ? (1.7 + Math.log2(1 + ram / 1073741824) * 0.3) * (root ? 1 : 0.5)
+        : root
+          ? 1.3 + Math.log2(1 + operationalDescendants) * 0.38
+          : 0.75 + Math.log2(1 + operationalDescendants) * 0.25;
+  else if (node.kind === "service" || node.kind === "deployment")
+    radius = root ? 1 : 0.5;
+  else if (node.kind === "repository" || node.kind === "reference")
+    radius = root ? 0.9 : 0.46;
+  else if (node.kind === "provider")
+    radius = (1.4 + Math.log2(1 + members) * 0.2) * (root ? 1 : 0.5);
+  else radius = root ? 1.2 : 0.6;
+  // Deep containment converges instead of reserving unbounded space.
+  const shrink = level <= 1 ? 1 : level === 2 ? 0.8 : 0.64 * 0.6 ** (level - 3);
+  return Math.max(
+    level <= 3 ? 0.18 : 0.02,
+    Math.min(root ? 3.6 : 1.8, radius) * shrink,
+  );
+}
+
+/** Evenly spaced orbit rings around a resource basin. Each member keeps its own
+ * angular sector, so members of different sizes never overlap.
+ */
+function orbit(
+  core: number,
+  members: { id: string; extent: number }[],
+  start: number,
+) {
+  const gap = 0.2 + core * 0.1;
+  const offsets = new Map<string, { x: number; z: number }>();
+  let inner = core * 1.16 + gap,
+    extent = core * 1.15,
+    angle = start,
+    index = 0;
+  while (index < members.length) {
+    const ring: {
+      id: string;
+      distance: number;
+      width: number;
+      reach: number;
+    }[] = [];
+    let used = 0;
+    while (index < members.length) {
+      const member = members[index]!;
+      const distance = inner + member.extent;
+      const width =
+        2 * Math.asin(Math.min(1, (member.extent + gap / 2) / distance));
+      if (ring.length && used + width > TAU) break;
+      ring.push({
+        id: member.id,
+        distance,
+        width,
+        reach: distance + member.extent,
+      });
+      used += width;
+      index++;
+    }
+    const slack = Math.max(0, TAU - used) / ring.length;
+    let outer = inner;
+    for (const item of ring) {
+      const direction = angle + item.width / 2;
+      offsets.set(item.id, {
+        x: Math.cos(direction) * item.distance,
+        z: Math.sin(direction) * item.distance,
+      });
+      angle += item.width + slack;
+      outer = Math.max(outer, item.reach);
+      extent = Math.max(extent, item.reach);
+    }
+    inner = outer + gap;
+    angle += slack / 2;
+  }
+  return { offsets, extent };
+}
+
+/** Uniform grid of placed root clusters for clearance queries. */
+class SpatialIndex {
+  private cells = new Map<string, { x: number; z: number; extent: number }[]>();
+  private largest = 0;
+  private readonly size = 8;
+  add(x: number, z: number, extent: number) {
+    const key = `${Math.floor(x / this.size)}:${Math.floor(z / this.size)}`;
+    const cell = this.cells.get(key) ?? [];
+    cell.push({ x, z, extent });
+    this.cells.set(key, cell);
+    this.largest = Math.max(this.largest, extent);
+  }
+  clear(x: number, z: number, extent: number, gap: number) {
+    const reach = Math.ceil((extent + this.largest + gap) / this.size);
+    const cx = Math.floor(x / this.size),
+      cz = Math.floor(z / this.size);
+    for (let i = cx - reach; i <= cx + reach; i++)
+      for (let j = cz - reach; j <= cz + reach; j++)
+        for (const item of this.cells.get(`${i}:${j}`) ?? [])
+          if (Math.hypot(x - item.x, z - item.z) < item.extent + extent + gap)
+            return false;
+    return true;
+  }
+}
+
 /** The renderer's three Well kinds are geometry vocabulary only. Semantic kinds
  * remain in byId and the DOM. Repositories and collections never become tour hosts.
  */
@@ -165,15 +289,156 @@ export class OperationalLayout {
         a.layoutKey.localeCompare(b.layoutKey) ||
         a.id.localeCompare(b.id),
     );
+    const byLayout = (a: string, b: string) =>
+      byId.get(a)!.layoutKey.localeCompare(byId.get(b)!.layoutKey) ||
+      a.localeCompare(b);
+    const childrenOf = new Map<string, string[]>();
+    for (const node of ordered)
+      if (node.parentRepresentationId) {
+        const siblings = childrenOf.get(node.parentRepresentationId) ?? [];
+        siblings.push(node.id);
+        childrenOf.set(node.parentRepresentationId, siblings);
+      }
+    for (const siblings of childrenOf.values()) siblings.sort(byLayout);
+    const ramUnavailableIds: string[] = [];
+    // Structural geometry uses every representation, visible or not, so expanding
+    // or collapsing never moves a basin or changes its size.
+    const shapes = new Map<
+      string,
+      {
+        radius: number;
+        extent: number;
+        offsets: Map<string, { x: number; z: number }>;
+      }
+    >();
+    // Subtree scale relative to its parent's frame; absent means 1.
+    const reduction = new Map<string, number>(),
+      frame = new Map<string, number>();
+    for (const node of [...ordered].reverse()) {
+      const memberIds = members.get(node.id)!;
+      const operationalDescendants = Math.max(
+        0,
+        [...memberIds].filter((id) =>
+          operationalKinds.has(canonical.get(id)?.kind ?? ""),
+        ).length - (operationalKinds.has(node.kind) ? 1 : 0),
+      );
+      let ram: number | null = null;
+      if (
+        options.size === "total-ram" &&
+        node.kind === "host" &&
+        node.resourceId
+      ) {
+        ram = observedTotalRam(scene, node.resourceId);
+        if (ram === null) ramUnavailableIds.push(node.id);
+      }
+      const core = coreRadius(
+        node,
+        depth.get(node.id)!,
+        operationalDescendants,
+        memberIds.size,
+        ram,
+        options.size,
+      );
+      const aspect = node.kind === "deployment" ? 1.25 : 1;
+      const kids = (childrenOf.get(node.id) ?? []).map((id) => ({
+        id,
+        extent: shapes.get(id)!.extent,
+      }));
+      if (!kids.length) {
+        shapes.set(node.id, {
+          radius: core,
+          extent: core * aspect * 1.15,
+          offsets: new Map(),
+        });
+      } else if (poolKinds.has(node.kind)) {
+        const sorted = [...kids].sort(
+          (a, b) => b.extent - a.extent || byLayout(a.id, b.id),
+        );
+        const [largest, second] = sorted;
+        let offsets: Map<string, { x: number; z: number }>, reach: number;
+        if (sorted.length >= 3 && largest!.extent > second!.extent * 1.8) {
+          // One dominant member (a nested pool) anchors the floor; the rest
+          // ring it instead of crowding one side of a front chain.
+          const arranged = orbit(
+            largest!.extent / 1.15,
+            sorted.slice(1).sort((a, b) => byLayout(a.id, b.id)),
+            ((hash(node.layoutKey) % 3600) / 3600) * TAU,
+          );
+          offsets = arranged.offsets;
+          offsets.set(largest!.id, { x: 0, z: 0 });
+          reach = arranged.extent;
+        } else {
+          // Larger members first gives a compact, deterministic front chain.
+          const circles = sorted.map((kid) => ({
+            id: kid.id,
+            r: kid.extent + 0.1 + kid.extent * 0.1,
+            x: 0,
+            z: 0,
+          }));
+          packCircles(circles);
+          const bound = enclose(circles);
+          offsets = new Map(
+            circles.map((circle) => [
+              circle.id,
+              { x: circle.x - bound.x, z: circle.z - bound.z },
+            ]),
+          );
+          reach = bound.r;
+        }
+        const radius = Math.max(core, reach / poolFloor);
+        shapes.set(node.id, { radius, extent: radius * 1.12, offsets });
+      } else {
+        // An orbiting cluster is about twice its member's reach, so unbounded
+        // nesting would grow geometrically. Members larger than this are drawn
+        // as uniformly reduced subtrees.
+        const limit = core * aspect * 2.4 + 0.6;
+        for (const kid of kids)
+          if (kid.extent > limit) {
+            reduction.set(kid.id, limit / kid.extent);
+            kid.extent = limit;
+          }
+        const start = ((hash(node.layoutKey) % 3600) / 3600) * TAU;
+        const arranged = orbit(core * aspect, kids, start);
+        shapes.set(node.id, {
+          radius: core,
+          extent: arranged.extent,
+          offsets: arranged.offsets,
+        });
+      }
+    }
+    ramUnavailableIds.sort();
     const keyFor = (node: OperationalRepresentation) =>
-      `${scene.grouping}|${node.layoutKey}|${node.parentRepresentationId ? byId.get(node.parentRepresentationId)!.layoutKey : "root"}`;
-    const positions = new Map<string, Well>(),
-      ramUnavailableIds: string[] = [];
+      `${scene.grouping}|${options.size}|${node.layoutKey}`;
     const roots = ordered.filter((node) => !node.parentRepresentationId);
-    const occupied = roots.flatMap((node) => {
+    // Roots keep their slot for the whole scope. New roots take the nearest free
+    // spiral position that clears every placed cluster's complete extent.
+    const occupied = new SpatialIndex();
+    for (const node of roots) {
       const slot = this.slots.get(keyFor(node));
-      return slot ? [{ id: node.id, ...slot }] : [];
-    });
+      if (slot) occupied.add(slot.x, slot.z, shapes.get(node.id)!.extent);
+    }
+    for (const node of [...roots].sort(
+      (a, b) =>
+        shapes.get(b.id)!.extent - shapes.get(a.id)!.extent ||
+        byLayout(a.id, b.id),
+    )) {
+      const key = keyFor(node);
+      if (this.slots.has(key)) continue;
+      const extent = shapes.get(node.id)!.extent;
+      const angle = ((hash(node.layoutKey) % 65536) / 65536) * TAU;
+      const step = Math.max(1.2, extent * 0.35);
+      let x = 0,
+        z = 0;
+      for (let attempt = 0; ; attempt++) {
+        const distance = Math.sqrt(attempt) * step;
+        x = Math.cos(angle + attempt * 2.399963) * distance;
+        z = Math.sin(angle + attempt * 2.399963) * distance;
+        if (occupied.clear(x, z, extent, 2.4)) break;
+      }
+      occupied.add(x, z, extent);
+      this.slots.set(key, { x, z });
+    }
+    const positions = new Map<string, Well>();
     const palette: Palette = {
       attention: options.colors.attention ?? "#ca812e",
       unhealthy: options.colors.unhealthy ?? "#bd4b51",
@@ -192,100 +457,58 @@ export class OperationalLayout {
       const root = parent?.sector ?? node.id;
       palette[root] =
         options.colors[root] ?? colors[hash(root) % colors.length]!;
-      const memberIds = members.get(node.id)!;
-      const operationalChildren = [...memberIds].filter((id) =>
-        ["host", "service", "deployment"].includes(
-          canonical.get(id)?.kind ?? "",
-        ),
-      ).length;
-      let radius =
-        1.65 +
-        Math.log2(
-          1 +
-            (node.kind === "collection" ||
-            node.kind === "project" ||
-            node.kind === "provider"
-              ? memberIds.size
-              : Math.max(0, operationalChildren - 1)),
-        ) *
-          0.36;
-      if (node.kind === "repository" || node.kind === "reference")
-        radius = 1.05;
-      if (
-        options.size === "total-ram" &&
-        node.kind === "host" &&
-        node.resourceId
-      ) {
-        const total = observedTotalRam(scene, node.resourceId);
-        if (total === null) ramUnavailableIds.push(node.id);
-        else radius = 1.7 + Math.log2(1 + total / 1073741824) * 0.3;
-      }
-      if (options.size === "uniform") radius = 1.65;
-      radius = Math.min(5.4, radius);
-      if (parent)
-        radius = Math.max(0.18, Math.min(radius * 0.42, parent.radius * 0.38));
-      const key = keyFor(node),
-        seed = hash(node.layoutKey),
-        existing = this.slots.get(key);
-      let x = existing?.x ?? 0,
-        z = existing?.z ?? 0;
-      if (!existing) {
-        const angle = ((seed % 65536) / 65536) * Math.PI * 2;
-        if (parent) {
-          const siblings =
-            scene.membershipIndex.children[node.parentRepresentationId!] ?? [];
-          const index = [...siblings]
-            .sort((a, b) =>
-              byId.get(a)!.layoutKey.localeCompare(byId.get(b)!.layoutKey),
-            )
-            .indexOf(node.id);
-          const distance =
-            parent.radius * 1.2 + Math.sqrt(index + 1) * radius * 2.5;
-          x = Math.cos(angle + index * 2.399963) * distance;
-          z = Math.sin(angle + index * 2.399963) * distance;
-        } else {
-          let attempt = 0;
-          do {
-            const distance = Math.sqrt(attempt + (seed % 5)) * 12;
-            x = Math.cos(angle + attempt * 2.399963) * distance;
-            z = Math.sin(angle + attempt * 2.399963) * distance;
-            attempt++;
-          } while (
-            occupied.some((point) => Math.hypot(x - point.x, z - point.z) < 18)
-          );
-          occupied.push({ id: node.id, x, z });
-        }
-        this.slots.set(key, { x, z });
-      }
+      const scale =
+        (parent ? frame.get(parent.id)! : 1) * (reduction.get(node.id) ?? 1);
+      frame.set(node.id, scale);
+      const radius = shapes.get(node.id)!.radius * scale;
+      const local = parent
+        ? shapes.get(parent.id)!.offsets.get(node.id)!
+        : this.slots.get(keyFor(node))!;
+      const outer = parent ? frame.get(parent.id)! : 1;
+      const offset = { x: local.x * outer, z: local.z * outer };
       const kind: Well["kind"] =
         node.kind === "host"
           ? "host"
           : node.kind === "service" || node.kind === "deployment"
             ? "service"
             : "project";
+      const pool = poolKinds.has(node.kind);
       const attention = operationalAttention(node.summary);
+      // Every basin is deep enough relative to its radius to read as one
+      // concentric shape; pools are broad, flat-floored and shallow.
       positions.set(node.id, {
         id: node.id,
         label: node.label,
         kind,
         hostId: node.parentRepresentationId,
         sector: root,
-        x: x + (parent?.x ?? 0),
-        z: z + (parent?.z ?? 0),
+        x: offset.x + (parent?.x ?? 0),
+        z: offset.z + (parent?.z ?? 0),
         radius,
         aspect: node.kind === "deployment" ? 1.25 : 1,
         angle: 0,
-        depth:
-          node.kind === "host"
+        // The rim lip grows with radius * depth, so wide pools stay shallow.
+        depth: pool
+          ? Math.min(0.45, 2 / radius)
+          : node.kind === "host"
             ? radius * 1.15
-            : node.kind === "service" || node.kind === "deployment"
-              ? radius * 0.7
+            : node.kind === "provider"
+              ? radius * 0.85
               : node.kind === "repository" || node.kind === "reference"
-                ? 0.03
-                : 0.18,
-        elevation: node.kind === "host" ? 0.8 : 0.08,
-        profile: 1,
+                ? radius * 0.8
+                : radius * 0.7,
+        // Only top-level hosts carry a raised mound; nested guests sit on it.
+        elevation:
+          node.kind === "host"
+            ? parent
+              ? 0.12
+              : Math.min(0.8, radius * 0.35)
+            : pool
+              ? 0
+              : 0.08,
+        profile: pool ? poolProfile : 1,
         attention: attention !== "neutral",
+        ...(pool ? { pool: true } : {}),
       });
     }
     const visibleSubjectForResource = new Map<string, string>();

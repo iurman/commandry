@@ -1,4 +1,4 @@
-import type { Well } from "./model";
+import { parentWellId, type Well } from "./model";
 
 export type Vector = { x: number; y: number; z: number };
 export type Bounds = { center: Vector; half: Vector };
@@ -8,6 +8,10 @@ export type CameraPose = {
   featured: string | null;
 };
 
+// Host mounds spread well past the basin; a pool's rim is its whole footprint.
+const footprint = (well: Well) =>
+  well.radius * Math.max(1, well.aspect) * (well.pool ? 1.15 : 1.7);
+
 export function landscapeBounds(wells: Well[]): Bounds {
   if (!wells.length)
     return { center: { x: 0, y: 0, z: 0 }, half: { x: 10, y: 4, z: 10 } };
@@ -16,11 +20,11 @@ export function landscapeBounds(wells: Well[]): Bounds {
     minZ = Infinity,
     maxZ = -Infinity;
   for (const well of wells) {
-    const footprint = well.radius * Math.max(1, well.aspect) * 1.7;
-    minX = Math.min(minX, well.x - footprint);
-    maxX = Math.max(maxX, well.x + footprint);
-    minZ = Math.min(minZ, well.z - footprint);
-    maxZ = Math.max(maxZ, well.z + footprint);
+    const reach = footprint(well);
+    minX = Math.min(minX, well.x - reach);
+    maxX = Math.max(maxX, well.x + reach);
+    minZ = Math.min(minZ, well.z - reach);
+    maxZ = Math.max(maxZ, well.z + reach);
   }
   return {
     center: { x: (minX + maxX) / 2, y: 0, z: (minZ + maxZ) / 2 },
@@ -85,11 +89,7 @@ export function fittedLandscapePose(
   const bounds = landscapeBounds(wells);
   const subjects = wells.map((well) => ({
     center: { x: well.x, y: 0, z: well.z },
-    half: {
-      x: well.radius * Math.max(1, well.aspect) * 1.7,
-      y: 5,
-      z: well.radius * Math.max(1, well.aspect) * 1.7,
-    },
+    half: { x: footprint(well), y: 5, z: footprint(well) },
   }));
   // Fit every occupied footprint, including nested resources and sector fields.
   return fittedPose(
@@ -148,8 +148,12 @@ export function presentationPose(
     azimuth,
     tour ? 0.23 : 0.23 + Math.sin(time * 0.08) * 0.025,
   );
+  // The tour visits top-level hosts; nested guests are framed with their parent.
+  const present = new Set(wells.map((well) => well.id));
   const hosts = wells
-    .filter((well) => well.kind === "host")
+    .filter(
+      (well) => well.kind === "host" && !present.has(parentWellId(well) ?? ""),
+    )
     .sort(
       (a, b) =>
         Math.atan2(a.x - bounds.center.x, a.z - bounds.center.z) -

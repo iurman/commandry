@@ -547,9 +547,13 @@ describe("canonical Work through the infrastructure parent", () => {
   );
 });
 
-async function loadSelectionCoordinator() {
+// A zero reveal budget starts aggregated, exercising collapsed -> expanded refits.
+async function loadSelectionCoordinator(revealBudget?: number) {
   coordinatorRenderer.enabled = true;
-  const input = mixedObservatoryFixture(),
+  const input = {
+      ...mixedObservatoryFixture(),
+      ...(revealBudget === undefined ? {} : { revealBudget }),
+    },
     initialScene = projectObservatory(input),
     hosts = initialScene.representations.filter(
       (node) =>
@@ -724,7 +728,7 @@ describe("explicit selection intent through the actual infrastructure coordinato
 });
 
 it("acknowledges local Observatory selection without replaying it as a new outer intent or extra direct refit", async () => {
-  const { hosts } = await loadSelectionCoordinator(),
+  const { hosts } = await loadSelectionCoordinator(0),
     first = hosts[0]!;
   fireEvent.click(
     screen.getByRole("button", {

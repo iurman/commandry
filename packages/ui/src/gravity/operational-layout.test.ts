@@ -314,7 +314,64 @@ describe("operational landscape adapter", () => {
     expect(result.positions.has(scene.visibleRepresentationIds.at(-1)!)).toBe(
       true,
     );
+    // A 300-deep host chain stays within a bounded landscape.
+    expect(
+      Math.max(...result.wells.map((well) => Math.hypot(well.x, well.z))),
+    ).toBeLessThan(500);
+    expect(
+      Math.min(...result.wells.map((well) => well.radius)),
+    ).toBeGreaterThan(0);
   });
+  it.each(observatoryGroupings)(
+    "keeps %s members inside their pools and every sibling cluster apart",
+    (grouping) => {
+      const scene = projectObservatory({
+        ...mixedObservatoryFixture(),
+        grouping,
+      });
+      const { wells } = new OperationalLayout().project(scene, options);
+      expect(wells).toHaveLength(scene.representations.length);
+      const byId = new Map(wells.map((well) => [well.id, well]));
+      const reach = new Map<string, number>();
+      for (const well of wells)
+        for (
+          let parent = well.hostId ? byId.get(well.hostId) : undefined;
+          parent;
+          parent = parent.hostId ? byId.get(parent.hostId) : undefined
+        )
+          reach.set(
+            parent.id,
+            Math.max(
+              reach.get(parent.id) ?? parent.radius,
+              Math.hypot(well.x - parent.x, well.z - parent.z) + well.radius,
+            ),
+          );
+      const cluster = (well: Well) => reach.get(well.id) ?? well.radius;
+      const siblings = new Map<string | null, Well[]>();
+      for (const well of wells) {
+        const group = siblings.get(well.hostId) ?? [];
+        group.push(well);
+        siblings.set(well.hostId, group);
+        const parent = well.hostId ? byId.get(well.hostId) : undefined;
+        if (!parent) continue;
+        const distance = Math.hypot(well.x - parent.x, well.z - parent.z);
+        if (parent.pool)
+          // Members and their own clusters sit on the flat pool floor.
+          expect(distance + cluster(well)).toBeLessThanOrEqual(
+            parent.radius * 0.84 + 1e-6,
+          );
+        // Orbiting members clear the resource basin they belong to.
+        else
+          expect(distance).toBeGreaterThanOrEqual(parent.radius + well.radius);
+      }
+      for (const group of siblings.values())
+        for (const [index, a] of group.entries())
+          for (const b of group.slice(index + 1))
+            expect(Math.hypot(a.x - b.x, a.z - b.z)).toBeGreaterThanOrEqual(
+              cluster(a) + cluster(b) - 1e-6,
+            );
+    },
+  );
   it("retains event IDs and evidence while mapping collapsed members and never invents dependency traffic", () => {
     const scene = projectObservatory(mixedObservatoryFixture()),
       result = new OperationalLayout().project(scene, options);
@@ -388,8 +445,12 @@ describe("operational landscape adapter", () => {
 });
 
 describe("operational component interactions with the real semantic scene", () => {
-  function setup() {
-    const input = mixedObservatoryFixture(),
+  // A zero reveal budget starts aggregated, exercising collapsed -> expanded refits.
+  function setup(revealBudget?: number) {
+    const input = {
+        ...mixedObservatoryFixture(),
+        ...(revealBudget === undefined ? {} : { revealBudget }),
+      },
       scene = projectObservatory(input);
     const host = scene.representations.find(
       (node) =>
@@ -1187,7 +1248,7 @@ describe("operational component interactions with the real semantic scene", () =
     ).toBeInTheDocument();
   });
   it("inspects a group in one activation and does not refocus on unchanged data refresh", async () => {
-    const { input, scene, host, props } = setup();
+    const { input, scene, host, props } = setup(0);
     const view = render(createElement(OperationalObservatory, props));
     await waitFor(() => expect(engine.update).toHaveBeenCalled());
     fireEvent.click(
@@ -1429,8 +1490,11 @@ describe("provider plane context in the actual inspector", () => {
   );
 });
 
-function guidedTourFixture() {
-  const input = mixedObservatoryFixture(),
+function guidedTourFixture(revealBudget?: number) {
+  const input = {
+      ...mixedObservatoryFixture(),
+      ...(revealBudget === undefined ? {} : { revealBudget }),
+    },
     scene = projectObservatory(input),
     hosts = scene.representations.filter(
       (node) =>
@@ -1652,7 +1716,7 @@ describe("direct operational presentation interruptions", () => {
 });
 
 it("treats explicit outline expansion after a tour feature as direct focus and preserves normal refitting", async () => {
-  const { input, hosts, props } = guidedTourFixture(),
+  const { input, hosts, props } = guidedTourFixture(0),
     view = render(createElement(OperationalObservatory, props));
   await waitFor(() => expect(engine.update).toHaveBeenCalled());
   fireEvent.click(screen.getByRole("button", { name: "Start presentation" }));

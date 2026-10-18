@@ -25,7 +25,7 @@ Start with this complete JSON-RPC call on an initialized authenticated connectio
 {"jsonrpc":"2.0","id":1,"method":"tools/call","params":{"name":"get_observatory_scene","arguments":{}}}
 ```
 
-Use returned canonical resource and representation IDs. For a collection call `list_observatory_members` with its exact `groupId`, `scopeDigest`, `projectionRevision`, the same scene query, `limit:100` and `cursor:null`; follow every returned cursor. For a resource, choose the relevant separately granted signal or operational evidence facet. Never infer availability, scanner success, a deployment or an AgentRun from missing evidence.
+A scene's `visibleRepresentationIds` include nested members by default within the shared reveal budget (200 representations, four levels), exactly as the owner UI shows them. A visible group whose members are not visible is still an aggregate. Use returned canonical resource and representation IDs. For a collection call `list_observatory_members` with its exact `groupId`, `scopeDigest`, `projectionRevision`, the same scene query, `limit:100` and `cursor:null`; follow every returned cursor. For a resource, choose the relevant separately granted signal or operational evidence facet. Never infer availability, scanner success, a deployment or an AgentRun from missing evidence.
 
 Read reviewed relationships and their versions before proposing configuration:
 

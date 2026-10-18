@@ -322,7 +322,16 @@ export type ObservatoryInput = {
   sectors?: readonly ObservatorySector[];
   expandedRepresentationIds?: readonly string[];
   search?: string;
+  /** Default nested-detail budget; see OBSERVATORY_REVEAL_BUDGET. */
+  revealBudget?: number;
 };
+/** Nested members are visible by default while the scene stays within this many
+ * active representations. Shallow levels are revealed first; a group that would
+ * exceed the budget stays an aggregate until it is explicitly expanded.
+ */
+export const OBSERVATORY_REVEAL_BUDGET = 200;
+/** Default reveal stops below this many levels; deeper members need expansion. */
+export const OBSERVATORY_REVEAL_DEPTH = 4;
 export type ObservatorySearchResult = {
   resourceId: string;
   representationId: string;
@@ -1551,6 +1560,28 @@ export function projectObservatory(input: ObservatoryInput): ObservatoryScene {
     if (visible.has(id)) continue;
     visible.add(id);
     if (expanded.has(id)) pending.push(...children[id]!);
+  }
+  // Breadth-first default detail: whole sibling sets only, so a revealed group
+  // never shows a partial membership. Membership conservation is unchanged.
+  const budget = Math.max(0, input.revealBudget ?? OBSERVATORY_REVEAL_BUDGET);
+  const levels: [string, number][] = scene.rootRepresentationIds.map((id) => [
+    id,
+    0,
+  ]);
+  for (let index = 0; index < levels.length; index++) {
+    const [id, level] = levels[index]!;
+    const members = children[id]!,
+      hidden = members.filter((child) => !visible.has(child));
+    // Explicit expansion of a default-revealed group always opens it.
+    if (
+      hidden.length &&
+      (expanded.has(id) ||
+        (level < OBSERVATORY_REVEAL_DEPTH &&
+          visible.size + hidden.length <= budget))
+    )
+      for (const child of hidden) visible.add(child);
+    for (const child of members)
+      if (visible.has(child)) levels.push([child, level + 1]);
   }
   scene.visibleRepresentationIds = sort(visible);
   return scene;

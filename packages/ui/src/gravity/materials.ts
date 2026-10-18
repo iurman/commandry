@@ -33,6 +33,12 @@ void main() {
   h += sin(wave) * cos(modulation) * 0.055 * uAmbient;
   gradient += (cos(wave) * cos(modulation) * 0.7 * p.xz / max(length(p.xz), 0.0001)
     - sin(wave) * sin(modulation) * vec2(0.12, 0.09)) * 0.055 * uAmbient;
+  float swell = h;
+  vec2 swellGradient = gradient;
+  h = 0.0;
+  gradient = vec2(0.0);
+  float calm = 0.0;
+  vec2 calmGradient = vec2(0.0);
   vec3 tint = vec3(0.25, 0.55, 0.8) * 0.025;
   float weight = 0.025;
   vRim = 0.0; vAlert = 0.0; vDash = 0.0; vDepth = 0.0; vInfluence = 0.0;
@@ -53,20 +59,29 @@ void main() {
     float derivative = -0.23 * shape.z * exp(-r2 * 0.23) * strength
       + wellDepth * 1.5 * shape.w * pow(max(r2, 0.00000001), shape.w - 1.0)
       - crest * 12.0 * (r - 1.05) / max(r, 0.0001);
-    gradient += derivative * 2.0 * vec2(
+    vec2 radial = 2.0 * vec2(
       d.x * c / (w.z * shape.x) - d.y * s / w.z,
       d.x * s / (w.z * shape.x) + d.y * c / w.z
     );
+    gradient += derivative * radial;
+    float settle = min(1.0, w.w * 3.0) * 4.0 * exp(-r2 * 0.9);
+    calm += settle;
+    calmGradient -= 0.9 * settle * radial;
     float influence = exp(-r2 * 0.45) * strength;
     tint += color.rgb * influence;
     weight += influence;
     vInfluence = max(vInfluence, influence);
     vDepth = max(vDepth, wellDepth);
-    float rim = exp(-gravitySquare((r - 1.08) * 20.0)) * strength;
+    // Small basins get a proportionally wider rim so it spans whole mesh cells.
+    float rim = exp(-gravitySquare((r - 1.08) * min(20.0, w.z * 8.0))) * strength;
     vRim = max(vRim, rim);
     vAlert = max(vAlert, color.a * exp(-r2 * 0.25) * strength);
     vDash = max(vDash, rim * color.a * step(0.0, sin(atan(d.y, d.x) * 22.0)));
   }
+  // Basins calm the decorative floor swell; the analytic normal includes it.
+  float quiet = exp(-calm);
+  h += swell * quiet;
+  gradient += swellGradient * quiet - swell * quiet * calmGradient;
   p.y = h;
   vWorld = p;
   vNormal = vec3(-gradient.x, 1.0, -gradient.y);

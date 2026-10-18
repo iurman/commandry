@@ -193,6 +193,8 @@ export type FieldRefinement = {
   z: number;
   radius: number;
   step: number;
+  /** World units per screen pixel at the window; basins need no finer cells. */
+  pixel?: number;
 };
 
 // Spend pressure detail in a stable world window around the view, independent of
@@ -226,5 +228,7 @@ export function fieldRefinement(
     // A wider portrait view must not request four times the fine-cell work.
     // The radius-8 close view keeps its original 1/6 step for radius-2 wells.
     step: Math.max(minor / 12, radius / 48),
+    // Octave-quantized like the window, so zooming does not replan every frame.
+    pixel: 2 ** Math.round(Math.log2((2 * halfView) / height)),
   };
 }

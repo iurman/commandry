@@ -208,6 +208,20 @@
   color: var(--op-muted);
   font-size: 0.8em;
 }
+/* Nested members: one compact line so a revealed group stays readable. */
+.cmd-operational-observatory .cmd-op-label[data-nested="true"] {
+  gap: 5px;
+  min-height: 26px;
+  max-width: 170px !important;
+  padding: 3px 8px 3px 4px;
+  font-size: 0.72em !important;
+}
+.cmd-op-label[data-nested="true"] .cmd-op-kind {
+  flex-basis: 17px;
+  width: 17px;
+  height: 17px;
+  font-size: 8px;
+}
 .cmd-op-kind {
   display: inline-grid;
   place-items: center;
