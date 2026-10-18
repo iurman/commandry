@@ -83,6 +83,24 @@ Reviewed source bindings connect one explicit resource, canonical owning project
 
 The fixed `http-readiness` source uses external ID `commandry-web-readiness` and the trusted server `APP_ORIGIN` plus `/health/ready`. Only the actual Commandry web service/deployment should be bound. A valid HTTP200 ready response is passing; valid HTTP503 not_ready is failing. Malformed, unauthorized, timed-out or unavailable transport is a source error. Its time is local probe completion, not the fetch time of a stored remote check. This is one direct web/database readiness probe, not external user availability or complete uptime history. Its reader and rollout remain subject to the execution ledger's integration and activation evidence. It requires no InfraAgent account.
 
+The owner-requested `endpoint-check` adapter selects one check from an
+operator-controlled startup catalogue by external ID. Its canonical resource
+and environment must match the source binding. The catalogue defines an HTTP
+URL and accepted response statuses, or a TCP host/port, plus its vantage and
+deadline. Owner/API input cannot choose a destination or supply credentials.
+HTTP does not follow redirects, send credentials, read response bodies or
+disable TLS verification. TCP establishes port reachability only. Deadlines
+and connection refusal produce failed checks; configuration, DNS and TLS
+transport errors remain unavailable evidence. The inspector and independently
+authorized MCP availability read expose the protocol, target, vantage, latency
+and actual completion time. The [activation runbook](../../deploy/endpoint-checks.md)
+records rollout and rollback. Local implementation is not production activation.
+
+New current persisted availability observations may pulse their visible subject,
+including a collapsed containing group. The existing activity baseline, age,
+pause, visibility and reduced-motion rules apply. A signal does not invent a
+request corridor, packet count or traffic between dependent applications.
+
 GitHub PR/security traversal follows supported continuations. Scanner or API access failure remains explicit. The optional InfraAgent adapter can read a deliberately configured monitor through its supported read-only API, but this upgrade does not import the existing CRM account, monitors or credentials.
 
 ## Reviewed configuration and authority
@@ -107,3 +125,21 @@ All mutations require an actual password-mode owner session and matching trusted
 Existing grants are preserved. New separately issued read grants do not become owner mutation authority. Safe availability/PR/security evidence is available through the same application service to UI/API/MCP; source configuration and private originals remain owner-only. Poll observations append `observatory.source.observed` audit events and encrypted immutable history. Public provider history retains stable incident/update identities and source records.
 
 [The agent workflow](../architecture/observatory-agent-workflow.md) describes discoverable tools, continuations, owner handoff and intentional MCP omissions. Device-local appearance is deliberately UI-only. Canonical mapping/source mutations and private named views remain owner-only because current machine credentials have no owner-session authority. A future machine proposal or delegated mutation needs an explicit capability, approval and audit design; it is not authorized by a read grant.
+
+### Provider account inventory
+
+Optional `cloudflare-account` and `namecheap-account` sources read one explicitly
+configured provider account. Complete supported sections project into canonical
+DNS zones, registrations, deployments and Tunnel services while preserving owner
+labels, parent mappings, history and unrelated resources. Missing records are not
+deleted. The inspector inventory facet retains per-section completeness/access,
+observation time, expiration date precision and auto-renew flags independently of
+health. An inaccessible section is not an empty inventory.
+
+MCP requires a separately issued `observatory.inventory.read` capability in addition
+to `observatory.read`, with the same project/resource authorization and audit.
+Existing public-status grants remain unchanged. Source review stays sensitive,
+owner-only, versioned and audited. Scheduled reads are read-only and append encrypted
+originals; canonical inventory projection and its `observatory.inventory.reconciled`
+audit share that transaction. See [operator setup](../../deploy/provider-inventory.md)
+and [agent workflow](../architecture/observatory-agent-workflow.md#private-provider-inventory).

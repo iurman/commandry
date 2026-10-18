@@ -1,12 +1,21 @@
 import type { ObservatorySignal } from "@commandry/domain";
 import { observatoryFreshness } from "@commandry/domain";
-import { observatorySignalSchema } from "@commandry/contracts";
+import {
+  observatorySignalSchema,
+  providerInventoryEvidenceSchema,
+} from "@commandry/contracts";
 
 export type OperationalSourceClaim = {
   id: string;
   leaseId: string;
   resourceId: string;
-  kind: "infraagent-monitor" | "github-repository" | "http-readiness";
+  kind:
+    | "infraagent-monitor"
+    | "github-repository"
+    | "http-readiness"
+    | "endpoint-check"
+    | "cloudflare-account"
+    | "namecheap-account";
   externalId: string;
   freshnessSeconds: number;
   environment: string | null;
@@ -121,9 +130,14 @@ export function validateOperationalSourceClaim(
       !text(claim.id, 200) ||
       !text(claim.leaseId, 200) ||
       !resourceIdentity(claim.resourceId) ||
-      !["infraagent-monitor", "github-repository", "http-readiness"].includes(
-        claim.kind,
-      ) ||
+      ![
+        "infraagent-monitor",
+        "github-repository",
+        "http-readiness",
+        "endpoint-check",
+        "cloudflare-account",
+        "namecheap-account",
+      ].includes(claim.kind) ||
       !text(claim.externalId) ||
       !Number.isSafeInteger(claim.freshnessSeconds) ||
       claim.freshnessSeconds <= 0 ||
@@ -188,7 +202,20 @@ function validateObservation(
         throw new Error();
       ids.add(signal.id);
     }
-    if (observation.signals.length) {
+    if (["cloudflare-account", "namecheap-account"].includes(claim.kind)) {
+      const inventory = providerInventoryEvidenceSchema.parse(
+        observation.details,
+      );
+      if (
+        observation.signals.length !== 0 ||
+        inventory.accountId !== claim.externalId ||
+        inventory.readAt !== observation.observedAt ||
+        inventory.provider !==
+          (claim.kind === "cloudflare-account" ? "cloudflare" : "namecheap") ||
+        Date.parse(inventory.readAt) > now.getTime()
+      )
+        throw new Error();
+    } else if (observation.signals.length) {
       if (
         !observation.signals.some(
           (signal) =>

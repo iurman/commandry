@@ -40,6 +40,7 @@ export const foundationOperationSchema = z.enum([
   "observatory.signals.read",
   "observatory.security.read",
   "observatory.providers.read",
+  "observatory.inventory.read",
   "work.propose",
   "work.proposal.read",
   "work.proposal.review",

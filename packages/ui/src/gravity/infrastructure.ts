@@ -1,7 +1,4 @@
-import type {
-  InfrastructureOverview,
-  InfrastructureResource,
-} from "@commandry/contracts";
+import type { InfrastructureResource } from "@commandry/contracts";
 import type { Palette, Well } from "./model";
 import type { ActivitySnapshot, ActivitySource } from "./activity-types";
 
@@ -325,7 +322,14 @@ export class RecordedInfrastructureActivity implements ActivitySource {
     this.events = this.events.filter((event) => this.time - event.at < 1.4);
   }
   synchronize(
-    snapshot: Pick<InfrastructureOverview, "events">,
+    snapshot: {
+      events: {
+        id: string;
+        resourceId: string | null;
+        summary: string;
+        occurredAt: string;
+      }[];
+    },
     animate: boolean,
     now = Date.now(),
   ) {

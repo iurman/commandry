@@ -8,7 +8,13 @@ import {
 } from "@commandry/application";
 import { createGitHubObservatoryReader } from "./github-observatory";
 import { createInfraAgentAvailabilityReader } from "./infraagent-availability";
+import { createNamecheapInventoryReader } from "./namecheap-inventory";
+import { createCloudflareInventoryReader } from "./cloudflare-inventory";
 import { createCommandryReadinessReader } from "./commandry-readiness";
+import {
+  createEndpointCheckReader,
+  readEndpointCheckCatalogue,
+} from "./endpoint-check";
 
 const maximumBytes = 4096;
 const invalid = () =>
@@ -98,6 +104,12 @@ export type OperationalSourceReaders = {
 /** Explicit server construction only; loaded credentials rotate with the worker startup. */
 export async function createOperationalSourceReaders(
   options: {
+    namecheapUsername?: string;
+    namecheapKeyFile?: string;
+    namecheapClientIp?: string;
+    cloudflareAccountId?: string;
+    cloudflareTokenFile?: string;
+    endpointChecksFile?: string;
     githubTokenFile?: string;
     infraAgentOrigin?: string;
     infraAgentKeyFile?: string;
@@ -109,6 +121,78 @@ export async function createOperationalSourceReaders(
   const readers: OperationalSourceReaders["readers"] = [];
   const errors: OperationalSourceReaders["errors"] = [];
   const transport = options.fetch === undefined ? {} : { fetch: options.fetch };
+  if (
+    options.namecheapUsername !== undefined ||
+    options.namecheapKeyFile !== undefined ||
+    options.namecheapClientIp !== undefined
+  ) {
+    try {
+      if (
+        !options.namecheapUsername ||
+        !options.namecheapKeyFile ||
+        !options.namecheapClientIp
+      )
+        throw invalid();
+      readers.push({
+        kind: "namecheap-account",
+        read: createNamecheapInventoryReader({
+          username: options.namecheapUsername,
+          apiKey: await readPrivateOperationalCredentialFile(
+            options.namecheapKeyFile,
+          ),
+          clientIp: options.namecheapClientIp,
+          ...transport,
+        }),
+      });
+    } catch {
+      errors.push({
+        kind: "namecheap-account",
+        code: "OPERATIONAL_CONFIGURATION_INVALID",
+      });
+    }
+  }
+  if (
+    options.cloudflareAccountId !== undefined ||
+    options.cloudflareTokenFile !== undefined
+  ) {
+    try {
+      if (!options.cloudflareAccountId || !options.cloudflareTokenFile)
+        throw invalid();
+      readers.push({
+        kind: "cloudflare-account",
+        read: createCloudflareInventoryReader({
+          accountId: options.cloudflareAccountId,
+          token: await readPrivateOperationalCredentialFile(
+            options.cloudflareTokenFile,
+          ),
+          ...transport,
+        }),
+      });
+    } catch {
+      errors.push({
+        kind: "cloudflare-account",
+        code: "OPERATIONAL_CONFIGURATION_INVALID",
+      });
+    }
+  }
+  if (options.endpointChecksFile !== undefined) {
+    try {
+      readers.push({
+        kind: "endpoint-check",
+        read: createEndpointCheckReader({
+          catalogue: await readEndpointCheckCatalogue(
+            options.endpointChecksFile,
+          ),
+          ...transport,
+        }),
+      });
+    } catch {
+      errors.push({
+        kind: "endpoint-check",
+        code: "OPERATIONAL_CONFIGURATION_INVALID",
+      });
+    }
+  }
   try {
     const authentication =
       options.githubTokenFile === undefined

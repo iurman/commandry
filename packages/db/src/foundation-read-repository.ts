@@ -327,7 +327,8 @@ export function createFoundationProjectReadAccessRepository<Records>(
     | "observatory.read"
     | "observatory.signals.read"
     | "observatory.security.read"
-    | "observatory.providers.read",
+    | "observatory.providers.read"
+    | "observatory.inventory.read",
   makeRecords: (
     tx: FoundationTransaction,
     request: FoundationMachineRequest,
@@ -347,7 +348,8 @@ export function createFoundationProjectReadAccessRepository<Records>(
     requiredOperation !== "observatory.read" &&
     requiredOperation !== "observatory.signals.read" &&
     requiredOperation !== "observatory.security.read" &&
-    requiredOperation !== "observatory.providers.read"
+    requiredOperation !== "observatory.providers.read" &&
+    requiredOperation !== "observatory.inventory.read"
   )
     throw new FoundationError("FORBIDDEN");
   const now = options.now ?? (() => new Date());

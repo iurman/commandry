@@ -168,6 +168,85 @@ async function fixture(grants = operations, operationalRows?: unknown[]) {
   };
 }
 describe("Observatory discovery and reads over the actual MCP SDK", () => {
+  it("requires a separately issued inventory capability and never expands provider status grants", async () => {
+    const old = await fixture(
+      ["observatory.read", "observatory.providers.read"],
+      [],
+    );
+    try {
+      expect(
+        (await old.client.listTools()).tools.map((tool) => tool.name),
+      ).not.toContain("get_observatory_operational_evidence");
+      await expect(
+        old.reads.operationalEvidence({
+          resourceId: old.input.resources[0]!.id,
+          facet: "inventory",
+        }),
+      ).rejects.toMatchObject({ code: "FORBIDDEN" });
+    } finally {
+      await old.close();
+    }
+    const rows: unknown[] = [];
+    const fresh = await fixture(
+      ["observatory.read", "observatory.inventory.read"],
+      rows,
+    );
+    try {
+      const resourceId = fresh.input.resources[0]!.id;
+      const at = fresh.input.now;
+      rows.push({
+        id: "00000000-0000-4000-8000-000000000004",
+        projectId: fresh.project.id,
+        resourceId,
+        kind: "cloudflare-account",
+        environment: "production",
+        enabled: true,
+        freshnessSeconds: 600,
+        lastAttemptAt: at,
+        lastSuccessAt: at,
+        lastError: null,
+        version: 1,
+        observedAt: at,
+        details: {
+          provider: "cloudflare",
+          accountId: "a".repeat(32),
+          readAt: at,
+          sections: ["zone", "worker", "pages", "tunnel", "registration"].map(
+            (kind) => ({
+              kind,
+              state: "available",
+              readAt: at,
+              complete: true,
+              errorCode: null,
+              items: [],
+            }),
+          ),
+        },
+      });
+      const tool = (await fresh.client.listTools()).tools.find(
+        (tool) => tool.name === "get_observatory_operational_evidence",
+      );
+      expect(tool?.description).toContain("observatory.inventory.read");
+      const result = await fresh.client.callTool({
+        name: "get_observatory_operational_evidence",
+        arguments: { resourceId, facet: "inventory" },
+      });
+      expect(result.isError, JSON.stringify(result.content)).not.toBe(true);
+      const parsed = observatoryOperationalEvidenceResultSchema.parse(
+        result.structuredContent,
+      );
+      expect(parsed.items).toHaveLength(1);
+      expect(parsed.items[0]?.payload).toMatchObject({
+        provider: "cloudflare",
+        accountId: "a".repeat(32),
+      });
+      await expect(fresh.reads.providerFeed({})).rejects.toMatchObject({
+        code: "FORBIDDEN",
+      });
+    } finally {
+      await fresh.close();
+    }
+  });
   it("discovers the optional project-free PR check query and preserves default versus explicit richer SDK reads", async () => {
     const rows: unknown[] = [];
     const f = await fixture(operations, rows);

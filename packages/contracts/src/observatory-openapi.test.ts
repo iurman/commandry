@@ -609,6 +609,9 @@ describe("generated owner Observatory HTTP contract", () => {
       "infraagent-monitor",
       "github-repository",
       "http-readiness",
+      "endpoint-check",
+      "cloudflare-account",
+      "namecheap-account",
     ]);
     const description = operation("catalogue").description;
     expect(description).toContain(
@@ -723,6 +726,9 @@ describe("generated owner Observatory HTTP contract", () => {
       "infraagent-monitor",
       "github-repository",
       "http-readiness",
+      "endpoint-check",
+      "cloudflare-account",
+      "namecheap-account",
     ]);
     expect(source.freshnessSeconds).toMatchObject({
       type: "integer",

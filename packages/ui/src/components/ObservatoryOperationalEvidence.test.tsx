@@ -39,6 +39,117 @@ const result = (count = 0) => ({
 });
 afterEach(cleanup);
 describe("operational evidence inspector", () => {
+  it("opens provider inventory by default and retains all registrations, date precision and renewal flags", async () => {
+    const at = "2026-10-18T12:00:00Z";
+    const data = {
+      ...result(1),
+      facet: "inventory",
+      access: "available",
+      items: [
+        {
+          ...result(1).items[0],
+          kind: "namecheap-account",
+          lastAttemptAt: at,
+          lastSuccessAt: at,
+          observedAt: at,
+          freshness: "fresh",
+          payload: {
+            provider: "namecheap",
+            accountId: "owner",
+            readAt: at,
+            sections: [
+              {
+                kind: "registration",
+                state: "available",
+                readAt: at,
+                complete: true,
+                errorCode: null,
+                items: Array.from({ length: 137 }, (_, i) => ({
+                  id: String(i),
+                  name: `domain-${i}.test`,
+                  kind: "registration",
+                  externalUrl: `https://ap.www.namecheap.com/domains/domaincontrolpanel/domain-${i}.test/domain`,
+                  state: "active",
+                  expirationDate: "2026-12-15",
+                  autoRenew: i !== 136,
+                })),
+              },
+            ],
+          },
+        },
+      ],
+    };
+    const load = vi.fn().mockResolvedValue(data);
+    render(
+      <ObservatoryOperationalEvidence
+        resourceId={resourceId}
+        scopeKey="A"
+        readRevision="one"
+        provider
+        repository={false}
+        loadEvidence={load}
+      />,
+    );
+    expect(
+      await screen.findByRole("link", { name: "domain-136.test" }),
+    ).toBeVisible();
+    expect(screen.getAllByRole("link")).toHaveLength(137);
+    expect(screen.getByText(/domain-136.test/).closest("li")).toHaveTextContent(
+      "registration expires 2026-12-15; auto-renew off",
+    );
+    expect(
+      screen.getByText(/Provider inventory and configuration do not establish/),
+    ).toBeVisible();
+    expect(load).toHaveBeenCalledExactlyOnceWith(resourceId, "inventory");
+  });
+  it("qualifies an inaccessible Cloudflare section rather than claiming zero resources", async () => {
+    const at = "2026-10-18T12:00:00Z";
+    const data = {
+      ...result(1),
+      facet: "inventory",
+      access: "available",
+      items: [
+        {
+          ...result(1).items[0],
+          kind: "cloudflare-account",
+          lastAttemptAt: at,
+          lastSuccessAt: at,
+          observedAt: at,
+          freshness: "fresh",
+          payload: {
+            provider: "cloudflare",
+            accountId: "a".repeat(32),
+            readAt: at,
+            sections: ["zone", "worker", "pages", "tunnel", "registration"].map(
+              (kind) => ({
+                kind,
+                state: kind === "registration" ? "inaccessible" : "available",
+                readAt: at,
+                complete: kind !== "registration",
+                errorCode:
+                  kind === "registration" ? "OPERATIONAL_UNAUTHORIZED" : null,
+                items: [],
+              }),
+            ),
+          },
+        },
+      ],
+    };
+    render(
+      <ObservatoryOperationalEvidence
+        resourceId={resourceId}
+        scopeKey="A"
+        readRevision="one"
+        provider
+        repository={false}
+        loadEvidence={async () => data}
+      />,
+    );
+    expect(
+      await screen.findByText(/This section could not be read completely/),
+    ).toBeVisible();
+    expect(screen.getByText(/registration: inaccessible/)).toBeVisible();
+  });
   it("recovers the same request key after a new client accepts a successful retained read", async () => {
     const failed = vi.fn().mockRejectedValue(new Error("Transient read error"));
     const props = {

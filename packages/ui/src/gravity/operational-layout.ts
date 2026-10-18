@@ -707,6 +707,31 @@ export function mapOperationalEvents(
   });
 }
 
+/** Persisted check observations pulse only their actual subject, never a presumed dependency. */
+export function mapOperationalCheckObservations(
+  scene: Pick<ObservatoryScene, "signals">,
+  projection: Pick<OperationalLayoutResult, "visibleSubjectForResource">,
+) {
+  return scene.signals.flatMap((signal) => {
+    const resourceId = projection.visibleSubjectForResource.get(
+      signal.resourceId,
+    );
+    return resourceId &&
+      signal.facet === "availability" &&
+      signal.sourceQualification === "current" &&
+      signal.freshness === "fresh"
+      ? [
+          {
+            id: `check-observation:${signal.sourceId}:${signal.id}:${signal.observedAt}`,
+            resourceId,
+            summary: `Availability check ${signal.state}`,
+            occurredAt: signal.observedAt,
+          },
+        ]
+      : [];
+  });
+}
+
 /** Persistent semantic attention is independent of event animation. */
 export class OperationalRecordedActivity extends RecordedInfrastructureActivity {
   private attentionLevels = new Map<string, number>();

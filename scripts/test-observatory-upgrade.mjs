@@ -27,7 +27,7 @@ const journal = JSON.parse(
 );
 assert.equal(
   journal.entries.at(-1).idx,
-  74,
+  75,
   "Review this audit when the migration sequence changes",
 );
 const directory = await mkdtemp(
@@ -303,7 +303,7 @@ try {
   assert.equal(feed.items.length, 0);
   console.log(
     JSON.stringify({
-      scenario: "populated_0067_to_0074_and_repeat",
+      scenario: "populated_0067_to_0075_and_repeat",
       result: "PASS",
       postgres: 18,
       resources: 91,

@@ -30,6 +30,7 @@ type ReadOperation =
   | "observatory.signals.read"
   | "observatory.security.read"
   | "observatory.providers.read"
+  | "observatory.inventory.read"
   | "work.read";
 export function createObservatoryMachineReadRepository(
   db: CommandryDatabase,

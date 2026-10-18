@@ -1,4 +1,5 @@
 import { z } from "zod";
+import { providerInventoryEvidenceSchema } from "./cloudflare-inventory";
 import { observatorySceneQuerySchema } from "./observatory-queries";
 import { observatoryRepositoryEvidenceSchema } from "./observatory-repository";
 
@@ -19,6 +20,7 @@ export const observatoryOperationalFacetSchema = z.enum([
   "availability",
   "pull_requests",
   "security",
+  "inventory",
 ]);
 const operationalEvidenceQueryShape = observatorySceneQuerySchema.extend({
   resourceId: identity,
@@ -69,7 +71,14 @@ const sourceFields = {
 export const observatoryOperationalSourceRecordSchema = z.strictObject({
   ...sourceFields,
   id: identity,
-  kind: z.enum(["infraagent-monitor", "github-repository", "http-readiness"]),
+  kind: z.enum([
+    "infraagent-monitor",
+    "github-repository",
+    "http-readiness",
+    "endpoint-check",
+    "cloudflare-account",
+    "namecheap-account",
+  ]),
   freshnessSeconds: z.number().int().min(30).max(86400),
   details: z
     .unknown()
@@ -77,6 +86,13 @@ export const observatoryOperationalSourceRecordSchema = z.strictObject({
 });
 export const observatoryAvailabilityEvidenceSchema = z
   .strictObject({
+    probe: z
+      .strictObject({
+        protocol: z.enum(["http", "tcp"]),
+        vantage: z.string().trim().min(1).max(200),
+        target: z.string().trim().min(1).max(2000),
+      })
+      .optional(),
     monitorId: identifier,
     monitorStatus: status,
     enabled: z.boolean(),
@@ -217,11 +233,26 @@ export const observatoryOperationalEvidenceResultSchema = z
   .discriminatedUnion("facet", [
     z.strictObject({
       ...envelope,
+      facet: z.literal("inventory"),
+      items: z.array(
+        z.strictObject({
+          ...itemFields,
+          kind: z.enum(["cloudflare-account", "namecheap-account"]),
+          payload: providerInventoryEvidenceSchema.nullable(),
+        }),
+      ),
+    }),
+    z.strictObject({
+      ...envelope,
       facet: z.literal("availability"),
       items: z.array(
         z.strictObject({
           ...itemFields,
-          kind: z.enum(["infraagent-monitor", "http-readiness"]),
+          kind: z.enum([
+            "infraagent-monitor",
+            "http-readiness",
+            "endpoint-check",
+          ]),
           payload: observatoryAvailabilityEvidenceSchema.nullable(),
         }),
       ),

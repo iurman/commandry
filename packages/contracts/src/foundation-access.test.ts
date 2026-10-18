@@ -52,6 +52,7 @@ const machineOperations = [
   "observatory.signals.read",
   "observatory.security.read",
   "observatory.providers.read",
+  "observatory.inventory.read",
   "work.propose",
   "evidence.record",
   "memory.propose",

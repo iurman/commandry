@@ -152,7 +152,7 @@ export default function InfrastructureOverviewScreen({
   const evidenceClient = useCallback(
     async (
       resourceId: string,
-      facet: "availability" | "pull_requests" | "security",
+      facet: "availability" | "pull_requests" | "security" | "inventory",
     ) =>
       apiJson<unknown>("/api/v1/infrastructure/observatory/operational", {
         method: "POST",

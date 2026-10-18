@@ -225,9 +225,11 @@ export function createObservatoryManagementRepository(
                 !r ||
                 (v.kind === "github-repository"
                   ? r.kind !== "repository"
-                  : v.kind === "http-readiness"
-                    ? !["service", "deployment"].includes(r.kind)
-                    : !["service", "deployment", "host"].includes(r.kind))
+                  : ["cloudflare-account", "namecheap-account"].includes(v.kind)
+                    ? r.kind !== "provider"
+                    : v.kind === "http-readiness"
+                      ? !["service", "deployment"].includes(r.kind)
+                      : !["service", "deployment", "host"].includes(r.kind))
               )
                 throw new FoundationError("INVALID_REFERENCE");
               const [binding] = await write

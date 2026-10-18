@@ -51,6 +51,52 @@ function fixture() {
   return { claim, observation, port, clock };
 }
 describe("leased operational observation poll orchestration", () => {
+  it("accepts account-bound inventory without manufacturing health signals and rejects mismatches", async () => {
+    for (const provider of ["cloudflare", "namecheap"] as const) {
+      for (const variant of [
+        "valid",
+        "account",
+        "provider",
+        "time",
+        "signals",
+      ] as const) {
+        const f = fixture();
+        f.claim.kind =
+          provider === "cloudflare"
+            ? "cloudflare-account"
+            : "namecheap-account";
+        f.claim.externalId =
+          provider === "cloudflare" ? "a".repeat(32) : "owner";
+        f.observation.signals =
+          variant === "signals" ? f.observation.signals : [];
+        f.observation.details = {
+          provider: variant === "provider" ? "other" : provider,
+          accountId: variant === "account" ? "wrong" : f.claim.externalId,
+          readAt: variant === "time" ? "2099-01-01T00:00:00Z" : at,
+          sections: (provider === "cloudflare"
+            ? ["zone", "worker", "pages", "tunnel", "registration"]
+            : ["registration"]
+          ).map((kind) => ({
+            kind,
+            state: "available",
+            readAt: at,
+            complete: true,
+            errorCode: null,
+            items: [],
+          })),
+        };
+        await createOperationalObservationPoller(
+          f.port,
+          async () => f.observation,
+          f.clock,
+        ).pollNext();
+        expect(f.port.complete).toHaveBeenCalledTimes(
+          variant === "valid" ? 1 : 0,
+        );
+        expect(f.port.fail).toHaveBeenCalledTimes(variant === "valid" ? 0 : 1);
+      }
+    }
+  });
   it("does no read or write when no source lease is available", async () => {
     const f = fixture();
     vi.mocked(f.port.claim).mockResolvedValue(null);

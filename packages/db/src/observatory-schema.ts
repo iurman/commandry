@@ -157,7 +157,7 @@ export const observatorySource = pgTable(
     index("observatory_source_due").on(t.enabled, t.nextAttemptAt),
     check(
       "observatory_source_valid",
-      sql`${t.version} > 0 and ${t.kind} in ('infraagent-monitor','github-repository','http-readiness') and (${t.kind} <> 'http-readiness' or ${t.externalId} = 'commandry-web-readiness') and ${t.freshnessSeconds} between 30 and 86400 and ${t.failures} >= 0`,
+      sql`${t.version} > 0 and ${t.kind} in ('infraagent-monitor','github-repository','http-readiness','endpoint-check','cloudflare-account','namecheap-account') and (${t.kind} <> 'http-readiness' or ${t.externalId} = 'commandry-web-readiness') and ${t.freshnessSeconds} between 30 and 86400 and ${t.failures} >= 0`,
     ),
   ],
 );
@@ -224,4 +224,20 @@ export const observatoryResourceLogo = pgTable(
       sql`${t.version} > 0 and ${t.digest} ~ '^[a-f0-9]{64}$' and octet_length(${t.image}) between 33 and 262144 and ${t.source}->>'kind' in ('upload','repository_file')`,
     ),
   ],
+);
+
+export const observatoryInventoryResource = pgTable(
+  "observatory_inventory_resource",
+  {
+    externalKey: text("external_key").primaryKey(),
+    sourceId: uuid("source_id")
+      .notNull()
+      .references(() => observatorySource.id, { onDelete: "restrict" }),
+    resourceId: uuid("resource_id")
+      .notNull()
+      .references(() => resource.id, { onDelete: "restrict" }),
+    providerName: text("provider_name").notNull(),
+    providerUrl: text("provider_url").notNull(),
+    lastSeenAt: at("last_seen_at").notNull(),
+  },
 );
