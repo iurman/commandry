@@ -86,6 +86,16 @@ test("os-release parsing follows shell quoting and clamps to the receiver contra
       .prettyName,
     "Linux",
   );
+  // A byte-order mark and CRLF lines read as the Python collector reads them.
+  assert.equal(
+    (
+      await collectLinuxOs({
+        readFile: read('\uFEFFID=ubuntu\r\nPRETTY_NAME="Ubuntu"\r\n'),
+        stat: missing,
+      })
+    ).id,
+    "ubuntu",
+  );
   assert.equal(
     await collectLinuxOs({ readFile: missing, stat: missing }),
     null,

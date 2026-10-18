@@ -79,6 +79,17 @@ describe("Observatory resource badge mark", () => {
     expect(
       mark().querySelector(".cmd-op-kind-machine svg path"),
     ).toHaveAttribute("d", resourceIcon("server")!.path);
+    // A shared reference to a host draws like the host it refers to.
+    rerender(
+      <ObservatoryResourceMark
+        kind="reference"
+        subjectKind="host"
+        icon={resourceIcon("debian")!}
+        theme="midnight"
+      />,
+    );
+    expect(mark()).toHaveAttribute("data-kind", "reference");
+    expect(mark()).toHaveAttribute("data-machine", "true");
     // The plain server glyph, other kinds and logos need no second server.
     for (const props of [
       { kind: "host", icon: resourceIcon("server")! },

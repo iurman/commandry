@@ -19,7 +19,7 @@ OS_IDENTIFIER = re.compile(r"[a-z0-9._-]{1,64}")
 def parse_os_release(text):
     """Shell-style KEY=value assignments, as os-release(5) defines them."""
     values = {}
-    for line in text.splitlines():
+    for line in re.split(r"\r?\n", text):
         line = line.strip()
         if not line or line.startswith("#") or "=" not in line:
             continue
@@ -39,7 +39,7 @@ def collect_linux_os():
     Values are clamped to the receiver contract so they never cost a sample."""
     for path in OS_RELEASE_PATHS:
         try:
-            values = parse_os_release(Path(path).read_bytes().decode("utf-8", "replace"))
+            values = parse_os_release(Path(path).read_bytes().decode("utf-8-sig", "replace"))
             break
         except OSError:
             continue

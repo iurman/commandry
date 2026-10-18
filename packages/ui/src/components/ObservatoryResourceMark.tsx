@@ -23,11 +23,14 @@ export type ObservatoryLogoUrl = (resourceId: string, digest: string) => string;
  */
 export function ObservatoryResourceMark({
   kind,
+  subjectKind = kind,
   icon,
   theme,
   logo,
 }: {
   kind: string;
+  /** The pictured resource's kind; a shared reference names its target's. */
+  subjectKind?: string | undefined;
   icon: ResourceIcon;
   theme: "porcelain" | "midnight";
   logo?: string | null | undefined;
@@ -35,7 +38,7 @@ export function ObservatoryResourceMark({
   const [failed, setFailed] = useState<string | null>(null);
   const src = logo && failed !== logo ? logo : null;
   const color = src ? undefined : legibleBrandColor(icon, theme);
-  const machine = !src && kind === "host" && icon.id !== "server";
+  const machine = !src && subjectKind === "host" && icon.id !== "server";
   return (
     <span
       className="cmd-op-kind"

@@ -206,6 +206,30 @@ Roll it out in this order:
 Rollback restores the previous script; the receiver accepts samples without
 `os`. Existing envelopes keep their recorded identity as evidence.
 
+Rolling the application back below this release needs two extra steps, because
+older releases parse these records strictly:
+
+- Restore the previous collector scripts first, and wait for each host to
+  deliver a sample without `os`. An older receiver rejects samples that carry
+  it. An older reader also skips a latest sample that carries `os`, so that
+  host loses `host_memory_total` and RAM sizing until a newer sample arrives.
+- Account views saved with icon choices fail an older release's strict view
+  decoding, which makes the owner's whole view list unavailable. Under the
+  existing backup gate and a scoped change, remove the `icons` key from the
+  stored view envelopes first:
+
+  ```sql
+  update observatory_named_view
+  set configuration = configuration
+    #- '{configuration,icons}'
+    #- '{creation,view,configuration,icons}'
+  where configuration->'configuration' ? 'icons'
+     or configuration->'creation'->'view'->'configuration' ? 'icons';
+  ```
+
+  This keeps view IDs, names, versions and every other setting. The icon
+  choices remain on the devices that made them.
+
 Migration 0056 extends provenance and allows several named metrics per event.
 It preserves fixture records. Once real records exist, a fixture-only old image
 is not a proven application rollback target. Select and test a compatible

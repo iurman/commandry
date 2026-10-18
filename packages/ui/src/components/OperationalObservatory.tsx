@@ -241,6 +241,7 @@ function OutlineNode({
   activate,
   toggle,
   iconFor,
+  subjectKindFor,
   logoFor,
   theme,
 }: {
@@ -252,6 +253,7 @@ function OutlineNode({
   activate: (id: string) => void;
   toggle: (id: string) => void;
   iconFor: (node: OperationalRepresentation) => ResourceIcon;
+  subjectKindFor: (node: OperationalRepresentation) => string;
   logoFor: (node: OperationalRepresentation) => string | null;
   theme: "porcelain" | "midnight";
 }) {
@@ -290,6 +292,7 @@ function OutlineNode({
         >
           <ObservatoryResourceMark
             kind={node.kind}
+            subjectKind={subjectKindFor(node)}
             icon={iconFor(node)}
             logo={logoFor(node)}
             theme={theme}
@@ -324,6 +327,7 @@ function OutlineNode({
               activate={activate}
               toggle={toggle}
               iconFor={iconFor}
+              subjectKindFor={subjectKindFor}
               logoFor={logoFor}
               theme={theme}
             />
@@ -1618,6 +1622,7 @@ function OperationalObservatoryView({
                   >
                     <ObservatoryResourceMark
                       kind={node.kind}
+                      subjectKind={iconSubject(node).kind}
                       icon={iconFor(node)}
                       logo={logoFor(node)}
                       theme={theme}
@@ -1764,6 +1769,7 @@ function OperationalObservatoryView({
                   activate={activate}
                   toggle={toggle}
                   iconFor={iconFor}
+                  subjectKindFor={(node) => iconSubject(node).kind}
                   logoFor={logoFor}
                   theme={theme}
                 />
@@ -1943,7 +1949,7 @@ function OperationalObservatoryView({
                       {logoUrl && selected.logo
                         ? "Approved repository logo"
                         : resolveResourceIcon(iconSubject(selected)).title}
-                      {selected.kind === "host" && selectedPlatform
+                      {iconSubject(selected).kind === "host" && selectedPlatform
                         ? " (reported operating system)"
                         : ""}
                     </option>

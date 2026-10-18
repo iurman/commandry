@@ -73,6 +73,9 @@ class CollectorTests(unittest.TestCase):
             self.assertEqual(len(collector.collect_linux_os()["prettyName"].encode("utf-16-le")), 400)
         with os_release(b"ID=arch\n"), proxmox():
             self.assertEqual(collector.collect_linux_os()["prettyName"], "Linux")
+        # A byte-order mark and CRLF lines read as the Node collector reads them.
+        with os_release(b'\xef\xbb\xbfID=ubuntu\r\nPRETTY_NAME="Ubuntu"\r\n'), proxmox():
+            self.assertEqual(collector.collect_linux_os()["id"], "ubuntu")
         with os_release(None), proxmox():
             self.assertIsNone(collector.collect_linux_os())
 

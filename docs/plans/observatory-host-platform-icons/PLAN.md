@@ -97,4 +97,15 @@ Hosts will show their OS only after both steps below, in this order. The [real i
 1. A reviewed release that accepts `os` is deployed through the constrained deployment workflow.
 2. The collector script is replaced on Electra (Node) and on Pleiades, Maia and Titan (Python). The units, timers, environment files and tokens stay unchanged. Then one sample per host is verified.
 
-The current receiver rejects unknown sample keys, so updating a collector first would make that host's telemetry go stale. The cloud session that implemented this had no SSH or Tailscale access to the hosts. The rollout needs a session with host access, such as Kronos.
+The current receiver rejects unknown sample keys, so updating a collector first would make that host's telemetry go stale. Rolling the application back below this release needs the reverse order, plus removal of `icons` from stored views, because older releases parse both records strictly. The real integrations notes give the exact steps.
+
+## Pre-merge review (2026-10-18)
+
+An independent review of the diff found no blocking defects. It probed both collectors with 16 adversarial os-release inputs, and every output passed the contract. Changes made from its findings:
+
+- Python now decodes os-release as `utf-8-sig` and splits on `\r?\n`, matching Node for a byte-order mark and unusual line separators.
+- A shared reference to a host draws the server glyph and the "reported operating system" wording, like the host itself.
+- The client filters view icon entries with the same `observatoryViewIconsSchema` the server uses, so a stray local key cannot fail a save.
+- The rollback order above is documented.
+
+Kept as is: icon keys in a project-scoped view are not checked against that project. This matches per-resource colours, and views are owner-private presentation. The cloud session that implemented this had no SSH or Tailscale access to the hosts. The rollout needs a session with host access, such as Kronos.

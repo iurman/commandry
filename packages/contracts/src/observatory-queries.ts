@@ -71,6 +71,13 @@ export const observatoryProviderExplanationQuerySchema =
   });
 
 /** Display data only. It never writes canonical mapping or authorizes a resource. */
+/** Canonical resource ID -> chosen badge icon key, as an account view stores it. */
+export const observatoryViewIconsSchema = z
+  .record(z.uuid(), z.string().regex(/^[a-z0-9][a-z0-9-]{0,39}$/))
+  .refine(
+    (value) => Object.keys(value).length <= 1000,
+    "At most 1000 icon choices",
+  );
 export const observatoryViewConfigurationSchema = z.strictObject({
   schemaVersion: z.literal(2),
   grouping: observatoryGroupingSchema.default("operational"),
@@ -85,13 +92,7 @@ export const observatoryViewConfigurationSchema = z.strictObject({
    * applying them leaves a device's own choices unchanged. Clients apply only
    * keys in their vendored icon set; a choice is presentation, never a
    * mapping, role or permission. */
-  icons: z
-    .record(z.uuid(), z.string().regex(/^[a-z0-9][a-z0-9-]{0,39}$/))
-    .refine(
-      (value) => Object.keys(value).length <= 1000,
-      "At most 1000 icon choices",
-    )
-    .optional(),
+  icons: observatoryViewIconsSchema.optional(),
   ambient: z.boolean().default(false),
   textScale: z
     .union([z.literal(1), z.literal(1.25), z.literal(1.5)])

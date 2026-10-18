@@ -1,3 +1,4 @@
+import { observatoryViewIconsSchema } from "@commandry/contracts";
 import { resourceIcon } from "./resource-icons";
 
 export const observatoryStorageKey = "commandry.infrastructure.observatory.v2";
@@ -143,16 +144,17 @@ export function normalizeObservatoryIcons(
     ),
   );
 }
-const canonicalId =
-  /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/;
-/** Device icon choices as an account view carries them: canonical resource
- * IDs only, so a stray local key never blocks saving the view. */
+/** Device icon choices as an account view carries them: entries the view
+ * contract accepts, so a stray local key never blocks saving the view. */
 export function observatoryViewIcons(
   icons: Record<string, string>,
 ): Record<string, string> {
   return Object.fromEntries(
     Object.entries(normalizeObservatoryIcons(icons))
-      .filter(([id]) => canonicalId.test(id))
+      .filter(
+        ([id, icon]) =>
+          observatoryViewIconsSchema.safeParse({ [id]: icon }).success,
+      )
       .sort(([a], [b]) => a.localeCompare(b))
       .slice(0, 1000),
   );

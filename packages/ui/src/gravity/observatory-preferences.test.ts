@@ -44,6 +44,8 @@ describe("version two device-local Observatory preferences", () => {
       [repository]: "github",
       [host]: "proxmox",
       "local-only": "debian",
+      // Hex-shaped, but not an RFC UUID the view contract accepts.
+      "00000000-0000-0000-0000-000000000003": "debian",
       [`${host.slice(0, -1)}9`]: "not-an-icon",
     };
     const saved = observatoryViewIcons(device);
