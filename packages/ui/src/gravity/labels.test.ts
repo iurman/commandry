@@ -1345,6 +1345,52 @@ describe("callout columns", () => {
     expect(placements.some((item) => item.id === "m30")).toBe(true);
   });
 
+  it("names every member in one column when the stage cannot hold two", () => {
+    const callouts = new CalloutLayout();
+    const members = ring(9, 140, 260, 60);
+    const narrow = { width: 280, top: 20, bottom: 600 };
+    const place = () =>
+      callouts.layout(members, size, narrow, { x: 140, y: 260 }, 1, false);
+    const first = place();
+    expect(
+      first.placements.length + first.overflow.left + first.overflow.right,
+    ).toBe(9);
+    // Reduced motion moves any member that started elsewhere on the next frame.
+    const settled = place().placements;
+    expect(settled).toHaveLength(9);
+    expect(new Set(settled.map((item) => item.side)).size).toBe(1);
+    expect(overlaps(settled)).toBe(false);
+    for (const item of settled) {
+      expect(item.x - 65).toBeGreaterThanOrEqual(8 - 1e-9);
+      expect(item.x + 65).toBeLessThanOrEqual(280 - 8 + 1e-9);
+    }
+  });
+
+  it("puts a full column's overflow count below its last row without touching it", () => {
+    const callouts = new CalloutLayout();
+    const sized = (id: string) =>
+      id.startsWith("overflow-")
+        ? { width: 80, height: 36 }
+        : { width: 130, height: 22 };
+    const short = { width: 1000, top: 20, bottom: 260 };
+    const { placements, overflow, more } = callouts.layout(
+      ring(40),
+      sized,
+      short,
+      { x: 500, y: 300 },
+      1,
+      false,
+    );
+    expect(more.length).toBeGreaterThan(0);
+    for (const pill of more) {
+      expect(pill.count).toBe(overflow[pill.side]);
+      const rows = placements.filter((item) => item.side === pill.side);
+      const lowest = Math.max(...rows.map((item) => item.y + 11));
+      expect(pill.y - 18).toBeGreaterThanOrEqual(lowest);
+      expect(pill.y + 18).toBeLessThanOrEqual(short.bottom + 1e-9);
+    }
+  });
+
   it("moves a member to the other side only after it crosses the centre, fading between them", () => {
     const callouts = new CalloutLayout();
     const place = (x: number) =>

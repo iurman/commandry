@@ -382,8 +382,6 @@ export type CalloutRegion = {
 type CalloutState = { side: "left" | "right"; y: number; opacity: number };
 const CALLOUT_GAP = 4;
 const CALLOUT_INSET = 26;
-/** Height kept below a full column for its overflow count. */
-export const CALLOUT_OVERFLOW_ROW = 26;
 
 /** Names every member of a dense group in two columns beside it, with leader
  * lines. Members left of the group's centre are named on the left, the rest on
@@ -411,6 +409,9 @@ export class CalloutLayout {
   ): {
     placements: CalloutPlacement[];
     overflow: Record<"left" | "right", number>;
+    /** Where each full column's overflow count sits: its centre, below the
+     * column's last row. Its size is `size("overflow-<side>")`. */
+    more: { side: "left" | "right"; count: number; x: number; y: number }[];
     changing: boolean;
   } {
     const smoothing = motion ? 1 - Math.exp(-dt * 6) : 1;
@@ -422,7 +423,7 @@ export class CalloutLayout {
     const overflow = { left: 0, right: 0 };
     if (!shown.length) {
       this.edges = null;
-      return { placements: [], overflow, changing: false };
+      return { placements: [], overflow, more: [], changing: false };
     }
     let minX = centre.x,
       maxX = centre.x;
@@ -485,10 +486,23 @@ export class CalloutLayout {
         Math.floor((bottom - top + CALLOUT_GAP) / (rows + CALLOUT_GAP)),
       );
     };
-    for (const [from, to] of [
-      ["left", "right"],
-      ["right", "left"],
-    ] as const) {
+    // A stage too narrow for two columns beside the group names every member
+    // in one column on its roomier side, so the columns never meet.
+    const leftStart = Math.max(8, edges.left - widestAll);
+    const rightStart = Math.min(region.width - 8 - widestAll, edges.right);
+    const single =
+      leftStart + widestAll + CALLOUT_GAP * 2 > rightStart
+        ? edges.left - 8 >= region.width - 8 - edges.right
+          ? "left"
+          : "right"
+        : null;
+    if (single) for (const member of shown) desired.set(member.id, single);
+    for (const [from, to] of single
+      ? []
+      : ([
+          ["left", "right"],
+          ["right", "left"],
+        ] as const)) {
       const giving = shown
         .filter((member) => desired.get(member.id) === from)
         .sort((a, b) => (from === "left" ? b.x - a.x : a.x - b.x));
@@ -512,6 +526,12 @@ export class CalloutLayout {
         member,
       );
     const placements: CalloutPlacement[] = [];
+    const more: {
+      side: "left" | "right";
+      count: number;
+      x: number;
+      y: number;
+    }[] = [];
     for (const side of ["left", "right"] as const) {
       const column = columns[side];
       if (!column.length) continue;
@@ -536,9 +556,10 @@ export class CalloutLayout {
       };
       let fitting = fit(available);
       if (fitting.length < column.length) {
-        // Leave a row for the overflow count below the column.
-        bottom -= CALLOUT_OVERFLOW_ROW;
-        fitting = fit(available - CALLOUT_OVERFLOW_ROW);
+        // Leave room for the overflow count below the column.
+        const reserve = size(`overflow-${side}`).height + CALLOUT_GAP;
+        bottom -= reserve;
+        fitting = fit(available - reserve);
       }
       overflow[side] = column.length - fitting.length;
       const rows = fitting.sort(
@@ -599,7 +620,23 @@ export class CalloutLayout {
       });
       for (const member of column)
         if (!rows.includes(member)) this.states.delete(member.id);
+      const placed = placements.filter((item) => item.side === side);
+      if (overflow[side] && placed.length) {
+        const { width, height } = size(`overflow-${side}`);
+        const lowest = Math.max(
+          ...placed.map((item) => item.y + size(item.id).height / 2),
+        );
+        more.push({
+          side,
+          count: overflow[side],
+          x:
+            side === "left"
+              ? Math.max(8 + width / 2, edges.left - width / 2)
+              : Math.min(region.width - 8 - width / 2, edges.right + width / 2),
+          y: lowest + CALLOUT_GAP + height / 2,
+        });
+      }
     }
-    return { placements, overflow, changing };
+    return { placements, overflow, more, changing };
   }
 }

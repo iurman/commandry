@@ -25,7 +25,6 @@ import {
 } from "./presentation";
 import { PresentationTour, type TourStop } from "./tour";
 import {
-  CALLOUT_OVERFLOW_ROW,
   CalloutLayout,
   LabelLayout,
   labelHeight,
@@ -1685,7 +1684,7 @@ export class ObservatoryRenderer {
     );
     // Stage panels, such as the roster, shorten the columns themselves.
     const bottom = this.height - 8;
-    const { placements, overflow, changing } = this.callouts.layout(
+    const { placements, more, changing } = this.callouts.layout(
       members,
       (id) => this.labelLayout.size(id),
       {
@@ -1714,25 +1713,20 @@ export class ObservatoryRenderer {
       anchor.fixed = true;
       anchor.callout = { side: placement.side, ...placement.leader };
     }
-    for (const side of ["left", "right"] as const) {
-      const column = placements.filter((item) => item.side === side);
-      if (!overflow[side] || !column.length) continue;
-      const last = column.reduce((a, b) => (b.y > a.y ? b : a));
-      const id = `overflow-${side}`;
-      const { width, height } = this.labelLayout.size(id);
-      const edge = last.leader.fromX;
+    for (const pill of more) {
+      const id = `overflow-${pill.side}`;
       anchors.push({
         id,
-        label: `+${overflow[side]}`,
+        label: `+${pill.count}`,
         kind: "project",
         attention: false,
         sector: "",
-        x: side === "left" ? edge - width / 2 : edge + width / 2,
-        y: last.y + CALLOUT_OVERFLOW_ROW + height / 2,
+        x: pill.x,
+        y: pill.y + this.labelLayout.size(id).height / 2,
         visible: true,
         opacity: 1,
         fixed: true,
-        overflow: overflow[side],
+        overflow: pill.count,
       });
     }
   }

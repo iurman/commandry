@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useMemo, useRef, useState } from "react";
+import { memo, useCallback, useEffect, useMemo, useRef, useState } from "react";
 import type { CSSProperties } from "react";
 import type {
   InfrastructureOverview,
@@ -345,6 +345,102 @@ function OutlineNode({
   );
 }
 
+/** The stage's floating labels and callout leader lines. Memoised: it renders
+ * again only when its anchors, nodes, icons, theme or highlight change, not on
+ * every query, focus or inspector update of the Observatory around it. */
+const StageLabels = memo(function StageLabels({
+  anchors,
+  nodes,
+  hidden,
+  highlighted,
+  theme,
+  iconSubject,
+  iconFor,
+  logoFor,
+  activate,
+  labelRef,
+  leaderRef,
+}: {
+  anchors: Anchor[];
+  nodes: Map<string, OperationalRepresentation>;
+  hidden: boolean;
+  highlighted: string | null;
+  theme: "porcelain" | "midnight";
+  iconSubject: (node: OperationalRepresentation) => { kind: string };
+  iconFor: (node: OperationalRepresentation) => ResourceIcon;
+  logoFor: (node: OperationalRepresentation) => string | null;
+  activate: (id: string) => void;
+  labelRef: (id: string) => (element: HTMLElement | null) => void;
+  leaderRef: (id: string) => (path: SVGPathElement | null) => void;
+}) {
+  return (
+    <div className="cmd-op-labels" aria-hidden={hidden}>
+      <svg className="cmd-op-callout-lines" aria-hidden="true">
+        {anchors
+          .filter((anchor) => anchor.callout)
+          .map((anchor) => (
+            <path key={anchor.id} ref={leaderRef(anchor.id)} />
+          ))}
+      </svg>
+      {anchors.map((anchor) => {
+        if (anchor.overflow)
+          return (
+            <span
+              key={anchor.id}
+              className="cmd-op-label cmd-op-callout-more"
+              data-nested="true"
+              ref={labelRef(anchor.id)}
+            >
+              +{anchor.overflow} more
+              <span className="cmd-op-visually-hidden">
+                {" "}
+                in the inspector briefing
+              </span>
+            </span>
+          );
+        const node = nodes.get(anchor.id.replace(/^lens-/, ""));
+        if (!node) return null;
+        const attention = operationalAttention(node.summary);
+        return (
+          <button
+            key={anchor.id}
+            type="button"
+            data-kind={node.kind}
+            data-attention={attention}
+            data-nested={anchor.nested ? "true" : undefined}
+            data-open={anchor.open ? "true" : undefined}
+            data-callout={anchor.callout?.side}
+            data-highlight={highlighted === node.id ? "true" : undefined}
+            className="cmd-op-label"
+            ref={labelRef(anchor.id)}
+            aria-label={`Inspect ${node.label}, ${kindNames[node.kind]}, ${node.memberCount} unique resources`}
+            onClick={() => activate(node.id)}
+          >
+            <ObservatoryResourceMark
+              kind={node.kind}
+              subjectKind={iconSubject(node).kind}
+              icon={iconFor(node)}
+              logo={logoFor(node)}
+              theme={theme}
+            />
+            <span>
+              <strong>{node.label}</strong>
+            </span>
+            {!anchor.nested && !anchor.open && (
+              <small className="cmd-op-label-count">{node.memberCount}</small>
+            )}
+            {attention !== "neutral" && (
+              <small className="cmd-op-label-attention">
+                {attention === "impact" ? "Impact" : "Exposure"}
+              </small>
+            )}
+          </button>
+        );
+      })}
+    </div>
+  );
+});
+
 /** A scope change remounts transient history, selection and event baselines so
  * previous authorized names cannot survive in the new scene's local UI cache.
  */
@@ -450,6 +546,83 @@ function OperationalObservatoryView({
   const elements = useRef(new Map<string, HTMLElement>()),
     leaders = useRef(new Map<string, SVGPathElement>()),
     anchorPositions = useRef(new Map<string, Anchor>());
+  // One stable ref per label: React calls it only on mount and unmount, and
+  // sizes arrive in one batch from a ResizeObserver instead of a forced layout
+  // per label on every render.
+  const labelRefs = useRef(
+      new Map<string, (element: HTMLElement | null) => void>(),
+    ),
+    leaderRefs = useRef(
+      new Map<string, (path: SVGPathElement | null) => void>(),
+    ),
+    labelIds = useRef(new WeakMap<Element, string>()),
+    labelSizes = useRef<ResizeObserver | null>(null);
+  const labelRef = useCallback((id: string) => {
+    let ref = labelRefs.current.get(id);
+    if (!ref) {
+      let mounted: HTMLElement | null = null;
+      ref = (element) => {
+        if (!element) {
+          if (mounted) labelSizes.current?.unobserve(mounted);
+          if (elements.current.get(id) === mounted) elements.current.delete(id);
+          mounted = null;
+          return;
+        }
+        mounted = element;
+        elements.current.set(id, element);
+        labelIds.current.set(element, id);
+        const anchor = anchorPositions.current.get(id);
+        if (anchor) placeAnchor(element, anchor);
+        if (labelSizes.current) labelSizes.current.observe(element);
+        else
+          renderer.current?.measureAnchor(
+            id,
+            element.offsetWidth,
+            element.offsetHeight,
+          );
+      };
+      labelRefs.current.set(id, ref);
+    }
+    return ref;
+  }, []);
+  const leaderRef = useCallback((id: string) => {
+    let ref = leaderRefs.current.get(id);
+    if (!ref) {
+      ref = (path) => {
+        if (!path) {
+          leaders.current.delete(id);
+          return;
+        }
+        leaders.current.set(id, path);
+        const anchor = anchorPositions.current.get(id);
+        if (anchor) placeLeader(path, anchor);
+      };
+      leaderRefs.current.set(id, ref);
+    }
+    return ref;
+  }, []);
+  useEffect(() => {
+    if (typeof ResizeObserver === "undefined") return;
+    const observer = new ResizeObserver((entries) => {
+      for (const entry of entries) {
+        const id = labelIds.current.get(entry.target);
+        const box = entry.borderBoxSize?.[0];
+        const element = entry.target as HTMLElement;
+        if (id)
+          renderer.current?.measureAnchor(
+            id,
+            box?.inlineSize ?? element.offsetWidth,
+            box?.blockSize ?? element.offsetHeight,
+          );
+      }
+    });
+    labelSizes.current = observer;
+    for (const element of elements.current.values()) observer.observe(element);
+    return () => {
+      observer.disconnect();
+      labelSizes.current = null;
+    };
+  }, []);
   const restoreCamera = useRef(false);
   const automaticFeature = useRef(false);
   const lastCameraRequest = useRef<{
@@ -968,39 +1141,57 @@ function OperationalObservatoryView({
   }, [focusId, focusSequence, ready, reduced, focusedVisible, focusFamily]);
 
   const expanded = new Set(query.expandedRepresentationIds);
+  const icons = preferences.icons;
   // Reported operating systems choose a host's automatic icon.
-  const platforms = new Map(
-    scene.platformObservations.map((item) => [item.resourceId, item]),
+  const platforms = useMemo(
+    () =>
+      new Map(
+        scene.platformObservations.map((item) => [item.resourceId, item]),
+      ),
+    [scene.platformObservations],
   );
   const selectedPlatform = selected?.resourceId
     ? platforms.get(selected.resourceId)
     : undefined;
   // A shared reference shows its canonical resource's picture.
-  const iconSubject = (node: OperationalRepresentation) => {
-    const subject =
-      (node.referenceTo ? nodes.get(node.referenceTo) : undefined) ?? node;
-    return {
-      kind: subject.kind,
-      label: subject.label,
-      platform: subject.resourceId
-        ? platforms.get(subject.resourceId)
-        : undefined,
-    };
-  };
-  const iconFor = (node: OperationalRepresentation) =>
-    resolveResourceIcon(
-      iconSubject(node),
-      node.resourceId ? preferences.icons[node.resourceId] : undefined,
-    );
+  const iconSubject = useCallback(
+    (node: OperationalRepresentation) => {
+      const subject =
+        (node.referenceTo ? nodes.get(node.referenceTo) : undefined) ?? node;
+      return {
+        kind: subject.kind,
+        label: subject.label,
+        platform: subject.resourceId
+          ? platforms.get(subject.resourceId)
+          : undefined,
+      };
+    },
+    [nodes, platforms],
+  );
+  const iconFor = useCallback(
+    (node: OperationalRepresentation) =>
+      resolveResourceIcon(
+        iconSubject(node),
+        node.resourceId ? icons[node.resourceId] : undefined,
+      ),
+    [iconSubject, icons],
+  );
   // An explicit icon chosen on this device wins; otherwise an owner-approved
   // logo replaces the automatic icon (OQ-038 keeps this order provisional).
-  const logoFor = (node: OperationalRepresentation) =>
-    logoUrl &&
-    node.resourceId &&
-    node.logo &&
-    !resourceIcon(preferences.icons[node.resourceId])
-      ? logoUrl(node.resourceId, node.logo.digest)
-      : null;
+  const logoFor = useCallback(
+    (node: OperationalRepresentation) =>
+      logoUrl &&
+      node.resourceId &&
+      node.logo &&
+      !resourceIcon(icons[node.resourceId])
+        ? logoUrl(node.resourceId, node.logo.digest)
+        : null,
+    [logoUrl, icons],
+  );
+  const activateLabel = useCallback(
+    (id: string) => actions.current.activate(id),
+    [],
+  );
   const summary = selected?.summary ?? scene.summary;
   // Reading and pause hold the camera still, whatever was requested.
   const touring = settings.cameraMode === "tour";
@@ -1636,116 +1827,19 @@ function OperationalObservatoryView({
               revision={`${briefing.subjectId ?? "landscape"}:${touring ? (tourStop?.sequence ?? 0) : "still"}`}
             />
             <div ref={canvas} className="cmd-op-canvas" />
-            <div
-              className="cmd-op-labels"
-              aria-hidden={!!error || !!projection.error}
-            >
-              <svg className="cmd-op-callout-lines" aria-hidden="true">
-                {anchors
-                  .filter((anchor) => anchor.callout)
-                  .map((anchor) => (
-                    <path
-                      key={anchor.id}
-                      ref={(path) => {
-                        if (!path) {
-                          leaders.current.delete(anchor.id);
-                          return;
-                        }
-                        leaders.current.set(anchor.id, path);
-                        placeLeader(
-                          path,
-                          anchorPositions.current.get(anchor.id) ?? anchor,
-                        );
-                      }}
-                    />
-                  ))}
-              </svg>
-              {anchors.map((anchor) => {
-                if (anchor.overflow)
-                  return (
-                    <span
-                      key={anchor.id}
-                      className="cmd-op-label cmd-op-callout-more"
-                      data-nested="true"
-                      ref={(element) => {
-                        if (!element) {
-                          elements.current.delete(anchor.id);
-                          return;
-                        }
-                        elements.current.set(anchor.id, element);
-                        placeAnchor(
-                          element,
-                          anchorPositions.current.get(anchor.id) ?? anchor,
-                        );
-                        renderer.current?.measureAnchor(
-                          anchor.id,
-                          element.offsetWidth,
-                          element.offsetHeight,
-                        );
-                      }}
-                    >
-                      +{anchor.overflow} more in the briefing list
-                    </span>
-                  );
-                const node = nodes.get(anchor.id.replace(/^lens-/, ""));
-                if (!node) return null;
-                const attention = operationalAttention(node.summary);
-                return (
-                  <button
-                    key={anchor.id}
-                    type="button"
-                    data-kind={node.kind}
-                    data-attention={attention}
-                    data-nested={anchor.nested ? "true" : undefined}
-                    data-open={anchor.open ? "true" : undefined}
-                    data-callout={anchor.callout?.side}
-                    data-highlight={
-                      highlighted === node.id ? "true" : undefined
-                    }
-                    className="cmd-op-label"
-                    ref={(element) => {
-                      if (!element) {
-                        elements.current.delete(anchor.id);
-                        return;
-                      }
-                      elements.current.set(anchor.id, element);
-                      placeAnchor(
-                        element,
-                        anchorPositions.current.get(anchor.id) ?? anchor,
-                      );
-                      renderer.current?.measureAnchor(
-                        anchor.id,
-                        element.offsetWidth,
-                        element.offsetHeight,
-                      );
-                    }}
-                    aria-label={`Inspect ${node.label}, ${kindNames[node.kind]}, ${node.memberCount} unique resources`}
-                    onClick={() => activate(node.id)}
-                  >
-                    <ObservatoryResourceMark
-                      kind={node.kind}
-                      subjectKind={iconSubject(node).kind}
-                      icon={iconFor(node)}
-                      logo={logoFor(node)}
-                      theme={theme}
-                    />
-                    <span>
-                      <strong>{node.label}</strong>
-                    </span>
-                    {!anchor.nested && !anchor.open && (
-                      <small className="cmd-op-label-count">
-                        {node.memberCount}
-                      </small>
-                    )}
-                    {attention !== "neutral" && (
-                      <small className="cmd-op-label-attention">
-                        {attention === "impact" ? "Impact" : "Exposure"}
-                      </small>
-                    )}
-                  </button>
-                );
-              })}
-            </div>
+            <StageLabels
+              anchors={anchors}
+              nodes={nodes}
+              hidden={!!error || !!projection.error}
+              highlighted={highlighted}
+              theme={theme}
+              iconSubject={iconSubject}
+              iconFor={iconFor}
+              logoFor={logoFor}
+              activate={activateLabel}
+              labelRef={labelRef}
+              leaderRef={leaderRef}
+            />
             {preferences.lens && selected && !error && (
               <div ref={lens} className="cmd-op-lens" aria-hidden="true">
                 <span>{selected.label}</span>
