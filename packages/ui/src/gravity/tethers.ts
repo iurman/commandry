@@ -1,7 +1,4 @@
 import * as THREE from "three";
-import { LineMaterial } from "three/addons/lines/LineMaterial.js";
-import { LineSegments2 } from "three/addons/lines/LineSegments2.js";
-import { LineSegmentsGeometry } from "three/addons/lines/LineSegmentsGeometry.js";
 import { parentWellId, surfaceHeight } from "./model";
 import type { Palette, Well } from "./model";
 
@@ -139,13 +136,13 @@ export function tetherPaths(wells: readonly Well[]): TetherPath[] {
  */
 export class TetherRenderer {
   readonly group = new THREE.Group();
-  // Opaque: overlapping round joints of translucent segments would bead.
-  private material = new LineMaterial({
+  // Opaque basic lines: the simplest shader to compile and draw, which matters
+  // when a software renderer redraws a 4K scene after a scope change.
+  private material = new THREE.LineBasicMaterial({
     vertexColors: true,
     depthWrite: false,
-    linewidth: 1.5,
   });
-  private lines: LineSegments2 | null = null;
+  private lines: THREE.LineSegments | null = null;
   private key = "";
   private built: {
     wells: readonly Well[];
@@ -155,10 +152,6 @@ export class TetherRenderer {
 
   constructor() {
     this.group.renderOrder = 2;
-  }
-
-  resize(width: number, height: number) {
-    this.material.resolution.set(width, height);
   }
 
   /** Returns true when the lines changed and the scene needs one more frame. */
@@ -196,8 +189,8 @@ export class TetherRenderer {
       ]);
       if (key !== this.key) {
         this.key = key;
-        this.rebuild(wells, palette, night);
-        rebuilt = true;
+        // Rebuilding nothing into nothing changes no pixels.
+        rebuilt = this.rebuild(wells, palette, night);
       }
     }
     const visible = settled && !!this.lines;
@@ -206,14 +199,20 @@ export class TetherRenderer {
     return changed;
   }
 
-  private rebuild(wells: readonly Well[], palette: Palette, night: boolean) {
+  /** Returns whether any lines were removed or added. */
+  private rebuild(
+    wells: readonly Well[],
+    palette: Palette,
+    night: boolean,
+  ): boolean {
+    const removed = !!this.lines;
     if (this.lines) {
       this.group.remove(this.lines);
       this.lines.geometry.dispose();
       this.lines = null;
     }
     const paths = tetherPaths(wells);
-    if (!paths.length) return;
+    if (!paths.length) return removed;
     const byId = new Map(wells.map((well) => [well.id, well]));
     const positions: number[] = [],
       colors: number[] = [];
@@ -260,12 +259,16 @@ export class TetherRenderer {
         colors.push(color.r, color.g, color.b, color.r, color.g, color.b);
       }
     }
-    const geometry = new LineSegmentsGeometry();
-    geometry.setPositions(positions);
-    geometry.setColors(colors);
-    this.lines = new LineSegments2(geometry, this.material);
+    const geometry = new THREE.BufferGeometry();
+    geometry.setAttribute(
+      "position",
+      new THREE.Float32BufferAttribute(positions, 3),
+    );
+    geometry.setAttribute("color", new THREE.Float32BufferAttribute(colors, 3));
+    this.lines = new THREE.LineSegments(geometry, this.material);
     this.lines.frustumCulled = false;
     this.group.add(this.lines);
+    return true;
   }
 
   dispose() {

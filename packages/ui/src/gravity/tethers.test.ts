@@ -144,3 +144,31 @@ describe("tether renderer", () => {
     }
   });
 });
+
+describe("tether renderer without members", () => {
+  it("asks for no frame when there is nothing to draw", () => {
+    const tethers = new TetherRenderer();
+    const palette = {
+      a: "#628faa",
+      attention: "",
+      reporting: "",
+      unhealthy: "",
+    };
+    const roots = [well("a", 0, 0), well("b", 9, 0)];
+    try {
+      tethers.update(roots, false, palette, true);
+      expect(tethers.update(roots, true, palette, true)).toBe(false);
+      expect(
+        tethers.update(
+          roots.map((item) => ({ ...item, x: item.x + 1 })),
+          true,
+          palette,
+          true,
+        ),
+      ).toBe(false);
+      expect(tethers.group.children).toHaveLength(0);
+    } finally {
+      tethers.dispose();
+    }
+  });
+});
