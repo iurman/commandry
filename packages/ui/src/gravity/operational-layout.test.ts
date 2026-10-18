@@ -37,10 +37,12 @@ import {
 } from "@commandry/test-support";
 import {
   mapOperationalEvents,
+  memberRings,
   observedTotalRam,
   operationalAttention,
   OperationalLayout,
   OperationalRecordedActivity,
+  ringGap,
 } from "./operational-layout";
 import {
   defaultObservatoryPreferences,
@@ -114,6 +116,102 @@ afterEach(() => {
   cleanup();
   vi.unstubAllGlobals();
 });
+describe("member rings", () => {
+  const order = (a: string, b: string) => a.localeCompare(b);
+  const polar = (offset: { x: number; z: number }) => ({
+    distance: Math.hypot(offset.x, offset.z),
+    angle: Math.atan2(offset.z, offset.x),
+  });
+  it("keeps one ring and equal edge gaps when one member is much larger", () => {
+    const members = [
+      { id: "a-host", extent: 2 },
+      ...["b", "c", "d", "e", "f"].map((id) => ({ id, extent: 0.5 })),
+    ];
+    const hub = 1.5,
+      gap = ringGap(hub, 2);
+    const { offsets, extent } = memberRings(hub, members, order);
+    const placed = members.map((member) => ({
+      ...member,
+      ...polar(offsets.get(member.id)!),
+    }));
+    const distance = placed[0]!.distance;
+    for (const member of placed)
+      expect(member.distance).toBeCloseTo(distance, 9);
+    expect(distance).toBeGreaterThanOrEqual(hub * 1.16 + gap + 2 - 1e-9);
+    expect(extent).toBeCloseTo(distance + 2, 9);
+    // Sized slots: far tighter than six slots each wide enough for the host.
+    expect(distance).toBeLessThan((2 + gap / 2) / Math.sin(Math.PI / 6));
+    const half = (member: { extent: number }) =>
+      Math.asin((member.extent + gap / 2) / distance);
+    const sorted = [...placed].sort((a, b) => a.angle - b.angle);
+    const gaps = sorted.map((member, index) => {
+      const next = sorted[(index + 1) % sorted.length]!;
+      const turn =
+        next.angle -
+        member.angle +
+        (index === sorted.length - 1 ? Math.PI * 2 : 0);
+      return { from: member, size: turn - half(member) - half(next) };
+    });
+    for (const item of gaps) {
+      expect(item.size).toBeGreaterThanOrEqual(0);
+      expect(item.size).toBeCloseTo(gaps[0]!.size, 9);
+    }
+    // The inward direction (offsets face +x outward) sits in the middle of a gap.
+    const inward = gaps.find((item) => {
+      const start = item.from.angle + half(item.from);
+      const end = start + item.size;
+      const target = Math.PI;
+      const shifted = target < start ? target + Math.PI * 2 : target;
+      return shifted >= start && shifted <= end;
+    })!;
+    const middle = inward.from.angle + half(inward.from) + inward.size / 2;
+    expect(Math.cos(middle - Math.PI)).toBeCloseTo(1, 9);
+  });
+  it("spaces equal members at equal angles, opens a pool centre and starts outward for one", () => {
+    const equal = Array.from({ length: 7 }, (_, index) => ({
+      id: `m${index}`,
+      extent: 0.6,
+    }));
+    const pool = memberRings(0, equal, order);
+    const angles = equal
+      .map((member) => polar(pool.offsets.get(member.id)!))
+      .sort((a, b) => a.angle - b.angle);
+    for (const item of angles)
+      expect(item.distance).toBeCloseTo(angles[0]!.distance, 9);
+    angles.forEach((item, index) => {
+      if (!index) return;
+      expect(item.angle - angles[index - 1]!.angle).toBeCloseTo(
+        (Math.PI * 2) / 7,
+        9,
+      );
+    });
+    // More than eight members around an open centre start with a hexagon.
+    const many = Array.from({ length: 20 }, (_, index) => ({
+      id: `n${index}`,
+      extent: 0.6,
+    }));
+    const crowded = memberRings(0, many, order);
+    const innermost = Math.min(
+      ...many.map((member) => polar(crowded.offsets.get(member.id)!).distance),
+    );
+    expect(
+      many.filter(
+        (member) =>
+          Math.abs(
+            polar(crowded.offsets.get(member.id)!).distance - innermost,
+          ) < 1e-9,
+      ),
+    ).toHaveLength(6);
+    const solo = memberRings(0, [{ id: "solo", extent: 1 }], order).offsets.get(
+      "solo",
+    )!;
+    expect(Math.hypot(solo.x, solo.z)).toBe(0);
+    const single = memberRings(2, [{ id: "only", extent: 0.5 }], order);
+    const only = polar(single.offsets.get("only")!);
+    expect(Math.cos(only.angle)).toBeCloseTo(1, 9);
+  });
+});
+
 describe("operational landscape adapter", () => {
   it.each(observatoryGroupings)(
     "conserves all 91 canonical identities in %s without repository tour hosts",
@@ -397,7 +495,15 @@ describe("operational landscape adapter", () => {
           const angles = ring
             .map((well) => Math.atan2(well.z - parent.z, well.x - parent.x))
             .sort((a, b) => a - b);
-          if (angles.length > 1) {
+          // Same-size leaf members sit at equal angles; mixed sizes keep equal
+          // edge gaps instead (see the memberRings unit tests).
+          const uniform =
+            ring.every(
+              (well) =>
+                well.radius === ring[0]!.radius &&
+                !wells.some((other) => other.hostId === well.id),
+            ) && angles.length > 1;
+          if (uniform) {
             rings++;
             const slot = (Math.PI * 2) / angles.length;
             angles.forEach((angle, index) => {
@@ -415,17 +521,18 @@ describe("operational landscape adapter", () => {
               1e-6
           )
             continue;
-          // The tether from the grandparent arrives between two members.
           const inward = Math.atan2(
             grandparent.z - parent.z,
             grandparent.x - parent.x,
           );
-          for (const angle of angles) {
+          // The tether from the grandparent arrives clear of every member.
+          for (const well of ring) {
+            const angle = Math.atan2(well.z - parent.z, well.x - parent.x);
             const offset = Math.abs(
               Math.atan2(Math.sin(angle - inward), Math.cos(angle - inward)),
             );
-            expect(offset).toBeGreaterThanOrEqual(
-              Math.PI / angles.length - 1e-6,
+            expect(offset).toBeGreaterThan(
+              Math.asin(Math.min(1, well.radius / distance(well))),
             );
           }
         }

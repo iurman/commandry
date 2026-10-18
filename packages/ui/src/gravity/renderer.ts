@@ -841,7 +841,6 @@ export class ObservatoryRenderer {
     this.height = Math.max(this.container.clientHeight, 1);
     this.hooks.viewport(this.width / this.height < 0.9);
     this.renderer.setSize(this.width, this.height);
-    this.tethers.resize(this.width, this.height);
     this.camera.aspect = this.width / this.height;
     this.camera.updateProjectionMatrix();
     this.coverLandscape([...this.wells, ...this.targets]);
@@ -970,7 +969,8 @@ export class ObservatoryRenderer {
     }
     this.submitField(this.wells, this.settings);
     // Tethers follow settled basins only; before this point `changing` means
-    // some basin is still moving.
+    // some basin is still moving. They join the frame that settles the layout:
+    // a separate later frame would cost a whole terrain redraw.
     changing =
       this.tethers.update(
         this.targets,
