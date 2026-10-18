@@ -173,3 +173,5 @@ export {
 export * from "./components/ObservatoryProviderFeed";
 
 export * from "./components/ObservatoryReviewControls";
+export * from "./components/ObservatoryLogoReview";
+export * from "./components/ObservatoryResourceMark";

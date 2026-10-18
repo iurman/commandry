@@ -1,3 +1,7 @@
+import {
+  ObservatoryLogoError,
+  type ObservatoryLogoErrorCode,
+} from "@commandry/application";
 /** The limit bounds transport input, never the authorized inventory population. */
 export class ObservatoryBodyTooLarge extends Error {
   constructor() {
@@ -37,4 +41,24 @@ export async function readObservatoryJson(
     reader.releaseLock();
   }
   return JSON.parse(text);
+}
+
+/** Owner logo previews and reviews carry an image of up to 512 KiB as base64. */
+export const OBSERVATORY_LOGO_BODY_BYTES = 786432;
+const logoFailures: Record<ObservatoryLogoErrorCode, number> = {
+  LOGO_UNSUPPORTED_IMAGE: 400,
+  LOGO_REPOSITORY_NOT_REVIEWED: 400,
+  LOGO_SOURCE_NOT_FOUND: 404,
+  LOGO_TOO_LARGE: 413,
+  LOGO_SOURCE_UNAUTHORIZED: 502,
+  LOGO_SOURCE_UNAVAILABLE: 503,
+  LOGO_PROCESSING_UNAVAILABLE: 503,
+};
+/** Safe owner-facing logo outcome; null when the error is not a logo failure. */
+export function observatoryLogoFailure(
+  error: unknown,
+): { code: ObservatoryLogoErrorCode; status: number } | null {
+  return error instanceof ObservatoryLogoError
+    ? { code: error.code, status: logoFailures[error.code] }
+    : null;
 }

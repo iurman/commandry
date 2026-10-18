@@ -1,6 +1,6 @@
 # Observatory repository logos
 
-**Status: Proposed. The design decisions below were made by the owner on 2026-10-18; implementation and production activation are tracked in this record.**
+**Status: Operational record. The owner made the design decisions on 2026-10-18. The implementation is on branch `claude/ecstatic-fermi-m2sx9r`; it is not merged or deployed.**
 
 ## Goal
 
@@ -65,6 +65,36 @@ The owner approves exactly what is stored. Preview returns the processed PNG and
 - Unit: change/preview/catalogue/scene contracts, image sniffing and rasterization limits, SVG rejection, GitHub read adapter (pinned commit, redirect refusal, size cap, unauthorized), application digest-mismatch and repository-identity checks, domain logo projection, UI badge fallback and review controls.
 - PostgreSQL: review versioning, retire, audit success/denial, owner-session hold, catalogue/scene projection, scoped image read.
 - `pnpm check` and `pnpm test`.
+
+## Implementation record (2026-10-18)
+
+| Layer | Where |
+| --- | --- |
+| Contracts | `packages/contracts/src/observatory-logos.ts`; optional `logo` on `observatoryRepresentationSchema`; `logo` catalogue kind; regenerated OpenAPI with `logo`, `logo-preview`, `reviews/logo` and `GET logos/{resourceId}/{digest}` |
+| Application | `packages/application/src/observatory-logos.ts` (byte sniffing, SVG refusal rules, preview/review service, digest binding); `logo` read in the shared Observatory read service; `logo` and `logo_preview` policies |
+| Domain | `logos` input; `logo` set on canonical representations and their aliases. It does not change `projectionRevision`, which stays structural |
+| Platform | `observatory-logo-image.ts` (lazy sharp, 128 px PNG, pixel and time limits, `LOGO_PROCESSING_UNAVAILABLE` when the library cannot load); `github-repository-logo.ts` (fixed origin, pinned commit, git blob SHA check, no redirects, 1 MiB cap) |
+| Persistence | Migration `0074_observatory_resource_logo.sql`; `observatory-logo-repository.ts` (owner-session hold, advisory lock, expected version, repository identity rechecked at write, allowed and denied audits); scene, catalogue and scoped image reads |
+| Web and MCP | Owner routes above; `get_observatory_resource_logo`; `kind:"logo"` in `list_observatory_reviewed_configuration` |
+| UI | `ObservatoryResourceMark` on stage labels and outline rows; `ObservatoryLogoReview` in the inspector for canonical repositories |
+
+A preview audit records an authorized attempt, including one that then fails on the image or source. A digest mismatch is refused before the write transaction, like other input validation, so it leaves no denied review audit.
+
+## Verification (2026-10-18)
+
+- `pnpm check` passed: 0 lint errors, and the existing warnings were not increased.
+- `pnpm test` passed: 177 vitest files with 3,047 tests, 33 lab tests, then the Node script (111), foundation registry (11) and both preview suites (4 each). The commission tests need `ssh-keygen`, which the cloud container lacked until `openssh-client` was installed.
+- PostgreSQL 18 (embedded harness bootstrap, run as an unprivileged user): `packages/platform/src/observatory-logo.integration.test.ts` passed 10/10. It covers concurrent approval, audits, scope, the repository-identity recheck and retire.
+- A built standalone server in password mode (scratch check, not committed) passed:
+  - sharp rasterized an upload inside the production bundle, and an outside-reference SVG was refused.
+  - A real `api.github.com` read of `iurman/commandry` `apps/web/public/icon.svg` succeeded at the resolved commit, with blob verification. A missing path returned 404.
+  - A wrong digest returned 409, and the correct one approved version 1.
+  - The scene reference and catalogue provenance were present.
+  - The image route returned identical bytes with the immutable, CSP and same-origin-resource headers. Cross-site requests got 403 and anonymous ones 401.
+  - Retiring removed the scene reference.
+- The production build traces `sharp`, `@img/sharp-linux-x64` and `libvips` into the web standalone output. The worker bundle contains no sharp import.
+
+Not verified: a browser screenshot of the badges in the live Observatory, physical TV or phone rendering, and any production read or approval.
 
 ## Production activation gate
 

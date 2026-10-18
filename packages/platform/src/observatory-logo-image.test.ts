@@ -1,5 +1,5 @@
 import sharp from "sharp";
-import { describe, expect, it } from "vitest";
+import { describe, expect, it, vi } from "vitest";
 import {
   sniffObservatoryLogo,
   validateObservatoryLogoPng,
@@ -119,5 +119,24 @@ describe("Observatory logo rasterization", () => {
     expect(data.every((value, index) => index % 4 !== 3 || value === 0)).toBe(
       true,
     );
+  });
+});
+
+describe("Observatory logo rasterizer availability", () => {
+  it("reports a missing image library as unavailable processing, then retries the load", async () => {
+    const load = vi
+      .fn<() => Promise<typeof sharp>>()
+      .mockRejectedValueOnce(
+        new Error("Cannot find module '@img/sharp-linux-x64'"),
+      )
+      .mockResolvedValueOnce(sharp);
+    const processor = createObservatoryLogoProcessor({ load });
+    const bytes = await raster("png", 16, 16);
+    await expect(
+      processor.rasterize({ bytes, mediaType: "image/png" }),
+    ).rejects.toMatchObject({ code: "LOGO_PROCESSING_UNAVAILABLE" });
+    const png = await processor.rasterize({ bytes, mediaType: "image/png" });
+    expect((await sharp(png).metadata()).width).toBe(128);
+    expect(load).toHaveBeenCalledTimes(2);
   });
 });

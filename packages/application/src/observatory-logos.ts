@@ -22,7 +22,8 @@ export type ObservatoryLogoErrorCode =
   | "LOGO_REPOSITORY_NOT_REVIEWED"
   | "LOGO_SOURCE_NOT_FOUND"
   | "LOGO_SOURCE_UNAUTHORIZED"
-  | "LOGO_SOURCE_UNAVAILABLE";
+  | "LOGO_SOURCE_UNAVAILABLE"
+  | "LOGO_PROCESSING_UNAVAILABLE";
 /** Safe, owner-facing outcome codes. No provider text or file content escapes. */
 export class ObservatoryLogoError extends Error {
   constructor(public readonly code: ObservatoryLogoErrorCode) {

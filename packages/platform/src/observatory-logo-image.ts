@@ -1,6 +1,7 @@
-import type {
-  ObservatoryLogoMediaType,
-  ObservatoryLogoProcessor,
+import {
+  ObservatoryLogoError,
+  type ObservatoryLogoMediaType,
+  type ObservatoryLogoProcessor,
 } from "@commandry/application";
 import { OBSERVATORY_LOGO_SIZE } from "@commandry/contracts";
 
@@ -15,10 +16,20 @@ type Sharp = (typeof import("sharp"))["default"];
  * worker image omits optional native packages) never needs libvips.
  * The input is a buffer with no base path, so SVG cannot resolve outside files.
  */
-export function createObservatoryLogoProcessor(): ObservatoryLogoProcessor {
+export function createObservatoryLogoProcessor(
+  options: { load?: () => Promise<Sharp> } = {},
+): ObservatoryLogoProcessor {
   let loaded: Promise<Sharp> | undefined;
+  const load =
+    options.load ?? (() => import("sharp").then((module) => module.default));
+  // A missing native library is an operational fault, not a bad image.
   const library = () =>
-    (loaded ??= import("sharp").then((module) => module.default));
+    (loaded ??= load().catch((error: unknown) => {
+      loaded = undefined;
+      throw error;
+    })).catch(() => {
+      throw new ObservatoryLogoError("LOGO_PROCESSING_UNAVAILABLE");
+    });
   return {
     async rasterize({
       bytes,

@@ -1143,7 +1143,7 @@ const observatoryPaths = {
     "ObservatoryLogoPreview",
     "ObservatoryLogoPreviewResult",
     "Preview a repository logo without storing it",
-    "Read-only owner operation, audited as observatory.logo.preview. Accepts an upload (base64, at most 524288 bytes before encoding) or an owner-named file in a repository already reviewed for this repository resource, read from api.github.com with the server-held token at the resolved commit. Input is recognised by its bytes (PNG, JPEG, WebP or SVG; SVG with declarations, scripts or outside references is refused) and rasterized to one 128x128 PNG. Returns that PNG, its digest and the source with commit and blob SHAs. Nothing is written. Safe failures: 400 LOGO_UNSUPPORTED_IMAGE or LOGO_REPOSITORY_NOT_REVIEWED, 404 LOGO_SOURCE_NOT_FOUND, 413 LOGO_TOO_LARGE, 502 LOGO_SOURCE_UNAUTHORIZED, 503 LOGO_SOURCE_UNAVAILABLE.",
+    "Read-only owner operation, audited as observatory.logo.preview. Accepts an upload (base64, at most 524288 bytes before encoding) or an owner-named file in a repository already reviewed for this repository resource, read from api.github.com with the server-held token at the resolved commit. Input is recognised by its bytes (PNG, JPEG, WebP or SVG; SVG with declarations, scripts or outside references is refused) and rasterized to one 128x128 PNG. Returns that PNG, its digest and the source with commit and blob SHAs. Nothing is written. Safe failures: 400 LOGO_UNSUPPORTED_IMAGE or LOGO_REPOSITORY_NOT_REVIEWED, 404 LOGO_SOURCE_NOT_FOUND, 413 LOGO_TOO_LARGE, 502 LOGO_SOURCE_UNAUTHORIZED, 503 LOGO_SOURCE_UNAVAILABLE or LOGO_PROCESSING_UNAVAILABLE.",
     { maximumBytes: 786432 },
   ),
   "/api/v1/infrastructure/observatory/reviews/logo": observatoryPost(

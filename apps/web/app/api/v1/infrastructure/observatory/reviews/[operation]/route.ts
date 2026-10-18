@@ -1,9 +1,14 @@
 import { FoundationError } from "@commandry/domain";
-import { observatoryOwnerManagement } from "../../../../../../../lib/observatory";
+import {
+  observatoryOwnerLogos,
+  observatoryOwnerManagement,
+} from "../../../../../../../lib/observatory";
 import { foundationFailure } from "../../../../../../../lib/foundation-access";
 import {
   readObservatoryJson,
   ObservatoryBodyTooLarge,
+  OBSERVATORY_LOGO_BODY_BYTES,
+  observatoryLogoFailure,
 } from "../../../../../../../lib/observatory-http";
 import { jsonResponse } from "../../../../../../../lib/http";
 export const runtime = "nodejs";
@@ -14,6 +19,14 @@ export async function POST(
 ) {
   try {
     const { operation } = await context.params;
+    if (operation === "logo") {
+      const { service, identity } = await observatoryOwnerLogos(request);
+      const result = await service.review(
+        identity,
+        await readObservatoryJson(request, OBSERVATORY_LOGO_BODY_BYTES),
+      );
+      return jsonResponse(request, result, 200, "observatory.logo.review");
+    }
     if (
       operation !== "annotation" &&
       operation !== "relation" &&
@@ -47,6 +60,14 @@ export async function POST(
         request,
         { code: "INVALID_INPUT" },
         400,
+        "observatory.review.denied",
+      );
+    const logo = observatoryLogoFailure(error);
+    if (logo)
+      return jsonResponse(
+        request,
+        { code: logo.code },
+        logo.status,
         "observatory.review.denied",
       );
     return foundationFailure(request, error);

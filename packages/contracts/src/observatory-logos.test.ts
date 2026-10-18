@@ -280,7 +280,9 @@ describe("Observatory logo contracts", () => {
         aggregateId: "group:repositories",
       }).success,
     ).toBe(false);
-    const { logo: _logo, ...withoutLogo } = node;
+    const withoutLogo = Object.fromEntries(
+      Object.entries(node).filter(([key]) => key !== "logo"),
+    );
     expect(
       observatoryRepresentationSchema.parse(withoutLogo),
     ).not.toHaveProperty("logo");

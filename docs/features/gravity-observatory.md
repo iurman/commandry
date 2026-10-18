@@ -18,6 +18,10 @@ Child/service count is the default structural size basis. RAM sizing uses actual
 
 The shared floating surface handles viewport collision, clipping ancestors, scrolling and keyboard dismissal. Escape dismisses the innermost surface first. Reduced motion, pause and hidden-scene suspension preserve useful static selection and evidence. Real mobile keyboard and owner usability acceptance are recorded explicitly in the ledger when not verified.
 
+## Repository logos
+
+A repository resource may carry its own project logo on its label badge, in place of the kind mark, after the owner has reviewed it. The owner either uploads the file, or names a file in the repository that is already reviewed for that resource (its `github-repository` source binding or canonical `https://github.com/owner/name` URL). The server reads that file from `api.github.com` at a resolved commit, using the private token file when one is configured. Inputs are recognised by their bytes (PNG, JPEG, WebP or a self-contained SVG) and rasterized to one 128×128 transparent PNG; no SVG is stored or served. Preview shows exactly that PNG and writes nothing. Approval resubmits the same source with the previewed digest and is refused if the result differs. Retiring hides the logo but keeps its image and source as history. Without an approved logo, or if the image cannot load, the badge keeps the kind mark. Logos are presentation only: they do not establish ownership, deployment or health. Inheritance by related deployments or services is [OQ-038](../project/open-questions.md#oq-038-should-related-resources-inherit-an-approved-repository-logo). The [repository logos plan](../plans/observatory-repository-logos/PLAN.md) records the owner decisions and activation gate.
+
 ## Independent operational facets
 
 | Facet | Meaning and limits |
@@ -50,7 +54,7 @@ GitHub PR/security traversal follows supported continuations. Scanner or API acc
 
 ## Reviewed configuration and authority
 
-The signed-in owner's inspector lists complete active and inactive annotations, relationships, provider dependencies and source configuration, including versions and provenance. Edits require explicit endpoints, scope, evidence references, a review note and the actual expected version. A conflict retains the draft for rereview. Accepted receipts include canonical ID, version and audit ID; the UI reloads and confirms the accepted version before reporting success. No source enables merely by opening its form.
+The signed-in owner's inspector lists complete active and inactive annotations, relationships, provider dependencies, source configuration and repository logos, including versions and provenance. Edits require explicit endpoints, scope, evidence references, a review note and the actual expected version. A conflict retains the draft for rereview. Accepted receipts include canonical ID, version and audit ID; the UI reloads and confirms the accepted version before reporting success. No source enables merely by opening its form.
 
 All mutations require an actual password-mode owner session and matching trusted Origin, held and rechecked through data/audit/commit. Input JSON cannot assert owner identity. Local auth-off read mode does not authorize mutations, private named views or owner Work reads.
 
@@ -61,6 +65,8 @@ All mutations require an actual password-mode owner session and matching trusted
 | Provider mapping review | reversible; resource/provider | owner submission; owner | `observatory.provider_mapping.review` |
 | Source binding review | sensitive; resource/project | owner submission; owner | `observatory.source.review` |
 | Client resource restriction | sensitive; client project | owner submission; owner | `observatory.client_scope.review` |
+| Repository logo preview | read only, with one owner-initiated `api.github.com` file read; resource | owner session; owner | `observatory.logo.preview` |
+| Repository logo review (approve or retire) | reversible; resource | owner submission; owner | `observatory.logo.review` |
 | Private view create/update/delete | reversible; owner, optional project | owner submission; owner | `observatory.view.create`, `.update`, `.delete` |
 | Private view read/page | read only; owner, optional project | owner session; owner | `observatory.view.read` |
 | Owner canonical Work page | read only; owner/project | owner session; owner | `observatory.work.read` |

@@ -2,7 +2,7 @@
 
 **Status: Operational**
 
-**Last updated:** 2026-10-17
+**Last updated:** 2026-10-18
 
 ## Current phase
 
@@ -11,6 +11,8 @@ The operational Gravity Observatory is live at [commandry.site](https://commandr
 All original 91 resource IDs/parents and seven Commandry project bindings remain. Two canonical additions yield 93 resources and nine project links. The repository, deployment, Electra host and web service now have three reviewed typed relations. A reviewed Cloudflare Tunnel data-plane dependency retains unknown geography. Native readiness is enabled and recorded an actual up/HTTP 200/passing result. Other eligible services remain explicitly unmonitored; the operational GitHub pull-request/security reader is unconfigured. InfraAgent remains prior art/inventory scope, and provider discovery does not imply additional mappings or DNS changes.
 
 The full hosted main release retained all 207 browser identities: 202 passes, five original skips, zero failures, flaky results or retries. The [58-scenario ledger](../plans/observatory-operational-landscape/COVERAGE.md) retains 53 source-qualified local passes and five explicit partial/unrun limits. Live activation does not certify physical-device checks, owner interpretation or complete uptime history. Earlier failed releases and deployment attempts remain in the linked execution evidence.
+
+Owner-reviewed repository logos for Observatory badges (owner decisions of 2026-10-18) are implemented on branch `claude/ecstatic-fermi-m2sx9r`; they are not merged or deployed. Migration `0074` adds the logo record. No logo is approved in production. Repository-file import in production also needs a GitHub token with contents read access to the private repositories. The [repository logos plan](../plans/observatory-repository-logos/PLAN.md) records the design, verification and activation gate. The Observatory icon change it was written against is not on `main`; badges currently fall back to the existing kind marks.
 
 Commandry has completed its initial product definition. ADRs 0009 through 0012
 establish the initial technology and deployment architecture. The local

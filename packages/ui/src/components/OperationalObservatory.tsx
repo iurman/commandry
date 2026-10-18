@@ -12,6 +12,14 @@ import {
 } from "./ObservatoryCanonicalViews";
 import { FloatingSurface } from "./FloatingSurface";
 import {
+  ObservatoryResourceMark,
+  type ObservatoryLogoUrl,
+} from "./ObservatoryResourceMark";
+import {
+  ObservatoryLogoReview,
+  type ObservatoryLogoReviewClient,
+} from "./ObservatoryLogoReview";
+import {
   ObservatoryWorkDock,
   type ObservatoryWorkDockProps,
 } from "./ObservatoryWorkDock";
@@ -81,6 +89,10 @@ export type OperationalObservatoryProps = {
   providerFeedClient?: ObservatoryProviderFeedClient;
   reviewClient?: ObservatoryReviewClient;
   onReviewed?: () => void;
+  /** Same-origin address for approved logos; without it badges keep kind marks. */
+  logoUrl?: ObservatoryLogoUrl;
+  /** Owner logo preview/review for repository resources. */
+  logoReviewClient?: ObservatoryLogoReviewClient;
   scopeProjectId?: string | null;
   paused?: boolean;
   delayed?: boolean;
@@ -221,6 +233,7 @@ function OutlineNode({
   selected,
   activate,
   toggle,
+  logoUrl,
 }: {
   id: string;
   scene: ObservatoryScene;
@@ -229,6 +242,7 @@ function OutlineNode({
   selected: string | null;
   activate: (id: string) => void;
   toggle: (id: string) => void;
+  logoUrl?: ObservatoryLogoUrl | undefined;
 }) {
   const node = byId.get(id);
   if (!node) return null;
@@ -263,13 +277,12 @@ function OutlineNode({
           aria-pressed={selected === id}
           onClick={() => activate(id)}
         >
-          <span
-            className="cmd-op-kind"
-            data-kind={node.kind}
-            aria-hidden="true"
-          >
-            {kindMarks[node.kind]}
-          </span>
+          <ObservatoryResourceMark
+            node={node}
+            fallback={kindMarks[node.kind]}
+            logoUrl={logoUrl}
+            tagKind
+          />
           <span>
             {node.label}
             <small>
@@ -299,6 +312,7 @@ function OutlineNode({
               selected={selected}
               activate={activate}
               toggle={toggle}
+              logoUrl={logoUrl}
             />
           ))}
         </ul>
@@ -331,6 +345,8 @@ function OperationalObservatoryView({
   providerFeedClient,
   reviewClient,
   onReviewed,
+  logoUrl,
+  logoReviewClient,
   workClient,
   workProjectIds,
   scopeProjectId = null,
@@ -1530,9 +1546,11 @@ function OperationalObservatoryView({
                     aria-label={`Inspect ${node.label}, ${kindNames[node.kind]}, ${node.memberCount} unique resources`}
                     onClick={() => activate(node.id)}
                   >
-                    <span className="cmd-op-kind" aria-hidden="true">
-                      {kindMarks[node.kind]}
-                    </span>
+                    <ObservatoryResourceMark
+                      node={node}
+                      fallback={kindMarks[node.kind]}
+                      logoUrl={logoUrl}
+                    />
                     <span>
                       <strong>{node.label}</strong>
                       {(!anchor.nested || attention !== "neutral") && (
@@ -1657,6 +1675,7 @@ function OperationalObservatoryView({
                   selected={focusId}
                   activate={activate}
                   toggle={toggle}
+                  logoUrl={logoUrl}
                 />
               ))}
             </ul>
@@ -1826,6 +1845,23 @@ function OperationalObservatoryView({
               loadEvidence={evidenceClient}
             />
           )}
+          {selected?.resourceId &&
+            !selected.referenceTo &&
+            selected.kind === "repository" &&
+            logoReviewClient &&
+            onReviewed && (
+              <ObservatoryLogoReview
+                key={`logo:${scene.scopeDigest}:${selected.resourceId}`}
+                resource={{
+                  id: selected.resourceId,
+                  name: selected.label,
+                  kind: selected.kind,
+                }}
+                client={logoReviewClient}
+                logoUrl={logoUrl}
+                onReviewed={onReviewed}
+              />
+            )}
           {selected?.resourceId &&
             reviewClient &&
             onReviewed &&

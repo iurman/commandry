@@ -19,7 +19,11 @@ import {
 } from "@commandry/contracts";
 import "./observatory-review-controls.css";
 
-export type ObservatoryReviewKind = ObservatoryCatalogueResult["kind"];
+/** Kinds edited by this form; logos have their own preview-based review. */
+export type ObservatoryReviewKind = Exclude<
+  ObservatoryCatalogueResult["kind"],
+  "logo"
+>;
 export type ObservatoryReviewResource = {
   id: string;
   name: string;
@@ -313,7 +317,7 @@ function receipt(raw: unknown, draft: Draft): ObservatoryReviewReceipt {
   return { id, version: value.version, auditId };
 }
 const provenance = (item: ObservatoryCatalogueItem) =>
-  item.kind === "source"
+  item.kind === "source" || item.kind === "logo"
     ? item.provenance
     : item.kind === "annotation"
       ? item.metadata.provenance
@@ -328,6 +332,8 @@ function summary(item: ObservatoryCatalogueItem) {
       return `Cloudflare component ${item.componentId}; provider ${item.providerResourceId}; ${item.record.plane} plane; ${item.record.geography ?? "no geography"}; ${item.active ? "active" : "inactive"}; ${item.record.environment ?? "no environment"}`;
     case "source":
       return `${item.sourceKind}: ${item.externalId}; ${item.enabled ? "enabled" : "disabled"}; project ${item.projectId ?? "unbound, requires project review"}; ${item.freshnessSeconds} seconds; ${item.environment ?? "no environment"}`;
+    case "logo":
+      return `Logo ${item.digest.slice(0, 12)}; ${item.active ? "active" : "retired"}; ${item.source.kind === "upload" ? `upload ${item.source.fileName}` : `${item.source.repository} ${item.source.path} at ${item.source.commitSha.slice(0, 12)}`}`;
   }
 }
 
