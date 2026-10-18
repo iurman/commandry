@@ -236,7 +236,13 @@
 .cmd-op-icon-choice {
   display: grid;
   gap: 4px;
-  margin-block: 10px;
+  margin-block: 10px 4px;
+}
+.cmd-op-icon-hint {
+  display: block;
+  margin-bottom: 10px;
+  color: var(--op-muted);
+  font-size: 0.78em;
 }
 .cmd-op-kind {
   display: inline-grid;
@@ -247,6 +253,32 @@
   border: 1px solid currentColor;
   border-radius: 50%;
   color: var(--op-muted);
+}
+/* A host showing a technology keeps a server glyph on its lower edge. */
+.cmd-op-kind[data-machine="true"] {
+  position: relative;
+}
+.cmd-op-kind-machine {
+  position: absolute;
+  right: -3px;
+  bottom: -3px;
+  display: grid;
+  place-items: center;
+  width: 11px;
+  height: 11px;
+  border: 1px solid currentColor;
+  border-radius: 3px;
+  background: var(--op-panel);
+}
+.cmd-op-kind .cmd-op-kind-machine svg {
+  width: 7px;
+  height: 7px;
+  fill: currentColor;
+}
+/* Compact nested labels keep only the technology; the outline names the kind. */
+.cmd-op-label[data-nested="true"] .cmd-op-kind-machine,
+.cmd-op-label[data-open="true"] .cmd-op-kind-machine {
+  display: none;
 }
 /* An approved logo fills the fixed badge box, keeping the kind's outline. */
 .cmd-op-kind[data-logo="true"] {

@@ -117,6 +117,7 @@ test(
     const configuration = observatoryViewConfigurationSchema.parse({
       schemaVersion: 2,
       grouping: "custom",
+      icons: { [repoId]: "proxmox" },
       sectors: [
         {
           id: "private",
@@ -167,6 +168,10 @@ test(
         "exact create retries return the original receipt and changed requests conflict without duplication",
         async () => {
           original = await service.create(ownerA, create);
+          // Icon choices are stored with the owner's view, for other devices.
+          assert.deepEqual(original.configuration.icons, {
+            [repoId]: "proxmox",
+          });
           assert.deepEqual(await service.create(ownerA, create), original);
           await assert.rejects(
             () =>
@@ -661,6 +666,8 @@ test(
             before,
           );
           assert.deepEqual(before.configuration, legacy);
+          // Older views carry no icon choices, so applying them keeps a device's own.
+          assert.equal("icons" in before.configuration, false);
           assert.equal(before.projectId, null);
           assert.equal(
             (

@@ -48,6 +48,16 @@ async function fixture(grants = operations, operationalRows?: unknown[]) {
     height: 128 as const,
     version: 2,
   };
+  const host = original.resources.find((resource) => resource.kind === "host")!;
+  const platform = {
+    resourceId: host.id,
+    osId: "debian",
+    osIdLike: [],
+    prettyName: "Debian GNU/Linux 12 (bookworm)",
+    platform: "proxmox-ve" as const,
+    observedAt: "2026-10-16T12:00:00.000Z",
+    evidenceRef: "/api/v1/source-envelopes/platform",
+  };
   const input = {
     ...original,
     resources: original.resources.map((resource) => ({
@@ -55,6 +65,7 @@ async function fixture(grants = operations, operationalRows?: unknown[]) {
       projects: [project],
     })),
     logos: [logo],
+    platforms: [platform],
   };
   const access: ObservatoryReadAccess = {
     owner: false,
@@ -149,6 +160,7 @@ async function fixture(grants = operations, operationalRows?: unknown[]) {
     project,
     input,
     logo,
+    platform,
     close: async () => {
       await client.close();
       await handler.close();
@@ -465,6 +477,38 @@ describe("Observatory discovery and reads over the actual MCP SDK", () => {
       ).toBe(true);
     } finally {
       await f.close();
+    }
+  });
+  it("shares reported host platforms with the owner read service behind the telemetry grant", async () => {
+    const f = await fixture();
+    try {
+      const response = await f.client.callTool({
+        name: "get_observatory_scene",
+        arguments: {},
+      });
+      const scene = observatorySceneReadResultSchema.parse(
+        response.structuredContent,
+      );
+      expect(scene.scene.platformObservations).toEqual([f.platform]);
+      expect(scene.scene.platformObservations).toEqual(
+        (await f.reads.scene({})).scene.platformObservations,
+      );
+    } finally {
+      await f.close();
+    }
+    const inventory = await fixture(["observatory.read"]);
+    try {
+      const scene = observatorySceneReadResultSchema.parse(
+        (
+          await inventory.client.callTool({
+            name: "get_observatory_scene",
+            arguments: {},
+          })
+        ).structuredContent,
+      );
+      expect(scene.scene.platformObservations).toEqual([]);
+    } finally {
+      await inventory.close();
     }
   });
   it("shares approved logo references and images with the owner read service", async () => {

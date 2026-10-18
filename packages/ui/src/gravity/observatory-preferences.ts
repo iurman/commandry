@@ -130,6 +130,41 @@ export function normalizeObservatorySectors(
   }
   return result.sort((a, b) => a.id.localeCompare(b.id));
 }
+/** Keep safe resource keys that name a vendored icon; drop anything else. */
+export function normalizeObservatoryIcons(
+  value: unknown,
+): Record<string, string> {
+  return Object.fromEntries(
+    Object.entries(object(value)).filter(
+      (entry): entry is [string, string] =>
+        safeKey(entry[0]) &&
+        typeof entry[1] === "string" &&
+        !!resourceIcon(entry[1]),
+    ),
+  );
+}
+const canonicalId =
+  /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/;
+/** Device icon choices as an account view carries them: canonical resource
+ * IDs only, so a stray local key never blocks saving the view. */
+export function observatoryViewIcons(
+  icons: Record<string, string>,
+): Record<string, string> {
+  return Object.fromEntries(
+    Object.entries(normalizeObservatoryIcons(icons))
+      .filter(([id]) => canonicalId.test(id))
+      .sort(([a], [b]) => a.localeCompare(b))
+      .slice(0, 1000),
+  );
+}
+/** A view saved before icon choices existed leaves the device's own choices
+ * unchanged; a newer view carries its exact choices. */
+export function appliedObservatoryIcons(
+  current: Record<string, string>,
+  view: Record<string, string> | undefined,
+): Record<string, string> {
+  return view === undefined ? current : normalizeObservatoryIcons(view);
+}
 export function observatoryPresentation(
   value: unknown,
 ): ObservatoryPresentation {
@@ -163,12 +198,7 @@ export function observatoryPresentation(
       ? (saved.palette as ObservatoryPresentation["palette"])
       : "semantic",
     colors: colors as Record<string, string>,
-    icons: Object.fromEntries(
-      Object.entries(object(saved.icons)).filter(
-        ([id, value]) =>
-          safeKey(id) && typeof value === "string" && !!resourceIcon(value),
-      ),
-    ) as Record<string, string>,
+    icons: normalizeObservatoryIcons(saved.icons),
     camera: ["composed", "orbit", "tour", "manual"].includes(
       String(saved.camera),
     )

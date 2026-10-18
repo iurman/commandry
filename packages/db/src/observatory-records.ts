@@ -195,6 +195,7 @@ export async function collectObservatoryRecords(
       desc(normalizedEvent.occurredAt),
       desc(normalizedEvent.id),
     );
+  const platforms: NonNullable<ObservatoryInput["platforms"]>[number][] = [];
   const inputResources = resources.map((r) => {
     const sample = hostSamples.find((s) => s.resourceId === r.id);
     let original: unknown = null;
@@ -208,6 +209,17 @@ export async function collectObservatoryRecords(
       }
     }
     const parsed = sample ? linuxHostSampleSchema.safeParse(original) : null;
+    // Operating system identity comes from the same validated original sample.
+    if (parsed?.success && sample && parsed.data.os)
+      platforms.push({
+        resourceId: r.id,
+        osId: parsed.data.os.id,
+        osIdLike: parsed.data.os.idLike,
+        prettyName: parsed.data.os.prettyName,
+        platform: parsed.data.os.platform,
+        observedAt: parsed.data.observedAt,
+        evidenceRef: `/api/v1/source-envelopes/${sample.envelopeId}`,
+      });
     return {
       ...r,
       parentResourceId:
@@ -357,6 +369,7 @@ export async function collectObservatoryRecords(
       width: 128 as const,
       height: 128 as const,
     })),
+    platforms,
     metadata: annotations.map((a) => a.metadata),
     requirements: annotations.map((a) => ({
       id: `requirement:${a.resourceId}`,

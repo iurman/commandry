@@ -262,7 +262,7 @@ export function createFoundationMcpServer(
       {
         description:
           scope +
-          "Read-only complete authorized operational landscape with membership conservation and independent facet coverage. No resource cap or invented runtime health.",
+          "Read-only complete authorized operational landscape with membership conservation and independent facet coverage. No resource cap or invented runtime health. platformObservations give each host's latest reported operating system (os-release ID, ID_LIKE, PRETTY_NAME, and platform proxmox-ve when Proxmox VE tooling is present) with observedAt and its source envelope; it follows telemetry disclosure and is an observation, not a role or mapping.",
         inputSchema: safeSchema(
           observatorySceneQuerySchema.omit({ projectId: true }),
         ),

@@ -180,6 +180,13 @@ describe("version 2 presentation configuration", () => {
         lens: true,
       }).palette.warning,
     ).toBe("#A1b2C3");
+    // Icon choices travel with an account view, keyed by canonical resource.
+    expect(
+      observatoryViewConfigurationSchema.parse({
+        schemaVersion: 2,
+        icons: { "00000000-0000-4000-8000-000000000001": "proxmox" },
+      }).icons,
+    ).toEqual({ "00000000-0000-4000-8000-000000000001": "proxmox" });
   });
   it("rejects invalid colors, unsupported versions, authority and canonical mappings", () => {
     for (const extra of [
@@ -193,6 +200,19 @@ describe("version 2 presentation configuration", () => {
       { camera: "auto" },
       { lens: "false" },
       { sectors: [{ id: "", label: "", resourceIds: [], grouping: "hosts" }] },
+      { icons: { "not-a-resource": "debian" } },
+      { icons: { "00000000-0000-4000-8000-000000000001": "Debian" } },
+      { icons: { "00000000-0000-4000-8000-000000000001": "<svg/>" } },
+      { icons: { "00000000-0000-4000-8000-000000000001": "x".repeat(41) } },
+      { icons: { "00000000-0000-4000-8000-000000000001": 1 } },
+      {
+        icons: Object.fromEntries(
+          Array.from({ length: 1001 }, (_, index) => [
+            `00000000-0000-4000-8000-${String(index).padStart(12, "0")}`,
+            "debian",
+          ]),
+        ),
+      },
     ])
       expect(
         observatoryViewConfigurationSchema.safeParse({

@@ -93,6 +93,38 @@ describe("versioned Observatory DTO", () => {
     ).toBe(false);
   });
 
+  it("accepts one reported platform per in-scene host and rejects foreign or duplicate subjects", () => {
+    const fixture = mixedObservatoryFixture();
+    const host = fixture.resources.find(
+      (resource) => resource.kind === "host",
+    )!;
+    const platform = {
+      resourceId: host.id,
+      osId: "ubuntu",
+      osIdLike: ["debian"],
+      prettyName: "Ubuntu 24.04 LTS",
+      platform: null,
+      observedAt: "2026-10-16T12:00:00.000Z",
+      evidenceRef: "/api/v1/source-envelopes/platform",
+    };
+    const scene: ObservatorySceneDto = projectObservatory({
+      ...fixture,
+      platforms: [platform],
+    });
+    expect(observatorySceneSchema.parse(scene).platformObservations).toEqual([
+      platform,
+    ]);
+    for (const platformObservations of [
+      [platform, platform],
+      [{ ...platform, resourceId: observatoryFixtureId(99999) }],
+      [{ ...platform, platform: "unraid" }],
+    ])
+      expect(
+        observatorySceneSchema.safeParse({ ...scene, platformObservations })
+          .success,
+      ).toBe(false);
+  });
+
   it("accepts operational evidence and empty scenes without claiming live adapter or GPU proof", () => {
     const fixture = operationalObservatoryFixture();
     expect(

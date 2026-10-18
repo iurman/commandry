@@ -317,6 +317,27 @@ export function operationalObservatoryFixture() {
     ],
     providerDependencies,
     providerNotices,
+    // Reported operating systems: a Proxmox VE hypervisor and an Ubuntu host.
+    platforms: [
+      {
+        resourceId: hosts[0]!.id,
+        osId: "debian",
+        osIdLike: [],
+        prettyName: "Debian GNU/Linux 12 (bookworm)",
+        platform: "proxmox-ve" as const,
+        observedAt: observatoryFixtureTime,
+        evidenceRef: "fixture:host-os-sample",
+      },
+      {
+        resourceId: hosts[1]!.id,
+        osId: "ubuntu",
+        osIdLike: ["debian"],
+        prettyName: "Ubuntu 24.04.1 LTS",
+        platform: null,
+        observedAt: observatoryFixtureTime,
+        evidenceRef: "fixture:host-os-sample",
+      },
+    ],
     metadata: hosts.map((host) => ({
       resourceId: host.id,
       role: "operated" as const,

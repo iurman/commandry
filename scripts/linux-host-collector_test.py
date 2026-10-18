@@ -1,3 +1,4 @@
+from contextlib import ExitStack
 import importlib.util
 import io
 import json
@@ -22,19 +23,72 @@ def environment(url="https://commandry.site" + endpoint):
             "COMMANDRY_HOST_RECEIVER_TOKEN": "cmdry_host_" + "a" * 43}
 
 
+def os_release(content, path="/etc/os-release"):
+    """Serve one os-release location; every other read_bytes path is missing."""
+    def read_bytes(self):
+        if content is not None and str(self) == path:
+            return content
+        raise FileNotFoundError(str(self))
+    return patch.object(Path, "read_bytes", read_bytes)
+
+
+def proxmox(tool=False, cluster=False):
+    stack = ExitStack()
+    stack.enter_context(patch.object(collector.os.path, "isfile", lambda p: tool and p == "/usr/bin/pveversion"))
+    stack.enter_context(patch.object(collector.os.path, "isdir", lambda p: cluster and p == "/etc/pve"))
+    return stack
+
+
 class CollectorTests(unittest.TestCase):
     def test_exact_counter_interpretation(self):
         def read(path):
             return {"/proc/meminfo": "MemTotal: 1000 kB\nMemAvailable: 500 kB\n",
                     "/proc/uptime": "10.8 5", "/proc/loadavg": "0.125 0 0"}[str(path)]
         with patch.object(Path, "read_text", read), patch.object(collector.os, "statvfs", return_value=SimpleNamespace(
-                f_blocks=100, f_frsize=1024, f_bavail=25)), patch.object(collector.socket, "gethostname", return_value="pleiades"):
+                f_blocks=100, f_frsize=1024, f_bavail=25)), patch.object(collector.socket, "gethostname", return_value="pleiades"), \
+                os_release(b'PRETTY_NAME="Debian GNU/Linux 12 (bookworm)"\nID=debian\n'), proxmox():
             sample = collector.collect_linux_host()
         self.assertEqual(sample["memory"], {"totalBytes": 1024000, "availableBytes": 512000})
         self.assertEqual(sample["disk"], {"totalBytes": 102400, "availableBytes": 25600})
         self.assertEqual(sample["load1Milli"], 125)
         self.assertEqual(sample["uptimeSeconds"], 10)
         self.assertEqual(sample["hostname"], "pleiades")
+        self.assertEqual(sample["os"], {"id": "debian", "idLike": [], "prettyName": "Debian GNU/Linux 12 (bookworm)",
+                                        "platform": None})
+
+    def test_os_release_quoting_and_contract_clamps(self):
+        self.assertEqual(collector.parse_os_release('# comment\nNAME="Debian \\"GNU\\"/Linux"\nID=\'debian\'\n'
+                                                    'lower=ignored\nVERSION_ID=12\n'),
+                         {"NAME": 'Debian "GNU"/Linux', "ID": "debian", "VERSION_ID": "12"})
+        text = ('ID="Not Valid!"\nID_LIKE="rhel centos fedora rhel BAD!"\nPRETTY_NAME="  \x07Rocky '
+                + "x" * 300 + '"\n').encode()
+        with os_release(text, path="/usr/lib/os-release"), proxmox():
+            system = collector.collect_linux_os()
+        self.assertEqual(system["id"], "linux")
+        self.assertEqual(system["idLike"], ["rhel", "centos", "fedora"])
+        self.assertEqual(len(system["prettyName"]), 200)
+        self.assertTrue(system["prettyName"].startswith("Rocky "))
+        # The receiver counts UTF-16 code units, so astral characters count twice.
+        with os_release(('ID=x\nPRETTY_NAME="' + "\U0001F600" * 150 + '"').encode()), proxmox():
+            self.assertEqual(len(collector.collect_linux_os()["prettyName"].encode("utf-16-le")), 400)
+        with os_release(b"ID=arch\n"), proxmox():
+            self.assertEqual(collector.collect_linux_os()["prettyName"], "Linux")
+        with os_release(None), proxmox():
+            self.assertIsNone(collector.collect_linux_os())
+
+    def test_proxmox_identified_by_tooling_not_debian_base(self):
+        text = b'ID=debian\nPRETTY_NAME="Debian GNU/Linux 12 (bookworm)"\n'
+        for tool, cluster in [(True, False), (False, True)]:
+            with os_release(text), proxmox(tool, cluster):
+                system = collector.collect_linux_os()
+            self.assertEqual((system["id"], system["platform"]), ("debian", "proxmox-ve"))
+        with os_release(text), proxmox():
+            self.assertIsNone(collector.collect_linux_os()["platform"])
+
+    def test_unreadable_os_release_keeps_the_sample(self):
+        with os_release(None), proxmox():
+            sample = collector.collect_linux_host()
+        self.assertNotIn("os", sample)
 
     def test_invalid_capacity(self):
         with patch.object(collector.os, "statvfs", return_value=SimpleNamespace(

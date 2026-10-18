@@ -1,55 +1,100 @@
 # Observatory host platform icons and cross-device icon choices
 
-**Status: Proposed. Owner hold is active: implementation waits for a separate Observatory icon-layer change.**
-
-**Prepared:** 2026-10-18 against `main` at `9937991`. This plan does not authorize implementation, collector rollout or deployment. Resume only after the owner releases the hold.
+**Status: Operational record. The owner released the planning hold on 2026-10-18 and asked for implementation through merge. The implementation is merged but not deployed, and no collector has been updated on a host.**
 
 ## Goal
 
-Gravity host badges should show the host operating system or platform automatically (Debian, Ubuntu, Fedora, Proxmox VE and similar), ideally as a server glyph carrying the distribution logo. Owner icon choices should follow the owner across devices, including the TV wallboard.
+Gravity host badges should show the host operating system or platform automatically (Debian, Ubuntu, Fedora, Proxmox VE and similar), as a server glyph carrying the distribution logo. Owner icon choices should follow the owner across devices, including the TV wallboard.
 
-## Verified baseline
+## Baseline
 
-- The icon layer this work builds on has not landed. `main` and every remote branch lack `packages/ui/src/gravity/resource-icons.ts`, `packages/ui/src/gravity/brand-icons.ts` and `ObservatoryPresentation.icons`. The owner reports that a separate icon change is in progress. Steps 2 and 3 depend on it.
-- [`scripts/linux-host-collector.py`](../../../scripts/linux-host-collector.py) and [`.mjs`](../../../scripts/linux-host-collector.mjs) report only hostname, memory, disk, uptime and load. Electra runs the Node collector. Pleiades, Maia (`iu-amp`) and Titan (`iu-ionos`) run the Python collector; see [real integrations](../../../deploy/real-integrations.md).
-- `linuxHostSampleSchema` in [`packages/contracts/src/real-integrations.ts`](../../../packages/contracts/src/real-integrations.ts) is a `strictObject`. The current production receiver will reject any sample that carries a new key.
-- The receiver keeps the exact original sample in the source envelope. [`collectObservatoryRecords`](../../../packages/db/src/observatory-records.ts) already re-parses each resource's latest valid host sample to derive `host_memory_total` with `sampledAt` and an `evidenceHref`. A platform observation can use the same path, so it needs no new table.
-- The scene (`observatorySceneSchema`, `schemaVersion: 1`) carries `capacityObservations` gated by `observatory.signals.read` and per-resource facet access. It has no OS or software field. `resource.subtype` is free text and is not in the scene.
-- Account named views store `configuration` as `jsonb` in `observatory_named_view`. `observatoryViewConfigurationSchema` (`schemaVersion: 2`) already carries a per-resource `palette` colour map. Owner-only create/update policies and the audit events `observatory.view.create` and `observatory.view.update` are already declared in `OBSERVATORY_VIEW_POLICIES`.
+The first draft of this plan (2026-10-18, against `9937991`) found that the Observatory icon layer had not landed. By the time the owner released the hold, `main` (`da44fcb`) carried:
 
-## Owner decision
+- the icon layer: `resource-icons.ts`, `brand-icons.ts` with vendored Simple Icons, the device-local `ObservatoryPresentation.icons` and the shared `ObservatoryResourceMark` badge;
+- owner-reviewed [repository logos](../observatory-repository-logos/PLAN.md), with the badge order "explicit choice, then approved logo, then automatic icon".
 
-**Recorded 2026-10-18:** owner icon choices will be stored as an optional `icons` map in the account view configuration, not as a canonical annotation. Icons will travel with a saved view the same way `palette` colours do. They apply on another device once that view is applied there, and later changes need a re-apply. Agents will not see icon choices; they are presentation, not canonical fact.
+What was still missing: structured OS data from the Linux host collector, a scene field to carry it, and a way for icon choices to leave the device. Account views (`observatoryViewConfigurationSchema`, `schemaVersion: 2`) carried colours but not icons.
 
-## Step 1: platform observation (independent of the icon layer)
+## Owner decisions
 
-1. **Collectors.** Both collectors should add an optional object:
-   `os: { id, idLike: string[], prettyName, platform: "proxmox-ve" | null }`.
-   - Parse `/etc/os-release`, falling back to `/usr/lib/os-release`, using the shell-style quoting rules. Lowercase `ID`; split `ID_LIKE` on whitespace; bound lengths.
-   - Detect Proxmox VE with file checks only, such as `/usr/bin/pveversion` or `/etc/pve`. Do not run a subprocess. Proxmox reports `ID=debian`, so `platform` disambiguates it.
-   - A missing or unreadable `os-release` should omit `os`, not fail the sample. Capacity telemetry must keep flowing.
-2. **Contract.** Add `os` as an optional strict sub-object of `linuxHostSampleSchema`: `id` matching `^[a-z0-9._-]{1,64}$`, at most eight bounded `idLike` entries, `prettyName` at most 200 characters, `platform` from a closed enum. It stays an observation, never a role or free-text classification.
-3. **Scene.** Add `platformObservations: [{ resourceId, osId, osIdLike, prettyName, platform, observedAt, evidenceRef }]`. It should be built from the same latest validated sample as `host_memory_total`, gated like `sourceObservations` (`observatory.signals.read` plus `telemetry` facet access), and included in the scene superRefine foreign-subject checks. Regenerate OpenAPI (`pnpm --filter @commandry/contracts check:generated`). The UI and MCP `get_observatory_scene` will share the field.
-4. **Docs.** Update [`observatory-agent-workflow.md`](../../architecture/observatory-agent-workflow.md), [`gravity-observatory.md`](../../features/gravity-observatory.md) and [real integrations](../../../deploy/real-integrations.md), including the rollout order below.
+| Question | Decision |
+| --- | --- |
+| Where cross-device icon choices live (2026-10-18) | An optional `icons` map in the account view configuration, not a canonical annotation. It reuses the owner-only view policies and audits. Icons are presentation, not canonical fact, so agents do not read the choices. |
+| Badge order (agreed with the logo work) | 1. explicit icon choice; 2. the approved logo for repositories, or the detected OS for hosts; 3. name hints; 4. kind glyph. |
 
-## Step 2: default host icons (after the icon layer lands)
+Defaults chosen during implementation, not separately decided by the owner:
 
-Icon resolution order: the owner's explicit choice, then the platform observation (Proxmox VE first, then `osId`, then the first known `osIdLike`), then the existing kind and name hints. The badge should compose the server glyph with the distribution logo from the vendored Simple Icons set. Unknown distributions fall back to a generic Linux or server glyph. Tests should cover precedence and unknown IDs.
+- **Older views.** `icons` is optional, with no default. A view saved before the field existed leaves the applying device's choices unchanged, instead of wiping them. A view saved now always carries its exact map, which may be empty.
+- **Distribution derivatives.** A distribution without a vendored logo uses its closest `ID_LIKE` family that has one, for example Kali shows Debian and Rocky shows CentOS. With no match it shows the generic Linux mark. The inspector always names the exact `PRETTY_NAME`.
+- **Server glyph.** A host badge showing any technology (OS, name hint or owner choice) keeps a small server glyph on its lower edge. Compact nested labels omit it.
 
-## Step 3: cross-device icon choices (after the icon layer lands)
+## Design
 
-- Add `icons: z.record(resourceId, iconKey).default({})` to `observatoryViewConfigurationSchema`. Use the icon layer's closed key set and reject unsafe keys. Existing stored v2 rows and older payloads stay valid through the default, so no migration is needed.
-- Map `ObservatoryPresentation.icons` both ways in the canonical-view save/apply path in `OperationalObservatory.tsx`, beside `palette` and `colors`.
-- Named views stay owner-only with no MCP write. Record that intentional exclusion and its reason in the agent workflow doc, per AGENTS.md.
+### Collector and contract
 
-## Rollout order
+- Both collectors (`scripts/linux-host-collector.py` and `.mjs`) add an optional `os: {id, idLike, prettyName, platform}`.
+  - They parse os-release with its shell quoting rules: `/etc/os-release`, else `/usr/lib/os-release`.
+  - Proxmox VE is detected from `/usr/bin/pveversion` (a file) or `/etc/pve` (a directory), without running a command.
+  - Values are clamped to the contract: an invalid `ID` becomes `linux`; `ID_LIKE` is filtered, de-duplicated and capped at 8; `PRETTY_NAME` drops control characters, stops at 200 UTF-16 units and falls back to `Linux`.
+  - An unreadable os-release omits `os`, so capacity telemetry never stops for it.
+- `linuxHostOsSchema` in `packages/contracts/src/real-integrations.ts` validates the identity strictly, and `linuxHostSampleSchema.os` is optional.
+  - The server checks `prettyName` only for length and control characters. Python and JavaScript trim different whitespace, and a trim rule could reject a valid sample.
 
-1. Deploy the server release that accepts the optional `os` field first, through the existing constrained deployment gates.
-2. Only then update collectors on Electra (Node) and Pleiades, Maia and Titan (Python). A collector that sends `os` to the current receiver will be rejected, and that host's telemetry will go stale.
-3. Verify one fresh sample per host with `os` present, a platform observation in the scene, and an unchanged capacity cadence. Rollback replaces only the collector script; the timer is unchanged.
+### Storage and scene
 
-The cloud session that prepared this plan has no SSH or Tailscale access, so collector rollout needs a session with host access, such as Kronos.
+- **Storage.** There is no new table. The receiver already keeps the exact original sample in its source envelope. `collectObservatoryRecords` derives one platform per host from the same latest validated sample that supplies `host_memory_total`, with the same envelope as `evidenceRef`.
+- **Scene.** `platformObservations: [{resourceId, osId, osIdLike, prettyName, platform, observedAt, evidenceRef}]`.
+  - The application read includes it only with `observatory.signals.read`, inside the authorized population, validated and unique per resource.
+  - The domain projection includes it only while the resource's telemetry facet is available.
+  - The scene superRefine rejects foreign or duplicate subjects. It does not change `projectionRevision`.
+- **MCP.** `get_observatory_scene` returns the same field through the shared read service. OpenAPI is regenerated.
 
-## Done means
+### UI
 
-Hosts with collectors show their OS or platform on badges automatically. Icon choices persist across devices through account views. `pnpm check` and `pnpm test` pass. The feature and agent docs are updated.
+- `platformIconId` maps Proxmox VE first, then the exact `ID`, then `ID_LIKE` families, else `linux`. `defaultResourceIconId` applies it to hosts before name hints. An explicit choice still wins through `resolveResourceIcon`.
+- The inspector shows the reported operating system and its observation time. Telemetry evidence lists the platform observation with its envelope link. The picker's automatic option says when it comes from the reported operating system.
+- The account view save path stores `observatoryViewIcons(preferences.icons)`: canonical resource IDs naming a known icon, sorted, at most 1000. Apply uses `appliedObservatoryIcons`, which keeps device choices for older views and drops icon keys this client does not vendor. The contract accepts UUID keys and icon keys matching `^[a-z0-9][a-z0-9-]{0,39}$`.
+
+### Authority
+
+| Operation | Risk and scope | Approval/capability | Audit |
+| --- | --- | --- | --- |
+| Host sample with `os` | existing token-scoped receive; one host integration | host receiver token | existing `integration.real_observation_imported` |
+| Scene platform read | read only; authorized population, telemetry facet | `observatory.read` + `observatory.signals.read` (MCP) or owner session | existing scene read audit |
+| Account view create/update carrying `icons` | reversible; owner, optional project | owner session; owner | existing `observatory.view.create`, `observatory.view.update` |
+
+No new action capability is introduced. Icon choices stay outside MCP, like the rest of the private view. The [agent workflow](../../architecture/observatory-agent-workflow.md) records that omission and its reason.
+
+## Implementation record (2026-10-18)
+
+| Layer | Where |
+| --- | --- |
+| Collectors | `scripts/linux-host-collector.py`, `scripts/linux-host-collector.mjs`, with tests in `scripts/linux-host-collector_test.py` and `scripts/linux-host-collector.test.mjs` |
+| Contracts | `linuxHostOsSchema`, optional `linuxHostSampleSchema.os`; `observatoryPlatformObservationSchema` and `platformObservations` on the scene; optional `icons` on `observatoryViewConfigurationSchema`; regenerated OpenAPI with scene and receiver descriptions |
+| Domain | `ObservatoryPlatformObservation`, `platforms` input, telemetry-gated `platformObservations` projection |
+| Application | `platforms` validation and the signals grant in the authorized read |
+| Persistence | `collectObservatoryRecords` derives platforms from the latest validated host sample |
+| MCP | `get_observatory_scene` description; parity test in `apps/web/lib/observatory-mcp.test.ts` |
+| UI | `platformIconId` and the host precedence in `resource-icons.ts`; the server glyph in `ObservatoryResourceMark`; the inspector OS row, telemetry evidence and picker hint in `OperationalObservatory.tsx`; `normalizeObservatoryIcons`, `observatoryViewIcons` and `appliedObservatoryIcons` in `observatory-preferences.ts` |
+| Fixtures | Operational fixture and synthetic preview seed a Proxmox VE host and an Ubuntu host |
+
+## Verification
+
+The verification results are recorded in the pull request. They cover:
+
+- the Python and Node collector suites;
+- live runs of both collectors on an Ubuntu container, which produced identical `os` output;
+- the contract, domain, application, UI and MCP vitest suites;
+- PostgreSQL 18 integration tests for Observatory access isolation, named views, real integrations and the infrastructure overview, including a real receive of a sample with `os` through the authorized scene and project isolation of the platform;
+- `pnpm check` and `pnpm test`.
+
+Not verified: a browser screenshot of the new badges, physical TV or phone rendering, and any production read.
+
+## Production activation gate
+
+Hosts will show their OS only after both steps below, in this order. The [real integrations notes](../../../deploy/real-integrations.md#operating-system-identity-rollout) give the full procedure.
+
+1. A reviewed release that accepts `os` is deployed through the constrained deployment workflow.
+2. The collector script is replaced on Electra (Node) and on Pleiades, Maia and Titan (Python). The units, timers, environment files and tokens stay unchanged. Then one sample per host is verified.
+
+The current receiver rejects unknown sample keys, so updating a collector first would make that host's telemetry go stale. The cloud session that implemented this had no SSH or Tailscale access to the hosts. The rollout needs a session with host access, such as Kronos.

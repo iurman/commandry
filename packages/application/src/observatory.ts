@@ -63,6 +63,7 @@ import {
   observatoryLogoQuerySchema,
   observatoryLogoReadResultSchema,
   observatoryLogoReferenceSchema,
+  observatoryPlatformObservationSchema,
 } from "@commandry/contracts";
 
 /** Server-established scope, never public request JSON or a new credential system. */
@@ -459,6 +460,20 @@ function authorizedInput(
         };
       });
     unique(logos.map((item) => item.resourceId));
+    // Reported with host telemetry, so it needs the same grant as metrics.
+    const platforms = permitted(access, "observatory.signals.read")
+      ? (candidate.platforms ?? [])
+          .filter((item) => subject(item.resourceId))
+          .map((item) => {
+            const parsed = observatoryPlatformObservationSchema.parse({
+              ...item,
+              resourceId: uuid.parse(item.resourceId),
+            });
+            evidence([parsed.evidenceRef]);
+            return parsed;
+          })
+      : [];
+    unique(platforms.map((item) => item.resourceId));
     const scopeDigest = foundationDigest({
       authorizedScope: access.scopeDigest,
       owner: access.owner,
@@ -498,6 +513,7 @@ function authorizedInput(
       providerNotices,
       attributions,
       logos,
+      platforms,
     };
   } catch (error) {
     if (error instanceof FoundationError) throw error;

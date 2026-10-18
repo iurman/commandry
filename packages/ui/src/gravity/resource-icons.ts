@@ -10,7 +10,17 @@ export type ResourceIcon = {
   /** Brand colour, when the logo has one. */
   hex?: string;
 };
-type IconSubject = { kind: string; label: string };
+/** A host's reported operating system identity (a scene platform observation). */
+export type ResourcePlatform = {
+  osId: string;
+  osIdLike: readonly string[];
+  platform: string | null;
+};
+type IconSubject = {
+  kind: string;
+  label: string;
+  platform?: ResourcePlatform | undefined;
+};
 
 // Original generic glyphs. They name what a resource is when no technology is known.
 const glyphs: ResourceIcon[] = [
@@ -142,10 +152,46 @@ const hints: [RegExp, string][] = [
   [/\bfreebsd\b/, "freebsd"],
 ];
 
-/** The automatic icon: a recognised technology in the resource's own name,
- * else its kind. Repositories show the GitHub mark, their only source today.
+// os-release IDs with a vendored logo. Anything else uses its ID_LIKE family.
+const osIcons: Record<string, string> = {
+  debian: "debian",
+  raspbian: "raspberrypi",
+  ubuntu: "ubuntu",
+  linuxmint: "linuxmint",
+  pop: "popos",
+  fedora: "fedora",
+  centos: "centos",
+  almalinux: "almalinux",
+  arch: "archlinux",
+  archarm: "archlinux",
+  manjaro: "manjaro",
+  "manjaro-arm": "manjaro",
+  alpine: "alpinelinux",
+  opensuse: "opensuse",
+  "opensuse-leap": "opensuse",
+  "opensuse-tumbleweed": "opensuse",
+  "opensuse-microos": "opensuse",
+  openwrt: "openwrt",
+  haos: "homeassistant",
+  freebsd: "freebsd",
+};
+
+/** The icon a reported platform names: a detected platform such as Proxmox VE,
+ * then the exact distribution, then the closest ID_LIKE family, else Linux. */
+export function platformIconId(platform: ResourcePlatform): string {
+  if (platform.platform === "proxmox-ve") return "proxmox";
+  for (const id of [platform.osId, ...platform.osIdLike])
+    if (Object.hasOwn(osIcons, id)) return osIcons[id]!;
+  return "linux";
+}
+
+/** The automatic icon: a host's reported operating system, else a recognised
+ * technology in the resource's own name, else its kind. Repositories show the
+ * GitHub mark; an approved repository logo replaces it in the badge.
  */
 export function defaultResourceIconId(subject: IconSubject): string {
+  if (subject.kind === "host" && subject.platform)
+    return platformIconId(subject.platform);
   if (subject.kind !== "collection" && subject.kind !== "project") {
     const name = subject.label.toLocaleLowerCase();
     for (const [pattern, id] of hints) if (pattern.test(name)) return id;

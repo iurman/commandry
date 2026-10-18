@@ -211,6 +211,20 @@ export type ObservatoryCapacityObservation = {
   observedAt: string;
   evidenceRef: string;
 };
+/** Operating system identity a host reported in its own telemetry. It is an
+ * observation with evidence, never a role, mapping or placement input. */
+export type ObservatoryPlatformObservation = {
+  resourceId: string;
+  /** os-release ID, such as "debian". */
+  osId: string;
+  /** os-release ID_LIKE, closest first. */
+  osIdLike: string[];
+  prettyName: string;
+  /** A platform identified beyond os-release, such as Proxmox VE on Debian. */
+  platform: "proxmox-ve" | null;
+  observedAt: string;
+  evidenceRef: string;
+};
 export type ObservatorySummary = {
   availability: ObservatoryStateCounts & {
     required: ObservatoryStateCounts;
@@ -300,6 +314,7 @@ export type ObservatoryScene = {
   })[];
   sourceObservations: ObservatorySourceObservation[];
   capacityObservations: ObservatoryCapacityObservation[];
+  platformObservations: ObservatoryPlatformObservation[];
   providerExposures: ObservatoryProviderExposure[];
   summary: ObservatorySummary;
   searchResults: ObservatorySearchResult[];
@@ -332,6 +347,8 @@ export type ObservatoryInput = {
   sectors?: readonly ObservatorySector[];
   /** Active approved logos, one per resource. */
   logos?: readonly (ObservatoryLogoReference & { resourceId: string })[];
+  /** Latest reported operating system identity, at most one per resource. */
+  platforms?: readonly ObservatoryPlatformObservation[];
   expandedRepresentationIds?: readonly string[];
   search?: string;
   /** "groups" shows roots and explicitly expanded members only. */
@@ -1063,6 +1080,9 @@ export function projectObservatory(input: ObservatoryInput): ObservatoryScene {
   const logos = new Map(
     (input.logos ?? []).map(({ resourceId, ...logo }) => [resourceId, logo]),
   );
+  const platforms = new Map(
+    (input.platforms ?? []).map((item) => [item.resourceId, item]),
+  );
   const add = (
     id: string,
     kind: ObservatoryKind,
@@ -1475,6 +1495,14 @@ export function projectObservatory(input: ObservatoryInput): ObservatoryScene {
             }))
         : [],
     ),
+    // Reported with telemetry, so it shares the telemetry facet's disclosure.
+    platformObservations: ordered.flatMap((resource) => {
+      const platform = platforms.get(resource.id);
+      return platform &&
+        accessFor(facetIndex, resource.id, "telemetry") === "available"
+        ? [{ ...platform, osIdLike: [...platform.osIdLike] }]
+        : [];
+    }),
     providerExposures: [],
     summary: emptySummary,
     searchResults: [],
