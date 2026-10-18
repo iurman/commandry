@@ -236,7 +236,11 @@ export function ObservatoryRoster({
   children: ReactNode;
 }) {
   return (
-    <div className="cmd-op-roster" data-gravity-obstacle>
+    <div
+      className="cmd-op-roster"
+      data-gravity-obstacle
+      onPointerDown={(event) => event.stopPropagation()}
+    >
       <div className="cmd-op-stage-actions">{children}</div>
       {groups.length > 0 && (
         <nav aria-label="Primary groups">
