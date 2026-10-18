@@ -1,4 +1,4 @@
-import { surfaceHeight } from "./model";
+import { basinField, floorSwell, surfaceHeight } from "./model";
 import type { Well } from "./model";
 
 export type LabelPosition = {
@@ -8,18 +8,37 @@ export type LabelPosition = {
   visible: boolean;
   opacity: number;
   attention?: boolean;
+  /** Structural admission priority: groups before the members they contain. */
+  rank?: number;
+  /** Farthest collision offset, in CSS pixels, that still names this subject. */
+  leash?: number;
 };
 type State = { x: number; y: number; opacity: number; admitted: boolean };
 type Separation = { axis: "x" | "y"; direction: number };
 
 // Labels belong to the structural crest, not the animated floor or a neighbour.
+// The resource's own basin calms the floor swell without lowering its label.
 export function labelHeight(well: Well, parent?: Well) {
+  const context = basinField(well.x, well.z, parent ? [parent] : []);
+  const own = basinField(well.x, well.z, [well]);
   return (
-    surfaceHeight(well.x, well.z, parent ? [parent] : []) +
+    floorSwell(well.x, well.z) * Math.exp(-(context.calm + own.calm)) +
+    context.height +
     well.elevation +
     well.radius * 0.13 +
     0.8
   );
+}
+
+/** An open pool is named on its far rim so it never covers the members it names. */
+export function poolLabelPoint(
+  well: Well,
+  forward: { x: number; z: number },
+): { x: number; y: number; z: number } {
+  const length = Math.hypot(forward.x, forward.z) || 1;
+  const x = well.x + (forward.x / length) * well.radius * well.aspect * 0.98,
+    z = well.z + (forward.z / length) * well.radius * 0.98;
+  return { x, y: surfaceHeight(x, z, [well]) + 0.6, z };
 }
 
 export class LabelLayout {
@@ -176,6 +195,7 @@ export class LabelLayout {
         ? 1000
         : 0) +
       (box.anchor.attention ? 100 : 0) +
+      (box.anchor.rank ?? 0) +
       (box.state.admitted ? 1 : 0);
     return boxes
       .sort(
@@ -209,8 +229,11 @@ export class LabelLayout {
             Math.abs(rendered.y - other.y) <
               (rendered.height + other.height) / 2 + 6,
         );
+        // A label pushed far from a small nested basin would name a neighbour.
+        const leashed =
+          anchor.leash === undefined || Math.hypot(x, y) <= anchor.leash;
         // Every well remains rendered and in the picker. Only labels compete for space.
-        state.admitted = anchor.visible && fits && !overlaps;
+        state.admitted = anchor.visible && fits && !overlaps && leashed;
         const opacity = state.admitted ? 1 : 0;
         if (state.admitted) occupied.push(rendered);
         else state.opacity = Math.min(state.opacity, 0.04);

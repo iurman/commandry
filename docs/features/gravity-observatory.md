@@ -6,7 +6,9 @@ The Observatory presents one complete authorized landscape of resources and thei
 
 ## Landscape and interaction
 
-Every authorized resource has one canonical identity. Collections, progressive expansion and explicit shared-resource references reduce visual weight without removing members. Counts and aliases are computed after authorization. Host, project, provider and per-sector custom grouping preserve canonical containment. A project link, name match or repository URL cannot establish deployment, provider dependency or network traffic.
+Every authorized resource has one canonical identity. Collections, progressive expansion and explicit shared-resource references reduce visual weight without removing members. Counts and aliases are computed after authorization.
+
+By owner decision (2026-10-17), nested members are visible by default: the projection reveals whole sibling sets breadth-first while the scene stays within 200 active representations and four levels. A larger group stays an aggregate until it is expanded or searched; explicit expansion always opens it. Outline expansion is independent and starts collapsed. Collections and project groups are drawn as pools whose flat floor encloses their packed members; resource members orbit their host or provider in non-overlapping sectors, and top-level clusters keep clear of each other's full extent. Overview labels name top-level groups only. A member is named when its parent is on the selected path, when its cluster fills most of the view, or when it carries attention, so revealing detail never floods the scene with labels. Host, project, provider and per-sector custom grouping preserve canonical containment. A project link, name match or repository URL cannot establish deployment, provider dependency or network traffic.
 
 Repository collections remain compact. An unmapped repository is not described as undeployed, idle or healthy. InfraAgent, CRM and Arvo repositories remain inventory unless the owner separately authorizes operational tracking. InfraAgent is design prior art, not a required monitoring account or connector.
 

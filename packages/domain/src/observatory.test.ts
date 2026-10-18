@@ -1,5 +1,7 @@
 import { describe, expect, it } from "vitest";
 import {
+  OBSERVATORY_REVEAL_BUDGET,
+  OBSERVATORY_REVEAL_DEPTH,
   evaluateObservatoryProviderExposure,
   observatoryFreshness,
   observatoryMembers,
@@ -219,8 +221,84 @@ describe("complete semantic Observatory population", () => {
     ).toBe(nested.parentResourceId);
   });
 
-  it("reveals every collapsed unmapped repository and restores the same grouping on clear", () => {
+  it("reveals nested members by default within the representation budget", () => {
     const fixture = mixedObservatoryFixture();
+    const scene = projectObservatory(fixture);
+    expect(scene.representations.length).toBeLessThanOrEqual(
+      OBSERVATORY_REVEAL_BUDGET,
+    );
+    expect([...scene.visibleRepresentationIds].sort()).toEqual(
+      scene.representations.map((node) => node.id).sort(),
+    );
+    expectConservation(
+      scene,
+      fixture.resources.map((resource) => resource.id),
+    );
+    // Explicit expansion state is independent of default detail.
+    expect(
+      projectObservatory({
+        ...fixture,
+        expandedRepresentationIds: scene.representations.map((node) => node.id),
+      }).visibleRepresentationIds,
+    ).toEqual(scene.visibleRepresentationIds);
+  });
+
+  it("keeps whole groups aggregated beyond the budget and below the reveal depth", () => {
+    const input = scaleObservatoryFixture();
+    const scene = projectObservatory(input);
+    const visible = new Set(scene.visibleRepresentationIds);
+    expect(visible.size).toBeLessThanOrEqual(OBSERVATORY_REVEAL_BUDGET);
+    expect(visible.size).toBeGreaterThan(scene.rootRepresentationIds.length);
+    expectConservation(
+      scene,
+      input.resources.map((resource) => resource.id),
+    );
+    const byId = new Map(scene.representations.map((node) => [node.id, node]));
+    const level = (id: string) => {
+      let depth = 0;
+      for (
+        let parent = byId.get(id)!.parentRepresentationId;
+        parent;
+        parent = byId.get(parent)!.parentRepresentationId
+      )
+        depth++;
+      return depth;
+    };
+    for (const id of visible) {
+      expect(level(id)).toBeLessThanOrEqual(OBSERVATORY_REVEAL_DEPTH);
+      // A revealed group shows every member, never a partial sibling set.
+      const children = scene.membershipIndex.children[id] ?? [];
+      const shown = children.filter((child) => visible.has(child)).length;
+      expect([0, children.length]).toContain(shown);
+    }
+    const wide = scene.representations.find(
+      (node) =>
+        visible.has(node.id) &&
+        (scene.membershipIndex.children[node.id] ?? []).length >
+          OBSERVATORY_REVEAL_BUDGET,
+    )!;
+    expect(wide).toBeDefined();
+    expect(
+      scene.membershipIndex.children[wide.id]!.some((id) => visible.has(id)),
+    ).toBe(false);
+    const opened = projectObservatory({
+      ...input,
+      expandedRepresentationIds: [wide.id],
+    });
+    expect(
+      scene.membershipIndex.children[wide.id]!.every((id) =>
+        opened.visibleRepresentationIds.includes(id),
+      ),
+    ).toBe(true);
+    expect(
+      projectObservatory({ ...input, revealBudget: 0 })
+        .visibleRepresentationIds,
+    ).toEqual([...scene.rootRepresentationIds].sort());
+  });
+
+  it("reveals every collapsed unmapped repository and restores the same grouping on clear", () => {
+    // Without a default detail budget, unmapped repositories start aggregated.
+    const fixture = { ...mixedObservatoryFixture(), revealBudget: 0 };
     const initial = projectObservatory(fixture);
     for (const resource of fixture.resources.filter(
       (item) => item.kind === "repository" && !item.projects.length,

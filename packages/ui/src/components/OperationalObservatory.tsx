@@ -360,13 +360,11 @@ function OperationalObservatoryView({
     [systemReduced, setSystemReduced] = useState(false);
   const [camera, setCamera] = useState<CameraMode>("composed"),
     [reading, setReading] = useState(false);
-  const initialExpanded = scene.representations
-    .filter((node) =>
-      (scene.membershipIndex.children[node.id] ?? []).some((child) =>
-        scene.visibleRepresentationIds.includes(child),
-      ),
-    )
-    .map((node) => node.id);
+  // Terrain detail is revealed by default; the outline opens only what the
+  // owner (or a remounted scope's prior query) explicitly expanded.
+  const initialExpanded = (
+    initialQuery?.expandedRepresentationIds ?? []
+  ).filter((id) => (scene.membershipIndex.children[id] ?? []).length > 0);
   const [query, setQuery] = useState<ObservatoryQuery>({
     grouping: scene.grouping,
     environment: initialQuery?.environment ?? null,
@@ -743,7 +741,8 @@ function OperationalObservatoryView({
                 previous.every(
                   (anchor, index) =>
                     anchor.id === next[index]?.id &&
-                    anchor.label === next[index]?.label,
+                    anchor.label === next[index]?.label &&
+                    anchor.nested === next[index]?.nested,
                 )
                   ? previous
                   : next,
@@ -1492,7 +1491,7 @@ function OperationalObservatoryView({
               <small>
                 {selected
                   ? `${selected.memberCount} unique resources represented`
-                  : "Select a group to expand and inspect"}
+                  : "Select a group to name and inspect its members"}
               </small>
             </div>
             <div ref={canvas} className="cmd-op-canvas" />
@@ -1503,12 +1502,14 @@ function OperationalObservatoryView({
               {anchors.map((anchor) => {
                 const node = nodes.get(anchor.id.replace(/^lens-/, ""));
                 if (!node) return null;
+                const attention = operationalAttention(node.summary);
                 return (
                   <button
                     key={anchor.id}
                     type="button"
                     data-kind={node.kind}
-                    data-attention={operationalAttention(node.summary)}
+                    data-attention={attention}
+                    data-nested={anchor.nested ? "true" : undefined}
                     className="cmd-op-label"
                     ref={(element) => {
                       if (!element) {
@@ -1534,15 +1535,17 @@ function OperationalObservatoryView({
                     </span>
                     <span>
                       <strong>{node.label}</strong>
-                      <small>
-                        {kindNames[node.kind]} / {node.memberCount}
-                        {node.referenceTo ? " / reference" : ""}
-                        {operationalAttention(node.summary) === "impact"
-                          ? " / confirmed impact"
-                          : operationalAttention(node.summary) === "exposure"
-                            ? " / potential exposure"
-                            : ""}
-                      </small>
+                      {(!anchor.nested || attention !== "neutral") && (
+                        <small>
+                          {kindNames[node.kind]} / {node.memberCount}
+                          {node.referenceTo ? " / reference" : ""}
+                          {attention === "impact"
+                            ? " / confirmed impact"
+                            : attention === "exposure"
+                              ? " / potential exposure"
+                              : ""}
+                        </small>
+                      )}
                     </span>
                   </button>
                 );

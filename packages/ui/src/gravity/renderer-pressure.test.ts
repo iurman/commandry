@@ -1006,3 +1006,86 @@ it("adopts the visible in-flight pose instead of retaining a stale focus tween d
     fixture.renderer.dispose();
   }
 });
+
+describe("nested label disclosure", () => {
+  const pool: Well = {
+    id: "pool",
+    label: "Pool",
+    kind: "project",
+    hostId: null,
+    sector: "pool",
+    x: 0,
+    z: 0,
+    radius: 4,
+    depth: 0.45,
+    aspect: 1,
+    angle: 0,
+    elevation: 0,
+    profile: 2.4,
+    attention: false,
+    pool: true,
+  };
+  const members: Well[] = [-1.5, 0, 1.5].map((x, index) => ({
+    ...pool,
+    id: `member-${index}`,
+    label: `Member ${index}`,
+    hostId: "pool",
+    x,
+    z: 0.5,
+    radius: 0.5,
+    depth: 0.4,
+    profile: 1,
+    attention: index === 2,
+    pool: false,
+  }));
+  const host: Well = {
+    ...pool,
+    id: "host",
+    label: "Host",
+    kind: "host",
+    x: 24,
+    radius: 2,
+    depth: 2.3,
+    elevation: 0.7,
+    profile: 1,
+    pool: false,
+  };
+  const population = [pool, ...members, host];
+  type Published = { id: string; visible: boolean; nested?: boolean };
+  const latest = (anchors: ReturnType<typeof vi.fn>) =>
+    new Map(
+      (anchors.mock.lastCall![0] as Published[]).map((anchor) => [
+        anchor.id,
+        anchor,
+      ]),
+    );
+  it("names members only for a selected, close or attention context", () => {
+    const { renderer, frame, anchors, view } = setup(population);
+    try {
+      frame(20);
+      let shown = latest(anchors);
+      expect(shown.get("pool")).toMatchObject({ visible: true, nested: false });
+      expect(shown.get("host")).toMatchObject({ visible: true });
+      expect(shown.get("member-0")).toMatchObject({
+        visible: false,
+        nested: true,
+      });
+      // A member that needs attention is never hidden by disclosure.
+      expect(shown.get("member-2")?.visible).toBe(true);
+      renderer.update(population, { ...settings, selected: "pool" });
+      frame(40);
+      shown = latest(anchors);
+      expect(shown.get("member-0")?.visible).toBe(true);
+      expect(shown.get("member-1")?.visible).toBe(true);
+      renderer.update(population, settings);
+      frame(60);
+      expect(latest(anchors).get("member-1")?.visible).toBe(false);
+      // Bringing the pool close enough to fill the view names its members.
+      view(0, 0);
+      frame(80);
+      expect(latest(anchors).get("member-1")?.visible).toBe(true);
+    } finally {
+      renderer.dispose();
+    }
+  });
+});
