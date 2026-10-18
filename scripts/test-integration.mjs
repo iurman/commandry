@@ -65,6 +65,34 @@ async function prepareStandaloneWebAssets() {
 }
 
 async function runTests(connectionString, runtimePassword, testPath) {
+  if (testPath !== "packages/platform/src/observatory-logo.integration.test.ts")
+    return runTestsInDatabase(connectionString, runtimePassword, testPath);
+
+  // Logo review retains immutable owner provenance. Keep its complete fixture
+  // database separate from later single-owner authentication and recovery tests.
+  const manager = postgres.getPgClient("postgres", "127.0.0.1");
+  await manager.connect();
+  try {
+    await manager.query(
+      "CREATE DATABASE commandry_logo_integration WITH TEMPLATE commandry_integration",
+    );
+    try {
+      const isolatedUrl = new URL(connectionString);
+      isolatedUrl.pathname = "/commandry_logo_integration";
+      await runTestsInDatabase(
+        isolatedUrl.toString(),
+        runtimePassword,
+        testPath,
+      );
+    } finally {
+      await manager.query("DROP DATABASE commandry_logo_integration");
+    }
+  } finally {
+    await manager.end();
+  }
+}
+
+async function runTestsInDatabase(connectionString, runtimePassword, testPath) {
   const child = spawn(
     process.execPath,
     ["--import", "tsx", "--test", testPath],
