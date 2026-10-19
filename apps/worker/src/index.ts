@@ -651,6 +651,9 @@ const operationalReaders = config.operationalSourcePolling
       ...(config.observatoryCloudflareTokenFile
         ? { cloudflareTokenFile: config.observatoryCloudflareTokenFile }
         : {}),
+      ...(config.observatoryProbeOriginResourceId
+        ? { probeOriginResourceId: config.observatoryProbeOriginResourceId }
+        : {}),
       ...(config.observatoryEndpointChecksFile
         ? { endpointChecksFile: config.observatoryEndpointChecksFile }
         : {}),

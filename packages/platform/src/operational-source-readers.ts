@@ -110,6 +110,7 @@ export async function createOperationalSourceReaders(
     cloudflareAccountId?: string;
     cloudflareTokenFile?: string;
     endpointChecksFile?: string;
+    probeOriginResourceId?: string;
     githubTokenFile?: string;
     infraAgentOrigin?: string;
     infraAgentKeyFile?: string;
@@ -183,6 +184,9 @@ export async function createOperationalSourceReaders(
           catalogue: await readEndpointCheckCatalogue(
             options.endpointChecksFile,
           ),
+          ...(options.probeOriginResourceId
+            ? { originResourceId: options.probeOriginResourceId }
+            : {}),
           ...transport,
         }),
       });

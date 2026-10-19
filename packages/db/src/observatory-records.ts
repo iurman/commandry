@@ -1,5 +1,8 @@
 import { and, asc, desc, eq, inArray, isNotNull, sql } from "drizzle-orm";
-import { linuxHostSampleSchema } from "@commandry/contracts";
+import {
+  observatoryProbeTransportSchema,
+  linuxHostSampleSchema,
+} from "@commandry/contracts";
 import {
   infrastructureTelemetry,
   projectObservatoryProviderNotices,
@@ -275,6 +278,15 @@ export async function collectObservatoryRecords(
           );
         return {
           ...signal,
+          ...(source.kind === "endpoint-check" &&
+          signal.facet === "availability" &&
+          source.snapshot?.probeTransport
+            ? {
+                probe: observatoryProbeTransportSchema.parse(
+                  source.snapshot.probeTransport,
+                ),
+              }
+            : {}),
           sourceQualification:
             sourceAccess(source) === "available"
               ? ("current" as const)
