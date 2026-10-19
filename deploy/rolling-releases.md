@@ -17,6 +17,13 @@ must come from `github-actions[bot]`, link that run attempt and contain one
 unambiguous SHA-256 digest. No production SSH key or owner password is
 sent to Actions. A stale or failed run cannot displace the current release.
 
+The controller first checks a public `qualified-SHA` registry hint. The publisher
+creates it only after qualification, immutable readback and the digest receipt.
+An absent hint causes no GitHub REST polling; this preserves the anonymous API
+budget shared with Commandry's repository reader. The hint grants no authority:
+the current main run, all twelve jobs, trusted receipt and digest must still
+agree. A canceled publisher cannot qualify even if it managed to push the hint.
+
 Root-owned `/etc/commandry/rolling-policy.json` contains version `1`, repository
 `iurman/commandry`, the enrolled `controls` and `migrations` SHA-256 fingerprints,
 `minimumRunId`, `enabled`, `confirmSeconds` (10-300) and `retainSeconds` (300-86400).

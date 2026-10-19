@@ -208,9 +208,23 @@ class RolloutTests(unittest.TestCase):
         self.assert_old()
 
     def test_new_main_and_api_outage_never_mutate_application(self):
-        with patch.object(r, "main_head", return_value=NEW), patch.object(a, "api", side_effect=OSError("offline")):
+        with patch.object(r, "main_head", return_value=NEW), patch.object(a, "registry_hint", return_value="sha256:" + "b" * 64), patch.object(a, "api", side_effect=OSError("offline")):
             with self.assertRaises(OSError):
                 a.tick(self.rollout)
+        self.assert_old()
+
+    def test_build_without_publication_hint_does_not_poll_actions_api(self):
+        with patch.object(r, "main_head", return_value=NEW), patch.object(a, "registry_hint", return_value=None), patch.object(a, "api") as api:
+            a.tick(self.rollout)
+            api.assert_not_called()
+        self.assert_old()
+
+    def test_settled_canceled_hint_does_not_repeat_github_api_calls(self):
+        hint = "sha256:" + "b" * 64
+        r.json_write(self.rollout.state / "automatic-poll.json", {"head": NEW, "hint": hint, "terminal": True, "checkedAt": 0})
+        with patch.object(r, "main_head", return_value=NEW), patch.object(a, "registry_hint", return_value=hint), patch.object(a, "api") as api:
+            a.tick(self.rollout)
+            api.assert_not_called()
         self.assert_old()
 
     def test_backup_receipts_require_every_recovery_and_release_identity(self):

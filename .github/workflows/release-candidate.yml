@@ -323,6 +323,8 @@ jobs:
           test "$(docker image inspect "$image_ref" --format '{{.Id}}')" = "$source_id"
           node -e 'require("node:fs").writeFileSync(process.argv[1],JSON.stringify({state:"success",context:"commandry/qualified-image",description:process.argv[2],target_url:`${process.env.GITHUB_SERVER_URL}/${process.env.GITHUB_REPOSITORY}/actions/runs/${process.env.GITHUB_RUN_ID}/attempts/${process.env.GITHUB_RUN_ATTEMPT}`}))' "$RUNNER_TEMP/qualified-status.json" "$digest"
           gh api --method POST "repos/$GITHUB_REPOSITORY/statuses/$GITHUB_SHA" --input "$RUNNER_TEMP/qualified-status.json" >/dev/null
+          docker image tag "$source_image" "$repository:qualified-$GITHUB_SHA"
+          docker push "$repository:qualified-$GITHUB_SHA" >/dev/null
           {
             echo '## Commandry release candidate'
             echo "- Commit: \`${GITHUB_SHA}\`"

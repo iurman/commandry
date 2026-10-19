@@ -12,6 +12,7 @@ import sys
 import time
 from datetime import datetime, timedelta, timezone
 from urllib.request import Request, urlopen
+from urllib.error import HTTPError
 
 sys.dont_write_bytecode = True
 spec = importlib.util.spec_from_file_location("commandry_rolling", Path(__file__).with_name("commandry-rolling.py"))
@@ -60,6 +61,38 @@ def published_digest(statuses, run):
     return next(iter(matches))
 
 
+def registry_hint(rollout, head):
+    """Registry availability is only a wake-up hint, never promotion authority."""
+    token_file = rollout.state / "registry-read-token.json"
+    cached = {}
+    if token_file.exists():
+        rollout.trusted(token_file, True)
+        cached = json.loads(token_file.read_text())
+    if cached.get("expiresAt", 0) < time.time() + 45:
+        request = Request("https://ghcr.io/token?service=ghcr.io&scope=repository:iurman/commandry:pull",
+                          headers={"User-Agent": "commandry-release-controller"})
+        with urlopen(request, timeout=15) as response:
+            content = response.read(32_001)
+            rolling.require(len(content) <= 32_000, "oversized anonymous registry token")
+            token = json.loads(content)
+        cached = {"token": token["token"], "expiresAt": time.time() + min(token.get("expires_in", 300), 600)}
+        rolling.json_write(token_file, cached)
+    request = Request(f"https://ghcr.io/v2/iurman/commandry/manifests/qualified-{head}", method="HEAD",
+                      headers={"User-Agent": "commandry-release-controller", "Authorization": "Bearer " + cached["token"],
+                               "Accept": "application/vnd.oci.image.manifest.v1+json, application/vnd.docker.distribution.manifest.v2+json"})
+    try:
+        with urlopen(request, timeout=15) as response:
+            digest = response.headers.get("Docker-Content-Digest", "")
+            rolling.require(re.fullmatch(r"sha256:[0-9a-f]{64}", digest), "invalid registry hint")
+            return digest
+    except HTTPError as error:
+        if error.code == 404:
+            return None
+        if error.code == 401:
+            token_file.unlink(missing_ok=True)
+        raise
+
+
 def locked(rollout, operation):
     lock = rollout.state / "deploy.lock"
     rolling.require(not lock.is_symlink(), "symlinked deployment lock")
@@ -104,18 +137,26 @@ def tick(rollout):
     rejected = rollout.state / "automatic-rejected.json"
     if rejected.exists() and json.loads(rejected.read_text())["revision"] == head:
         return
+    hint = registry_hint(rollout, head)
+    if hint is None:
+        return
     state_file = rollout.state / "automatic-poll.json"
     state = json.loads(state_file.read_text()) if state_file.exists() else {}
-    if state.get("head") == head and time.time() - state.get("checkedAt", 0) < 60:
-        return
-    rolling.json_write(state_file, {"head": head, "checkedAt": time.time()})
+    if state.get("head") == head and state.get("hint") == hint:
+        if state.get("terminal") or time.time() - state.get("checkedAt", 0) < 60:
+            return
+    state = {"head": head, "hint": hint, "checkedAt": time.time(), "terminal": False}
+    rolling.json_write(state_file, state)
     runs = api("actions/workflows/release-candidate.yml/runs?branch=main&per_page=20")["workflow_runs"]
     selected = next((run for run in runs if run["head_sha"] == head), None)
     if selected is None or selected["status"] != "completed" or selected["conclusion"] != "success":
+        if selected is not None and selected["status"] == "completed":
+            rolling.json_write(state_file, {**state, "terminal": True})
         return
     jobs = api(f"actions/runs/{selected['id']}/attempts/{selected['run_attempt']}/jobs?per_page=100")
     tag = qualified(selected, jobs, head, rollout.policy["minimumRunId"])
     expected_digest = published_digest(api(f"commits/{head}/statuses?per_page=100"), selected)
+    rolling.require(expected_digest == hint, "registry hint differs from qualified publication")
     image_tag = "ghcr.io/iurman/commandry:" + tag
     rollout.step = "automatic_candidate_pull"
     rollout.docker("pull", image_tag, timeout=180)

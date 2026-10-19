@@ -53,8 +53,10 @@ most of that time was fresh recovery verification while old code was available.
 
 This change overlaps independent candidate startup/stability with that recovery
 gate and removes the ingress stop. It polls Git refs every fifteen seconds after
-an idle controller run, and queries the public workflow API at most once per
-minute only while a different main revision awaits qualification. GitHub or
+an idle controller run. It checks a public registry readiness hint before querying
+the workflow API, then verifies all evidence independently. Builds still running
+or failing before publication consume no controller GitHub REST calls. A settled
+canceled publication is held until a new registry signal. GitHub or
 registry unavailability delays promotion. Report queue, CI, pull, candidate,
 recovery, confirmation and public error observations separately. No new speed
 claim is valid until measured.
