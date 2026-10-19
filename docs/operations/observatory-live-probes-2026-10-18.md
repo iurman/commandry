@@ -109,6 +109,21 @@ verification, not evidence of new production observations. Its qualified release
 and actual live visual verification must be recorded separately before claiming
 the owner-reported issue resolved.
 
+### Foreground transmission follow-up
+
+The owner again reported that resource-to-resource signals were not visible
+after PR 52. Badge pulses and 3D paths still did not meet the requested visual
+acceptance. The foreground implementation separates check paths from terrain
+depth: persistent dashed routes represent current evidenced checks, and large
+labelled arrows carry newly recorded requests and received responses between
+their visible resource/group pins. It preserves the existing scene layout and
+uses masks for labels and briefing controls. A contained check becomes an
+explicit loop, never a fabricated second endpoint. Paused/reduced-motion views
+retain static evidence without moving packets. Qualification and production
+acceptance require actual packets travelling along visible paths; prior counter
+and badge verification is insufficient. Exact activation receipts belong on the
+follow-up pull request after the complete release gates pass.
+
 ## Retained boundaries
 
 Cloudflare recurring inventory still needs the prepared IYU Labs LLC-only read

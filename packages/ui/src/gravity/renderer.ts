@@ -5,6 +5,11 @@ import type { CameraMode, Palette, SurfaceTheme, Well } from "./model";
 import type { ActivitySnapshot, ActivitySource } from "./activity-types";
 import { ActivityRenderer, activeTransfers } from "./activity-renderer";
 import {
+  CheckSignalOverlay,
+  type RecordedCheckRoute,
+  type CheckEndpoint,
+} from "./check-signals";
+import {
   terrainVertex,
   terrainFragment,
   skyVertex,
@@ -122,6 +127,7 @@ export type RendererSettings = {
     running: boolean;
     follow: boolean;
     trace: string | null;
+    routes?: readonly RecordedCheckRoute[];
   };
 };
 export type RendererHooks = {
@@ -261,6 +267,7 @@ export class ObservatoryRenderer {
   private targets: Well[] = [];
   private settings: RendererSettings;
   private activityRenderer = new ActivityRenderer();
+  private checkSignals: CheckSignalOverlay;
   private tethers = new TetherRenderer();
   private activitySnapshot: ActivitySnapshot;
   private nextActivity = 0;
@@ -375,6 +382,7 @@ export class ObservatoryRenderer {
     );
     this.renderer.domElement.setAttribute("role", "img");
     container.append(this.renderer.domElement);
+    this.checkSignals = new CheckSignalOverlay(container);
     this.configureFieldTexture();
     this.camera.position.set(9, 20, 26);
     this.controls = new OrbitControls(this.camera, this.renderer.domElement);
@@ -1323,7 +1331,12 @@ export class ObservatoryRenderer {
     ) {
       const activity = this.settings.activity;
       this.activityRenderer.update(
-        this.activitySnapshot,
+        {
+          ...this.activitySnapshot,
+          transfers: this.settings.activity.routes
+            ? this.activitySnapshot.transfers.filter((flow) => !flow.recorded)
+            : this.activitySnapshot.transfers,
+        },
         this.wells,
         this.settings.palette,
         this.settings.selected,
@@ -1700,6 +1713,69 @@ export class ObservatoryRenderer {
         .map((anchor) => anchor.id),
     );
     this.hooks.anchors(placed);
+    const pins = new Map(
+      placed
+        .filter((anchor) => anchor.visible && anchor.opacity > 0.2)
+        .map((anchor) => [anchor.id, anchor]),
+    );
+    this.checkSignals.update(
+      this.settings.activity.routes ?? [],
+      this.activitySnapshot,
+      (id): CheckEndpoint | null => {
+        const subject = byId.get(id);
+        let well = subject;
+        while (well) {
+          const anchor = pins.get(well.id);
+          if (anchor)
+            return {
+              id: well.id,
+              label: well.label,
+              x: anchor.x,
+              y: anchor.y,
+              ...this.labelLayout.size(well.id),
+            };
+          const parent = parentWellId(well);
+          well = parent ? byId.get(parent) : undefined;
+        }
+        if (!subject) return null;
+        const point = this.project(
+          subject.x,
+          this.anchorHeight(subject),
+          subject.z,
+        );
+        return point.visible
+          ? {
+              id: subject.id,
+              label: subject.label,
+              x: point.x,
+              y: point.y,
+              width: 0,
+              height: 0,
+            }
+          : null;
+      },
+      this.width,
+      this.height,
+      this.settings.motion && this.settings.activity.running,
+      [...pins.values()]
+        .map((anchor) => ({
+          id: anchor.id,
+          label: anchor.label,
+          x: anchor.x,
+          y: anchor.y,
+          ...this.labelLayout.size(anchor.id),
+        }))
+        .concat(
+          this.obstacles.map((panel, index) => ({
+            id: `panel-${index}`,
+            label: "",
+            x: panel.x,
+            y: panel.y + panel.height / 2,
+            width: panel.width,
+            height: panel.height,
+          })),
+        ),
+    );
   }
 
   /** Name every member of a dense framed group in callout columns. */
@@ -1880,6 +1956,7 @@ export class ObservatoryRenderer {
     this.skyGeometry.dispose();
     this.skyMaterial.dispose();
     this.activityRenderer.dispose();
+    this.checkSignals.dispose();
     this.lensGeometry.dispose();
     this.lensMaterial.dispose();
     this.target.dispose();

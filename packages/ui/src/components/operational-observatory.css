@@ -158,6 +158,52 @@
   touch-action: none;
   cursor: grab;
 }
+.cmd-check-signals {
+  --check-ink: #006e83;
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  z-index: 3;
+  pointer-events: none;
+  overflow: hidden;
+}
+[data-theme="midnight"] .cmd-check-signals {
+  --check-ink: #60d6e8;
+}
+.cmd-check-signals [data-failed="true"] {
+  --check-ink: var(--op-impact);
+}
+.cmd-check-signals [data-check-route] path {
+  fill: none;
+  stroke: var(--check-ink);
+  stroke-width: 1.8px;
+  stroke-dasharray: 7 7;
+  stroke-linecap: round;
+  opacity: 0.6;
+}
+.cmd-check-signals [data-check-route][data-active="true"] path {
+  stroke-width: 3.5px;
+  stroke-dasharray: none;
+  opacity: 1;
+  filter: drop-shadow(0 0 3px var(--check-ink));
+}
+.cmd-check-packet-arrow {
+  fill: var(--check-ink);
+  stroke: var(--op-bg);
+  stroke-width: 2px;
+  filter: drop-shadow(0 0 4px var(--check-ink));
+}
+.cmd-check-signals text {
+  font:
+    650 12px system-ui,
+    sans-serif;
+  fill: var(--check-ink);
+  stroke: var(--op-bg);
+  stroke-width: 5px;
+  stroke-linejoin: round;
+  paint-order: stroke;
+}
 .cmd-op-stage-caption {
   position: absolute;
   z-index: 2;

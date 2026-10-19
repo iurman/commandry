@@ -675,6 +675,28 @@ function OperationalObservatoryView({
         : "porcelain"
       : preferences.theme;
   const motion = !reduced && !stopped && !reading;
+  const checkRoutes = useMemo(
+    () =>
+      projection.value
+        ? mapOperationalCheckObservations(scene, projection.value).flatMap(
+            (event) =>
+              event.probe && event.resourceId
+                ? [
+                    {
+                      id: event.id,
+                      from: event.probe.from,
+                      to: event.resourceId,
+                      protocol: event.probe.protocol,
+                      responseTimeMs: event.probe.responseTimeMs,
+                      failed: event.probe.failed,
+                      observedAt: event.occurredAt,
+                    },
+                  ]
+                : [],
+          )
+        : [],
+    [scene, projection],
+  );
   const pending =
     query.viewRevision !== scene.viewRevision ||
     query.grouping !== scene.grouping;
@@ -699,6 +721,7 @@ function OperationalObservatoryView({
       stops: projection.value?.primaryGroupIds ?? [],
       activity: {
         source: activity,
+        routes: checkRoutes,
         running: !stopped && !delayed && !pending && !reading,
         follow: false,
         trace: null,
@@ -716,6 +739,7 @@ function OperationalObservatoryView({
       preferences.lens,
       selected,
       activity,
+      checkRoutes,
       delayed,
       pending,
     ],
@@ -1897,7 +1921,7 @@ function OperationalObservatoryView({
               {!motion || delayed || pending
                 ? "Playback paused"
                 : checkPlayback.requests || checkPlayback.responses
-                  ? `Replaying ${checkPlayback.requests} requests / ${checkPlayback.responses} responses`
+                  ? `Replaying requests: ${checkPlayback.requests} / responses: ${checkPlayback.responses}`
                   : "Waiting for the next recorded check"}
             </span>
           </summary>
@@ -1905,7 +1929,10 @@ function OperationalObservatoryView({
             Paths replay newly recorded HTTP/TCP checks from their verified
             checking resource. Animation timing is illustrative; timestamps and
             latency below are measured. A missing response never produces a
-            return path.
+            return path. Dashed foreground routes show the latest observed
+            checks between updates; bright labelled arrow packets show each new
+            request or received response. Routes connect the containing group
+            when an endpoint is nested or collapsed.
           </p>
           <ul>
             {scene.signals.flatMap((signal) =>
@@ -2067,12 +2094,13 @@ function OperationalObservatoryView({
             </ObservatoryRoster>
           </div>
           <p className="cmd-op-legend">
-            Each badge shows a recognised technology or the resource kind;
-            choose a resource&apos;s icon in its inspector, saved on this
-            device. Lines tie every member to the group or host that contains
-            it. Counts are unique within a group; references do not add to the
-            global total. Source freshness is separate from service
-            availability.
+            Dashed routes show the latest recorded health checks. Labelled arrow
+            packets show new HTTP/TCP requests and received responses. Each
+            badge shows a recognised technology or the resource kind; choose a
+            resource&apos;s icon in its inspector, saved on this device. Lines
+            tie every member to the group or host that contains it. Counts are
+            unique within a group; references do not add to the global total.
+            Source freshness is separate from service availability.
           </p>
           {query.search && (
             <section
