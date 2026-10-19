@@ -1,6 +1,6 @@
 # Native endpoint checks
 
-**Status: Implemented locally. Production activation requires the reviewed release and catalogue.**
+**Status: Implemented and activated for the reviewed production catalogue. See the [dated activation record](../docs/operations/observatory-live-probes-2026-10-18.md).**
 
 The leased Observatory worker supports read-only HTTP response-status and TCP
 connection checks. It reuses source review, immutable encrypted observations,
@@ -33,10 +33,17 @@ discarded. HTTPS retains normal certificate verification; use an approved TCP
 check when only port reachability can be verified with available trust.
 
 The file must be regular, non-symlink, at most 256 KiB, and unreadable by other
-users, with no group write/execute permission. On the VPS, a root-owned 0640 file
-with group 1000 permits the existing unprivileged container worker to read it.
-Its parent directory remains operator-controlled. The production Compose
-manifest mounts only that file, read-only, at the same absolute path. When the
+users, with no group write/execute permission. On the VPS, retain the canonical
+catalogue as root-owned 0600 at `/etc/commandry/observatory-endpoint-checks.json`.
+The host backup guard requires every configuration file in that tree to remain
+owner-only. Materialize identical bytes as a root-owned 0640, group 1000 runtime
+copy at `/var/lib/commandry/observatory-endpoint-checks.json`, and point the
+variable at that runtime copy. The existing unprivileged worker can read it;
+its parent directory remains root-controlled and private. After host recovery,
+recreate the runtime copy from the backed-up canonical file and verify its hash
+before starting the worker. Refresh both copies through the controlled rollout.
+The production Compose manifest mounts only the runtime file, read-only, at the
+same absolute path. When the
 variable is empty, `/dev/null` occupies an unused disabled target and the reader
 is not constructed. Docker must not create a missing configured host file.
 

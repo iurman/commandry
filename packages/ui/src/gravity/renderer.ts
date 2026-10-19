@@ -3,7 +3,7 @@ import { OrbitControls } from "three/addons/controls/OrbitControls.js";
 import { parentWellId, surfaceHeight } from "./model";
 import type { CameraMode, Palette, SurfaceTheme, Well } from "./model";
 import type { ActivitySnapshot, ActivitySource } from "./activity-types";
-import { ActivityRenderer } from "./activity-renderer";
+import { ActivityRenderer, activeTransfers } from "./activity-renderer";
 import {
   terrainVertex,
   terrainFragment,
@@ -661,6 +661,15 @@ export class ObservatoryRenderer {
   private publishFieldDiagnostics() {
     const canvas = this.renderer.domElement;
     canvas.dataset.gravityRenderedFrames = String(++this.renderedFrames);
+    const recorded = activeTransfers(this.activitySnapshot).filter(
+      (flow) => flow.recorded,
+    );
+    canvas.dataset.gravityRecordedRequests = String(
+      recorded.filter((flow) => flow.phase === "outbound").length,
+    );
+    canvas.dataset.gravityRecordedResponses = String(
+      recorded.filter((flow) => flow.phase === "response").length,
+    );
     canvas.dataset.gravityLensAmount = String(this.lensAmount);
     canvas.dataset.gravitySelectedPresent = String(
       this.wells.some((well) => well.id === this.settings.selected),

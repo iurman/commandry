@@ -13,6 +13,7 @@ export type Transfer = {
   count: number;
   attempt: number;
   origin: string;
+  recorded?: boolean;
 };
 export type HealthSample = {
   state: Health;

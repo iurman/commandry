@@ -372,6 +372,7 @@ export class RecordedInfrastructureActivity implements ActivitySource {
             count: 1,
             attempt: 1,
             origin: event.summary,
+            recorded: true,
           };
           this.transfers.push({
             ...flow,

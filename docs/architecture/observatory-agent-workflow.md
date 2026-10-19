@@ -149,3 +149,10 @@ authorized scene; a restricted origin is omitted before UI/MCP delivery.
 Source review remains owner-only. Origin startup configuration and encrypted
 originals remain outside machine export. Use observation timestamps and current
 source qualification when interpreting results; animation is presentation.
+
+Owner browser verification can inspect the existing canvas diagnostics plus
+`data-gravity-recorded-requests` and `data-gravity-recorded-responses`. These
+count currently rendered replay phases from recorded evidence, not network
+requests in flight. Idle, hidden, paused and reduced-motion behavior remains
+distinct from source observation freshness. Recorded probes use visible trails;
+background simulation probes retain their quiet point style.

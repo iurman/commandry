@@ -24,6 +24,13 @@ export function transferMatchesSelection(
   );
 }
 
+export function activeTransfers(snapshot: ActivitySnapshot) {
+  return snapshot.transfers.filter(
+    (flow) =>
+      snapshot.time >= flow.start && snapshot.time < flow.start + flow.duration,
+  );
+}
+
 export function arrivalEffects(snapshot: ActivitySnapshot) {
   return snapshot.events.filter(
     (event) =>
@@ -166,7 +173,7 @@ export class ActivityRenderer {
     night: boolean,
     pixelRatio = 1,
   ) {
-    const flows = snapshot.transfers;
+    const flows = activeTransfers(snapshot);
     const effects = arrivalEffects(snapshot);
     const population = flows.length + effects.length;
     if (population > this.capacity) {
@@ -329,6 +336,7 @@ export class ActivityRenderer {
       }
     };
     for (const flow of flows) {
+      const quietProbe = flow.kind === "probe" && !flow.recorded;
       tintFor(flow);
       const fade = fadeFor(flow);
       const progress = Math.max(
@@ -353,7 +361,7 @@ export class ActivityRenderer {
         continue;
       }
       // Quiet lanes exist only for live transfers. The tapered body and bright nose carry direction.
-      if (flow.kind !== "probe")
+      if (!quietProbe)
         for (let segment = 0; segment < 32; segment++) {
           const a = at(flow, segment / 32),
             b = at(flow, (segment + 1) / 32);
@@ -363,7 +371,7 @@ export class ActivityRenderer {
       const headAt = stalled ? Math.min(1, progress / 0.6) * 0.85 : progress;
       const opacity =
         fade * (stalled ? 1 - Math.max(0, (progress - 0.6) / 0.4) * 0.9 : 1);
-      const tail = flow.kind === "probe" ? 0.1 : 0.2;
+      const tail = quietProbe ? 0.1 : 0.2;
       const width =
         flow.kind === "artifact" ? 0.12 : flow.kind === "job" ? 0.09 : 0.065;
       for (let segment = 0; segment < 24; segment++) {
@@ -372,7 +380,7 @@ export class ActivityRenderer {
         const a = at(flow, Math.max(0, headAt - tail + tail * u));
         const b = at(flow, Math.max(0, headAt - tail + tail * v));
         if (!a || !b) continue;
-        if (flow.kind === "probe") {
+        if (quietProbe) {
           if (segment % 6 === 0) point(b, 3, opacity * v * 0.6);
         } else
           ribbon(
@@ -388,7 +396,7 @@ export class ActivityRenderer {
       if (head)
         point(
           head,
-          flow.kind === "probe" ? 5 : flow.kind === "artifact" ? 12 : 10,
+          quietProbe ? 5 : flow.kind === "artifact" ? 12 : 10,
           opacity,
         );
       if (flow.kind === "artifact")
@@ -402,7 +410,7 @@ export class ActivityRenderer {
         pulse(
           source,
           0.3 + departure * 1.1,
-          (1 - departure) * fade * (flow.kind === "probe" ? 0.2 : 0.7),
+          (1 - departure) * fade * (quietProbe ? 0.2 : 0.7),
         );
     }
     for (const event of effects) {
