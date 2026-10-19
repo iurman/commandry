@@ -13,5 +13,5 @@ ExecStart=/usr/bin/python3 /opt/commandry/deploy/commandry-auto-release.py
 TimeoutStartSec=25min
 TimeoutStopSec=2min
 PrivateTmp=true
-ProtectHome=true
+ProtectHome=read-only
 NoNewPrivileges=true
