@@ -707,7 +707,7 @@ export function mapOperationalEvents(
   });
 }
 
-/** Persisted check observations pulse only their actual subject, never a presumed dependency. */
+/** Recorded checks use verified visible endpoints; ordinary observations retain subject pulses. */
 export function mapOperationalCheckObservations(
   scene: Pick<ObservatoryScene, "signals">,
   projection: Pick<OperationalLayoutResult, "visibleSubjectForResource">,

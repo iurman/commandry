@@ -3017,6 +3017,9 @@ it("replays only new evidenced probe paths and never invents a response to a mis
   ]);
   sync({ ...base, id: "two" });
   expect(activity.snapshot().transfers).toHaveLength(2);
+  expect(activity.snapshot().transfers.every((flow) => flow.recorded)).toBe(
+    true,
+  );
   activity.advance(4);
   expect(activity.snapshot().transfers).toEqual([]);
   sync({
