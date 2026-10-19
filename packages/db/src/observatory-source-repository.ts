@@ -1,3 +1,7 @@
+import {
+  observatoryProbeTransportSchema,
+  observatoryAvailabilityEvidenceSchema,
+} from "@commandry/contracts";
 import { randomInt, randomUUID } from "node:crypto";
 import { and, asc, eq, inArray, sql } from "drizzle-orm";
 import {
@@ -191,6 +195,28 @@ export function createObservatorySourceRepository(
           { now },
         ).pollNext();
         const observation = accepted!;
+        const rawTransport = (observation.rawPayload as Record<string, unknown>)
+          .probeTransport;
+        const probeTransport =
+          rawTransport === undefined
+            ? undefined
+            : observatoryProbeTransportSchema.parse(rawTransport);
+        if (probeTransport) {
+          const details = observatoryAvailabilityEvidenceSchema.parse(
+            observation.details,
+          );
+          if (
+            row.kind !== "endpoint-check" ||
+            details.probe?.protocol !== probeTransport.protocol ||
+            details.latestCheck?.responseTimeMs !==
+              probeTransport.responseTimeMs ||
+            probeTransport.responseReceived !==
+              (probeTransport.protocol === "http"
+                ? details.latestCheck.statusCode !== null
+                : details.latestCheck.status === "up")
+          )
+            throw new OperationalSourceError("OPERATIONAL_INVALID_OBSERVATION");
+        }
         const digest = foundationDigest({
           projectId: row.projectId,
           sourceVersion: row.version,
@@ -321,6 +347,7 @@ export function createObservatorySourceRepository(
               ? new Date(acceptedTime).toISOString()
               : null,
             details: observation.details,
+            ...(probeTransport ? { probeTransport } : {}),
             signals: observation.signals.length
               ? observation.signals
               : priorSignals,
@@ -334,7 +361,9 @@ export function createObservatorySourceRepository(
             lastSuccessAt: now(),
             lastError: null,
             failures: 0,
-            nextAttemptAt: nextAt(row.freshnessSeconds),
+            nextAttemptAt: nextAt(
+              row.kind === "endpoint-check" ? 30 : row.freshnessSeconds,
+            ),
             leaseId: null,
             leaseUntil: null,
           })

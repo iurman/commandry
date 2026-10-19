@@ -1,5 +1,5 @@
 export type Health = "unknown" | "healthy" | "degraded" | "unhealthy";
-export type Outcome = "ok" | "slow" | "timeout";
+export type Outcome = "ok" | "slow" | "timeout" | "failed";
 export type Transfer = {
   id: string;
   correlationId: string;

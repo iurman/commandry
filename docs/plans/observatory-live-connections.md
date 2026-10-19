@@ -151,3 +151,20 @@ read-only checks run under the configured worker and append
   requests used exact IDs from the canonical catalogue.
 - Implementation is available in [PR 41](https://github.com/iurman/commandry/pull/41).
   Release publication and activation remain subject to the gates above.
+
+## Owner-prioritized live probe activation, October 18 (Pacific)
+
+The owner explicitly requested the monitoring flow committed, pushed, merged and
+deployed. The compatible PR 41 application had already been activated by the
+current-main rollout. This follow-up installed the reviewed private 14-target
+catalogue and enabled each exact source with disabled review, version readback
+and enabled version 2. All 14 produced real observations: 13 passed and one
+existing HTTP endpoint returned 502. The checking worker was recreated healthy;
+web, PostgreSQL, proxy, Tunnel and the unrelated database identities were preserved.
+
+The prior implementation only emitted subject pulses. The follow-up adds
+validated, scope-redacted origin/response evidence and visible recorded probe
+request/response paths, plus a complete status/latency/time list. Native scheduling
+becomes independent of the freshness deadline. Separate Cloudflare and Namecheap
+account access is outside this owner-prioritized activation. Final qualification,
+rollout and scheduled browser verification will be recorded before completion.

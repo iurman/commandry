@@ -831,7 +831,9 @@ describe("operational component interactions with the real semantic scene", () =
     expect(
       screen.getByRole("region", { name: "Operational Observatory" }),
     ).toHaveAttribute("data-pending", "false");
-    expect(engine.update.mock.lastCall![1].cameraMode).toBe("composed");
+    await waitFor(() =>
+      expect(engine.update.mock.lastCall![1].cameraMode).toBe("composed"),
+    );
   });
   it.each([
     {
@@ -2959,4 +2961,74 @@ it("pulses new current check evidence once, without initial replay, stale traffi
       { visibleSubjectForResource: new Map() },
     ),
   ).toEqual([]);
+});
+
+it("replays only new evidenced probe paths and never invents a response to a missing peer", () => {
+  const now = Date.now(),
+    observedAt = new Date(now).toISOString();
+  const base = {
+    id: "one",
+    resourceId: "target",
+    sourceId: "native",
+    facet: "availability" as const,
+    state: "passing" as const,
+    observedAt,
+    freshness: "fresh" as const,
+    sourceQualification: "current" as const,
+    freshnessMs: 300000,
+    evidenceRefs: ["real"],
+    environment: "production",
+    incidentId: null,
+    probe: {
+      originResourceId: "origin",
+      protocol: "http" as const,
+      responseTimeMs: 100,
+      responseReceived: true,
+    },
+  };
+  const projection = {
+    visibleSubjectForResource: new Map([
+      ["origin", "visible-origin"],
+      ["target", "visible-target"],
+    ]),
+  };
+  const activity = new OperationalRecordedActivity();
+  const sync = (signal: typeof base) =>
+    activity.synchronize(
+      {
+        events: mapOperationalCheckObservations(
+          { signals: [signal] },
+          projection,
+        ),
+      },
+      true,
+      now,
+    );
+  sync(base);
+  expect(activity.snapshot().transfers).toEqual([]);
+  sync({ ...base, id: "two" });
+  expect(
+    activity
+      .snapshot()
+      .transfers.map((flow) => [flow.phase, flow.from, flow.to]),
+  ).toEqual([
+    ["outbound", "visible-origin", "visible-target"],
+    ["response", "visible-target", "visible-origin"],
+  ]);
+  sync({ ...base, id: "two" });
+  expect(activity.snapshot().transfers).toHaveLength(2);
+  activity.advance(4);
+  expect(activity.snapshot().transfers).toEqual([]);
+  sync({
+    ...base,
+    id: "three",
+    probe: { ...base.probe, responseReceived: false },
+  });
+  expect(activity.snapshot().transfers).toHaveLength(1);
+  expect(activity.snapshot().transfers[0]?.phase).toBe("outbound");
+  activity.setVisible(false);
+  expect(activity.snapshot().transfers).toEqual([]);
+  activity.setVisible(true);
+  sync({ ...base, id: "four" });
+  expect(activity.snapshot().transfers).toEqual([]);
 });

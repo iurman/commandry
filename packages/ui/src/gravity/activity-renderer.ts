@@ -220,7 +220,7 @@ export class ActivityRenderer {
         : 1;
     const tintFor = (item: Pick<ActivityEvent, "kind" | "outcome">) => {
       color.set(
-        item.outcome === "timeout"
+        item.outcome === "timeout" || item.outcome === "failed"
           ? palette.unhealthy
           : item.outcome === "slow"
             ? palette.attention

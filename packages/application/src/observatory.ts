@@ -356,6 +356,12 @@ function authorizedInput(
         });
         evidence(parsed.evidenceRefs);
         const { freshness: _freshness, ...signal } = parsed;
+        if (
+          signal.facet === "availability" &&
+          signal.probe &&
+          !subject(signal.probe.originResourceId)
+        )
+          delete signal.probe;
         return signal;
       });
     unique(signals.map((item) => item.id));

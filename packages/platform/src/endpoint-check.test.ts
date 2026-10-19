@@ -213,3 +213,32 @@ describe("operator-configured endpoint probes", () => {
     }
   });
 });
+
+it("records a configured checking origin only in backward-compatible original metadata", async () => {
+  const originResourceId = "22222222-2222-4222-8222-222222222222";
+  for (const status of [200, 502]) {
+    const result = await createEndpointCheckReader({
+      catalogue,
+      originResourceId,
+      fetch: async () => new Response(null, { status }),
+    })(claim);
+    expect(result.rawPayload).toMatchObject({
+      probeTransport: {
+        originResourceId,
+        protocol: "http",
+        responseReceived: true,
+        responseTimeMs: expect.any(Number),
+      },
+    });
+    expect(result.signals[0]).not.toHaveProperty("probe");
+    expect(result.details.probe).not.toHaveProperty("originResourceId");
+  }
+  const timeout = await createEndpointCheckReader({
+    catalogue,
+    originResourceId,
+    fetch: () => new Promise(() => {}),
+  })(claim);
+  expect(timeout.rawPayload).toMatchObject({
+    probeTransport: { responseReceived: false },
+  });
+});

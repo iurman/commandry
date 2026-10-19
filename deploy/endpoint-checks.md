@@ -84,3 +84,35 @@ cannot validate those new source-kind records even when disabled. Keep a compati
 Do not delete observations or manufacture a down migration to make an older binary
 accept them. The populated upgrade rehearsal verifies data preservation and repeated
 migration, not old-binary reads of newly activated source kinds.
+
+## Recorded request and response paths
+
+Set optional `OBSERVATORY_PROBE_ORIGIN_RESOURCE_ID` to the verified canonical
+resource UUID of the checking worker. It names one actual worker vantage, never
+a destination inferred from a dependency or project association. The private
+catalogue remains unchanged and readable by the previous application release.
+
+The reader stores protocol, measured elapsed time and whether a response was
+received in the encrypted original. The leased transaction validates those facts
+against the accepted check before preserving a separate snapshot sidecar. Stored
+legacy signals and operational detail payloads retain their earlier shape; old
+readers ignore the sidecar. No migration is required. New authorized reads project
+the sidecar into an optional availability `probe` field. The origin is omitted
+when it falls outside the same project/resource grant as the scene. UI and MCP
+share that redaction and the existing signals-read capability/audit.
+
+New current, fresh observations animate from the visible checking resource to
+the visible target. A received HTTP result or successful TCP connection can
+produce the return path. Timeouts and refused connections never manufacture a
+peer response. HTTP failures use a failure color while preserving their actual
+response semantics. Collapsed endpoints in the same group retain a local pulse.
+Startup, repeated reads, paused/hidden views, reduced motion and last-known
+evidence do not create traffic. Animation takes a readable fixed duration;
+measured timestamps and latency remain available in the complete check list.
+These paths are recorded monitoring probes, not packet capture or proof of
+arbitrary application-to-application traffic.
+
+Native sources become due again after 30 seconds plus bounded jitter, with
+the existing five-second leased dispatcher sharing due work. This is independent
+of their freshness window and is not a per-target 30-second cadence guarantee.
+GitHub and account API polling schedules remain as configured.

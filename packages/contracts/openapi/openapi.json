@@ -21310,6 +21310,37 @@
                           "type": "string",
                           "const": "availability"
                         },
+                        "probe": {
+                          "type": "object",
+                          "properties": {
+                            "originResourceId": {
+                              "type": "string",
+                              "format": "uuid",
+                              "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$"
+                            },
+                            "protocol": {
+                              "type": "string",
+                              "enum": [
+                                "http",
+                                "tcp"
+                              ]
+                            },
+                            "responseTimeMs": {
+                              "type": "number",
+                              "minimum": 0
+                            },
+                            "responseReceived": {
+                              "type": "boolean"
+                            }
+                          },
+                          "required": [
+                            "originResourceId",
+                            "protocol",
+                            "responseTimeMs",
+                            "responseReceived"
+                          ],
+                          "additionalProperties": false
+                        },
                         "state": {
                           "type": "string",
                           "enum": [
@@ -23512,6 +23543,37 @@
                     "facet": {
                       "type": "string",
                       "const": "availability"
+                    },
+                    "probe": {
+                      "type": "object",
+                      "properties": {
+                        "originResourceId": {
+                          "type": "string",
+                          "format": "uuid",
+                          "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$"
+                        },
+                        "protocol": {
+                          "type": "string",
+                          "enum": [
+                            "http",
+                            "tcp"
+                          ]
+                        },
+                        "responseTimeMs": {
+                          "type": "number",
+                          "minimum": 0
+                        },
+                        "responseReceived": {
+                          "type": "boolean"
+                        }
+                      },
+                      "required": [
+                        "originResourceId",
+                        "protocol",
+                        "responseTimeMs",
+                        "responseReceived"
+                      ],
+                      "additionalProperties": false
                     },
                     "state": {
                       "type": "string",

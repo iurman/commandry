@@ -13,6 +13,7 @@ import {
 import {
   observatoryAvailabilityEvidenceSchema,
   endpointCheckCatalogueSchema,
+  observatoryProbeTransportSchema,
   type EndpointCheckCatalogue,
 } from "@commandry/contracts";
 export { endpointCheckCatalogueSchema } from "@commandry/contracts";
@@ -101,10 +102,18 @@ function tcp(check: Extract<Check, { protocol: "tcp" }>): Promise<boolean> {
 /** A claim selects a configured identity; it can never choose a network destination. */
 export function createEndpointCheckReader(options: {
   catalogue: EndpointCheckCatalogue;
+  originResourceId?: string;
   fetch?: typeof fetch;
   now?: () => Date;
 }): (claim: OperationalSourceClaim) => Promise<OperationalObservation> {
   const catalogue = endpointCheckCatalogueSchema.parse(options.catalogue);
+  if (
+    options.originResourceId !== undefined &&
+    !observatoryProbeTransportSchema.shape.originResourceId.safeParse(
+      options.originResourceId,
+    ).success
+  )
+    throw configurationError();
   const checks = new Map(catalogue.checks.map((check) => [check.id, check]));
   const fetcher = options.fetch ?? fetch;
   return async (rawClaim) => {
@@ -203,7 +212,21 @@ export function createEndpointCheckReader(options: {
       resourceId: claim.resourceId,
       observedAt: checkedAt,
       details,
-      rawPayload: { schemaVersion: 1, ...details },
+      rawPayload: {
+        schemaVersion: 1,
+        ...details,
+        ...(options.originResourceId
+          ? {
+              probeTransport: observatoryProbeTransportSchema.parse({
+                originResourceId: options.originResourceId,
+                protocol: check.protocol,
+                responseTimeMs,
+                responseReceived:
+                  check.protocol === "http" ? statusCode !== null : passing,
+              }),
+            }
+          : {}),
+      },
       signals: [
         {
           id,
