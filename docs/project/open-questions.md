@@ -75,6 +75,12 @@ Paperclip as an execution backend, or a minimal generic run protocol, then
 specify dispatch, workspace, heartbeat, cancellation, log, artifact, retry, and
 callback ownership.
 
+The owner authorized a comparative local Codex and Claude setup on 2026-10-16,
+using existing subscriptions with paid overage disabled. The
+[native runtime comparison](../research/native-runtime-comparison.md) records
+its tooling, evidence limits and staged evaluation. This authorizes bounded
+local trials without choosing a production default or runner topology.
+
 The local fake worker now reports fixed progress milestones through an
 application callback port, and queued or running fake runs can be canceled with
 an audited state transition. This is a provisional protocol rehearsal. It does
