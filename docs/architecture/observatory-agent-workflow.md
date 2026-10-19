@@ -152,7 +152,18 @@ source qualification when interpreting results; animation is presentation.
 
 Owner browser verification can inspect the existing canvas diagnostics plus
 `data-gravity-recorded-requests` and `data-gravity-recorded-responses`. These
-count currently rendered replay phases from recorded evidence, not network
+count active input replay phases from recorded evidence, not network
 requests in flight. Idle, hidden, paused and reduced-motion behavior remains
 distinct from source observation freshness. Recorded probes use visible trails;
 background simulation probes retain their quiet point style.
+
+The owner-facing check row names request/response playback and distinguishes
+waiting from paused playback. Recorded corridors have a camera-scaled minimum
+width and clearance; source/destination labels and their containing groups pulse
+only during the corresponding recorded phase. A refresh batch is staggered, with
+2.4 seconds per request or received response. This illustrative duration does not
+replace measured latency. Recorded playback uses elapsed time at a low render rate;
+the simulated activity and camera retain their existing bounded frame steps.
+Counters alone do not prove visibility; inspect actual
+rendered paths and labels at the supported zoom and theme. No new API/MCP grant,
+action or source observation is introduced by this presentation change.

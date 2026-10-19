@@ -94,6 +94,21 @@ the source-tagging assertion cover that correction. Its exact qualified image,
 deployment and live rendered-request/response proof are maintained on that PR.
 The canvas diagnostic counters describe replay phases, not requests in flight.
 
+### Owner-reported visibility correction
+
+The owner subsequently reported that the checks still were not visibly apparent.
+PR 50's phase counters proved input activity, not visual acceptance. Local browser
+comparison with the current landscape confirmed that world-scale trails became
+very thin in overview and pins obscured short paths. The follow-up implementation
+uses camera-scaled corridor widths and clearance, larger heads, staggered readable
+request/response phases, and pulses on the actual endpoints' containing labels.
+The check row explicitly names active replay, waiting and paused states. It
+preserves the existing layout, measured data, missing-response behavior and
+reduced-motion/hidden-view baselines. Local controlled replay is presentation
+verification, not evidence of new production observations. Its qualified release
+and actual live visual verification must be recorded separately before claiming
+the owner-reported issue resolved.
+
 ## Retained boundaries
 
 Cloudflare recurring inventory still needs the prepared IYU Labs LLC-only read

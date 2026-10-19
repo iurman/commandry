@@ -3020,7 +3020,7 @@ it("replays only new evidenced probe paths and never invents a response to a mis
   expect(activity.snapshot().transfers.every((flow) => flow.recorded)).toBe(
     true,
   );
-  activity.advance(4);
+  activity.advance(6);
   expect(activity.snapshot().transfers).toEqual([]);
   sync({
     ...base,

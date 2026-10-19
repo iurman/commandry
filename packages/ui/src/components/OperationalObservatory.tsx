@@ -44,6 +44,7 @@ import {
   OperationalRecordedActivity,
 } from "../gravity/operational-layout";
 import { observatoryBriefing } from "../gravity/briefing";
+import { activeTransfers } from "../gravity/activity-types";
 import type { TourStop } from "../gravity/tour";
 import {
   ObservatoryBriefingCard,
@@ -538,6 +539,10 @@ function OperationalObservatoryView({
     [anchors, setAnchors] = useState<Anchor[]>([]);
   const [layout] = useState(() => new OperationalLayout()),
     [activity] = useState(() => new OperationalRecordedActivity());
+  const [checkPlayback, setCheckPlayback] = useState({
+    requests: 0,
+    responses: 0,
+  });
   const history = useRef<HistoryEntry[]>([]),
     beforeSearch = useRef<HistoryEntry | null>(null),
     revision = useRef(0);
@@ -1049,7 +1054,45 @@ function OperationalObservatoryView({
                 element.style.visibility = amount > 0.01 ? "visible" : "hidden";
               }
             },
-            activity() {},
+            activity(snapshot) {
+              const flows = activeTransfers(snapshot).filter(
+                (flow) => flow.recorded,
+              );
+              // A nested endpoint can have a hidden label in overview. Pulse its
+              // containing labels too, without moving or rebuilding the pins.
+              const subjects = new Set<string>();
+              for (const flow of flows)
+                for (const endpoint of [flow.from, flow.to]) {
+                  let node = current.current.projection?.byId.get(endpoint);
+                  while (node && !subjects.has(node.id)) {
+                    subjects.add(node.id);
+                    node = node.parentRepresentationId
+                      ? current.current.projection?.byId.get(
+                          node.parentRepresentationId,
+                        )
+                      : undefined;
+                  }
+                }
+              for (const [id, element] of elements.current) {
+                if (subjects.has(id.replace(/^lens-/, ""))) {
+                  if (element.dataset.checkActive !== "true")
+                    element.dataset.checkActive = "true";
+                } else if (element.dataset.checkActive)
+                  delete element.dataset.checkActive;
+              }
+              const requests = flows.filter(
+                (flow) => flow.phase === "outbound",
+              ).length;
+              const responses = flows.filter(
+                (flow) => flow.phase === "response",
+              ).length;
+              setCheckPlayback((previous) =>
+                previous.requests === requests &&
+                previous.responses === responses
+                  ? previous
+                  : { requests, responses },
+              );
+            },
             visibility(visible) {
               activity.setVisible(visible);
             },
@@ -1270,6 +1313,7 @@ function OperationalObservatoryView({
       className={`cmd-operational-observatory${preferences.tv ? " cmd-op-tv" : ""}${compact ? " cmd-op-compact" : ""}`}
       data-theme={theme}
       data-reading={reading}
+      data-check-playback={motion && !delayed && !pending}
       data-grouping={scene.grouping}
       data-view-revision={scene.viewRevision}
       data-projection-revision={scene.projectionRevision}
@@ -1840,7 +1884,22 @@ function OperationalObservatoryView({
                   signal.state === "failing",
               ).length
             }{" "}
-            failing
+            failing.{" "}
+            <span
+              className="cmd-op-check-playback"
+              data-active={
+                motion &&
+                !delayed &&
+                !pending &&
+                !!(checkPlayback.requests || checkPlayback.responses)
+              }
+            >
+              {!motion || delayed || pending
+                ? "Playback paused"
+                : checkPlayback.requests || checkPlayback.responses
+                  ? `Replaying ${checkPlayback.requests} requests / ${checkPlayback.responses} responses`
+                  : "Waiting for the next recorded check"}
+            </span>
           </summary>
           <p>
             Paths replay newly recorded HTTP/TCP checks from their verified

@@ -300,6 +300,7 @@ export function projectInfrastructure(
 
 // Ordinary observations pulse their subject. Verified probes can name both actual endpoints.
 export class RecordedInfrastructureActivity implements ActivitySource {
+  readonly clock = "elapsed" as const;
   private time = 0;
   private seen: Map<string, number> | null = null;
   private events: ActivitySnapshot["events"] = [];
@@ -348,6 +349,7 @@ export class RecordedInfrastructureActivity implements ActivitySource {
     const baseline = !this.seen || !this.enabled || !animate || !this.visible;
     this.enabled = animate && this.visible;
     const seen = this.seen ?? new Map<string, number>();
+    let nextProbeStart = this.time;
     for (const event of snapshot.events) {
       const age = now - Date.parse(event.occurredAt);
       if (
@@ -366,8 +368,8 @@ export class RecordedInfrastructureActivity implements ActivitySource {
             from: event.probe.from,
             to: event.resourceId,
             kind: "probe" as const,
-            start: this.time,
-            duration: 1.2,
+            start: nextProbeStart,
+            duration: 2.4,
             outcome,
             count: 1,
             attempt: 1,
@@ -386,11 +388,13 @@ export class RecordedInfrastructureActivity implements ActivitySource {
               phase: "response",
               from: event.resourceId,
               to: event.probe.from,
-              start: this.time + 1.2,
+              start: nextProbeStart + flow.duration,
             });
           this.events.push({
             id: event.id,
-            at: this.time + (event.probe.responseReceived ? 2.4 : 1.2),
+            at:
+              nextProbeStart +
+              flow.duration * (event.probe.responseReceived ? 2 : 1),
             correlationId: event.id,
             from: event.probe.from,
             to: event.probe.from,
@@ -399,6 +403,7 @@ export class RecordedInfrastructureActivity implements ActivitySource {
             summary: event.summary,
             effect: event.probe.failed ? "failure" : "arrival",
           });
+          nextProbeStart += 0.6;
         } else
           this.events.push({
             id: event.id,

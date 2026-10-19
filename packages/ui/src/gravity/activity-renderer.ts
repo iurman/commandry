@@ -6,6 +6,8 @@ import type {
   Transfer,
   ActivityEvent,
 } from "./activity-types";
+import { activeTransfers } from "./activity-types";
+export { activeTransfers } from "./activity-types";
 
 type Position = { x: number; y: number; z: number };
 
@@ -24,13 +26,6 @@ export function transferMatchesSelection(
   );
 }
 
-export function activeTransfers(snapshot: ActivitySnapshot) {
-  return snapshot.transfers.filter(
-    (flow) =>
-      snapshot.time >= flow.start && snapshot.time < flow.start + flow.duration,
-  );
-}
-
 export function arrivalEffects(snapshot: ActivitySnapshot) {
   return snapshot.events.filter(
     (event) =>
@@ -46,6 +41,7 @@ export function transferPoint(
   wells: Well[],
   time = 0,
   ambient = 0,
+  worldUnitsPerPixel = 0,
 ): Position | null {
   const source = wells.find((well) => well.id === flow.from);
   const target = wells.find((well) => well.id === flow.to);
@@ -71,7 +67,12 @@ export function transferPoint(
   const dz = b.z - a.z;
   const distance = Math.max(0.1, Math.hypot(dx, dz));
   const arch = Math.sin(u * Math.PI);
-  const bend = arch * Math.min(distance * 0.12, 1.8);
+  const bend =
+    arch *
+    Math.max(
+      Math.min(distance * 0.12, 1.8),
+      flow.recorded ? worldUnitsPerPixel * 32 : 0,
+    );
   const x = a.x + dx * u - (dz / distance) * bend;
   const z = a.z + dz * u + (dx / distance) * bend;
   const fromHeight = surfaceHeight(a.x, a.z, wells, time, ambient);
@@ -83,7 +84,11 @@ export function transferPoint(
       fromHeight +
         (toHeight - fromHeight) * u +
         0.22 +
-        arch * Math.min(4, 0.9 + distance * 0.18),
+        arch *
+          Math.max(
+            Math.min(4, 0.9 + distance * 0.18),
+            flow.recorded ? worldUnitsPerPixel * 18 : 0,
+          ),
     ),
     z,
   };
@@ -172,6 +177,7 @@ export class ActivityRenderer {
     ambient: boolean,
     night: boolean,
     pixelRatio = 1,
+    worldUnitsPerPixel = 0,
   ) {
     const flows = activeTransfers(snapshot);
     const effects = arrivalEffects(snapshot);
@@ -210,7 +216,14 @@ export class ActivityRenderer {
       pointIndex = 0;
     const color = new THREE.Color();
     const at = (flow: Transfer, t: number) =>
-      transferPoint(flow, t, wells, elapsed, ambient ? 1 : 0);
+      transferPoint(
+        flow,
+        t,
+        wells,
+        elapsed,
+        ambient ? 1 : 0,
+        worldUnitsPerPixel,
+      );
     const fadeFor = (item: {
       correlationId: string;
       from: string;
@@ -365,15 +378,25 @@ export class ActivityRenderer {
         for (let segment = 0; segment < 32; segment++) {
           const a = at(flow, segment / 32),
             b = at(flow, (segment + 1) / 32);
-          if (a && b) line(a, b, fade * (flow.phase === "response" ? 0.5 : 1));
+          if (a && b) {
+            if (flow.recorded) {
+              const laneWidth = Math.max(0.045, worldUnitsPerPixel * 1.25);
+              ribbon(a, b, laneWidth, laneWidth, fade * 0.5, fade * 0.5);
+            } else line(a, b, fade * (flow.phase === "response" ? 0.5 : 1));
+          }
         }
       const stalled = flow.outcome === "timeout";
       const headAt = stalled ? Math.min(1, progress / 0.6) * 0.85 : progress;
       const opacity =
         fade * (stalled ? 1 - Math.max(0, (progress - 0.6) / 0.4) * 0.9 : 1);
       const tail = quietProbe ? 0.1 : 0.2;
-      const width =
-        flow.kind === "artifact" ? 0.12 : flow.kind === "job" ? 0.09 : 0.065;
+      const width = flow.recorded
+        ? Math.max(0.065, worldUnitsPerPixel * 2.5)
+        : flow.kind === "artifact"
+          ? 0.12
+          : flow.kind === "job"
+            ? 0.09
+            : 0.065;
       for (let segment = 0; segment < 24; segment++) {
         const u = segment / 24,
           v = (segment + 1) / 24;
@@ -396,7 +419,13 @@ export class ActivityRenderer {
       if (head)
         point(
           head,
-          quietProbe ? 5 : flow.kind === "artifact" ? 12 : 10,
+          flow.recorded
+            ? 18
+            : quietProbe
+              ? 5
+              : flow.kind === "artifact"
+                ? 12
+                : 10,
           opacity,
         );
       if (flow.kind === "artifact")
