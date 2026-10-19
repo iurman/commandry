@@ -32,6 +32,22 @@ stable.
    matrices, assets, and usage rules are machine-readable and linked from the
    code that ships.
 
+## Owner-selected Observatory check motion
+
+On October 19, 2026, the owner selected quiet dots combined with short trails.
+Recorded check activity uses existing Observatory accent/impact roles and compact
+filled or outlined dot heads. Two diminishing trail points convey direction;
+labels and persistent cross-resource check paths are omitted. A restrained arrival
+ring acknowledges completion. A faint guide appears only for an inspected check.
+Hover holds a mark; selection pins evidence, with a stable list alternative and
+large invisible pointer targets. Pause, reduced motion and a quiet idle state are
+part of the pattern. This preference changes check presentation, not the terrain,
+resource badges, hierarchy, camera or monitoring semantics.
+
+The [agent workflow](../architecture/observatory-agent-workflow.md#probe-request-and-response-evidence)
+records the shared evidence and inspection behavior. Local design acceptance is
+separate from qualification and actual production verification.
+
 ## System layers
 
 The design system should use a one-way token hierarchy:

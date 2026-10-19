@@ -142,6 +142,8 @@ planned behavior as though it already exists.
 
 ## Implementation guardrails
 
+- MUST keep owner-selected Observatory check motion in the existing design system: quiet unlabeled dots with short trails, no permanent check paths or arrowheads, and an inspection guide only on demand.
+
 - MUST verify Observatory check transmissions as visibly moving directional packets between resources or their named groups. Badge pulses and activity counters alone do not establish this acceptance.
 
 - MUST discover operational mappings using already authorized connected accounts and SSH before asking the owner to supply resource IDs; record missing connections and continue permitted independent work.

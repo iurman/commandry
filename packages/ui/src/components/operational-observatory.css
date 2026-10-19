@@ -159,7 +159,7 @@
   cursor: grab;
 }
 .cmd-check-signals {
-  --check-ink: #006e83;
+  --check-ink: var(--op-accent);
   position: absolute;
   inset: 0;
   width: 100%;
@@ -168,41 +168,56 @@
   pointer-events: none;
   overflow: hidden;
 }
-[data-theme="midnight"] .cmd-check-signals {
-  --check-ink: #60d6e8;
-}
 .cmd-check-signals [data-failed="true"] {
   --check-ink: var(--op-impact);
 }
-.cmd-check-signals [data-check-route] path {
+.cmd-check-signals circle {
+  fill: var(--check-ink);
+}
+.cmd-check-signals [data-check-packet="response"] circle:last-child {
+  fill: var(--op-bg);
+  stroke: var(--check-ink);
+  stroke-width: 1.4px;
+}
+.cmd-check-signals .cmd-check-arrival,
+.cmd-check-inspection-guide {
   fill: none;
   stroke: var(--check-ink);
-  stroke-width: 1.8px;
-  stroke-dasharray: 7 7;
-  stroke-linecap: round;
-  opacity: 0.6;
+  stroke-width: 1px;
 }
-.cmd-check-signals [data-check-route][data-active="true"] path {
-  stroke-width: 3.5px;
-  stroke-dasharray: none;
-  opacity: 1;
-  filter: drop-shadow(0 0 3px var(--check-ink));
+.cmd-check-inspection-guide {
+  opacity: 0.3;
 }
-.cmd-check-packet-arrow {
-  fill: var(--check-ink);
-  stroke: var(--op-bg);
-  stroke-width: 2px;
-  filter: drop-shadow(0 0 4px var(--check-ink));
+.cmd-check-hits {
+  position: absolute;
+  inset: 0;
+  z-index: 3;
+  pointer-events: none;
 }
-.cmd-check-signals text {
-  font:
-    650 12px system-ui,
-    sans-serif;
-  fill: var(--check-ink);
-  stroke: var(--op-bg);
-  stroke-width: 5px;
-  stroke-linejoin: round;
-  paint-order: stroke;
+.cmd-operational-observatory .cmd-check-hit {
+  position: absolute;
+  width: 44px;
+  height: 44px;
+  min-height: 44px;
+  padding: 0;
+  border: 0;
+  border-radius: 50%;
+  background: transparent;
+  transform: translate(-50%, -50%);
+  pointer-events: auto;
+}
+.cmd-op-check-inspection {
+  padding: 12px 20px;
+  border-top: 1px solid var(--op-line);
+  display: flex;
+  gap: 12px;
+  align-items: center;
+  justify-content: space-between;
+  flex-wrap: wrap;
+  font-size: 0.86em;
+}
+.cmd-op-check-inspection p {
+  margin: 0;
 }
 .cmd-op-stage-caption {
   position: absolute;
@@ -422,6 +437,7 @@
   }
 }
 .cmd-op-labels {
+  z-index: 4;
   pointer-events: none;
 }
 .cmd-op-labels[aria-hidden="true"] {
@@ -454,22 +470,6 @@
   font-size: 0.78em;
   line-height: 17px;
   text-align: center;
-}
-.cmd-operational-observatory[data-check-playback="true"]
-  .cmd-op-label[data-check-active="true"] {
-  animation: cmd-op-recorded-check-pulse 1.2s ease-out infinite;
-}
-@keyframes cmd-op-recorded-check-pulse {
-  0% {
-    box-shadow:
-      0 0 0 2px var(--op-accent),
-      0 0 0 2px color-mix(in srgb, var(--op-accent) 60%, transparent);
-  }
-  100% {
-    box-shadow:
-      0 0 0 2px var(--op-accent),
-      0 0 0 9px color-mix(in srgb, var(--op-accent) 0%, transparent);
-  }
 }
 .cmd-op-label-attention,
 .cmd-op-roster-attention {

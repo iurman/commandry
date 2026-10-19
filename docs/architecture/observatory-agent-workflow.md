@@ -158,23 +158,28 @@ distinct from source observation freshness. Recorded probes use visible trails;
 background simulation probes retain their quiet point style.
 
 The owner-facing check row names request/response playback and distinguishes
-waiting from paused playback. Recorded corridors have a camera-scaled minimum
-width and clearance; source/destination labels and their containing groups pulse
-only during the corresponding recorded phase. A refresh batch is staggered, with
-2.4 seconds per request or received response. This illustrative duration does not
-replace measured latency. Recorded playback uses elapsed time at a low render rate;
-the simulated activity and camera retain their existing bounded frame steps.
-Counters alone do not prove visibility; inspect actual
-rendered paths and labels at the supported zoom and theme. No new API/MCP grant,
-action or source observation is introduced by this presentation change.
+waiting from paused playback. Newly observed checks replay as small, unlabeled
+dots with two short fading trail marks. Filled heads represent requests;
+outlined heads represent received responses. The renderer uses the existing
+Observatory accent and impact tokens, with no permanent check lines, arrowheads,
+travelling text or additional bright palette. A local arc connects the displayed
+endpoints; checks inside one visible group use a small contained loop. The
+existing terrain, grouping, camera and resource marks retain their identity.
 
-Recorded health checks now have a foreground SVG layer above the terrain. Dashed
-routes retain the latest fresh, current probe evidence between observations;
-labelled directional packets replay only newly observed requests and received
-responses. Visible containing pins stand in for hidden nested endpoints, with a
-loop for checks contained within one visible group. Pin and briefing masks keep
-labels readable. Paused and reduced-motion views retain evidenced routes without
-moving packets; stale, redacted or missing origins do not gain routes. The same
-UI/API/MCP availability `probe` records supply every endpoint and timestamp.
-This is monitoring transport evidence, not observation of arbitrary application
-traffic. Verify actual visible packet movement, not only badge pulses or counters.
+Hover or keyboard focus holds a dot for inspection. Selecting the dot pins its
+recorded protocol, source, destination, measured latency, result and observation
+time. The stable recorded-check list exposes the same read-only selection. Only
+one inspected connection receives a faint guide. Closing details removes that
+selection; scope changes clear it. Pin and briefing masks keep controls readable.
+Paused and reduced-motion views show no moving dots; measured check evidence
+remains available from the list. Missing or redacted endpoints gain no signals.
+
+A refresh batch remains staggered with 2.4 seconds per request or received reply.
+This is an illustrative replay duration, not measured network latency or packet
+volume. The UI/API/MCP availability `probe` records remain the single source of
+truth. No new source, grant, action capability or API/MCP operation is introduced:
+inspection is local presentation of an already authorized read, retaining its
+existing availability-evidence capability and audit behavior. The underlying
+monitoring checks continue independently of playback. Verify actual dot movement
+in both directions, readable themes and selection; counters alone do not prove
+visual acceptance. Exact production release evidence belongs on the release PR.
