@@ -85,6 +85,12 @@ type FacetStates = {
     | "complete"
     | "unknown";
 };
+export type ObservatoryProbeTransport = {
+  originResourceId: string;
+  protocol: "http" | "tcp";
+  responseTimeMs: number;
+  responseReceived: boolean;
+};
 export type ObservatorySignal = {
   [F in ObservatoryFacet]: {
     id: string;
@@ -99,7 +105,9 @@ export type ObservatorySignal = {
     incidentId: string | null;
     /** Retained evidence can stay fresh in time after its source loses coverage. */
     sourceQualification?: "current" | "last_known" | undefined;
-  };
+  } & (F extends "availability"
+    ? { probe?: ObservatoryProbeTransport | undefined }
+    : unknown);
 }[ObservatoryFacet];
 export type ObservatoryFacetAccess = {
   resourceId: string;

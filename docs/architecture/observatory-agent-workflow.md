@@ -137,3 +137,15 @@ record `observatory.source.observed` and canonical inventory projection records
 remain qualified, and inventory never manufactures availability signals. See
 [provider setup](../../deploy/provider-inventory.md) for permissions, pagination,
 renewal semantics and rollback.
+
+## Probe request and response evidence
+
+Availability signals may include `probe` with canonical `originResourceId`,
+protocol, measured `responseTimeMs` and `responseReceived`. It comes from a
+validated operational snapshot, never a graph dependency. It requires the same
+`observatory.read`/`observatory.signals.read` grants and `observatory.signals.read`
+audit as other availability evidence. Both endpoints must belong to the live
+authorized scene; a restricted origin is omitted before UI/MCP delivery.
+Source review remains owner-only. Origin startup configuration and encrypted
+originals remain outside machine export. Use observation timestamps and current
+source qualification when interpreting results; animation is presentation.

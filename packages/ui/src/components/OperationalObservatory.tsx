@@ -1817,6 +1817,68 @@ function OperationalObservatoryView({
           {scene.summary.coverage.stale} stale
         </span>
       </div>
+      {scene.signals.some(
+        (signal) => signal.facet === "availability" && signal.probe,
+      ) && (
+        <details
+          className="cmd-op-notice"
+          aria-label="Recorded endpoint checks"
+        >
+          <summary>
+            Live endpoint checks:{" "}
+            {
+              scene.signals.filter(
+                (signal) => signal.facet === "availability" && signal.probe,
+              ).length
+            }{" "}
+            observed /{" "}
+            {
+              scene.signals.filter(
+                (signal) =>
+                  signal.facet === "availability" &&
+                  signal.probe &&
+                  signal.state === "failing",
+              ).length
+            }{" "}
+            failing
+          </summary>
+          <p>
+            Paths replay newly recorded HTTP/TCP checks from their verified
+            checking resource. Animation timing is illustrative; timestamps and
+            latency below are measured. A missing response never produces a
+            return path.
+          </p>
+          <ul>
+            {scene.signals.flatMap((signal) =>
+              signal.facet === "availability" && signal.probe
+                ? [
+                    <li key={signal.id}>
+                      {scene.representations.find(
+                        (node) =>
+                          node.resourceId === signal.probe!.originResourceId,
+                      )?.label ?? "Checking resource"}{" "}
+                      to{" "}
+                      {scene.representations.find(
+                        (node) => node.resourceId === signal.resourceId,
+                      )?.label ?? "Checked resource"}
+                      : {signal.probe.protocol.toUpperCase()} {signal.state},{" "}
+                      {Math.round(signal.probe.responseTimeMs)} ms,{" "}
+                      {signal.freshness}
+                      {signal.sourceQualification === "last_known"
+                        ? ", last known evidence"
+                        : ""}
+                      ;{" "}
+                      <time dateTime={signal.observedAt}>
+                        {signal.observedAt}
+                      </time>
+                      .
+                    </li>,
+                  ]
+                : [],
+            )}
+          </ul>
+        </details>
+      )}
       <div className="cmd-op-workspace">
         <div className="cmd-op-landscape">
           <div

@@ -71,6 +71,7 @@ const environmentSchema = z.object({
   OBSERVATORY_CLOUDFLARE_ACCOUNT_ID: optionalString,
   OBSERVATORY_CLOUDFLARE_TOKEN_FILE: optionalString,
   OBSERVATORY_ENDPOINT_CHECKS_FILE: optionalString,
+  OBSERVATORY_PROBE_ORIGIN_RESOURCE_ID: optionalString,
   OBSERVATORY_GITHUB_TOKEN_FILE: optionalString,
   OBSERVATORY_INFRAAGENT_ORIGIN: optionalString,
   OBSERVATORY_INFRAAGENT_KEY_FILE: optionalString,
@@ -118,6 +119,7 @@ export type RuntimeConfig = {
   observatoryCloudflareAccountId?: string;
   observatoryCloudflareTokenFile?: string;
   observatoryEndpointChecksFile?: string;
+  observatoryProbeOriginResourceId?: string;
   observatoryGitHubTokenFile?: string;
   observatoryInfraAgentOrigin?: string;
   observatoryInfraAgentKeyFile?: string;
@@ -324,6 +326,12 @@ export function loadRuntimeConfig(
       ? {
           observatoryCloudflareTokenFile:
             value.OBSERVATORY_CLOUDFLARE_TOKEN_FILE,
+        }
+      : {}),
+    ...(value.OBSERVATORY_PROBE_ORIGIN_RESOURCE_ID
+      ? {
+          observatoryProbeOriginResourceId:
+            value.OBSERVATORY_PROBE_ORIGIN_RESOURCE_ID,
         }
       : {}),
     ...(value.OBSERVATORY_ENDPOINT_CHECKS_FILE

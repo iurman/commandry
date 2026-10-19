@@ -63,6 +63,12 @@ export const observatoryFacetAccessSchema = z.strictObject({
   facet: observatoryFacetSchema,
   state: observatoryAccessSchema,
 });
+export const observatoryProbeTransportSchema = z.strictObject({
+  originResourceId: z.uuid(),
+  protocol: z.enum(["http", "tcp"]),
+  responseTimeMs: z.number().finite().nonnegative(),
+  responseReceived: z.boolean(),
+});
 const signalFields = {
   id,
   resourceId: z.uuid(),
@@ -79,6 +85,7 @@ export const observatorySignalSchema = z.discriminatedUnion("facet", [
   z.strictObject({
     ...signalFields,
     facet: z.literal("availability"),
+    probe: observatoryProbeTransportSchema.optional(),
     state: z.enum(["passing", "degraded", "failing", "unknown"]),
   }),
   z.strictObject({

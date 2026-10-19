@@ -120,6 +120,48 @@ function fixture(input: ObservatoryInput = mixedObservatoryFixture()) {
 }
 
 describe("shared authorized Observatory reads", () => {
+  it("redacts a probe origin outside the live resource grant without suppressing target availability", async () => {
+    const input = inProject(mixedObservatoryFixture());
+    const target = input.resources[0]!,
+      origin = input.resources[1]!;
+    const signal = {
+      id: "probe",
+      resourceId: target.id,
+      facet: "availability" as const,
+      state: "passing" as const,
+      sourceId: "probe-source",
+      observedAt: input.now,
+      freshnessMs: 300000,
+      evidenceRefs: ["actual-check"],
+      environment: "production",
+      incidentId: null,
+      probe: {
+        originResourceId: origin.id,
+        protocol: "http" as const,
+        responseTimeMs: 120,
+        responseReceived: true,
+      },
+    };
+    const f = fixture({ ...input, signals: [signal] });
+    f.scoped(
+      [projectId],
+      ["observatory.read", "observatory.signals.read"],
+      [target.id],
+    );
+    const limited = await f.service.scene("request", { projectId });
+    expect(limited.scene.signals[0]).not.toHaveProperty("probe");
+    expect(JSON.stringify(limited)).not.toContain(origin.id);
+    f.scoped(
+      [projectId],
+      ["observatory.read", "observatory.signals.read"],
+      [target.id, origin.id],
+    );
+    const complete = await f.service.scene("request", { projectId });
+    expect(complete.scene.signals[0]).toHaveProperty(
+      "probe.originResourceId",
+      origin.id,
+    );
+  });
   it("reads F1's entire owner population through the transaction port with truthful evidence", async () => {
     const f = fixture();
     const { scene, facetAccess } = await f.service.scene("owner-request", {});

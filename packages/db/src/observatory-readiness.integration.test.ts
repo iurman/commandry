@@ -323,6 +323,7 @@ test("reviewed readiness observes actual HTTP failure and recovery through lease
           enabled: true,
         });
         const endpointReader = createEndpointCheckReader({
+          originResourceId: resourceId,
           catalogue: {
             schemaVersion: 1,
             checks: [
@@ -365,6 +366,21 @@ test("reviewed readiness observes actual HTTP failure and recovery through lease
           .from(observatoryObservation)
           .where(eq(observatoryObservation.sourceId, endpointId));
         assert.equal(persisted.length, 1);
+        const [current] = await runtime.db
+          .select()
+          .from(observatorySource)
+          .where(eq(observatorySource.id, endpointId));
+        assert.equal(current!.nextAttemptAt.getTime() - now().getTime(), 30000);
+        assert.equal(
+          (current!.snapshot!.signals as Record<string, unknown>[])[0]!.probe,
+          undefined,
+        );
+        const projected = (await scene()).scene.signals.find(
+          (signal) => signal.sourceId === endpointId,
+        );
+        assert.ok(projected?.facet === "availability");
+        assert.equal(projected.probe?.originResourceId, resourceId);
+        assert.equal(projected.probe?.responseReceived, true);
         assert.notDeepEqual(
           persisted[0]!.rawPayload,
           cipher.open(persisted[0]!.rawPayload),

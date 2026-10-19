@@ -726,6 +726,22 @@ export function mapOperationalCheckObservations(
             resourceId,
             summary: `Availability check ${signal.state}`,
             occurredAt: signal.observedAt,
+            ...(signal.probe &&
+            projection.visibleSubjectForResource.has(
+              signal.probe.originResourceId,
+            )
+              ? {
+                  probe: {
+                    from: projection.visibleSubjectForResource.get(
+                      signal.probe.originResourceId,
+                    )!,
+                    protocol: signal.probe.protocol,
+                    responseTimeMs: signal.probe.responseTimeMs,
+                    responseReceived: signal.probe.responseReceived,
+                    failed: signal.state === "failing",
+                  },
+                }
+              : {}),
           },
         ]
       : [];

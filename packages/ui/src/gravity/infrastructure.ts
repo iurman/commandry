@@ -298,11 +298,12 @@ export function projectInfrastructure(
   return { wells, palette, groups };
 }
 
-// A real observation has a subject, not an invented request destination.
+// Ordinary observations pulse their subject. Verified probes can name both actual endpoints.
 export class RecordedInfrastructureActivity implements ActivitySource {
   private time = 0;
   private seen: Map<string, number> | null = null;
   private events: ActivitySnapshot["events"] = [];
+  private transfers: ActivitySnapshot["transfers"] = [];
   private enabled = true;
   private visible = true;
   setVisible(visible: boolean) {
@@ -310,16 +311,20 @@ export class RecordedInfrastructureActivity implements ActivitySource {
     this.visible = visible;
     this.enabled = false;
     this.events = [];
+    this.transfers = [];
   }
   active() {
-    return this.events.length > 0;
+    return this.events.length > 0 || this.transfers.length > 0;
   }
   snapshot(): ActivitySnapshot {
-    return { time: this.time, transfers: [], events: this.events };
+    return { time: this.time, transfers: this.transfers, events: this.events };
   }
   advance(seconds: number) {
     this.time += seconds;
     this.events = this.events.filter((event) => this.time - event.at < 1.4);
+    this.transfers = this.transfers.filter(
+      (flow) => this.time < flow.start + flow.duration,
+    );
   }
   synchronize(
     snapshot: {
@@ -328,6 +333,13 @@ export class RecordedInfrastructureActivity implements ActivitySource {
         resourceId: string | null;
         summary: string;
         occurredAt: string;
+        probe?: {
+          from: string;
+          responseReceived: boolean;
+          failed: boolean;
+          protocol: "http" | "tcp";
+          responseTimeMs: number;
+        };
       }[];
     },
     animate: boolean,
@@ -344,22 +356,68 @@ export class RecordedInfrastructureActivity implements ActivitySource {
         event.resourceId &&
         age >= 0 &&
         age < 60_000
-      )
-        this.events.push({
-          id: event.id,
-          at: this.time,
-          correlationId: event.id,
-          from: event.resourceId,
-          to: event.resourceId,
-          kind: "observation",
-          outcome: "ok",
-          summary: event.summary,
-          effect: "arrival",
-        });
+      ) {
+        if (event.probe && event.probe.from !== event.resourceId) {
+          const outcome = event.probe.failed
+            ? ("failed" as const)
+            : ("ok" as const);
+          const flow = {
+            correlationId: event.id,
+            from: event.probe.from,
+            to: event.resourceId,
+            kind: "probe" as const,
+            start: this.time,
+            duration: 1.2,
+            outcome,
+            count: 1,
+            attempt: 1,
+            origin: event.summary,
+          };
+          this.transfers.push({
+            ...flow,
+            id: event.id + ":request",
+            phase: "outbound",
+          });
+          if (event.probe.responseReceived)
+            this.transfers.push({
+              ...flow,
+              id: event.id + ":response",
+              phase: "response",
+              from: event.resourceId,
+              to: event.probe.from,
+              start: this.time + 1.2,
+            });
+          this.events.push({
+            id: event.id,
+            at: this.time + (event.probe.responseReceived ? 2.4 : 1.2),
+            correlationId: event.id,
+            from: event.probe.from,
+            to: event.probe.from,
+            kind: "probe",
+            outcome,
+            summary: event.summary,
+            effect: event.probe.failed ? "failure" : "arrival",
+          });
+        } else
+          this.events.push({
+            id: event.id,
+            at: this.time,
+            correlationId: event.id,
+            from: event.resourceId,
+            to: event.resourceId,
+            kind: "observation",
+            outcome: event.probe?.failed ? "failed" : "ok",
+            summary: event.summary,
+            effect: event.probe?.failed ? "failure" : "arrival",
+          });
+      }
       seen.set(event.id, Date.parse(event.occurredAt));
     }
     for (const [id, at] of seen) if (now - at > 120_000) seen.delete(id);
     this.seen = seen;
-    if (!this.enabled) this.events = [];
+    if (!this.enabled) {
+      this.events = [];
+      this.transfers = [];
+    }
   }
 }
