@@ -131,8 +131,20 @@ class Rollout:
         self.safe_env = {"PATH": os.environ["PATH"], "HOME": "/root" if root == Path("/") else str(root)}
         if root != Path("/"):
             self.safe_env["COMMANDRY_TEST_ROOT"] = str(root)
-        self.step = "preflight"
         self.started = time.monotonic()
+        self.phase_started = self.started
+        self.timings = []
+        self._step = "preflight"
+
+    @property
+    def step(self):
+        return self._step
+
+    @step.setter
+    def step(self, value):
+        now = time.monotonic()
+        self.timings.append({"phase": self._step, "seconds": round(now - self.phase_started, 3)})
+        self._step, self.phase_started = value, now
 
     def trusted(self, path, private=False):
         info = path.lstat()
@@ -160,6 +172,7 @@ class Rollout:
         with (self.state / "rolling-deployments.jsonl").open("a") as stream:
             stream.write(json.dumps({"time": utc(), "result": result, "step": self.step,
                                      "elapsedSeconds": round(time.monotonic() - self.started, 3),
+                                     "phases": self.timings,
                                      **details}) + "\n")
 
     def preflight(self):
@@ -252,6 +265,7 @@ class Rollout:
                      "/etc/caddy/Caddyfile", "--adapter", "caddyfile")
 
     def backup(self, approval, marker_text):
+        started = time.monotonic()
         receipt = self.state / "predeploy-backup.receipt"
         receipt.unlink(missing_ok=True)
         self.run([str(self.root / "usr/local/sbin/commandry-backup-gate"), "predeploy", str(receipt),
@@ -267,6 +281,7 @@ class Rollout:
                 proof["RELEASE_MARKER_SHA256"] == hashlib.sha256(marker_text.encode()).hexdigest() and
                 proof["DB_NAME"] == assignments(self.marker)["DB_NAME"], "backup release identity changed")
         require(-60 <= time.time() - epoch(proof["COMPLETED_AT"]) <= 1800, "stale backup proof")
+        self.event("recovery_verified", recoverySeconds=round(time.monotonic() - started, 3))
         return proof["SNAPSHOT"]
 
     def check_main(self, approval):
