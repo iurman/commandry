@@ -6,6 +6,9 @@ the task, then follow links only when needed.
 
 ## Planning and dispatch
 
+- MUST target 10-15 minutes for ordinary release qualification, measure the actual
+  critical path, and distinguish queue, build, verification and activation time.
+
 - MUST finish and report an owner-prioritized fix and verified release before
   resuming a separately held architecture-planning discussion.
 - MUST perform routine Gravity Observatory rollout commands directly using

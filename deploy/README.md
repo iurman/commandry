@@ -75,8 +75,22 @@ rehearsal tag, not an approved production digest. The result marks offsite,
 VPS, Tunnel, and public ingress verification false and cannot authorize a
 release. The normal local app and Storybook continue running separately.
 
+The release qualification speed target is 10-15 minutes. The parallel workflow
+runs source checks, unit tests, host integration and image construction
+independently, then uses six isolated browser shards of the same exported image.
+A selected-source census and explicit skip policy block missing/duplicate cases,
+retries, new skips and failures before main-only publication. Branch benchmark
+runs publish no image. Actual adoption/timing is recorded in the
+[CI performance plan](../docs/plans/ci-deploy-performance/PLAN.md).
+
+The internal `scripts/ci-release.mjs` helper requires exact clean GitHub source,
+run/attempt identity and producer-bound image/archive/census outputs. It supplies
+no production action or MCP capability. Existing developer Compose startup and
+root-controlled deployment, backup/recovery and rollback remain unchanged.
+
 The [release candidate workflow](../.github/workflows/release-candidate.yml)
-can be started manually from the current `main` commit. It runs repository
+can be started manually for a selected branch. Only the current `main` source
+can publish; branch runs qualify without publication. It runs repository
 checks, a production dependency audit, built-app smoke tests, desktop and
 phone browser tests against local Compose, and this synthetic production
 topology rehearsal. It scans the exact tested image with pinned Trivy tooling:
