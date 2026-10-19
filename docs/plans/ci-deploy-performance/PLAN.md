@@ -1,6 +1,6 @@
 # Faster CI and consistent Commandry releases
 
-**Status: Implementation under verification. The owner set a 10-15 minute target on 2026-10-19. Published measurements remain operational evidence; automatic deployment is not enabled.**
+**Status: Operational implementation. The owner's 10-15 minute target was verified on 2026-10-19: branch qualification 11m34s, main qualification/publication 9m51s. Automatic deployment is not enabled.**
 
 ## Owner target and implementation
 
@@ -14,9 +14,9 @@ This uses infrastructure already operating for Commandry. A dedicated disposable
 
 The owner authorized bringing release time down to 10-15 minutes. This implementation does not enable automatic production deployment or change the zero downtime topology. Main qualification remains manually dispatched during this measured transition.
 
-## What happens today
+## Previous serial workflow
 
-The accepted [deployment strategy](../../architecture/deployment-strategy.md) already separates builds from production. The [release workflow](../../../.github/workflows/release-candidate.yml) is manually dispatched on main and runs one serial ubuntu-24.04 job. Node and pnpm are pinned. It checks source/contracts, dependencies, unit/local behavior, populated database upgrades, the built application, browser journeys, governed owner workflows, exact-image production topology, provenance, and image vulnerability/secret gates. It then publishes the tested local image and checks the registry digest's image ID against the original.
+The accepted [deployment strategy](../../architecture/deployment-strategy.md) already separates builds from production. The [release workflow](../../../.github/workflows/release-candidate.yml) previously ran one serial ubuntu-24.04 job dispatched on main. It now uses the parallel graph below. Node and pnpm are pinned. It checks source/contracts, dependencies, unit/local behavior, populated database upgrades, the built application, browser journeys, governed owner workflows, exact-image production topology, provenance, and image vulnerability/secret gates. It then publishes the tested local image and checks the registry digest's image ID against the original.
 
 The constrained production command consumes an exact approved digest, creates a fresh encrypted offsite backup, verifies isolated restore and host recovery, applies compatible migrations, replaces web/worker, and checks health, owner access, session revocation and a real worker job. It can restore the previous application image when verification fails. Database migrations remain forward. These controls remain requirements for the performance work.
 
@@ -137,7 +137,13 @@ A registry quarantine tag is an alternative to an Actions image artifact. It add
 
 ## Expected improvement and how to prove it
 
-**Required performance target: 10-15 minutes for complete qualification and publication.** It remains a target until measured on GitHub.
+**Performance target: 10-15 minutes for complete qualification and publication.**
+The [execution record](../../operations/ci-performance-2026-10-19.md) verifies
+11m34s branch qualification and 9m51s main qualification/publication, plus
+66s/3s of initial queue time respectively. All 207 identities and the original
+five skips are retained. The main result reduces measured elapsed execution
+by 74.3 percent from the serial 38m17s baseline. These two samples do not
+establish a stable percentile.
 
 A prior list-only six-shard census conserved all 207 identities exactly once.
 Weighting its assignments with measured serial test durations predicted a
@@ -159,14 +165,14 @@ broader coverage to separate runs. Keep sign-in/denial/session revoke, primary
 read/write flows, health, worker completion, compatible migrations, exact-image
 identity, scans and deployment recovery as release gates.
 
-Before making the new graph authoritative:
+Adoption evidence and repeatable checks:
 
 1. Retain the completed serial baseline and compare the same application code and immutable image where practical.
 2. Run six shards on isolated machines with `--workers=1` and retries zero. Confirm all 207 identities exactly once, the same five skip identities, no unexpected failures or flaky outcomes, and unchanged assertion/deadline policy.
 3. Verify source SHA, original image ID, artifact checksum and final digest readback across jobs. Publication must never rebuild.
-4. In disposable qualification runs, fail one lane, remove a report, duplicate an identity, substitute a wrong SHA/checksum, and cancel a build. Every case must withhold release eligibility/publication and leave production untouched.
-5. Run both cache-miss and cache-hit paths. An absent cache must only cost time; it must not bypass a check.
-6. Record queue, setup, build, integration, browser, artifact and publication times separately. Compare an initial complete run and subsequent representative warm runs; report sample sizes, median and maximum rather than claiming a reliable tail latency from a tiny sample.
+4. Focused tests exercised failed/retried lanes, missing/duplicate reports and identities, wrong source/run/attempt/image metadata, corrupt checksums and changed skips. The first actual branch run also rejected dirty source and withheld qualification. Deliberate cancellation/registry failure drills remain controller validation before automatic promotion; they were not performed in this performance task.
+5. No Next/BuildKit cache optimization was introduced. Keep cache-miss/cache-hit comparisons as follow-up benchmarking; these two runs did not control every tool cache. Cache presence cannot bypass a check.
+6. Raw per-job/per-step times and separate initial queue times were retained. There is one successful branch qualification sample and one main publication sample. Gather more representative runs before reporting a stable median, maximum or tail latency.
 
 A failure is a reason to correct isolation/orchestration. It is not a reason to add retries, remove tests, raise deadlines, or waive the backup/restore and owner/worker gates.
 
