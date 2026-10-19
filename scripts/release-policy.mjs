@@ -33,6 +33,7 @@ const metadata = {
     "deploy/controls-files.txt",
     "scripts/release-policy.mjs",
     "Dockerfile",
+    ".dockerignore",
     ".github/workflows/release-candidate.yml",
     ".github/actions/release-setup/action.yml",
     "scripts/ci-release.mjs",

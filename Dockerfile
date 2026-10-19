@@ -9,10 +9,10 @@ RUN corepack enable && pnpm fetch --frozen-lockfile
 FROM dependency-cache AS build
 COPY . .
 ARG COMMANDRY_SOURCE_REVISION=unknown
-RUN pnpm install --offline --frozen-lockfile \
+RUN node scripts/release-policy.mjs /app/release-policy.json \
+    && pnpm install --offline --frozen-lockfile \
     && mkdir -p apps/web/public \
-    && pnpm build \
-    && node scripts/release-policy.mjs /app/release-policy.json
+    && pnpm build
 
 FROM dependency-cache AS worker-deps
 COPY . .
