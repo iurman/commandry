@@ -48,7 +48,7 @@ class Fake(r.Rollout):
             path.touch()
             path.chmod(0o600)
         r.json_write(self.policy_path, POLICY)
-        r.atomic(self.env, f"COMMANDRY_IMAGE={OLD_IMAGE}\nRELEASE_SHA={OLD}\nRELEASE_BUILD_TIME=2026-10-19T00:00:00Z\nPRESERVED_SECRET=private-synthetic\n")
+        r.atomic(self.env, f"# retained owner comment\n\nCOMMANDRY_IMAGE={OLD_IMAGE}\nRELEASE_SHA={OLD}\nRELEASE_BUILD_TIME=2026-10-19T00:00:00Z\nPRESERVED_SECRET=private-synthetic\n")
         r.atomic(self.marker, f"IMAGE={OLD_IMAGE}\nREVISION={OLD}\nVOLUME=commandry-db\nDB_NAME=commandry\nBOOTSTRAP_ID={'f'*32}\nCLUSTER_ID=7411111111111111111\n")
         r.atomic(self.config / "approved-release", f"IMAGE={NEW_IMAGE}\nREVISION={NEW}\nTARGET=production\nEXPIRES_AT=2099-01-01T00:00:00Z\nBUILD_TIME=2026-10-19T00:00:00Z\nAPPROVED_BY=owner\n")
 
@@ -139,6 +139,7 @@ class RolloutTests(unittest.TestCase):
         self.assertTrue(all(call[2] == "web" for call in calls[:smoke+1]))
         self.assertFalse(any(call[1][0] == "stop" and any(name in call[1] for name in ("caddy", "cloudflared", "web")) for call in calls))
         self.assertIn("PRESERVED_SECRET=private-synthetic", self.rollout.env.read_text())
+        self.assertTrue(self.rollout.env.read_text().startswith("# retained owner comment\n\n"))
         self.assertNotIn("private-synthetic", (self.rollout.state / "rolling-deployments.jsonl").read_text())
 
     def test_candidate_worker_and_switch_failures_restore_prior_release(self):
@@ -158,6 +159,29 @@ class RolloutTests(unittest.TestCase):
                 with self.assertRaises(r.Rejected):
                     self.rollout.deploy(b"synthetic-input")
                 self.assert_old()
+
+    def test_failed_candidate_creation_with_no_worker_restores_old_worker(self):
+        compose = self.rollout.compose
+        def without_candidate_worker(*args, **kwargs):
+            if args[0] == "ps" and self.rollout.step == "rollback_worker_drain":
+                return b""
+            return compose(*args, **kwargs)
+        self.rollout.fail = "candidate_worker"
+        with patch.object(self.rollout, "compose", side_effect=without_candidate_worker):
+            with self.assertRaises(r.Rejected):
+                self.rollout.deploy(b"synthetic-input")
+        self.assert_old()
+
+    def test_failed_confirmation_audit_still_has_recoverable_transaction(self):
+        event = self.rollout.event
+        def failing_audit(result, **kwargs):
+            if result == "succeeded":
+                raise OSError("injected audit failure")
+            event(result, **kwargs)
+        with patch.object(self.rollout, "event", side_effect=failing_audit):
+            with self.assertRaises(OSError):
+                self.rollout.deploy(b"synthetic-input")
+        self.assert_old()
 
     def test_interrupted_journal_recovers_prior_release(self):
         self.rollout.deploy(b"synthetic-input")

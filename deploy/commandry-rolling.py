@@ -234,6 +234,8 @@ class Rollout:
 
     def worker_stop(self, allow_failed=False):
         identifier = self.compose("ps", "-a", "-q", "worker").decode().strip()
+        if allow_failed and not identifier:
+            return
         require(re.fullmatch(r"[a-f0-9]{12,64}", identifier), "worker identity unavailable")
         self.compose("stop", "-t", "90", "worker", timeout=105)
         state = json.loads(self.docker("inspect", identifier))[0]["State"]
@@ -369,8 +371,9 @@ class Rollout:
             self.step = "candidate_environment"
             changed = {"COMMANDRY_IMAGE": image, "RELEASE_SHA": revision,
                        "RELEASE_BUILD_TIME": approval["BUILD_TIME"]}
-            atomic(self.env, "\n".join(key + "=" + changed.get(key, value)
-                                      for key, value in environment.items()) + "\n")
+            require(set(changed).issubset(environment), "release environment fields missing")
+            atomic(self.env, re.sub(r"^(COMMANDRY_IMAGE|RELEASE_SHA|RELEASE_BUILD_TIME)=.*$",
+                                   lambda match: match[1] + "=" + changed[match[1]], old_env, flags=re.M))
             self.compose("config", "--quiet")
             # Independent, read-only candidate startup and fresh recovery
             # verification overlap. Neither may advance the worker or routing.
@@ -410,10 +413,10 @@ class Rollout:
             atomic(self.marker, updated)
             json_write(self.active, {"version": 1, "slot": new_slot, "image": image, "revision": revision,
                                      "confirmedAt": utc(), "previous": pending})
-            self.journal.unlink()
             self.step = "confirmed"
             self.event("succeeded", image=image, revision=revision, slot=new_slot, backupSnapshot=snapshot,
                        workerJobId=json.loads(self.receipt.read_text())["workerJobId"])
+            self.journal.unlink()
         except BaseException:
             failed_step = self.step
             try:
