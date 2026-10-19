@@ -48,6 +48,9 @@ test("morning digest reviews source-linked local worker outcomes in a chosen pro
     page.getByRole("heading", { name: "Morning run digest" }),
   ).toBeVisible();
   const projectChoice = page.getByLabel("Project", { exact: true });
+  await expect
+    .poll(() => projectChoice.locator("option").count())
+    .toBeGreaterThan(1);
   const option = projectChoice.locator(`option[value="${project.id}"]`);
   while ((await option.count()) === 0) {
     const before = await projectChoice.locator("option").count();
