@@ -1,6 +1,6 @@
 # Automatic verified releases
 
-**Status: Operational implementation in progress**
+**Status: Operational. Implemented, merged and automatically promoted in production 2026-10-19.**
 
 **Owner authorization:** 2026-10-19, automatic zero downtime deployment with a
 verified candidate before traffic and further latency reductions.
@@ -25,8 +25,10 @@ verified candidate before traffic and further latency reductions.
 
 [ADR 0018](../../decisions/0018-promote-verified-main-releases-with-two-web-slots.md)
 is the decision. [The runbook](../../../deploy/rolling-releases.md) defines
-operator and agent behavior. Deployment and CI execution evidence will be linked
-here when completed; this implementation plan is not a production pass.
+operator and agent behavior. The
+[production execution record](../../operations/automatic-safe-releases-2026-10-19.md)
+records the completed automatic promotion, exact image, rejected candidate,
+recovery correction, preserved data and measured request continuity.
 
 ## Delivery order
 
@@ -65,6 +67,15 @@ Superseded qualification runs on the same branch are canceled rather than
 blocking the latest main behind obsolete checks. A canceled run cannot meet
 the host's complete-success contract, including one canceled after an upload.
 The live cancellation drill and ordinary main run are recorded separately.
+
+The verified current-main run completed in 10m59s, plus two seconds of initial
+queue time, with the complete 207-identity census. Its automatic activation took
+121.153 seconds, including 89.836 seconds of fresh recovery verification, with
+3,495 sampled public requests and no observed failures. This activation is not
+faster than the earlier 107.977-second run; recovery duration varies. Candidate
+startup and stability overlapped recovery, the clean worker drain took 0.589
+seconds, and the proxy reload took 0.707 seconds. The production host builds no
+application image. Further performance claims require comparable measurements.
 
 Keep GitHub-hosted builds initially: they are already qualified and avoid load on
 production. Local builds remain an operator fallback, not an unattended release

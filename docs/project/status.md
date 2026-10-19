@@ -6,6 +6,18 @@
 
 ## Current phase
 
+Automatic verified main promotion is active as of `2026-10-19T02:16:34Z`.
+Revision `939ab0da2b0d4bed5e61f10d2a21546e15eda0ec`, including the PR 50
+overview refinement, passed all twelve release jobs and automatically moved to
+the candidate web slot after private health, fresh recovery, clean worker and
+authenticated smoke gates. The previous `b007960` web remains running. Public
+sampling across rejection, recovery correction and promotion recorded 3,495
+successful requests and zero observed failures. All 134 resource IDs/parents,
+15 projects, nine Commandry bindings and supporting container identities remain.
+The [automatic release record](../operations/automatic-safe-releases-2026-10-19.md)
+contains exact source/image, 10m59s CI timing, 121.153-second activation, failure
+handling and operational limits.
+
 The live-probe transport release `b0079608c25a5221bede9024bdc57b28d80ecfb7`
 was activated at `2026-10-19T01:36:10Z`. The
 [probe activation record](../operations/observatory-live-probes-2026-10-18.md)
@@ -34,13 +46,12 @@ branch qualification took 11m34s and complete main qualification/publication
 original skips remain, with no failures, flaky results or retries. Six isolated
 browser stacks reuse one image while source, unit and host integration checks
 overlap image construction. The [execution record](../operations/ci-performance-2026-10-19.md)
-contains source, timings, image and gate evidence. Qualification remains manually
-dispatched in the measured run. The owner has now authorized automatic verified
-main rollouts. [ADR 0018](../decisions/0018-promote-verified-main-releases-with-two-web-slots.md)
+contains source, timings, image and gate evidence. That historical measured run
+was manually dispatched. Main pushes now start automatic verified
+rollouts. [ADR 0018](../decisions/0018-promote-verified-main-releases-with-two-web-slots.md)
 and the [implementation plan](../plans/automatic-safe-releases/PLAN.md) define
 two web slots, a stable proxy, independent host promotion, unchanged-schema
-holds and rollback. Implementation is in progress; this is not yet production
-activation evidence.
+holds and rollback. The production activation evidence is linked above.
 
 The October 18 live-connection follow-up is in progress. Production revision
 `33d0086` was verified before collector changes. The four existing collector

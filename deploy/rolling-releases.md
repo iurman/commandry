@@ -1,10 +1,11 @@
 # Automatic rolling release controls
 
-**Status: Operational implementation in progress**
+**Status: Operational. Automatic production promotion verified 2026-10-19.**
 
 See [ADR 0018](../docs/decisions/0018-promote-verified-main-releases-with-two-web-slots.md)
 and the [delivery plan](../docs/plans/automatic-safe-releases/PLAN.md). The
-production execution record must distinguish implementation from activation.
+[production execution record](../docs/operations/automatic-safe-releases-2026-10-19.md)
+records qualification, rejection, recovery, handoff and public request evidence.
 
 ## Selection and promotion
 
@@ -39,6 +40,18 @@ The reusable two-line owner smoke input is root-only at
 repository. Existing encrypted host configuration backup includes this private
 configuration directory. Root-controlled state with previous environments also
 remains private. The constrained deployment SSH account has no read/write access.
+
+Before enabling the service on a new or recovered host, place Restic's cache at
+root-owned `/var/cache/commandry-restic` with mode `0700`, and make
+`/root/.cache/restic` a symlink to that directory. Preserve an existing cache by
+moving it under the deployment lock with no Restic process running. The service
+keeps `ProtectHome=read-only`; a cache left inside `/root` causes Restic to reject
+the fresh recovery gate. Verify `restic snapshots --json` through the same
+private backup environment and systemd sandbox before enabling promotion. The
+cache is disposable acceleration, not the backup repository or password file.
+To undo this host configuration, pause selection, hold the deployment lock,
+ensure Restic is idle, unlink that exact symlink and move the directory back.
+Keep automatic selection paused until cache access is corrected again.
 
 `commandry-deploy` retains original first-install behavior. Once policy is
 installed, existing-release activation delegates under its lock to
