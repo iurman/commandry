@@ -8,6 +8,8 @@ export type RecordedCheckRoute = {
   responseTimeMs: number;
   observedAt: string;
   failed: boolean;
+  fromLabel?: string;
+  toLabel?: string;
 };
 export type CheckEndpoint = {
   id: string;
@@ -17,31 +19,44 @@ export type CheckEndpoint = {
   width: number;
   height: number;
 };
+export type CheckSignalSelection = {
+  route: RecordedCheckRoute;
+  fromLabel: string;
+  toLabel: string;
+  phase: "outbound" | "response";
+};
 type Point = { x: number; y: number };
 type Curve = [Point, Point, Point, Point];
 
-/** Route through the free outside margin, beyond the resource pins. */
+/** Short, local arcs below the pins, with a contained loop for one group. */
 export function checkSignalCurve(
   from: CheckEndpoint,
   to: CheckEndpoint,
   width: number,
   lane = 0,
 ): Curve {
-  const same = from.id === to.id;
-  const a = {
-    x: Math.min(width - 14, from.x + from.width / 2 + 5),
-    y: from.y - from.height / 2 - (same ? 9 : 0),
-  };
-  const b = {
-    x: Math.min(width - 14, to.x + to.width / 2 + 5),
-    y: to.y - to.height / 2 + (same ? 9 : 0),
-  };
-  const outside = Math.max(18, width - 18 - lane * 12);
-  const control = (outside - (a.x + b.x) / 8) / 0.75;
+  const clamp = (x: number) => Math.max(10, Math.min(width - 10, x));
+  if (from.id === to.id) {
+    const y = from.y + 9;
+    return [
+      { x: clamp(from.x - 14), y },
+      { x: clamp(from.x - 44), y: y + 56 },
+      { x: clamp(from.x + 44), y: y + 56 },
+      { x: clamp(from.x + 14), y },
+    ];
+  }
+  const a = { x: clamp(from.x), y: from.y + 9 };
+  const b = { x: clamp(to.x), y: to.y + 9 };
+  const dx = b.x - a.x,
+    dy = b.y - a.y;
+  const distance = Math.max(1, Math.hypot(dx, dy));
+  const bend = Math.min(24, distance * 0.12) * (lane % 2 ? -1 : 1);
+  const nx = (-dy / distance) * bend,
+    ny = (dx / distance) * bend;
   return [
     a,
-    { x: control, y: a.y - (same ? 85 : 30) },
-    { x: control, y: b.y + (same ? 85 : 30) },
+    { x: clamp(a.x + dx / 3 + nx), y: a.y + dy / 3 + ny },
+    { x: clamp(b.x - dx / 3 + nx), y: b.y - dy / 3 + ny },
     b,
   ];
 }
@@ -63,32 +78,37 @@ let overlaySequence = 0;
 function attribute(element: Element, name: string, value: string) {
   if (element.getAttribute(name) !== value) element.setAttribute(name, value);
 }
+type Packet = {
+  group: SVGGElement;
+  marks: SVGCircleElement[];
+  ripple: SVGCircleElement;
+  hit: HTMLButtonElement;
+  selection: CheckSignalSelection;
+  curve: Curve;
+  progress: number;
+};
 
-/** Foreground evidence paths. Terrain depth and pin backgrounds cannot bury packets. */
+/** Theme-native dots and short trails. A guide exists only during inspection. */
 export class CheckSignalOverlay {
   readonly element: SVGSVGElement;
   private layer: SVGGElement;
+  private guide: SVGPathElement;
+  private hits: HTMLDivElement;
   private exclusions: SVGPathElement;
   private mask: SVGMaskElement;
   private maskBackground: SVGRectElement;
-  private routes = new Map<
-    string,
-    { group: SVGGElement; path: SVGPathElement; title: SVGTitleElement }
-  >();
-  private packets = new Map<
-    string,
-    { group: SVGGElement; text: SVGTextElement }
-  >();
-  constructor(container: HTMLElement) {
+  private hovered: string | null = null;
+  private packets = new Map<string, Packet>();
+  constructor(
+    container: HTMLElement,
+    inspect?: (selection: CheckSignalSelection) => void,
+    private invalidate?: () => void,
+  ) {
     const doc = container.ownerDocument;
     this.element = doc.createElementNS(svgNamespace, "svg");
     this.element.classList.add("cmd-check-signals");
     this.element.style.display = "none";
-    this.element.setAttribute("role", "img");
-    this.element.setAttribute(
-      "aria-label",
-      "Recorded health-check routes and moving request and response signals",
-    );
+    this.element.setAttribute("aria-hidden", "true");
     const definitions = doc.createElementNS(svgNamespace, "defs");
     this.mask = doc.createElementNS(svgNamespace, "mask");
     this.mask.id = `cmd-check-pin-mask-${++overlaySequence}`;
@@ -101,9 +121,17 @@ export class CheckSignalOverlay {
     definitions.append(this.mask);
     this.layer = doc.createElementNS(svgNamespace, "g");
     this.layer.setAttribute("mask", `url(#${this.mask.id})`);
+    this.guide = doc.createElementNS(svgNamespace, "path");
+    this.guide.classList.add("cmd-check-inspection-guide");
+    this.layer.append(this.guide);
     this.element.append(definitions, this.layer);
-    container.append(this.element);
+    this.hits = doc.createElement("div");
+    this.hits.className = "cmd-check-hits";
+    this.hits.setAttribute("aria-label", "Recorded check signals");
+    container.append(this.element, this.hits);
+    this.inspect = inspect;
   }
+  private inspect: ((selection: CheckSignalSelection) => void) | undefined;
   update(
     routes: readonly RecordedCheckRoute[],
     snapshot: ActivitySnapshot,
@@ -112,6 +140,7 @@ export class CheckSignalOverlay {
     height: number,
     animate: boolean,
     pins: readonly CheckEndpoint[] = [],
+    inspected?: Pick<RecordedCheckRoute, "from" | "to"> | null,
   ) {
     attribute(this.element, "viewBox", `0 0 ${width} ${height}`);
     for (const element of [this.mask, this.maskBackground]) {
@@ -130,136 +159,192 @@ export class CheckSignalOverlay {
         )
         .join(" "),
     );
-    const grouped = new Map<
+    const resolved = new Map<
       string,
-      { from: CheckEndpoint; to: CheckEndpoint; routes: RecordedCheckRoute[] }
+      {
+        route: RecordedCheckRoute;
+        from: CheckEndpoint;
+        to: CheckEndpoint;
+        curve: Curve;
+      }
     >();
-    const routeGroups = new Map<string, string>();
-    for (const route of routes) {
+    const lanes = new Map<string, number>();
+    for (const route of [...routes].sort((a, b) => a.id.localeCompare(b.id))) {
       const from = endpoint(route.from),
         to = endpoint(route.to);
       if (!from || !to) continue;
       const key = `${from.id}\n${to.id}`;
-      const group = grouped.get(key) ?? { from, to, routes: [] };
-      group.routes.push(route);
-      grouped.set(key, group);
-      routeGroups.set(route.id, key);
+      if (!lanes.has(key)) lanes.set(key, lanes.size);
+      resolved.set(route.id, {
+        route,
+        from,
+        to,
+        curve: checkSignalCurve(from, to, width, lanes.get(key)),
+      });
     }
-    const display = grouped.size ? "" : "none";
-    if (this.element.style.display !== display)
-      this.element.style.display = display;
-    const curves = new Map<string, Curve>();
-    let lane = 0;
-    for (const [key, group] of [...grouped].sort(([a], [b]) =>
-      a.localeCompare(b),
-    )) {
-      const curve = checkSignalCurve(group.from, group.to, width, lane++ % 6);
-      curves.set(key, curve);
-      let entry = this.routes.get(key);
-      if (!entry) {
-        const node = this.element.ownerDocument.createElementNS(
-          svgNamespace,
-          "g",
-        );
-        const title = this.element.ownerDocument.createElementNS(
-          svgNamespace,
-          "title",
-        );
-        const path = this.element.ownerDocument.createElementNS(
-          svgNamespace,
-          "path",
-        );
-        node.append(title, path);
-        this.layer.prepend(node);
-        entry = { group: node, path, title };
-        this.routes.set(key, entry);
-      }
-      const [a, b, c, d] = curve;
-      attribute(
-        entry.path,
-        "d",
-        `M${a.x},${a.y} C${b.x},${b.y} ${c.x},${c.y} ${d.x},${d.y}`,
-      );
-      attribute(entry.group, "data-check-route", key);
-      attribute(
-        entry.group,
-        "data-failed",
-        String(group.routes.some((route) => route.failed)),
-      );
-      const title =
-        `${group.from.label} to ${group.to.label}: ${group.routes.length} recorded checks. ` +
-        group.routes
-          .map(
-            (route) =>
-              `${route.protocol.toUpperCase()}, ${route.failed ? "failing" : "passing"}, ${Math.round(route.responseTimeMs)} ms, ${route.observedAt}`,
-          )
-          .join("; ");
-      if (entry.title.textContent !== title) entry.title.textContent = title;
-    }
-    for (const [key, entry] of this.routes)
-      if (!grouped.has(key)) {
-        entry.group.remove();
-        this.routes.delete(key);
-      }
+    if (!animate) this.hovered = null;
     const active = animate
       ? activeTransfers(snapshot).filter((flow) => flow.recorded)
       : [];
-    const activeKeys = new Set<string>();
-    const activeGroups = new Set<string>();
+    const retained = new Set<string>();
     for (const flow of active) {
-      const key = routeGroups.get(flow.correlationId);
-      const curve = key ? curves.get(key) : undefined;
-      const route = routes.find((item) => item.id === flow.correlationId);
-      if (!curve || !route || !key) continue;
-      activeKeys.add(flow.id);
-      activeGroups.add(key);
+      if (flow.phase === "processing") continue;
+      const info = resolved.get(flow.correlationId);
+      if (!info) continue;
+      retained.add(flow.id);
       let entry = this.packets.get(flow.id);
       if (!entry) {
         const doc = this.element.ownerDocument;
         const group = doc.createElementNS(svgNamespace, "g");
-        const arrow = doc.createElementNS(svgNamespace, "path");
-        arrow.setAttribute("d", "M11 0 L-8 -7 L-4 0 L-8 7 Z");
-        arrow.classList.add("cmd-check-packet-arrow");
-        const text = doc.createElementNS(svgNamespace, "text");
-        group.append(arrow, text);
+        const marks = [1.5, 2.1, 3.2].map((r) => {
+          const mark = doc.createElementNS(svgNamespace, "circle");
+          mark.setAttribute("r", String(r));
+          group.append(mark);
+          return mark;
+        });
+        const ripple = doc.createElementNS(svgNamespace, "circle");
+        ripple.classList.add("cmd-check-arrival");
+        group.prepend(ripple);
+        const hit = doc.createElement("button");
+        hit.type = "button";
+        hit.className = "cmd-check-hit";
+        hit.addEventListener("pointerdown", (event) => event.stopPropagation());
+        hit.addEventListener("pointerenter", () => {
+          this.hovered = flow.id;
+          this.invalidate?.();
+        });
+        hit.addEventListener("pointerleave", () => {
+          if (this.hovered === flow.id) {
+            this.hovered = null;
+            this.invalidate?.();
+          }
+        });
+        hit.addEventListener("focus", () => {
+          this.hovered = flow.id;
+          this.invalidate?.();
+        });
+        hit.addEventListener("blur", () => {
+          if (this.hovered === flow.id) {
+            this.hovered = null;
+            this.invalidate?.();
+          }
+        });
+        hit.addEventListener("click", () => {
+          const packet = this.packets.get(flow.id);
+          if (packet) this.inspect?.(packet.selection);
+        });
+        this.hits.append(hit);
         this.layer.append(group);
-        entry = { group, text };
+        entry = {
+          group,
+          marks,
+          ripple,
+          hit,
+          selection: {
+            route: info.route,
+            fromLabel: info.route.fromLabel ?? info.from.label,
+            toLabel: info.route.toLabel ?? info.to.label,
+            phase: flow.phase,
+          },
+          curve: info.curve,
+          progress: 0,
+        };
         this.packets.set(flow.id, entry);
       }
-      const reverse = flow.phase === "response";
-      const progress = (snapshot.time - flow.start) / flow.duration;
-      const t = reverse ? 1 - progress : progress;
-      const point = checkSignalPoint(curve, t);
-      const ahead = checkSignalPoint(curve, t + (reverse ? -0.005 : 0.005));
-      const angle =
-        (Math.atan2(ahead.y - point.y, ahead.x - point.x) * 180) / Math.PI;
-      attribute(entry.group, "transform", `translate(${point.x},${point.y})`);
-      attribute(entry.group, "data-check-packet", flow.phase);
-      attribute(entry.group, "data-failed", String(route.failed));
-      attribute(
-        entry.group.firstElementChild!,
-        "transform",
-        `rotate(${angle})`,
-      );
-      const textX =
-        width < 220 ? width / 2 : Math.max(110, Math.min(width - 110, point.x));
-      attribute(entry.text, "x", String(textX - point.x));
-      attribute(entry.text, "y", "-12");
-      attribute(entry.text, "text-anchor", "middle");
-      const label = `${route.protocol.toUpperCase()} ${reverse ? "response" : "request"}: ${grouped.get(key)!.to.label}`;
-      if (entry.text.textContent !== label) entry.text.textContent = label;
-    }
-    for (const [key, entry] of this.packets)
-      if (!activeKeys.has(key)) {
-        entry.group.remove();
-        this.packets.delete(key);
+      if (this.hovered !== flow.id) {
+        entry.progress = (snapshot.time - flow.start) / flow.duration;
+        entry.curve = info.curve;
       }
-    for (const [key, entry] of this.routes)
-      attribute(entry.group, "data-active", String(activeGroups.has(key)));
-    attribute(this.element, "data-route-count", String(grouped.size));
-    attribute(this.element, "data-packet-count", String(activeKeys.size));
+      entry.selection = {
+        route: info.route,
+        fromLabel: info.route.fromLabel ?? info.from.label,
+        toLabel: info.route.toLabel ?? info.to.label,
+        phase: flow.phase,
+      };
+    }
+    // A hovered dot holds its last recorded position, including after its phase ends.
+    if (animate && this.hovered) {
+      const entry = this.packets.get(this.hovered);
+      if (entry && resolved.has(entry.selection.route.id))
+        retained.add(this.hovered);
+    }
+    for (const [id, entry] of this.packets) {
+      if (!retained.has(id)) {
+        entry.group.remove();
+        entry.hit.remove();
+        this.packets.delete(id);
+        if (this.hovered === id) this.hovered = null;
+        continue;
+      }
+      const reverse = entry.selection.phase === "response";
+      const t = reverse ? 1 - entry.progress : entry.progress;
+      const point = checkSignalPoint(entry.curve, t);
+      attribute(entry.group, "transform", `translate(${point.x},${point.y})`);
+      attribute(entry.group, "data-check-packet", entry.selection.phase);
+      attribute(
+        entry.group,
+        "data-failed",
+        String(entry.selection.route.failed),
+      );
+      attribute(entry.group, "data-held", String(this.hovered === id));
+      entry.marks.forEach((mark, index) => {
+        const tail = checkSignalPoint(
+          entry.curve,
+          t + (reverse ? 1 : -1) * (2 - index) * 0.026,
+        );
+        attribute(mark, "cx", String(tail.x - point.x));
+        attribute(mark, "cy", String(tail.y - point.y));
+        attribute(mark, "opacity", String([0.2, 0.42, 1][index]));
+      });
+      const arrival = Math.max(0, (entry.progress - 0.88) / 0.12);
+      attribute(entry.ripple, "r", String(5 + arrival * 7));
+      attribute(
+        entry.ripple,
+        "opacity",
+        String(arrival > 0 ? (1 - arrival) * 0.45 : 0),
+      );
+      entry.hit.style.left = `${point.x}px`;
+      entry.hit.style.top = `${point.y}px`;
+      entry.hit.hidden = pins.some(
+        (pin) =>
+          point.x >= pin.x - pin.width / 2 - 3 &&
+          point.x <= pin.x + pin.width / 2 + 3 &&
+          point.y >= pin.y - pin.height - 3 &&
+          point.y <= pin.y + 3,
+      );
+      const selection = entry.selection;
+      attribute(
+        entry.hit,
+        "aria-label",
+        `Inspect ${selection.route.protocol.toUpperCase()} ${reverse ? "response" : "request"}: ${selection.fromLabel} to ${selection.toLabel}, ${Math.round(selection.route.responseTimeMs)} ms, ${selection.route.failed ? "failing" : "passing"}`,
+      );
+    }
+    const selected = this.hovered
+      ? this.packets.get(this.hovered)?.selection.route
+      : inspected;
+    const info = selected
+      ? [...resolved.values()].find(
+          (item) =>
+            item.route.from === selected.from && item.route.to === selected.to,
+        )
+      : undefined;
+    const curve = info?.curve;
+    attribute(
+      this.guide,
+      "d",
+      curve
+        ? `M${curve[0].x},${curve[0].y} C${curve[1].x},${curve[1].y} ${curve[2].x},${curve[2].y} ${curve[3].x},${curve[3].y}`
+        : "",
+    );
+    const display = this.packets.size || curve ? "" : "none";
+    if (this.element.style.display !== display)
+      this.element.style.display = display;
+    attribute(this.element, "data-route-count", String(lanes.size));
+    attribute(this.element, "data-packet-count", String(this.packets.size));
   }
   dispose() {
     this.element.remove();
+    this.hits.remove();
+    this.packets.clear();
   }
 }

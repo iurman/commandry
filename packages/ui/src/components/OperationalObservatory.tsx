@@ -45,6 +45,7 @@ import {
 } from "../gravity/operational-layout";
 import { observatoryBriefing } from "../gravity/briefing";
 import { activeTransfers } from "../gravity/activity-types";
+import type { CheckSignalSelection } from "../gravity/check-signals";
 import type { TourStop } from "../gravity/tour";
 import {
   ObservatoryBriefingCard,
@@ -539,6 +540,33 @@ function OperationalObservatoryView({
     [anchors, setAnchors] = useState<Anchor[]>([]);
   const [layout] = useState(() => new OperationalLayout()),
     [activity] = useState(() => new OperationalRecordedActivity());
+  const [inspectedCheck, setInspectedCheck] =
+    useState<CheckSignalSelection | null>(null);
+  const checkClose = useRef<HTMLButtonElement>(null);
+  const checkSummary = useRef<HTMLElement>(null);
+  const checkTrigger = useRef<HTMLElement | null>(null);
+  useEffect(() => {
+    if (inspectedCheck) checkClose.current?.focus();
+  }, [inspectedCheck]);
+  const inspectRecordedCheck = useCallback(
+    (selection: CheckSignalSelection) => {
+      checkTrigger.current =
+        document.activeElement instanceof HTMLElement
+          ? document.activeElement
+          : null;
+      setInspectedCheck(selection);
+    },
+    [],
+  );
+  function closeRecordedCheck() {
+    setInspectedCheck(null);
+    queueMicrotask(() =>
+      (checkTrigger.current?.isConnected
+        ? checkTrigger.current
+        : checkSummary.current
+      )?.focus(),
+    );
+  }
   const [checkPlayback, setCheckPlayback] = useState({
     requests: 0,
     responses: 0,
@@ -675,28 +703,39 @@ function OperationalObservatoryView({
         : "porcelain"
       : preferences.theme;
   const motion = !reduced && !stopped && !reading;
-  const checkRoutes = useMemo(
-    () =>
-      projection.value
-        ? mapOperationalCheckObservations(scene, projection.value).flatMap(
-            (event) =>
-              event.probe && event.resourceId
-                ? [
-                    {
-                      id: event.id,
-                      from: event.probe.from,
-                      to: event.resourceId,
-                      protocol: event.probe.protocol,
-                      responseTimeMs: event.probe.responseTimeMs,
-                      failed: event.probe.failed,
-                      observedAt: event.occurredAt,
-                    },
-                  ]
-                : [],
-          )
-        : [],
-    [scene, projection],
-  );
+  const checkRoutes = useMemo(() => {
+    if (!projection.value) return [];
+    const label = (resourceId: string | undefined) =>
+      scene.representations.find((node) => node.resourceId === resourceId)
+        ?.label ?? "Recorded resource";
+    return mapOperationalCheckObservations(scene, projection.value).flatMap(
+      (event) => {
+        if (!event.probe || !event.resourceId) return [];
+        const signal = scene.signals.find(
+          (item) =>
+            event.id ===
+            `check-observation:${item.sourceId}:${item.id}:${item.observedAt}`,
+        );
+        return [
+          {
+            id: event.id,
+            from: event.probe.from,
+            to: event.resourceId,
+            protocol: event.probe.protocol,
+            responseTimeMs: event.probe.responseTimeMs,
+            failed: event.probe.failed,
+            observedAt: event.occurredAt,
+            fromLabel: label(
+              signal?.facet === "availability"
+                ? signal.probe?.originResourceId
+                : undefined,
+            ),
+            toLabel: label(signal?.resourceId),
+          },
+        ];
+      },
+    );
+  }, [scene, projection]);
   const pending =
     query.viewRevision !== scene.viewRevision ||
     query.grouping !== scene.grouping;
@@ -722,6 +761,7 @@ function OperationalObservatoryView({
       activity: {
         source: activity,
         routes: checkRoutes,
+        inspected: inspectedCheck?.route ?? null,
         running: !stopped && !delayed && !pending && !reading,
         follow: false,
         trace: null,
@@ -740,6 +780,7 @@ function OperationalObservatoryView({
       selected,
       activity,
       checkRoutes,
+      inspectedCheck,
       delayed,
       pending,
     ],
@@ -761,6 +802,7 @@ function OperationalObservatoryView({
       },
       scene,
     );
+    setInspectedCheck(null);
     setQuery(safe);
     setCamera(nextCamera);
     onQueryChange(safe);
@@ -1078,6 +1120,7 @@ function OperationalObservatoryView({
                 element.style.visibility = amount > 0.01 ? "visible" : "hidden";
               }
             },
+            inspectCheck: inspectRecordedCheck,
             activity(snapshot) {
               const flows = activeTransfers(snapshot).filter(
                 (flow) => flow.recorded,
@@ -1146,7 +1189,7 @@ function OperationalObservatoryView({
       instance?.dispose();
       renderer.current = null;
     };
-  }, [loaded, activity]);
+  }, [loaded, activity, inspectRecordedCheck]);
   useEffect(() => {
     const instance = renderer.current;
     if (!instance || !projection.value) return;
@@ -1892,7 +1935,7 @@ function OperationalObservatoryView({
           className="cmd-op-notice"
           aria-label="Recorded endpoint checks"
         >
-          <summary>
+          <summary ref={checkSummary}>
             Live endpoint checks:{" "}
             {
               scene.signals.filter(
@@ -1926,19 +1969,52 @@ function OperationalObservatoryView({
             </span>
           </summary>
           <p>
-            Paths replay newly recorded HTTP/TCP checks from their verified
-            checking resource. Animation timing is illustrative; timestamps and
-            latency below are measured. A missing response never produces a
-            return path. Dashed foreground routes show the latest observed
-            checks between updates; bright labelled arrow packets show each new
-            request or received response. Routes connect the containing group
-            when an endpoint is nested or collapsed.
+            Dots with short trails replay newly recorded HTTP/TCP checks from
+            their verified checking resource. Animation timing is illustrative;
+            timestamps and latency below are measured. A missing response never
+            produces a return signal. Filled dots show requests; outlined dots
+            show received responses. Hover holds a dot; select it to pin its
+            details. Only the inspected connection has a faint guide. A
+            containing group stands in for an endpoint that is nested or
+            collapsed.
           </p>
           <ul>
             {scene.signals.flatMap((signal) =>
               signal.facet === "availability" && signal.probe
                 ? [
                     <li key={signal.id}>
+                      <button
+                        type="button"
+                        onClick={() => {
+                          const route = checkRoutes.find(
+                            (item) =>
+                              item.id ===
+                              `check-observation:${signal.sourceId}:${signal.id}:${signal.observedAt}`,
+                          );
+                          if (!route) return;
+                          const label = (resourceId: string) =>
+                            scene.representations.find(
+                              (node) => node.resourceId === resourceId,
+                            )?.label ?? "Recorded resource";
+                          inspectRecordedCheck({
+                            route,
+                            fromLabel: label(signal.probe!.originResourceId),
+                            toLabel: label(signal.resourceId),
+                            phase: signal.probe!.responseReceived
+                              ? "response"
+                              : "outbound",
+                          });
+                        }}
+                        disabled={
+                          !checkRoutes.some(
+                            (item) =>
+                              item.id ===
+                              `check-observation:${signal.sourceId}:${signal.id}:${signal.observedAt}`,
+                          )
+                        }
+                      >
+                        Inspect check
+                      </button>{" "}
                       {scene.representations.find(
                         (node) =>
                           node.resourceId === signal.probe!.originResourceId,
@@ -1965,6 +2041,35 @@ function OperationalObservatoryView({
           </ul>
         </details>
       )}
+      {inspectedCheck &&
+        checkRoutes.some(
+          (route) =>
+            route.from === inspectedCheck.route.from &&
+            route.to === inspectedCheck.route.to,
+        ) && (
+          <section
+            className="cmd-op-check-inspection"
+            aria-label="Selected recorded check"
+            onKeyDown={(event) => {
+              if (event.key === "Escape") closeRecordedCheck();
+            }}
+          >
+            <p role="status">
+              {inspectedCheck.fromLabel} to {inspectedCheck.toLabel}:{" "}
+              {inspectedCheck.route.protocol.toUpperCase()}{" "}
+              {inspectedCheck.phase === "response" ? "response" : "request"}{" "}
+              recorded, {Math.round(inspectedCheck.route.responseTimeMs)} ms,{" "}
+              {inspectedCheck.route.failed ? "failing" : "passing"}. Observed{" "}
+              <time dateTime={inspectedCheck.route.observedAt}>
+                {inspectedCheck.route.observedAt}
+              </time>
+              .
+            </p>
+            <button ref={checkClose} type="button" onClick={closeRecordedCheck}>
+              Close check details
+            </button>
+          </section>
+        )}
       <div className="cmd-op-workspace">
         <div className="cmd-op-landscape">
           <div
@@ -2094,13 +2199,14 @@ function OperationalObservatoryView({
             </ObservatoryRoster>
           </div>
           <p className="cmd-op-legend">
-            Dashed routes show the latest recorded health checks. Labelled arrow
-            packets show new HTTP/TCP requests and received responses. Each
-            badge shows a recognised technology or the resource kind; choose a
-            resource&apos;s icon in its inspector, saved on this device. Lines
-            tie every member to the group or host that contains it. Counts are
-            unique within a group; references do not add to the global total.
-            Source freshness is separate from service availability.
+            Unlabeled dots with short trails show newly recorded checks: filled
+            for requests and outlined for received responses. Select a dot or a
+            recorded check to inspect it. Each badge shows a recognised
+            technology or the resource kind; choose a resource&apos;s icon in
+            its inspector, saved on this device. Lines tie every member to the
+            group or host that contains it. Counts are unique within a group;
+            references do not add to the global total. Source freshness is
+            separate from service availability.
           </p>
           {query.search && (
             <section

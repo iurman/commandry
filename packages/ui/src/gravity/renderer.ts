@@ -8,6 +8,7 @@ import {
   CheckSignalOverlay,
   type RecordedCheckRoute,
   type CheckEndpoint,
+  type CheckSignalSelection,
 } from "./check-signals";
 import {
   terrainVertex,
@@ -128,6 +129,7 @@ export type RendererSettings = {
     follow: boolean;
     trace: string | null;
     routes?: readonly RecordedCheckRoute[];
+    inspected?: Pick<RecordedCheckRoute, "from" | "to"> | null;
   };
 };
 export type RendererHooks = {
@@ -145,6 +147,7 @@ export type RendererHooks = {
   viewport: (portrait: boolean) => void;
   lens: (amount: number) => void;
   activity: (snapshot: ActivitySnapshot) => void;
+  inspectCheck?: (selection: CheckSignalSelection) => void;
   visibility: (visible: boolean) => void;
 };
 
@@ -382,7 +385,13 @@ export class ObservatoryRenderer {
     );
     this.renderer.domElement.setAttribute("role", "img");
     container.append(this.renderer.domElement);
-    this.checkSignals = new CheckSignalOverlay(container);
+    this.checkSignals = new CheckSignalOverlay(
+      container,
+      hooks.inspectCheck,
+      () => {
+        this.needsDraw = true;
+      },
+    );
     this.configureFieldTexture();
     this.camera.position.set(9, 20, 26);
     this.controls = new OrbitControls(this.camera, this.renderer.domElement);
@@ -1775,6 +1784,7 @@ export class ObservatoryRenderer {
             height: panel.height,
           })),
         ),
+      this.settings.activity.inspected,
     );
   }
 

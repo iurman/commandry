@@ -124,6 +124,20 @@ acceptance require actual packets travelling along visible paths; prior counter
 and badge verification is insufficient. Exact activation receipts belong on the
 follow-up pull request after the complete release gates pass.
 
+### Owner-selected quieter presentation
+
+On October 19, 2026, the owner rejected the prominent permanent check lines and
+labelled arrowheads after verifying that signals were visible. The owner then
+selected the quiet-dot and short-trail motion studies, with the existing design
+language retained. The follow-up replaces that foreground treatment with small
+filled/outlined request/reply dots, two diminishing tail points and local arcs.
+There are no permanent check paths or travelling labels. Hover holds a mark,
+selection pins its existing evidence, and only the inspected connection gains a
+faint guide. The stable recorded-check list offers the same selection. Existing
+source cadence, truthfulness, missing-reply, scope and pause/reduced-motion rules
+remain. The exact qualified release and production visual acceptance must be
+recorded on the follow-up PR; the design studies use simulated activity.
+
 ## Retained boundaries
 
 Cloudflare recurring inventory still needs the prepared IYU Labs LLC-only read
