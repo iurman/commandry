@@ -19,7 +19,7 @@ const generator = resolve("scripts/generate-controls-bundle.py");
 const reviewedList = readFileSync(resolve("deploy/controls-files.txt"));
 const reviewedPaths = reviewedList.toString().trim().split("\n");
 const reviewedDigest =
-  "d8b2d74c7dc3ecfbd0bb753fff95e486e84f1b2a5f45b8e625c01c55e0efe483";
+  "05dca9dd2b9512e0d4eb8ca293e9b8b648dff0dc5d49efda06f0dd7417df3597";
 const runtimeHelper = "scripts/commandry-backup-gate.mjs";
 
 function command(program, args, cwd, environment = {}) {
@@ -88,7 +88,7 @@ function digest(bytes) {
 }
 
 test("reviewed list contains the full pinned host selection", () => {
-  assert.equal(reviewedPaths.length, 40);
+  assert.equal(reviewedPaths.length, 45);
   assert.equal(digest(reviewedList), reviewedDigest);
   assert.ok(reviewedPaths.includes(runtimeHelper));
   assert.ok(reviewedPaths.includes("deploy/commandry-backup-gate.sh"));
@@ -209,7 +209,7 @@ test("omitting a runtime helper from a clean committed list is rejected", (t) =>
   git(repository, "update-ref", "refs/remotes/origin/main", revision);
   const result = generate(repository, revision, join(root, "omitted"));
   assert.notEqual(result.status, 0);
-  assert.match(result.stderr, /differs from the reviewed 40-path selection/);
+  assert.match(result.stderr, /differs from the reviewed 45-path selection/);
 });
 
 test("existing and publicly writable output directories are refused", (t) => {

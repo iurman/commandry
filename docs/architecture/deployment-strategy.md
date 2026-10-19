@@ -103,6 +103,15 @@ GitHub Actions will:
 Production never builds from source on the VPS. It pulls the previously tested
 image by digest.
 
+The owner authorized automatic verified main releases on October 19, 2026.
+[ADR 0018](../decisions/0018-promote-verified-main-releases-with-two-web-slots.md)
+adds a host controller and two private web slots while preserving the existing
+database, proxy, Tunnel and separate worker. The [rolling release runbook](../../deploy/rolling-releases.md)
+defines qualification, unchanged-schema/control holds, candidate smoke, graceful
+traffic handoff, worker drain, retained rollback and owner-only agent access.
+The [implementation plan](../plans/automatic-safe-releases/PLAN.md) records
+activation status; architecture acceptance does not establish a production pass.
+
 ## Agent-operated deployment
 
 An agent may build, test, and deploy without receiving a shell that can freely

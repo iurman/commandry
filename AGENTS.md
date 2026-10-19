@@ -6,6 +6,9 @@ the task, then follow links only when needed.
 
 ## Planning and dispatch
 
+- MUST keep the confirmed application serving until an exact qualified candidate
+  passes readiness, authenticated application and real worker checks; failed
+  candidates retain or restore the confirmed release before automatic retry.
 - MUST target 10-15 minutes for ordinary release qualification, measure the actual
   critical path, and distinguish queue, build, verification and activation time.
 

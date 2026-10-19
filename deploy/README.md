@@ -2,6 +2,11 @@
 
 **Status: Operational**
 
+For the owner-authorized automatic verified rollout implementation, use the
+[rolling release runbook](rolling-releases.md). Once enabled, its active web
+slot must be respected by every deployment; ordinary `compose up web worker`
+is not a rolling release operation.
+
 For the initial operator connection and a safe inventory of the existing VPS,
 use the [VPS access and onboarding runbook](../docs/operations/vps-access-and-onboarding.md).
 

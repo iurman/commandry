@@ -1,6 +1,8 @@
 name: Commandry release candidate
 
 on:
+  push:
+    branches: [main]
   workflow_dispatch:
 
 permissions:
@@ -8,7 +10,7 @@ permissions:
 
 concurrency:
   group: commandry-release-candidate-${{ github.ref }}
-  cancel-in-progress: false
+  cancel-in-progress: true
 
 jobs:
   source:
@@ -104,6 +106,8 @@ jobs:
         run: pnpm compose:up
       - name: Rehearse production services with the exact image
         run: pnpm production:topology:rehearse
+      - name: Rehearse graceful proxy switch, stream drain and old assets
+        run: node scripts/rehearse-rolling-proxy.mjs docker.io/library/caddy@sha256:d8542f48d34a9cf4e4c11a478865229840e87e4c96ea3f439101f31a5d35f75f "$RUNNER_TEMP/proxy-rehearsal.json"
       - name: Report all high and critical image findings
         uses: aquasecurity/trivy-action@ed142fd0673e97e23eac54620cfb913e5ce36c25 # v0.36.0
         with:

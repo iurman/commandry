@@ -73,13 +73,14 @@ services:
           "-e",
           "fetch('http://127.0.0.1:3000/health/ready').then(r => process.exit(r.ok ? 0 : 1)).catch(() => process.exit(1))",
         ]
-      interval: 10s
+      interval: 2s
       timeout: 5s
-      retries: 12
-      start_period: 30s
+      retries: 30
+      start_period: 10s
 
   worker:
     <<: *app
+    stop_grace_period: 90s
     command: ["node", "apps/worker/dist/index.js"]
     environment:
       <<: *runtime-env
@@ -122,7 +123,7 @@ services:
             const client = new Client({ connectionString: process.env.DATABASE_URL, connectionTimeoutMillis: 2000 });
             try {
               await client.connect();
-              const result = await client.query("SELECT EXISTS (SELECT 1 FROM worker_heartbeat WHERE seen_at > now() - interval '30 seconds') AS healthy");
+              const result = await client.query("SELECT EXISTS (SELECT 1 FROM worker_heartbeat WHERE seen_at > now() - interval '30 seconds' AND release_sha = $1) AS healthy", [process.env.RELEASE_SHA]);
               process.exitCode = result.rows[0]?.healthy ? 0 : 1;
             } catch {
               process.exitCode = 1;
@@ -130,10 +131,10 @@ services:
               await client.end().catch(() => {});
             }
           })();
-      interval: 10s
+      interval: 2s
       timeout: 5s
-      retries: 6
-      start_period: 30s
+      retries: 30
+      start_period: 10s
 
   caddy:
     image: ${CADDY_IMAGE:?Set an approved immutable Caddy image digest}

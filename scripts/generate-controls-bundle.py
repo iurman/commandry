@@ -15,7 +15,7 @@ import tarfile
 
 
 LIST_PATH = "deploy/controls-files.txt"
-REVIEWED_LIST_SHA256 = "d8b2d74c7dc3ecfbd0bb753fff95e486e84f1b2a5f45b8e625c01c55e0efe483"
+REVIEWED_LIST_SHA256 = "05dca9dd2b9512e0d4eb8ca293e9b8b648dff0dc5d49efda06f0dd7417df3597"
 MAX_MEMBER_BYTES = 10 * 1024 * 1024
 MAX_ARCHIVE_BYTES = 50 * 1024 * 1024
 PATH_PATTERN = re.compile(r"[A-Za-z0-9._/-]+\Z")
@@ -82,7 +82,7 @@ def selected_paths(repository: Path, revision: str) -> list[str]:
         raise BundleError("controls file list must be a regular committed file")
     raw = git(repository, "show", f"{revision}:{LIST_PATH}")
     if hashlib.sha256(raw).hexdigest() != REVIEWED_LIST_SHA256:
-        raise BundleError("controls file list differs from the reviewed 40-path selection")
+        raise BundleError("controls file list differs from the reviewed 45-path selection")
     try:
         value = raw.decode("utf-8")
     except UnicodeDecodeError as error:

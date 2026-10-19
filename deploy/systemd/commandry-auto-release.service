@@ -1,0 +1,17 @@
+[Unit]
+Description=Qualify and promote the latest Commandry main release
+After=docker.service network-online.target
+Wants=network-online.target
+
+[Service]
+Type=oneshot
+User=root
+UMask=0077
+WorkingDirectory=/opt/commandry
+Environment=PATH=/usr/sbin:/usr/bin:/sbin:/bin
+ExecStart=/usr/bin/python3 /opt/commandry/deploy/commandry-auto-release.py
+TimeoutStartSec=25min
+TimeoutStopSec=2min
+PrivateTmp=true
+ProtectHome=true
+NoNewPrivileges=true
