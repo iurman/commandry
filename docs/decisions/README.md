@@ -37,6 +37,7 @@ contributors need. They do not record minor implementation details.
 
 | [0016](0016-project-the-operational-observatory.md) | Project the operational Observatory with conserved complete membership | Accepted |
 | [0017](0017-confirm-observatory-presentation-defaults.md) | Confirm the owner's Observatory presentation defaults and resolve OQ-039 | Accepted |
+| [0018](0018-promote-verified-main-releases-with-two-web-slots.md) | Promote verified main releases through two private web slots | Accepted |
 
 ## Creating an ADR
 

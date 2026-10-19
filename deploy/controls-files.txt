@@ -6,6 +6,9 @@ deploy/backup.env.example
 deploy/alert.env.example
 deploy/approved-release.example
 deploy/commandry-deploy.sh
+deploy/commandry-rolling.py
+deploy/commandry-auto-release.py
+deploy/compose.rolling.yaml
 deploy/commandry-backup-gate.sh
 deploy/commandry-app-smoke.sh
 deploy/commandry-owner-recover.sh
@@ -22,6 +25,8 @@ deploy/systemd/commandry-backup-alert.service
 deploy/systemd/commandry-backup-alert.timer
 deploy/systemd/commandry-restore-monthly.service
 deploy/systemd/commandry-restore-monthly.timer
+deploy/systemd/commandry-auto-release.service
+deploy/systemd/commandry-auto-release.timer
 docker/postgres/initdb/10-roles.sh
 docker/postgres/initdb/20-backup-role.sql
 scripts/commandry-backup-gate.mjs

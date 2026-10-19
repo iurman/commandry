@@ -8,7 +8,9 @@ RUN corepack enable && pnpm fetch --frozen-lockfile
 
 FROM dependency-cache AS build
 COPY . .
-RUN pnpm install --offline --frozen-lockfile \
+ARG COMMANDRY_SOURCE_REVISION=unknown
+RUN node scripts/release-policy.mjs /app/release-policy.json \
+    && pnpm install --offline --frozen-lockfile \
     && mkdir -p apps/web/public \
     && pnpm build
 
@@ -48,6 +50,7 @@ COPY --from=worker-deps --chown=node:node /runtime/node_modules ./apps/worker/no
 COPY --from=build --chown=node:node /app/apps/worker/package.json ./apps/worker/package.json
 COPY --from=build --chown=node:node /app/apps/worker/dist ./apps/worker/dist
 COPY --from=build --chown=node:node /app/packages/db/migrations ./packages/db/migrations
+COPY --from=build --chown=node:node /app/release-policy.json ./release-policy.json
 
 USER node
 EXPOSE 3000
