@@ -13,6 +13,7 @@ import sys
 import time
 from concurrent.futures import ThreadPoolExecutor
 from datetime import datetime, timezone
+from urllib.parse import urlsplit
 
 
 class Rejected(RuntimeError):
@@ -45,6 +46,27 @@ def assignments(path):
         require(separator and key not in result, "ambiguous controlled assignments")
         result[key] = value
     return result
+
+
+def release_environment(path, marker, backup):
+    values = assignments(path)
+    for line in path.read_text().splitlines():
+        if not line.strip() or line.lstrip().startswith("#"):
+            continue
+        require(re.fullmatch(r"[A-Z][A-Z0-9_]*=[!-~]*", line) and
+                not any(character in line.split("=", 1)[1] for character in ("#", "$", "\\", "'", '"')),
+                "unsupported Compose assignment")
+    name = marker["DB_NAME"]
+    require(re.fullmatch(r"[a-z_][a-z0-9_]{0,62}", name) and
+            values["DB_NAME"] == name == assignments(backup)["DB_NAME"] and
+            values["PRODUCTION_DB_VOLUME_NAME"] == marker["VOLUME"], "database target differs from confirmed release")
+    for key, role in (("DATABASE_URL", "commandry_app"), ("DATABASE_MIGRATION_URL", "commandry_migrate")):
+        parsed = urlsplit(values[key])
+        require(parsed.scheme == "postgresql" and parsed.netloc.count("@") == 1 and
+                parsed.username == role and parsed.password and parsed.hostname == "postgres" and
+                parsed.port == 5432 and parsed.path == "/" + name and not parsed.query and not parsed.fragment,
+                "database URL differs from the confirmed database or role")
+    return values
 
 
 def atomic(path, content):
@@ -179,7 +201,7 @@ class Rollout:
         require(self.root != Path("/") or self.uid == 0, "root required")
         for path in (self.base, self.base / "deploy", self.config, self.state):
             self.trusted(path, path in (self.config, self.state))
-        for path in (self.env, self.marker, self.policy_path):
+        for path in (self.env, self.marker, self.policy_path, self.config / "backup.env"):
             self.trusted(path, True)
         for path in (self.base / "compose.production.yaml", self.base / "deploy/compose.rolling.yaml",
                      self.caddyfile, self.base / "deploy/validate-app-smoke-receipt.py",
@@ -333,7 +355,7 @@ class Rollout:
                 re.fullmatch(r"[0-9a-f]{40}", revision) and approval["TARGET"] == "production" and
                 0 < epoch(approval["EXPIRES_AT"]) - time.time() <= 86400, "invalid approved release")
         marker = assignments(self.marker)
-        environment = assignments(self.env)
+        environment = release_environment(self.env, marker, self.config / "backup.env")
         require(marker["IMAGE"] == environment["COMMANDRY_IMAGE"] and
                 marker["REVISION"] == environment["RELEASE_SHA"] and image != marker["IMAGE"],
                 "current release identity differs")

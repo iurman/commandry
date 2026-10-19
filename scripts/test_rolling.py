@@ -48,7 +48,8 @@ class Fake(r.Rollout):
             path.touch()
             path.chmod(0o600)
         r.json_write(self.policy_path, POLICY)
-        r.atomic(self.env, f"# retained owner comment\n\nCOMMANDRY_IMAGE={OLD_IMAGE}\nRELEASE_SHA={OLD}\nRELEASE_BUILD_TIME=2026-10-19T00:00:00Z\nPRESERVED_SECRET=private-synthetic\n")
+        r.atomic(self.env, f"# retained owner comment\n\nCOMMANDRY_IMAGE={OLD_IMAGE}\nRELEASE_SHA={OLD}\nRELEASE_BUILD_TIME=2026-10-19T00:00:00Z\nPRESERVED_SECRET=private-synthetic\nPRODUCTION_DB_VOLUME_NAME=commandry-db\nDB_NAME=commandry\nDATABASE_URL=postgresql://commandry_app:synthetic@postgres:5432/commandry\nDATABASE_MIGRATION_URL=postgresql://commandry_migrate:synthetic@postgres:5432/commandry\n")
+        r.atomic(self.config / "backup.env", "DB_NAME=commandry\n")
         r.atomic(self.marker, f"IMAGE={OLD_IMAGE}\nREVISION={OLD}\nVOLUME=commandry-db\nDB_NAME=commandry\nBOOTSTRAP_ID={'f'*32}\nCLUSTER_ID=7411111111111111111\n")
         r.atomic(self.config / "approved-release", f"IMAGE={NEW_IMAGE}\nREVISION={NEW}\nTARGET=production\nEXPIRES_AT=2099-01-01T00:00:00Z\nBUILD_TIME=2026-10-19T00:00:00Z\nAPPROVED_BY=owner\n")
 
@@ -159,6 +160,23 @@ class RolloutTests(unittest.TestCase):
                 with self.assertRaises(r.Rejected):
                     self.rollout.deploy(b"synthetic-input")
                 self.assert_old()
+
+    def test_wrong_database_url_role_volume_and_interpolation_reject_before_mutation(self):
+        mutations = [("@postgres:5432/commandry", "@other:5432/commandry"),
+                     ("//commandry_app:", "//commandry_migrate:"),
+                     ("PRODUCTION_DB_VOLUME_NAME=commandry-db", "PRODUCTION_DB_VOLUME_NAME=commandry-other"),
+                     ("DB_NAME=commandry", "DB_NAME=other"),
+                     ("PRESERVED_SECRET=private-synthetic", "PRESERVED_SECRET=${UNTRUSTED}")]
+        for before, after in mutations:
+            with self.subTest(after=after):
+                changed = self.old_env.replace(before, after)
+                r.atomic(self.rollout.env, changed)
+                with self.assertRaises(r.Rejected):
+                    self.rollout.deploy(b"synthetic-input")
+                self.assertEqual(self.rollout.env.read_text(), changed)
+                self.assertEqual(self.rollout.marker.read_text(), self.old_marker)
+                self.assertFalse(self.rollout.journal.exists())
+        r.atomic(self.rollout.env, self.old_env)
 
     def test_failed_candidate_creation_with_no_worker_restores_old_worker(self):
         compose = self.rollout.compose
