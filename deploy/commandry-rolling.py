@@ -151,6 +151,8 @@ class Rollout:
         self.policy_path = self.config / "rolling-policy.json"
         self.uid = os.geteuid()
         self.safe_env = {"PATH": os.environ["PATH"], "HOME": "/root" if root == Path("/") else str(root)}
+        if root == Path("/"):
+            self.safe_env["DOCKER_HOST"] = "unix:///var/run/docker.sock"
         if root != Path("/"):
             self.safe_env["COMMANDRY_TEST_ROOT"] = str(root)
         self.started = time.monotonic()
