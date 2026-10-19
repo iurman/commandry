@@ -1,0 +1,7 @@
+# Loaded only by the constrained rolling deployment command. Normal Compose
+# operations keep their existing six-service topology.
+services:
+  web_next:
+    extends:
+      file: compose.production.yaml
+      service: web

@@ -444,6 +444,18 @@ source_clean=$(docker_cmd image inspect --format '{{index .Config.Labels "org.co
 [[ "$actual_revision" == "$revision" && "$source_clean" == true ]] ||
   reject 'image revision or source provenance differs from approval'
 
+if [[ "$previous_release_existed" == true && -f "$config_dir/rolling-policy.json" ]]; then
+  trusted_path "$config_dir/rolling-policy.json" private
+  trusted_path "$base/deploy/commandry-rolling.py" file
+  if [[ "$mode" == production ]]; then
+    # Preserve the inherited deployment lock and owner input across exec.
+    exec env -i HOME=/root PATH="$PATH" python3 "$base/deploy/commandry-rolling.py" deploy
+  else
+    exec env -i HOME="$test_root" PATH="$PATH" python3 "$base/deploy/commandry-rolling.py" \
+      --test-root "$test_root" deploy
+  fi
+fi
+
 if [[ "$previous_release_existed" == true ]]; then
   previous_release_snapshot=$(mktemp "$state_dir/current-release.rollback.XXXXXXXX")
   cp "$current_release" "$previous_release_snapshot"

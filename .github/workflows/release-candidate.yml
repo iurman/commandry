@@ -1,6 +1,8 @@
 name: Commandry release candidate
 
 on:
+  push:
+    branches: [main]
   workflow_dispatch:
 
 permissions:
@@ -8,7 +10,7 @@ permissions:
 
 concurrency:
   group: commandry-release-candidate-${{ github.ref }}
-  cancel-in-progress: false
+  cancel-in-progress: true
 
 jobs:
   source:
@@ -104,6 +106,8 @@ jobs:
         run: pnpm compose:up
       - name: Rehearse production services with the exact image
         run: pnpm production:topology:rehearse
+      - name: Rehearse graceful proxy switch, stream drain and old assets
+        run: node scripts/rehearse-rolling-proxy.mjs docker.io/library/caddy@sha256:d8542f48d34a9cf4e4c11a478865229840e87e4c96ea3f439101f31a5d35f75f "$RUNNER_TEMP/proxy-rehearsal.json"
       - name: Report all high and critical image findings
         uses: aquasecurity/trivy-action@ed142fd0673e97e23eac54620cfb913e5ce36c25 # v0.36.0
         with:
@@ -271,6 +275,7 @@ jobs:
     permissions:
       contents: read
       packages: write
+      statuses: write
     env:
       CI: "true"
       CI_EXPECTED_IMAGE_ID: ${{ needs.image.outputs.image_id }}
@@ -302,6 +307,8 @@ jobs:
 
       - name: Publish and read back the tested image by digest
         shell: bash
+        env:
+          GH_TOKEN: ${{ github.token }}
         run: |
           set -euo pipefail
           source_image="commandry-local:${GITHUB_SHA}"
@@ -314,6 +321,10 @@ jobs:
           image_ref="${repository}@${digest}"
           docker pull "$image_ref" >/dev/null
           test "$(docker image inspect "$image_ref" --format '{{.Id}}')" = "$source_id"
+          node -e 'require("node:fs").writeFileSync(process.argv[1],JSON.stringify({state:"success",context:"commandry/qualified-image",description:process.argv[2],target_url:`${process.env.GITHUB_SERVER_URL}/${process.env.GITHUB_REPOSITORY}/actions/runs/${process.env.GITHUB_RUN_ID}/attempts/${process.env.GITHUB_RUN_ATTEMPT}`}))' "$RUNNER_TEMP/qualified-status.json" "$digest"
+          gh api --method POST "repos/$GITHUB_REPOSITORY/statuses/$GITHUB_SHA" --input "$RUNNER_TEMP/qualified-status.json" >/dev/null
+          docker image tag "$source_image" "$repository:qualified-$GITHUB_SHA"
+          docker push "$repository:qualified-$GITHUB_SHA" >/dev/null
           {
             echo '## Commandry release candidate'
             echo "- Commit: \`${GITHUB_SHA}\`"

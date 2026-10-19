@@ -236,6 +236,38 @@ function event(root) {
   return JSON.parse(lines.at(-1));
 }
 
+test("rolling delegation preserves the host lock and owner input before mutation", (t) => {
+  const root = harness(t);
+  activatePriorRelease(root);
+  write(join(root, "etc/commandry/rolling-policy.json"), "{}\n");
+  write(
+    join(root, "opt/commandry/deploy/commandry-rolling.py"),
+    String.raw`
+import fcntl, os, pathlib, sys
+assert sys.argv[1:] == ['--test-root', sys.argv[2], 'deploy']
+root = pathlib.Path(sys.argv[2])
+assert sys.stdin.buffer.read() == b'owner\nsynthetic-owner\n'
+assert os.fstat(9).st_ino == (root / 'var/lib/commandry/deploy.lock').stat().st_ino
+with (root / 'var/lib/commandry/deploy.lock').open('a') as other:
+    try:
+        fcntl.flock(other, fcntl.LOCK_EX | fcntl.LOCK_NB)
+    except BlockingIOError:
+        pass
+    else:
+        raise RuntimeError('deployment lock was released')
+assert 'sha256:1111' in (root / 'etc/commandry/commandry.env').read_text()
+print('rolling delegate entered with lock and private input')
+`,
+  );
+  const result = run(root, "owner\nsynthetic-owner\n");
+  assert.equal(result.status, 0, result.stderr);
+  assert.match(result.stdout, /delegate entered/);
+  assert.doesNotMatch(
+    readFileSync(join(root, "docker.calls"), "utf8"),
+    /stop|run --rm --no-deps migrate/,
+  );
+});
+
 test("approved digest deploys through backup, migration, health, smoke, and ingress gates", (t) => {
   const root = harness(t);
   const result = run(root);

@@ -8,8 +8,8 @@ umask 077
 installed_path=/usr/local/sbin/commandry-app-smoke
 script_path=$(realpath "$0")
 if [[ "$script_path" == "$installed_path" ]]; then
-  [[ $EUID -eq 0 && $# -eq 3 ]] || {
-    printf 'Application smoke requires root and three fixed arguments.\n' >&2
+  [[ $EUID -eq 0 && ( $# -eq 3 || $# -eq 4 ) ]] || {
+    printf 'Application smoke requires root, fixed release identity and an optional private web slot.\n' >&2
     exit 1
   }
   base=/opt/commandry
@@ -20,7 +20,7 @@ if [[ "$script_path" == "$installed_path" ]]; then
   test_root=''
   export PATH=/usr/sbin:/usr/bin:/sbin:/bin
 else
-  [[ $# -eq 5 && "$1" == --test-root && -d "$2" ]] || {
+  [[ ( $# -eq 5 || $# -eq 6 ) && "$1" == --test-root && -d "$2" ]] || {
     printf 'Use --test-root with a disposable local directory.\n' >&2
     exit 1
   }
@@ -41,6 +41,8 @@ receipt=$state_dir/app-smoke.latest.json
 temporary=$state_dir/app-smoke.$$.tmp
 image=$2
 revision=$3
+web_service=${4:-web}
+[[ "$web_service" == web || "$web_service" == web_next ]] || exit 1
 
 reject() {
   printf 'Application smoke rejected: %s.\n' "$1" >&2
@@ -97,7 +99,7 @@ compose config --quiet >/dev/null 2>&1 || reject 'production Compose configurati
 rm -f "$receipt"
 trap 'rm -f "$temporary"' EXIT
 if ! compose run --rm --no-deps -T worker node apps/worker/dist/deployment-smoke.js \
-  "$image" "$revision" > "$temporary"; then
+  "$image" "$revision" "$web_service" > "$temporary"; then
   reject 'owner login, read, or worker completion failed'
 fi
 chmod 0600 "$temporary"

@@ -24,3 +24,8 @@ README.md
 AGENTS.md
 compose*.yaml
 docker
+
+# Build-time policy fingerprints include these public control files. The
+# runtime stage copies only the resulting fingerprint, not these manifests.
+!compose.production.yaml
+!docker

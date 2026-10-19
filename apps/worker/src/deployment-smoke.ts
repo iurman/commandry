@@ -36,9 +36,11 @@ async function main() {
   const expected = process.argv.slice(2);
   if (
     (config.appEnv === "production" &&
-      (expected.length !== 2 ||
+      ((expected.length !== 2 && expected.length !== 3) ||
         expected[0] !== config.releaseImageDigest ||
-        expected[1] !== config.releaseSha)) ||
+        expected[1] !== config.releaseSha ||
+        (expected[2] !== undefined &&
+          !["web", "web_next"].includes(expected[2])))) ||
     (config.appEnv === "test" && expected.length !== 0)
   ) {
     throw new Error("RELEASE_IDENTITY");
@@ -107,7 +109,9 @@ async function main() {
     }
 
     const web =
-      config.appEnv === "production" ? "http://web:3000" : config.appOrigin;
+      config.appEnv === "production"
+        ? `http://${expected[2] ?? "web"}:3000`
+        : config.appOrigin;
     const headers = {
       "content-type": "application/json",
       origin: config.appOrigin,

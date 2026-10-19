@@ -1,0 +1,11 @@
+[Unit]
+Description=Check Commandry health and new qualified main releases
+
+[Timer]
+OnBootSec=30s
+OnUnitInactiveSec=15s
+AccuracySec=1s
+Unit=commandry-auto-release.service
+
+[Install]
+WantedBy=timers.target

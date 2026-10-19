@@ -34,9 +34,10 @@ case " $* " in
     if [[ -f "$COMMANDRY_TEST_ROOT/bad-receipt" ]]; then printf 'not-json\n'; exit 0; fi
     stamp=$(date -u +%Y-%m-%dT%H:%M:%SZ)
     [[ ! -f "$COMMANDRY_TEST_ROOT/stale-receipt" ]] || stamp=2020-01-01T00:00:00Z
-    while [[ $# -gt 2 ]]; do shift; done
+    while [[ $# -gt 3 ]]; do shift; done
     image_arg=$1
     revision_arg=$2
+    [[ "$3" == web || "$3" == web_next ]] || exit 24
     printf '{"kind":"commandry_deployment_smoke","outcome":"passed","environment":"production","imageDigest":"%s","releaseSha":"%s","completedAt":"%s","bootstrapCreated":true,"authenticatedRead":true,"probeSessionRevoked":true,"workerJobId":"11111111-1111-4111-8111-111111111111","workerId":"22222222-2222-4222-8222-222222222222"}\n' \
       "$image_arg" "$revision_arg" "$stamp"
     ;;
@@ -76,11 +77,11 @@ function setup(t) {
   return root;
 }
 
-function run(root, expectedImage = image) {
+function run(root, expectedImage = image, webService = "web") {
   const envFile = join(root, "etc/commandry/commandry.env");
   const result = spawnSync(
     "bash",
-    [script, "--test-root", root, envFile, expectedImage, revision],
+    [script, "--test-root", root, envFile, expectedImage, revision, webService],
     {
       input: `owner@commandry.test\n${password}\n`,
       encoding: "utf8",
@@ -112,6 +113,14 @@ test("application smoke fails closed when the worker command fails", (t) => {
   const { result, receipt } = run(root);
   assert.equal(result.status, 1);
   assert.equal(existsSync(receipt), false);
+});
+
+test("application smoke selects only a fixed private candidate slot", (t) => {
+  const root = setup(t);
+  const candidate = run(root, image, "web_next");
+  assert.equal(candidate.result.status, 0, candidate.result.stderr);
+  assert.match(candidate.calls, / web_next\n/);
+  assert.notEqual(run(root, image, "external.invalid").result.status, 0);
 });
 
 test("application smoke rejects malformed proof", (t) => {

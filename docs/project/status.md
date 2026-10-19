@@ -32,8 +32,12 @@ original skips remain, with no failures, flaky results or retries. Six isolated
 browser stacks reuse one image while source, unit and host integration checks
 overlap image construction. The [execution record](../operations/ci-performance-2026-10-19.md)
 contains source, timings, image and gate evidence. Qualification remains manually
-dispatched. Automatic deployment and zero downtime remain separate work; the
-application release and installed deployment controls above are unchanged.
+dispatched in the measured run. The owner has now authorized automatic verified
+main rollouts. [ADR 0018](../decisions/0018-promote-verified-main-releases-with-two-web-slots.md)
+and the [implementation plan](../plans/automatic-safe-releases/PLAN.md) define
+two web slots, a stable proxy, independent host promotion, unchanged-schema
+holds and rollback. Implementation is in progress; this is not yet production
+activation evidence.
 
 The October 18 live-connection follow-up is in progress. Production revision
 `33d0086` was verified before collector changes. The four existing collector
