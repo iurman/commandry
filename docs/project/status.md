@@ -2,7 +2,7 @@
 
 **Status: Operational**
 
-**Last updated:** 2026-10-18
+**Last updated:** 2026-10-19
 
 ## Current phase
 
@@ -24,15 +24,16 @@ remain; the separate inventory additions below yield 134 resources. A
 camera/terrain/label identities with zero measured label drift. Physical-device
 and owner-interpretation limits remain separate.
 
-The [CI/deploy performance plan](../plans/ci-deploy-performance/PLAN.md) is
-proposed, based on complete releases of 37 to 38 minutes, including more than
-22 minutes of sequential browser checks. The concrete pool-shutdown reliability
-fix is deployed; workflow parallelization and automatic deployment remain
-proposed. PR 41's first qualification failed after its upgrade assertions,
-published no image, and left the confirmed release serving. The corrected
-[release 39174125292](https://github.com/iurman/commandry/actions/runs/39174125292)
-passed every gate before activation. No CI workflow, automatic deployment
-controller or service topology changed.
+The [parallel CI implementation](../plans/ci-deploy-performance/PLAN.md) is
+merged and verified on main. The owner set a 10-15 minute target; measured
+branch qualification took 11m34s and complete main qualification/publication
+9m51s, down from the 38m17s serial baseline. All 207 browser identities and five
+original skips remain, with no failures, flaky results or retries. Six isolated
+browser stacks reuse one image while source, unit and host integration checks
+overlap image construction. The [execution record](../operations/ci-performance-2026-10-19.md)
+contains source, timings, image and gate evidence. Qualification remains manually
+dispatched. Automatic deployment and zero downtime remain separate work; the
+application release and installed deployment controls above are unchanged.
 
 The October 18 live-connection follow-up is in progress. Production revision
 `33d0086` was verified before collector changes. The four existing collector

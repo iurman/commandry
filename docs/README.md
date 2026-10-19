@@ -47,8 +47,10 @@ feature has been implemented.
   frameworks, data, jobs, auth, tests, and repository shape
 - [Deployment strategy](architecture/deployment-strategy.md) — VPS topology,
   scheduling, containers, runners, and native distribution
-- [CI/deploy performance proposal](plans/ci-deploy-performance/PLAN.md) - measured
+- [CI/deploy performance](plans/ci-deploy-performance/PLAN.md) - measured
   release timings, isolated parallel checks and qualification-preserving rollout
+- [Verified CI performance](operations/ci-performance-2026-10-19.md) -
+  11m34s branch and 9m51s main qualification/publication with full coverage
 - [Current main rollout after shutdown correction](operations/current-main-rollout-2026-10-18.md) -
   exact qualified image, preserved data and verified activation of PR 41/42
 - [Observatory presentation rollout](operations/observatory-presentation-rollout-2026-10-18.md) -
