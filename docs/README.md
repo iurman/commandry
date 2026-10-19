@@ -3,6 +3,8 @@
 **Status: Canonical**
 
 Automatic verified releases: [decision](decisions/0018-promote-verified-main-releases-with-two-web-slots.md), [implementation plan](plans/automatic-safe-releases/PLAN.md), and [owner/agent runbook](../deploy/rolling-releases.md).
+The [production execution record](operations/automatic-safe-releases-2026-10-19.md)
+records the verified automatic rollout and measured request continuity.
 
 This is the central map for Commandry's product and system documentation. The
 docs are organized by the question a reader is trying to answer.

@@ -87,7 +87,10 @@ traffic switch. The existing verified application release remains independent
 of this CI adoption. A public version/liveness/readiness read after the main
 run confirmed production still on `8b94c75`, with health passing. No application
 code or installed deployment control changed. Main qualification is still
-manually dispatched; automatic main-commit promotion and zero downtime remain separate design work.
+manually dispatched in that measurement. The subsequent
+[automatic release activation](automatic-safe-releases-2026-10-19.md) implements
+main-push qualification and verified two-slot promotion, with its own exact
+source, timings and production continuity evidence.
 
 The [implementation plan](../plans/ci-deploy-performance/PLAN.md) records the
 10-15 minute target, self-hosted alternatives and failure boundaries. The current
@@ -105,3 +108,8 @@ Focused failure tests exercised artifact/provenance and report mutations. A
 deliberate cancellation/registry failure drill and fully controlled cold/warm
 cache comparison were not performed; they remain follow-up validation before
 automatic promotion. They are not inferred from these passing runs.
+
+The subsequent automatic-release record supplies the later live cancellation,
+enrollment-rejection and recovery-failure observations. A controlled cold/warm
+cache comparison remains unperformed; the historical limits above describe this
+CI benchmark rather than the later automatic-release activation.
