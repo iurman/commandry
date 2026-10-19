@@ -1,0 +1,27 @@
+[
+  {
+    "project": "desktop",
+    "file": "local-auth.spec.ts",
+    "title": "provisional owner can sign in, use a protected API, and sign out"
+  },
+  {
+    "project": "phone-390",
+    "file": "local-auth.spec.ts",
+    "title": "provisional owner can sign in, use a protected API, and sign out"
+  },
+  {
+    "project": "phone-320",
+    "file": "local-auth.spec.ts",
+    "title": "provisional owner can sign in, use a protected API, and sign out"
+  },
+  {
+    "project": "phone-390",
+    "file": "observatory-overlays.spec.ts",
+    "title": "Appearance controls fit and remain hittable across actual wrap boundaries"
+  },
+  {
+    "project": "phone-320",
+    "file": "observatory-overlays.spec.ts",
+    "title": "Appearance controls fit and remain hittable across actual wrap boundaries"
+  }
+]

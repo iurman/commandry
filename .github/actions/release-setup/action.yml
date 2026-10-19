@@ -1,0 +1,24 @@
+name: Commandry release setup
+description: Verify exact source and install pinned local release tools
+runs:
+  using: composite
+  steps:
+    - name: Verify selected source
+      shell: bash
+      run: |
+        set -euo pipefail
+        test "$(git rev-parse HEAD)" = "$GITHUB_SHA"
+        if test "$GITHUB_REF" = refs/heads/main; then
+          test "$(git rev-parse origin/main)" = "$GITHUB_SHA"
+        fi
+        test -z "$(git status --porcelain --untracked-files=normal)"
+    - uses: pnpm/action-setup@0977fd99725f1db4007ccb2928dbb4e90d06cc86 # v6
+      with:
+        version: 11.19.0
+    - uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7
+      with:
+        node-version: 24.20.0
+        package-manager-cache: false
+    - name: Set up disposable local environment
+      shell: bash
+      run: pnpm setup

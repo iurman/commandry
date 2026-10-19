@@ -1,14 +1,18 @@
 # Faster CI and consistent Commandry releases
 
-**Status: Proposed implementation plan. Measurements are operational evidence; workflow changes and automatic deployment are not enabled by this document.**
+**Status: Implementation under verification. The owner set a 10-15 minute target on 2026-10-19. Published measurements remain operational evidence; automatic deployment is not enabled.**
 
-## Decision proposed
+## Owner target and implementation
 
-Preserve the exact-image release contract and reduce elapsed time by running independent work on isolated machines. Start with the existing standard GitHub-hosted runners: separate source checks, unit/local tests, and candidate qualification; then run desktop, phone-390, and phone-320 browser jobs in parallel, one browser worker and one disposable database per machine. Publish only when every gate passes.
+Target **10-15 minutes for ordinary release qualification**, measured from the first job starting through final publication, with queue and production activation reported separately. The owner rejected the earlier 20-25 minute first target.
+
+The implementation runs source checks, unit/local tests, populated upgrades/host builds/owner smoke, and exact-image construction/topology/scans independently. Six browser shards then load the same image into separate machines, each with one worker and its own disposable database. A final census requires every selected-source identity before main-only publication.
+
+The 207 current browser cases are 69 journeys across three viewports. Cheap unit tests and independent browser checks do not need to extend the serial release path. The first benchmark retains every existing assertion; it does not assume that removing tests is necessary to meet the target. If actual latency exceeds 15 minutes, profile the critical path and classify redundant or exhaustive checks before changing release coverage.
 
 This uses infrastructure already operating for Commandry. A dedicated disposable local or homelab runner is a viable alternative and should be benchmarked before moving unattended releases onto it. Production should continue pulling a tested digest rather than compiling source on the application VPS.
 
-This is a concrete proposal for owner confirmation before restructuring the workflow. It does not approve an automatic production deployment controller or a zero downtime topology change.
+The owner authorized bringing release time down to 10-15 minutes. This implementation does not enable automatic production deployment or change the zero downtime topology. Main qualification remains manually dispatched during this measured transition.
 
 ## What happens today
 
@@ -79,54 +83,86 @@ The first deployment in the [presentation rollout record](../../operations/obser
 
 Raw reports, phase logs and private host receipts are retained in the rollout's private QA evidence. No credentials or private host inventory belong in this plan.
 
-## First implementation: isolate and overlap existing work
+## Implementation: isolate and overlap existing work
 
 ```mermaid
 flowchart LR
   S[Exact source and pinned setup] --> C[Source and contract checks]
   S --> U[Unit and local tests]
-  S --> I[Candidate image and existing integration gates]
-  I --> D[Desktop: one worker, own database]
-  I --> P[Phone 390: one worker, own database]
-  I --> N[Phone 320: one worker, own database]
-  C --> G[Require every gate and complete test census]
+  S --> H[Populated upgrades, host build, smoke and owner workflows]
+  S --> I[One image build, topology and scans]
+  I --> A[Export image, checksums and expected browser census]
+  A --> B[Six isolated browser shards: one worker and own database each]
+  C --> G[Require all gates and complete test census]
   U --> G
-  D --> G
-  P --> G
-  N --> G
-  G --> R[Publish the same image and verify digest readback]
+  H --> G
+  B --> G
+  G --> R[Main only: load same image, publish and verify digest readback]
 ```
 
-The candidate path initially keeps both existing compilation paths and every audit, smoke, owner, topology and scan gate. Install Chromium in the candidate job as well as browser jobs: governed owner workflows currently reuse the browser installation from the earlier serial step. This avoids assuming that the host smoke harness and container build exercise identical contracts. Optimize duplicate compilation only after mapping their actual inputs and outputs.
+Host and container compilation both remain covered, on independent machines.
+Chromium is installed in the host integration job for its governed owner
+workflows and independently in browser jobs. No duplicate gate was removed on
+an assumption of equivalence.
 
-The candidate job should export its tested image once. Each browser job downloads that artifact from the same workflow run, checks its checksum and source identity, loads it, and starts a fresh Compose/database stack without rebuilding. Standard runner isolation supplies separate ports, volumes and databases; do not run three browsers against the same small runner or shared application database. The previous two-worker contention failure is a reason to distribute machines, not to increase workers on one machine.
+The image job exports a gzip archive plus its image ID, source, run/attempt,
+archive checksum and selected-source browser census checksum. The immutable
+producer outputs bind downstream consumers independently of the downloaded
+metadata. Every browser job verifies these values, loads the image, and starts
+Compose with `--no-build`. Source/image/health are checked again after tests.
+The existing developer `pnpm compose:up` behavior is unchanged.
 
-Generate the expected browser identity set from the selected commit with Playwright list mode, rather than freezing the current count forever. The current transition must conserve all 207 identities; later added tests extend the census. New or changed skips require explicit review.
+The aggregate job rejects missing or duplicated shards/cases, new skips,
+failures, flaky results, retries, changed worker/retry settings and tampered
+artifacts. Expected identities come from the selected commit, rather than a
+permanently fixed test count. The five current skips have an explicit reviewed
+policy. Added tests extend the census; added skips require a policy change.
 
-The final publication job must require successful source, unit, candidate and all browser jobs. It loads the same image, verifies the original image ID and clean source labels, publishes, pulls the resulting immutable digest, and checks image ID equality. No build command belongs between successful qualification and publication.
+Publication requires successful source, unit, host integration, image and all
+six browser jobs plus the complete census. A separate main-only job receives
+package-write permission, loads the same image, verifies source/image identity,
+pushes and compares the pulled digest's image ID with the original. Branch
+benchmark runs qualify without publication. There is no rebuild after tests.
 
-Proposed implementation surfaces:
+Implementation surfaces:
 
-- `.github/workflows/release-candidate.yml`: job dependencies, minimal per-job permissions, explicit main publication guard and failure-safe cleanup.
-- A small `scripts/ci/` image helper: export/load/verify and start an already-built candidate using existing local source/provenance rules. Preserve the existing developer `pnpm compose:up` behavior.
-- A `scripts/ci/` browser-census helper: compare expected identities with all completed reports, reject missing/duplicate identities and verify the unchanged skip identities.
-- Focused helper tests and disposable failure rehearsals. Keep real browser geometry, pointer, refresh and auth assertions.
-- The deployment/developer workflow documentation and an operational timing summary.
+- `.github/workflows/release-candidate.yml`: isolated jobs, six browser shards, failure-safe dependencies/cleanup and main-only package writes.
+- `.github/actions/release-setup/action.yml`: pinned setup and exact clean source checks.
+- `scripts/ci-release.mjs`: export/load/checksum/source/run/image checks, no-build startup and aggregate browser census.
+- `scripts/ci-browser-skips.json`: the five reviewed original skip identities.
+- `scripts/ci-release.test.mjs`: source/attempt/output substitution, archive/census corruption, missing/duplicate results, retries/failures and skip changes fail closed.
+- Deployment/developer workflow documentation and measured execution records.
 
 A registry quarantine tag is an alternative to an Actions image artifact. It adds prequalification package writes and must never be treated as an eligible release. Start with a bounded artifact unless measured transfer/storage costs justify the registry alternative.
 
 ## Expected improvement and how to prove it
 
-**Inferred first target: 20 to 25 minutes for complete qualification**, including all current gates. This is not a promised benchmark.
+**Required performance target: 10-15 minutes for complete qualification and publication.** It remains a target until measured on GitHub.
 
-The browser critical path would move toward the longest isolated viewport, currently about 10.1 minutes of test execution rather than 22.5 minutes serially. Independent source/unit checks can overlap the candidate path. Artifact upload/download, fresh stack startup, runner queues and publication add overhead; measure them explicitly. A list-only six-shard census of the corrected source also conserves all 207 identities exactly once. Weighting those assignments with the measured serial test durations gives a heaviest lane of 397.913 seconds and other lanes of about 155 to 212 seconds. This is an inference, not a run: native sharding balances counts and concentrates the long desktop tests in one lane. It could improve on the 606-second desktop lane, but adding machines does not produce a proportional speedup.
+A prior list-only six-shard census conserved all 207 identities exactly once.
+Weighting its assignments with measured serial test durations predicted a
+heaviest lane of 397.913 seconds, with the others around 155-212 seconds.
+Native Playwright sharding balances test counts, so the long desktop tests can
+still concentrate in one lane. This is an inference, not a parallel benchmark.
 
-After that experiment and a verified dependency map, consider running host integration/owner checks independently alongside image construction/topology/scans rather than keeping them on the image critical path. Combined with sharding, 10 to 15 minutes is a further hypothesis to benchmark. Keep the conservative first target until the actual graph and transfer/queue costs are measured.
+The image build/start previously took 113 seconds. Its topology/scan/export
+work adds to that path before browsers; independent host build/upgrade/owner
+work can overlap it. A roughly seven-minute browser lane plus image, transfer,
+stack startup and publication overhead supports testing the 10-15 minute goal.
+Queue delay, cold downloads, archive size and actual lane imbalance must be
+measured separately. Paid runners are not proposed.
+
+If this graph misses the target, first inspect the measured slow lane and image
+transfer. Then classify release-critical browser journeys versus exhaustive
+render/width/fixture sweeps and move only explicitly reviewed redundant or
+broader coverage to separate runs. Keep sign-in/denial/session revoke, primary
+read/write flows, health, worker completion, compatible migrations, exact-image
+identity, scans and deployment recovery as release gates.
 
 Before making the new graph authoritative:
 
 1. Retain the completed serial baseline and compare the same application code and immutable image where practical.
-2. Run every viewport on its own machine with `--workers=1` and retries zero. Confirm all 207 identities exactly once, the same five skip identities, no unexpected failures or flaky outcomes, and unchanged assertion/deadline policy.
+2. Run six shards on isolated machines with `--workers=1` and retries zero. Confirm all 207 identities exactly once, the same five skip identities, no unexpected failures or flaky outcomes, and unchanged assertion/deadline policy.
 3. Verify source SHA, original image ID, artifact checksum and final digest readback across jobs. Publication must never rebuild.
 4. In disposable qualification runs, fail one lane, remove a report, duplicate an identity, substitute a wrong SHA/checksum, and cancel a build. Every case must withhold release eligibility/publication and leave production untouched.
 5. Run both cache-miss and cache-hit paths. An absent cache must only cost time; it must not bypass a check.
@@ -156,7 +192,7 @@ For self-hosted execution, keep public/untrusted PR code away from the desktop h
 
 ## Consistency, triggers and the next deployment phase
 
-Once the owner confirms the new workflow, add main-push qualification so both PR merges and direct main commits use the same release path. Keep PR validation separate from main publication. PR runs can cancel superseded work. Keep the current main qualification progressing and coalesce pending main work, preserving the existing non-cancellation policy: canceling every main build during continuous commits can prevent any release from finishing. GitHub concurrency is not a FIFO guarantee. Keep deployment locking/cancellation separate, and never interrupt an active database migration. A future automatic controller must explicitly choose tip-only promotion versus the latest qualified ancestor and prevent older results from replacing newer confirmed releases. Stable aggregate check names and explicit required-check policy should be reviewed before main protection changes.
+After the parallel graph is benchmarked and adopted, consider main-push qualification so both PR merges and direct main commits use the same release path. Keep PR validation separate from main publication. PR runs can cancel superseded work. Keep the current main qualification progressing and coalesce pending main work, preserving the existing non-cancellation policy: canceling every main build during continuous commits can prevent any release from finishing. GitHub concurrency is not a FIFO guarantee. Keep deployment locking/cancellation separate, and never interrupt an active database migration. A future automatic controller must explicitly choose tip-only promotion versus the latest qualified ancestor and prevent older results from replacing newer confirmed releases. Stable aggregate check names and explicit required-check policy should be reviewed before main protection changes.
 
 Keep the existing constrained deploy command, exact digest, fresh backup/recovery, compatible migration, health/version, owner session and actual worker gates. Add safe per-stage timing before attempting to optimize the backup/recovery interval. Measure build latency separately from production activation latency and user-visible interruption.
 
