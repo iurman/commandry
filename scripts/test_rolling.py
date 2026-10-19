@@ -129,6 +129,9 @@ class RolloutTests(unittest.TestCase):
         self.assertEqual(self.rollout.worker_image, OLD_IMAGE)
         self.assertFalse(self.rollout.journal.exists())
 
+    def test_production_always_pins_the_local_docker_daemon(self):
+        self.assertEqual(r.Rollout().safe_env["DOCKER_HOST"], "unix:///var/run/docker.sock")
+
     def test_confirmed_candidate_after_real_worker_smoke(self):
         self.rollout.deploy(b"synthetic-input")
         active = json.loads(self.rollout.active.read_text())
