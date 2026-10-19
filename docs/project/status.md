@@ -6,12 +6,15 @@
 
 ## Current phase
 
-The latest qualified application release is `8b94c75e3157604b7940715c1510b447c28083fc`,
-activated at `2026-10-18T23:33:59Z`. It includes PR 41 and the PR 42 database
-shutdown correction. The [current-main rollout record](../operations/current-main-rollout-2026-10-18.md)
-records the exact image, complete qualification, reviewed manifest, recovery
-gates and preserved canonical data. Optional provider credentials and the
-additional endpoint-check catalogue remain unactivated.
+The live-probe transport release `b0079608c25a5221bede9024bdc57b28d80ecfb7`
+was activated at `2026-10-19T01:36:10Z`. The
+[probe activation record](../operations/observatory-live-probes-2026-10-18.md)
+records its exact image, complete qualification, protected recovery gates,
+recurring checks and preserved canonical data. The overview visibility refinement
+and exact release verification are tracked in
+[PR 50](https://github.com/iurman/commandry/pull/50). Optional provider credentials
+remain pending. The earlier [current-main rollout](../operations/current-main-rollout-2026-10-18.md)
+includes PR 41 and the PR 42 database shutdown correction.
 
 The Observatory presentation and pointer Stop correction were initially deployed at
 `0caf1764ede2cb84d5b26c1989c226c507649365` as of `2026-10-18T22:28:53Z`.
@@ -47,7 +50,10 @@ metadata; inaccessible security scanners remain qualified. Signed-in inventory
 for the owner-approved Cloudflare account only and Namecheap added 19 registrations, 17 DNS zones, four
 Workers and one registrar provider, yielding 134 canonical resources with all
 original 93 IDs/parents preserved. These account lists are dated browser evidence;
-recurring credentials and the new native probes are not yet activated. The
+recurring account credentials remain pending. Fourteen native HTTP/TCP probes
+are active with repeated current transport observations, 13 passing and one
+actual HTTP 502. Existing readiness brings observed coverage to 15 of 20 eligible
+checks, with five unmonitored and zero stale after adoption. The
 [live connections record](../plans/observatory-live-connections.md) separates the
 live changes, tested local implementation, pending account-access decisions and
 exact-release deployment gates.

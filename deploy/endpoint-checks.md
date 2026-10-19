@@ -1,6 +1,6 @@
 # Native endpoint checks
 
-**Status: Implemented locally. Production activation requires the reviewed release and catalogue.**
+**Status: Implemented and activated for the reviewed production catalogue. See the [dated activation record](../docs/operations/observatory-live-probes-2026-10-18.md).**
 
 The leased Observatory worker supports read-only HTTP response-status and TCP
 connection checks. It reuses source review, immutable encrypted observations,

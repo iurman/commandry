@@ -1,6 +1,6 @@
 # Observatory live connections
 
-**Status: Operational discovery and implementation in progress.**
+**Status: Operational native checks and transport evidence active; recurring provider access remains pending.**
 
 **Owner request:** October 18, 2026. Connect actual infrastructure checks,
 source-backed visual activity, and Cloudflare domains/Workers and domain renewals.
@@ -166,5 +166,9 @@ The prior implementation only emitted subject pulses. The follow-up adds
 validated, scope-redacted origin/response evidence and visible recorded probe
 request/response paths, plus a complete status/latency/time list. Native scheduling
 becomes independent of the freshness deadline. Separate Cloudflare and Namecheap
-account access is outside this owner-prioritized activation. Final qualification,
-rollout and scheduled browser verification will be recorded before completion.
+account access is outside this owner-prioritized activation. The
+[dated activation record](../operations/observatory-live-probes-2026-10-18.md)
+contains qualification, protected deployment, repeated scheduled observations,
+data preservation and retained limits. The overview trail visibility correction
+and exact release receipts are tracked in
+[PR 50](https://github.com/iurman/commandry/pull/50).
