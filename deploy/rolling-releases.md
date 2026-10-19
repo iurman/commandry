@@ -11,7 +11,10 @@ production execution record must distinguish implementation from activation.
 A main push starts the existing full release pipeline. Its twelve jobs must all
 succeed for the current main source and run attempt. The host timer reads public
 GitHub metadata and pulls the unique published image tag, resolves its immutable
-digest, and checks source labels. No production SSH key or owner password is
+digest, requires the publish job's exact attempt-bound digest receipt in the
+`commandry/qualified-image` commit status, and checks source labels. The status
+must come from `github-actions[bot]`, link that run attempt and contain one
+unambiguous SHA-256 digest. No production SSH key or owner password is
 sent to Actions. A stale or failed run cannot displace the current release.
 
 Root-owned `/etc/commandry/rolling-policy.json` contains version `1`, repository

@@ -288,6 +288,19 @@ class QualificationTests(unittest.TestCase):
             with self.subTest(key=key), self.assertRaises(a.rolling.Rejected):
                 a.qualified(candidate, self.jobs, NEW, 12345)
 
+    def test_digest_receipt_is_bound_to_publisher_and_exact_attempt(self):
+        status = dict(context="commandry/qualified-image", state="success", description="sha256:" + "a" * 64,
+                      creator={"login": "github-actions[bot]"},
+                      target_url="https://github.com/iurman/commandry/actions/runs/12345/attempts/1")
+        self.assertEqual(a.published_digest([status], self.run), "sha256:" + "a" * 64)
+        mutations = [{**status, "creator": {"login": "other"}}, {**status, "state": "pending"},
+                     {**status, "target_url": status["target_url"] + "2"}, {**status, "description": "latest"}]
+        for candidate in mutations:
+            with self.subTest(candidate=candidate), self.assertRaises(r.Rejected):
+                a.published_digest([candidate], self.run)
+        with self.assertRaises(r.Rejected):
+            a.published_digest([status, {**status, "description": "sha256:" + "b" * 64}], self.run)
+
 
 if __name__ == "__main__":
     unittest.main(verbosity=2)

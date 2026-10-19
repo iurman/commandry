@@ -23,7 +23,9 @@ Build and qualify once in GitHub Actions on main pushes and manual dispatch.
 A root-owned host controller independently checks the current main SHA, the
 completed workflow and all twelve successful jobs, including the complete
 browser census and publication. Pull the unique SHA/run/attempt tag, resolve
-its immutable digest, check clean-source labels and qualify that exact digest.
+its immutable digest, require the publish job's bot-created, attempt-bound
+`commandry/qualified-image` commit status to match that digest, check clean-source
+labels and qualify that exact digest.
 No production credential or deployment key is added to GitHub Actions.
 
 Use two private web slots, `web` and `web_next`. Start the inactive candidate

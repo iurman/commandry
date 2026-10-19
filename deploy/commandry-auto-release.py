@@ -50,6 +50,16 @@ def api(path):
         return json.loads(content)
 
 
+def published_digest(statuses, run):
+    target = f"https://github.com/iurman/commandry/actions/runs/{run['id']}/attempts/{run['run_attempt']}"
+    matches = {status["description"] for status in statuses
+               if status.get("context") == "commandry/qualified-image" and status.get("state") == "success" and
+               status.get("creator", {}).get("login") == "github-actions[bot]" and status.get("target_url") == target}
+    rolling.require(len(matches) == 1 and re.fullmatch(r"sha256:[0-9a-f]{64}", next(iter(matches))),
+                    "published digest receipt missing or ambiguous")
+    return next(iter(matches))
+
+
 def locked(rollout, operation):
     lock = rollout.state / "deploy.lock"
     rolling.require(not lock.is_symlink(), "symlinked deployment lock")
@@ -105,13 +115,15 @@ def tick(rollout):
         return
     jobs = api(f"actions/runs/{selected['id']}/attempts/{selected['run_attempt']}/jobs?per_page=100")
     tag = qualified(selected, jobs, head, rollout.policy["minimumRunId"])
+    expected_digest = published_digest(api(f"commits/{head}/statuses?per_page=100"), selected)
     image_tag = "ghcr.io/iurman/commandry:" + tag
     rollout.step = "automatic_candidate_pull"
     rollout.docker("pull", image_tag, timeout=180)
     metadata = json.loads(rollout.docker("image", "inspect", image_tag))[0]
     digests = [value for value in metadata["RepoDigests"]
                if re.fullmatch(r"ghcr.io/iurman/commandry@sha256:[0-9a-f]{64}", value)]
-    rolling.require(len(digests) == 1 and metadata["Config"]["Labels"]["org.opencontainers.image.revision"] == head and
+    rolling.require(digests == ["ghcr.io/iurman/commandry@" + expected_digest] and
+                    metadata["Config"]["Labels"]["org.opencontainers.image.revision"] == head and
                     metadata["Config"]["Labels"]["org.commandry.source.clean"] == "true", "published provenance differs")
     rolling.require(rolling.main_head(rollout.run) == head, "main advanced while selecting release")
     # Every approval and deployment write shares the same host lock. The child
