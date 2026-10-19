@@ -167,3 +167,14 @@ the simulated activity and camera retain their existing bounded frame steps.
 Counters alone do not prove visibility; inspect actual
 rendered paths and labels at the supported zoom and theme. No new API/MCP grant,
 action or source observation is introduced by this presentation change.
+
+Recorded health checks now have a foreground SVG layer above the terrain. Dashed
+routes retain the latest fresh, current probe evidence between observations;
+labelled directional packets replay only newly observed requests and received
+responses. Visible containing pins stand in for hidden nested endpoints, with a
+loop for checks contained within one visible group. Pin and briefing masks keep
+labels readable. Paused and reduced-motion views retain evidenced routes without
+moving packets; stale, redacted or missing origins do not gain routes. The same
+UI/API/MCP availability `probe` records supply every endpoint and timestamp.
+This is monitoring transport evidence, not observation of arbitrary application
+traffic. Verify actual visible packet movement, not only badge pulses or counters.

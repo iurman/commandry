@@ -359,7 +359,7 @@ export class RecordedInfrastructureActivity implements ActivitySource {
         age >= 0 &&
         age < 60_000
       ) {
-        if (event.probe && event.probe.from !== event.resourceId) {
+        if (event.probe) {
           const outcome = event.probe.failed
             ? ("failed" as const)
             : ("ok" as const);
@@ -412,9 +412,9 @@ export class RecordedInfrastructureActivity implements ActivitySource {
             from: event.resourceId,
             to: event.resourceId,
             kind: "observation",
-            outcome: event.probe?.failed ? "failed" : "ok",
+            outcome: "ok",
             summary: event.summary,
-            effect: event.probe?.failed ? "failure" : "arrival",
+            effect: "arrival",
           });
       }
       seen.set(event.id, Date.parse(event.occurredAt));

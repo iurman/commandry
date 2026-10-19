@@ -142,6 +142,8 @@ planned behavior as though it already exists.
 
 ## Implementation guardrails
 
+- MUST verify Observatory check transmissions as visibly moving directional packets between resources or their named groups. Badge pulses and activity counters alone do not establish this acceptance.
+
 - MUST discover operational mappings using already authorized connected accounts and SSH before asking the owner to supply resource IDs; record missing connections and continue permitted independent work.
 
 - MUST keep the authorized Observatory A-F workflow and all 58 acceptance scenarios in tracked completion records; preserve the owner preview and separate runtime ownership, and do not call the operational scope complete while required behavior remains blocked.
