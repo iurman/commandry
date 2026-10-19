@@ -1138,7 +1138,12 @@ export class ObservatoryRenderer {
       moving &&
       this.settings.activity.running &&
       (this.settings.activity.source.active?.() ?? true);
-    if (simulating) this.settings.activity.source.advance?.(dt);
+    if (simulating)
+      this.settings.activity.source.advance?.(
+        this.settings.activity.source.clock === "elapsed"
+          ? interval / 1000
+          : dt,
+      );
     this.activitySnapshot = this.settings.activity.source.snapshot();
     if (now >= this.nextActivity) {
       this.hooks.activity?.(this.activitySnapshot);
@@ -1328,6 +1333,10 @@ export class ObservatoryRenderer {
         this.settings.ambient,
         this.settings.theme === "midnight",
         this.renderer.getPixelRatio(),
+        (2 *
+          this.camera.position.distanceTo(this.controls.target) *
+          Math.tan(THREE.MathUtils.degToRad(this.camera.fov / 2))) /
+          this.height,
       );
       this.renderer.info.reset();
       this.renderer.setRenderTarget(null);

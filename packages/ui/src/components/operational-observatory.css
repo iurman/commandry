@@ -110,6 +110,10 @@
   background: color-mix(in srgb, var(--op-exposure, #976022) 10%, transparent);
   border-block: 1px solid var(--op-line, GrayText);
 }
+.cmd-op-check-playback[data-active="true"] {
+  color: var(--op-accent);
+  font-weight: 650;
+}
 .cmd-op-attention {
   display: flex;
   flex-wrap: wrap;
@@ -404,6 +408,22 @@
   font-size: 0.78em;
   line-height: 17px;
   text-align: center;
+}
+.cmd-operational-observatory[data-check-playback="true"]
+  .cmd-op-label[data-check-active="true"] {
+  animation: cmd-op-recorded-check-pulse 1.2s ease-out infinite;
+}
+@keyframes cmd-op-recorded-check-pulse {
+  0% {
+    box-shadow:
+      0 0 0 2px var(--op-accent),
+      0 0 0 2px color-mix(in srgb, var(--op-accent) 60%, transparent);
+  }
+  100% {
+    box-shadow:
+      0 0 0 2px var(--op-accent),
+      0 0 0 9px color-mix(in srgb, var(--op-accent) 0%, transparent);
+  }
 }
 .cmd-op-label-attention,
 .cmd-op-roster-attention {

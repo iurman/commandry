@@ -131,6 +131,41 @@ describe("recorded infrastructure activity", () => {
   });
   const snapshot = (events: ReturnType<typeof event>[]) =>
     ({ events }) as Pick<InfrastructureOverview, "events">;
+  it("spreads a fresh batch into readable requests and responses without replaying duplicates", () => {
+    const activity = new RecordedInfrastructureActivity();
+    const probes = ["one", "two"].map((id) => ({
+      ...event(id),
+      probe: {
+        from: "checker",
+        responseReceived: true,
+        failed: false,
+        protocol: "http" as const,
+        responseTimeMs: 40,
+      },
+    }));
+    activity.synchronize({ events: [] }, true, now);
+    activity.synchronize({ events: probes }, true, now);
+    const requests = activity
+      .snapshot()
+      .transfers.filter((flow) => flow.phase === "outbound");
+    expect(requests).toHaveLength(2);
+    expect(requests[0]!.duration).toBeGreaterThanOrEqual(2);
+    expect(requests[1]!.start).toBeGreaterThan(requests[0]!.start);
+    for (const request of requests) {
+      const response = activity
+        .snapshot()
+        .transfers.find(
+          (flow) =>
+            flow.phase === "response" &&
+            flow.correlationId === request.correlationId,
+        )!;
+      expect(response.start).toBe(request.start + request.duration);
+    }
+    activity.synchronize({ events: probes }, true, now);
+    expect(activity.snapshot().transfers).toHaveLength(4);
+    activity.advance(7);
+    expect(activity.active()).toBe(false);
+  });
   it("never invents transfers or replays initial, old, future, duplicate, paused or resumed-baseline events", () => {
     const activity = new RecordedInfrastructureActivity();
     activity.synchronize(snapshot([event("baseline")]), true, now);

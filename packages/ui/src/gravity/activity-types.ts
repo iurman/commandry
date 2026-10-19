@@ -37,7 +37,15 @@ export type ActivitySnapshot = {
   transfers: Transfer[];
   events: ActivityEvent[];
 };
+export function activeTransfers(snapshot: ActivitySnapshot) {
+  return snapshot.transfers.filter(
+    (flow) =>
+      snapshot.time >= flow.start && snapshot.time < flow.start + flow.duration,
+  );
+}
 export interface ActivitySource {
+  /** Recorded evidence playback follows elapsed time even at a low render rate. */
+  readonly clock?: "elapsed";
   snapshot(): ActivitySnapshot;
   active?(): boolean;
   advance?(seconds: number): void;
