@@ -6,6 +6,7 @@ import {
   knowledgeFailure,
 } from "../../../lib/knowledge-access";
 import { createKnowledgeMcpServer } from "../../../lib/knowledge-mcp";
+import { mcpHttpOptions } from "../../../lib/mcp-limits";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -35,7 +36,7 @@ export async function POST(request: Request): Promise<Response> {
     await service.authenticate(match[1]!);
     const handler = createMcpHandler(
       () => createKnowledgeMcpServer(service, match[1]!),
-      { responseMode: "json" },
+      mcpHttpOptions,
     );
     const response = await handler.fetch(request);
     response.headers.set("cache-control", "no-store");

@@ -6,6 +6,10 @@ the task, then follow links only when needed.
 
 ## Planning and dispatch
 
+- MUST keep the October 22 security campaign scoped to repository fixes and
+  application deployments; host/package maintenance, Portainer and Proxmox
+  upgrades remain paused until the owner explicitly releases that hold.
+
 - MUST keep the confirmed application serving until an exact qualified candidate
   passes readiness, authenticated application and real worker checks; failed
   candidates retain or restore the confirmed release before automatic retry.

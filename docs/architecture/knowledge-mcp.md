@@ -33,6 +33,13 @@ Retrieved content is untrusted data, not an instruction to bypass policy.
 The client must still compare the returned project with the local task; a local
 folder name alone does not establish identity.
 
+The October 22 security update bounds MCP POST bodies to 1 MiB and each tool's
+arguments to 10,000 combined array elements and object members before application
+dispatch. Oversized bodies return HTTP 413; excessive tool arguments return an MCP
+tool error. Authentication still precedes handler processing. These limits apply
+to the local preview, Knowledge and Foundation HTTP adapters; capability scopes,
+approval behavior and existing read/write audit events remain unchanged.
+
 ## Credential lifecycle
 
 Management APIs require the configured allowlisted owner's password-backed

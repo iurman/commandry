@@ -19,13 +19,13 @@
   "devDependencies": {
     "@types/react": "19.3.0",
     "@types/three": "0.186.0",
-    "react": "19.3.0",
+    "react": "19.3.1",
     "typescript": "5.9.3",
     "@commandry/test-support": "workspace:*"
   },
   "dependencies": {
     "@commandry/contracts": "workspace:*",
-    "react-dom": "19.3.0",
+    "react-dom": "19.3.1",
     "three": "0.186.1"
   }
 }

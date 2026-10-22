@@ -8,6 +8,7 @@ import {
 } from "../../../../lib/foundation-access";
 import { createObservatoryMcpReads } from "../../../../lib/observatory-mcp";
 import { observatoryMachineRead } from "../../../../lib/observatory";
+import { mcpHttpOptions } from "../../../../lib/mcp-limits";
 import { createFoundationMcpServer } from "../../../../lib/foundation-mcp";
 
 export const runtime = "nodejs";
@@ -62,7 +63,7 @@ export async function POST(
             actor,
           ),
         }),
-      { responseMode: "json" },
+      mcpHttpOptions,
     );
     const response = await handler.fetch(request);
     response.headers.set("cache-control", "no-store");
