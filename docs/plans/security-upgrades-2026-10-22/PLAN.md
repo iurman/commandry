@@ -46,11 +46,30 @@ and continue independent upgrades; never bypass the recovery gate.
 Commandry's local source checks, full unit suite, production dependency audit and
 production build passed with Node 24.22.1. The unit suite includes rejection of an
 oversized MCP body and excessive tool-input elements before service execution.
-Remote release qualification and deployed-version verification remain pending.
+Commandry PR 55 passed the full release pipeline and merged as
+`09ebbfc3e2c460376ca40a5eaac3c6eb075c4918`. The existing controller confirmed that
+release after authenticated application reads, real worker completion and recovery
+qualification. Web and worker both run Node 24.22.1; web runs Next.js 16.4.2. The
+previous release is retained.
 
-The development-only `braces` advisory requires version 3.0.4, which was absent
-from the public npm registry at verification time. The available version remains
-3.0.3. Do not claim that advisory is resolved or invent an unavailable override.
+Cross-project repository changes use separate normal PRs, with source checks,
+lockfile audits and applicable browser or real Worker tests. Application release
+receipts record the actual provider revision and public health result separately
+from the source merge. Application-private Node runtimes do not upgrade host
+packages. No production database migration is part of this campaign.
+
+Cloudflare deployments using Next.js 16.4 additionally require an OpenNext adapter
+that inlines `preview-props.json`. Qualify dynamic routes in the actual Worker
+runtime, preserve production public build settings and retain the confirmed
+version until the replacement passes. A successful Next build alone does not
+establish adapter compatibility.
+
+The `braces` advisory affects every published version through 3.0.3; no fixed
+version was available at verification time. It remains in some development/build
+tooling. Foreset's complete dependency audit correctly blocks its security PR on
+this advisory even though the production audit passes. Keep that gate intact.
+Expo CLI tooling also retains an unfixed `node-forge` advisory. Do not claim these
+upstream gaps are resolved or invent unavailable overrides.
 
 Record each affected target as verified, rolled back, or blocked with an exact
 reason and remaining action. Preserve vendor advisories, source commits, check
