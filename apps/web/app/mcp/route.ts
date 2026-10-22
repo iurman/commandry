@@ -3,6 +3,7 @@ import { z } from "zod";
 import { loadRuntimeConfig } from "@commandry/config";
 import { LocalMcpError } from "@commandry/domain";
 import { getLocalMcpService } from "../../lib/local-mcp";
+import { mcpHttpOptions, mcpServerLimits } from "../../lib/mcp-limits";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -27,10 +28,10 @@ function isLoopbackUrl(value: string): boolean {
 }
 
 function buildServer(token: string) {
-  const server = new McpServer({
-    name: "commandry-local-read-preview",
-    version: "1.0.0",
-  });
+  const server = new McpServer(
+    { name: "commandry-local-read-preview", version: "1.0.0" },
+    mcpServerLimits,
+  );
   const service = getLocalMcpService();
   const toolResult = async (input: {
     operation: "project.brief.read" | "work.read";
@@ -135,8 +136,9 @@ export async function POST(request: Request): Promise<Response> {
       { status: 503 },
     );
   }
-  const handler = createMcpHandler(() => buildServer(match[1]!), {
-    responseMode: "json",
-  });
+  const handler = createMcpHandler(
+    () => buildServer(match[1]!),
+    mcpHttpOptions,
+  );
   return handler.fetch(request);
 }
