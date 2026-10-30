@@ -10,6 +10,10 @@ the task, then follow links only when needed.
   application deployments; host/package maintenance, Portainer and Proxmox
   upgrades remain paused until the owner explicitly releases that hold.
 
+- MUST treat the October 30 owner request as authorization to verify and address
+  CVE-2026-98432 across reachable owned servers, including scoped host mitigation
+  and supported kernel fixes; unrelated host and platform maintenance stays held.
+
 - MUST keep the confirmed application serving until an exact qualified candidate
   passes readiness, authenticated application and real worker checks; failed
   candidates retain or restore the confirmed release before automatic retry.
