@@ -2,7 +2,7 @@
 
 **Status: Operational**
 
-The owner authorized browser and QA tooling containers plus safeguards for all twelve identified non-CRM repositories on November 2, 2026. Full application development containers, production deployments, and CRM changes are outside this scope.
+The owner authorized browser and QA tooling containers plus safeguards for all twelve identified non-CRM repositories on November 2, 2026. The owner subsequently authorized merging all twelve PRs into main and verifying main as every repository's default and production source. Full application development containers, host maintenance and CRM changes remain outside this scope.
 
 ## Delivery
 
@@ -57,3 +57,9 @@ Full application collection in Commandry requires its normal built workspace pac
 - [Chrome security release](https://chromereleases.googleblog.com/2026/10/stable-channel-update-for-desktop_0562499947.html).
 - [Playwright container and remote browser documentation](https://playwright.dev/docs/docker).
 - [Debian Chromium security package](https://packages.debian.org/bookworm/chromium).
+
+## Main rollout, November 2, 2026
+
+The owner authorized all twelve merges. Both non-main PRs were reapplied onto current main with only the safety commits, preserving the original feature/evidence branches. All twelve GitHub default branches are main. All nine connected Vercel projects report main as their production branch. Existing disabled Git deployment controls on DontWakeUp, Wrenscribe and Cardiac Companion are preserved. ResuPals and Costello use Cloudflare Workers; their live Builds settings still require access verification. Commandry's release pipeline and enrolled controller select qualified main releases.
+
+Each normal merge records the previous main and reviewed PR head, then checks that both are ancestors of the resulting main and that the browser guard exists there. Current merge results are recorded in the completed rollout record at handoff.
