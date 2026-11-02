@@ -1,6 +1,7 @@
+import { chromiumTestOptions } from "./tools/browser-safety/browser-safety.cjs";
 import { existsSync } from "node:fs";
 import { loadEnvFile } from "node:process";
-import { defineConfig, devices } from "@playwright/test";
+import { chromium, defineConfig, devices } from "@playwright/test";
 
 if (!process.env.PLAYWRIGHT_BASE_URL) {
   if (!existsSync(".env.local")) {
@@ -17,6 +18,7 @@ export default defineConfig({
   retries: 0,
   workers: 2,
   use: {
+    ...chromiumTestOptions(chromium),
     baseURL: process.env.PLAYWRIGHT_BASE_URL ?? "http://127.0.0.1:3000",
     trace: "retain-on-failure",
   },

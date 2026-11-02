@@ -199,3 +199,7 @@ connection across those categories.
 ## Owner deployment workflow
 
 - During owner-authorized deployment setup, use supplied credentials and store reusable credential files outside the repository without unsolicited credential-rotation commentary.
+
+## Local browser safety
+
+- MUST use the guarded Chromium helpers and the `browser:isolated` package command for browser QA; follow [the local browser safety runbook](tools/browser-safety/README.md). Never bypass the browser version floor or disable its sandbox.

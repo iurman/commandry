@@ -210,7 +210,7 @@ jobs:
           PLAYWRIGHT_JSON_OUTPUT_NAME: test-results/browser-results.json
         run: |
           pnpm exec playwright install --with-deps chromium
-          pnpm test:e2e --workers=1 --shard=${{ matrix.shard }}/6 --reporter=line,json
+          pnpm browser:isolated pnpm test:e2e --workers=1 --shard=${{ matrix.shard }}/6 --reporter=line,json
       - name: Verify healthy tested image and clean source after browser tests
         run: node scripts/ci-release.mjs verify "$RUNNER_TEMP/commandry-image"
       - name: Retain browser diagnostics

@@ -1,3 +1,4 @@
+import { launchChromium } from "./../tools/browser-safety/browser-safety.cjs";
 import assert from "node:assert/strict";
 import { randomUUID } from "node:crypto";
 import { mkdir } from "node:fs/promises";
@@ -78,7 +79,7 @@ export async function foundationClientsBrowserSmoke(
     });
     fixtureIds.push(issued.client.id);
   }
-  const browser = await chromium.launch({ headless: true });
+  const browser = await launchChromium(chromium, { headless: true });
   const errors = [];
   const screenshots = process.env.COMMANDRY_FOUNDATION_BROWSER_ARTIFACTS;
   if (screenshots) await mkdir(screenshots, { recursive: true });
