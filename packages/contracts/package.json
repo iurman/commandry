@@ -14,7 +14,7 @@
     "test": "pnpm --dir ../.. exec vitest run --config vitest.config.mts packages/contracts/src"
   },
   "dependencies": {
-    "zod": "4.6.5"
+    "zod": "4.6.6"
   },
   "devDependencies": {
     "@apidevtools/swagger-parser": "13.1.0",
