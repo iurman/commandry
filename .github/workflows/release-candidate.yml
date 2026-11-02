@@ -162,7 +162,7 @@ jobs:
 
       - name: Export the qualified candidate and selected-source browser census
         id: export
-        run: node scripts/ci-release.mjs export "$RUNNER_TEMP/commandry-image"
+        run: pnpm browser:isolated node scripts/ci-release.mjs export "$RUNNER_TEMP/commandry-image"
       - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
         with:
           name: commandry-image-${{ github.run_id }}-${{ github.run_attempt }}-${{ github.sha }}

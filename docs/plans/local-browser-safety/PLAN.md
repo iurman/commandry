@@ -46,11 +46,11 @@ Node checks now have a dedicated dependency-free CI job and a `.checks.mjs` file
 | wrenscribe          | [iurman/wrenscribe PR](https://github.com/iurman/wrenscribe/pull/3)                    |
 | cardiac-companion   | [iurman/cardiac-companion PR](https://github.com/iurman/cardiac-companion/pull/7)      |
 
-These are review branches. No merge or production deployment has been performed. Existing checkouts do not gain the safeguards until the change is integrated. All twelve dedicated browser-policy CI jobs passed after code integration. Several longer application jobs are still running; those results are separate from the measured local tool checks. The latest main changes were integrated into Aviune, Foreset, ResuPals, Tidefern and Wrenscribe before handoff. Newly introduced ResuPals help recording, Tidefern byte measurement and Wrenscribe poster generation use the guarded helper. ResuPals additionally passed a real CDP JPEG screencast frame check. Tidefern Lighthouse verifies its local Chromium version.
+The owner authorized main integration. Six repositories have completed normal merges with ancestry and guard-file verification; the current rollout record below identifies the remaining checks and approvals. Existing local checkouts retain their own working state until explicitly updated. All twelve dedicated browser-policy CI jobs passed after code integration. Longer application qualification is tracked separately from the measured local tool checks. The latest main changes were integrated into Aviune, Foreset, ResuPals, Tidefern and Wrenscribe before handoff. Newly introduced ResuPals help recording, Tidefern byte measurement and Wrenscribe poster generation use the guarded helper. ResuPals additionally passed a real CDP JPEG screencast frame check. Tidefern Lighthouse verifies its local Chromium version.
 
 Tome and Quill's previous CI run passed browser E2E but failed one source-order assertion tied to the previous command text; the corrected test uses the stable browser step name and all 97 focused tests pass. Its full CI is rerunning. Foreset's pre-integration run passed formatting, lint, type checks and 846 tests before its dependency audit failed; the latest main also updates dependencies, and its integrated CI is rerunning. Costello and Cardiac Companion application CI passed on their reviewed code heads. No failed audit or pending application job has been treated as a pass.
 
-Full application collection in Commandry requires its normal built workspace packages; Cardiac Companion requires its normal generated local fixture file. These are not complete application journey passes. Firefox/WebKit remain separate engines. Lighthouse uses a guarded patched local browser. The service does not qualify unrelated rendering runtimes, headed display or visual baselines. No host package installation, provider configuration change, database mutation or CRM edit was performed.
+Full application collection in Commandry requires its normal built workspace packages; Cardiac Companion requires its normal generated local fixture file. These are not complete application journey passes. Firefox/WebKit remain separate engines. Lighthouse uses a guarded patched local browser. The service does not qualify unrelated rendering runtimes, headed display or visual baselines. No host package installation or CRM edit was performed. Existing deployment pauses are preserved. Foreset production migration 0003 requires explicit authorization before activation.
 
 ## Sources
 
@@ -65,3 +65,22 @@ The owner authorized all twelve merges. Both non-main PRs were reapplied onto cu
 Each normal merge records the previous main and reviewed PR head, then checks that both are ancestors of the resulting main and that the browser guard exists there. Current merge results are recorded in the completed rollout record at handoff.
 
 The full Commandry release qualification exposed pre-existing high/critical dependency findings. The merge branch updates Better Auth and its Drizzle adapter from 1.7.6 to 1.7.15, updates Zod to 4.6.6 throughout the workspace and pins vulnerable transitive Zod and Undici resolutions to patched versions. This remains within the existing auth schema generation and does not add a migration. Production audit after the update reports no high or critical findings. Existing source, contract, unit, populated-upgrade and exact-image gates remain enabled.
+
+## Current merge record
+
+| Repository          | Main integration                                     | Production source                                        |
+| ------------------- | ---------------------------------------------------- | -------------------------------------------------------- |
+| tome-and-quill      | Merged, verified: `4afaf5bf8b9d`                     | Vercel: main verified                                    |
+| commandry           | Qualification running                                | Qualified main controller                                |
+| costellourman.party | Merged, verified: `c83a4a008d55`                     | Main release policy; live Builds settings access pending |
+| aviune              | Merged, verified: `615428df4f62`                     | Vercel: main verified                                    |
+| iyulabs             | Merged, verified: `c33f05a535b7`                     | Vercel: main verified                                    |
+| foreset             | All CI green; production migration approval required | Vercel: main verified                                    |
+| decideMyFood        | Merged, verified: `63d2072d4340`                     | Vercel: main verified                                    |
+| tidefern            | Qualification running                                | Vercel: main verified                                    |
+| cardiac-companion   | Passing checks; owner review/admin decision required | Vercel: main verified                                    |
+| dontWakeUp          | Qualification running                                | Vercel: main verified                                    |
+| resupals            | Qualification running                                | Main release policy; live Builds settings access pending |
+| wrenscribe          | Merged, verified: `8d7ea78b1a41`                     | Vercel: main verified                                    |
+
+The default branch of every listed GitHub repository is main. No branch-protection rule was disabled. Cardiac Companion main requires one approving review and rejected the normal merge; the owner decision is pending. Foreset requires its additive 2FA migration before Vercel activates the upgraded auth library. Both blockers were presented to the owner while the independent qualification continued.
