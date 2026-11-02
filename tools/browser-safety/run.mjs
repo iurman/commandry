@@ -106,7 +106,7 @@ try {
     `seccomp=${join(directory, "seccomp_profile.json")}`,
     "--pids-limit=512",
     "--memory=2g",
-    "--cpus=2",
+    "--cpus=4",
     "--shm-size=512m",
     "--tmpfs",
     "/tmp:rw,nosuid,nodev,size=512m,mode=1777",
@@ -177,6 +177,14 @@ try {
   if (exitCode !== 0) {
     const diagnostics = run(["logs", "--tail", "30", name]);
     console.error(`${diagnostics.stdout || ""}${diagnostics.stderr || ""}`);
+    for (const args of [
+      ["exec", name, "df", "-h", "/tmp", "/dev/shm"],
+      ["exec", name, "cat", "/sys/fs/cgroup/cpu.stat"],
+      ["exec", name, "cat", "/sys/fs/cgroup/memory.events"],
+    ]) {
+      const usage = run(args);
+      console.error(`${usage.stdout || ""}${usage.stderr || ""}`);
+    }
   }
 } finally {
   if (started) {

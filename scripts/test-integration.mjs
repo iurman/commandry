@@ -254,7 +254,11 @@ async function runRealSourceBrowser(
       ],
       {
         cwd: root,
-        env: { ...process.env, PLAYWRIGHT_BASE_URL: origin },
+        env: {
+          ...process.env,
+          PLAYWRIGHT_BASE_URL: origin,
+          SAFE_BROWSER_ALLOWED_PORTS: String(webPort),
+        },
         stdio: "inherit",
       },
     );

@@ -11,7 +11,7 @@ pnpm browser:check
 
 `browser:isolated` accepts any command and runs it after an isolated Chromium passes version, sandbox and page checks. Keep the application's existing local server and disposable database setup. This runner isolates Chromium; it does not start the application, seed a database, or containerize the coding agent.
 
-The browser runs as UID 1000 with a read-only image, no added capabilities, no-new-privileges, a seccomp policy, a 2 GiB memory limit, two CPU cores, a 512-process limit and temporary memory-backed storage. It has no repository, home, credentials, profiles, or container-socket mounts. Its random WebSocket endpoint is published only on host loopback. Test code, outputs and authentication state stay in their existing repository locations. No project data is copied into the image. The image build context is only this tools directory.
+The browser runs as UID 1000 with a read-only image, no added capabilities, no-new-privileges, a seccomp policy, a 2 GiB memory limit, four CPU cores, a 512-process limit and temporary memory-backed storage. It has no repository, home, credentials, profiles, or container-socket mounts. Its random WebSocket endpoint is published only on host loopback. Test code, outputs and authentication state stay in their existing repository locations. No project data is copied into the image. The image build context is only this tools directory.
 
 Chromium comes from Debian's security repository, not Playwright's bundled browser. Its actual executable must report at least `156.0.8078.73`; the image build and every service start enforce that floor. A start also checks Chromium's actual PID namespace, network namespace and Seccomp-BPF status. Failed checks stop the command. There is no fallback to an unsandboxed browser. The Playwright client and service versions must match; the runner reads the installed project package version.
 
@@ -34,3 +34,5 @@ The runner detects local Podman/Docker and existing host Podman through `flatpak
 ## Verification
 
 Implementation and verification for this change are recorded in `VERIFICATION.md` beside this file. Application suites require their existing local fixtures and services; the browser smoke does not certify an entire application's behavior or a production deployment.
+
+The full Observatory journeys use software WebGL and trusted pointer actions. A measured local run repeatedly hit the original two-core quota, so this repository permits up to four CPU cores. Memory remains bounded at 2 GiB, with 512 MiB temporary scratch and shared memory. Failed commands report scratch, CPU quota and memory-event diagnostics before cleanup.

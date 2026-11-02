@@ -60,7 +60,7 @@ Full application collection in Commandry requires its normal built workspace pac
 
 ## Main rollout, November 2, 2026
 
-The owner authorized all twelve merges. Both non-main PRs were reapplied onto current main with only the safety commits, preserving the original feature/evidence branches. All twelve GitHub default branches are main. All nine connected Vercel projects report main as their production branch. Existing disabled Git deployment controls on DontWakeUp, Wrenscribe and Cardiac Companion are preserved. ResuPals and Costello use Cloudflare Workers; their live Builds settings still require access verification. Commandry's release pipeline and enrolled controller select qualified main releases.
+The owner authorized all twelve merges. Both non-main PRs were reapplied onto current main with only the safety commits, preserving the original feature/evidence branches. All twelve GitHub default branches are main. All nine connected Vercel projects report main as their production branch. Vercel provider notification controls are preserved. The createDeployments field controls GitHub deployment records, not automatic Vercel builds; Wrenscribe production already reports its merged main commit. No Vercel deployment control was changed. ResuPals and Costello use Cloudflare Workers; their live Builds settings still require access verification. Commandry's release pipeline and enrolled controller select qualified main releases.
 
 Each normal merge records the previous main and reviewed PR head, then checks that both are ancestors of the resulting main and that the browser guard exists there. Current merge results are recorded in the completed rollout record at handoff.
 
@@ -74,7 +74,7 @@ The full Commandry release qualification exposed pre-existing high/critical depe
 | commandry           | Qualification running                                | Qualified main controller                                |
 | costellourman.party | Merged, verified: `c83a4a008d55`                     | Main release policy; live Builds settings access pending |
 | aviune              | Merged, verified: `615428df4f62`                     | Vercel: main verified                                    |
-| iyulabs             | Merged, verified: `c33f05a535b7`                     | Vercel: main verified                                    |
+| iyulabs             | Merged plus export follow-up: `7e09b104d22a`                     | Vercel: main verified                                    |
 | foreset             | All CI green; production migration approval required | Vercel: main verified                                    |
 | decideMyFood        | Merged, verified: `63d2072d4340`                     | Vercel: main verified                                    |
 | tidefern            | Qualification running                                | Vercel: main verified                                    |
