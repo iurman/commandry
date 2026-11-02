@@ -1,7 +1,7 @@
 export const minimumChromiumVersion: string;
 export function assertChromiumVersion(output: string): string;
 export function browserEndpoint(): string | undefined;
-export function browserNetwork(): string;
+export function browserNetwork(allowedPorts?: Array<number | string>): string;
 export function chromiumLaunchOptions(
   chromium: { executablePath(): string },
   options?: Record<string, unknown>,
@@ -10,7 +10,11 @@ export function chromiumTestOptions(
   chromium: { executablePath(): string },
   options?: Record<string, unknown>,
 ): {
-  connectOptions?: { wsEndpoint: string; exposeNetwork: string };
+  connectOptions?: {
+    wsEndpoint: string;
+    timeout: number;
+    exposeNetwork: string;
+  };
   launchOptions?: { executablePath: string; chromiumSandbox: true };
 };
 export function launchChromium<

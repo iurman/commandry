@@ -48,7 +48,7 @@ await new Promise((accept, reject) => {
 // The documented run-server transport supports host port forwarding. Its private
 // upstream endpoint is never published. This gate fixes launch options for every
 // connection, so clients cannot request a different executable or disable safety.
-const gate = createServer((request, response) => {
+const gate = createServer((_request, response) => {
   response.writeHead(404);
   response.end();
 });
@@ -90,7 +90,9 @@ gate.on("upgrade", (request, socket, head) => {
 await new Promise((accept) => gate.listen(3333, "0.0.0.0", accept));
 
 try {
-  const browser = await chromium.connect(`ws://127.0.0.1:3333/${token}`);
+  const browser = await chromium.connect(`ws://127.0.0.1:3333/${token}`, {
+    timeout: 30_000,
+  });
   try {
     const page = await browser.newPage();
     await page.goto("chrome://sandbox");

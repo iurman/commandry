@@ -47,11 +47,12 @@ function browserEndpoint() {
   return value;
 }
 
-function browserNetwork() {
+function browserNetwork(allowedPorts) {
   const settings = JSON.parse(
     readFileSync(join(__dirname, "project.json"), "utf8"),
   );
   const ports =
+    allowedPorts?.map(String) ??
     process.env.SAFE_BROWSER_ALLOWED_PORTS?.split(",") ??
     settings.allowedPorts.map(String);
   if (
@@ -110,16 +111,24 @@ function chromiumLaunchOptions(chromium, options = {}) {
 function chromiumTestOptions(chromium, options = {}) {
   const wsEndpoint = browserEndpoint();
   return wsEndpoint
-    ? { connectOptions: { wsEndpoint, exposeNetwork: browserNetwork() } }
+    ? {
+        connectOptions: {
+          wsEndpoint,
+          timeout: 30_000,
+          exposeNetwork: browserNetwork(),
+        },
+      }
     : { launchOptions: chromiumLaunchOptions(chromium, options) };
 }
 
 async function launchChromium(chromium, options = {}) {
+  const { allowedPorts, ...launchOptions } = options;
   const endpoint = browserEndpoint();
   if (!endpoint)
-    return chromium.launch(chromiumLaunchOptions(chromium, options));
+    return chromium.launch(chromiumLaunchOptions(chromium, launchOptions));
   const browser = await chromium.connect(endpoint, {
-    exposeNetwork: browserNetwork(),
+    timeout: 30_000,
+    exposeNetwork: browserNetwork(allowedPorts),
   });
   try {
     assertChromiumVersion(browser.version());

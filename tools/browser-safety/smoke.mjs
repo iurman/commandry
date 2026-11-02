@@ -16,21 +16,23 @@ const require = createRequire(
   resolve(directory, "../..", settings.packageDirectory, "package.json"),
 );
 const { chromium } = require(settings.playwrightPackage);
-const server = createServer((request, response) => {
+const server = createServer((_request, response) => {
   response.setHeader("content-type", "text/html");
   response.end(
     "<!doctype html><title>local QA fixture</title><button>Run</button><script>document.querySelector('button').onclick=()=>document.title='clicked';</script>",
   );
 });
-const denied = createServer((request, response) =>
+const denied = createServer((_request, response) =>
   response.end("must not be reached"),
 );
 await new Promise((accept) => server.listen(0, "127.0.0.1", accept));
 await new Promise((accept) => denied.listen(0, "127.0.0.1", accept));
-process.env.SAFE_BROWSER_ALLOWED_PORTS = String(server.address().port);
+process.env.SAFE_BROWSER_ALLOWED_PORTS = String(denied.address().port);
 let browser;
 try {
-  browser = await launchChromium(chromium);
+  browser = await launchChromium(chromium, {
+    allowedPorts: [server.address().port],
+  });
   const page = await browser.newPage();
   await page.goto(`http://127.0.0.1:${server.address().port}`);
   assert.equal(await page.title(), "local QA fixture");

@@ -20,6 +20,8 @@ export async function foundationClientsBrowserSmoke(
   trustedOrigin,
   environment,
 ) {
+  const local = new URL(origin);
+  assert.ok(["localhost", "127.0.0.1", "[::1]"].includes(local.hostname));
   const headers = {
     cookie,
     origin: trustedOrigin,
@@ -79,7 +81,12 @@ export async function foundationClientsBrowserSmoke(
     });
     fixtureIds.push(issued.client.id);
   }
-  const browser = await launchChromium(chromium, { headless: true });
+  const browser = await launchChromium(chromium, {
+    headless: true,
+    allowedPorts: [
+      Number(local.port || (local.protocol === "https:" ? 443 : 80)),
+    ],
+  });
   const errors = [];
   const screenshots = process.env.COMMANDRY_FOUNDATION_BROWSER_ARTIFACTS;
   if (screenshots) await mkdir(screenshots, { recursive: true });

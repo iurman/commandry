@@ -25,14 +25,30 @@ The runner uses Debian security Chromium at or above 156.0.8078.73 and the repos
 | wrenscribe | `site` | `npm run browser:isolated -- npm run og` |
 | cardiac-companion | `web` | `pnpm browser:isolated pnpm test:e2e` |
 
-## Verification and remaining work
+## Verification and review
 
-- Guard tests currently pass in all twelve repositories: seven assertions groups each, 84 total tests.
-- The Commandry isolated smoke passes version, actual sandbox startup, local HTTP, interaction, screenshot, an unapproved-port rejection, and a client attempt to replace launch options.
-- Cross-version and per-repository configuration checks are in progress. Per-repository `tools/browser-safety/VERIFICATION.md` records the final evidence.
-- Existing CI browser commands are routed through the isolated runner. Hooks and application verification requirements remain active.
-- No production deployments, provider configuration changes, host package installations, database mutations, or CRM edits are authorized by this delivery.
-- Firefox/WebKit remain separate engines. The isolation service is Chromium-only. Lighthouse uses a guarded patched local browser rather than this protocol endpoint. Custom headed launch flags are not forwarded.
+All twelve repositories passed seven guard tests each, 84 total. All twelve passed a real isolated browser smoke with patched Chromium 156.0.8078.73, active PID/network namespaces and Seccomp-BPF, local HTTP, interaction, PNG capture, rejection of an unapproved host port and rejection of unsafe launch-header overrides. Eleven typed Playwright adapter checks passed; Wrenscribe uses the checked JavaScript screenshot entrypoint. Tooling lint passed, including Costello's Biome rules. IYU's required production build passed. DontWakeUp and ResuPals passed their normal commit hooks.
+
+Node checks now have a dedicated dependency-free CI job and a `.checks.mjs` filename so Vitest does not collect Node test cases. Commandry's disposable owner-auth workflow receives only its explicit loopback fixture port. Tidefern exposes its package command at the monorepo root and allows its existing database-free test port 3001. An unchanged Foreset balance test used a stale calendar date; its fixture now uses the existing household date helper, with a passing focused regression. Production account logic is unchanged.
+
+| Repository | Review |
+| --- | --- |
+| dontWakeUp | [iurman/dontWakeUp PR](https://github.com/iurman/dontWakeUp/pull/3) |
+| tome-and-quill | [iurman/tome-and-quill PR](https://github.com/iurman/tome-and-quill/pull/118) |
+| commandry | [iurman/commandry PR](https://github.com/iurman/commandry/pull/57) |
+| costellourman.party | [iurman/costellourman.party PR](https://github.com/iurman/costellourman.party/pull/21) |
+| aviune | [iurman/aviune PR](https://github.com/iurman/aviune/pull/3) |
+| iyulabs | [iurman/iyulabs PR](https://github.com/iurman/iyulabs/pull/3) |
+| resupals | [iurman/resupals PR](https://github.com/iurman/resupals/pull/191) |
+| foreset | [iurman/foreset PR](https://github.com/iurman/foreset/pull/9) |
+| decideMyFood | [iurman/decideMyFood PR](https://github.com/iurman/decideMyFood/pull/5) |
+| tidefern | [iurman/tidefern PR](https://github.com/iurman/tidefern/pull/113) |
+| wrenscribe | Local changes tested; commit/push awaiting owner authorization under its AGENTS.md rule |
+| cardiac-companion | [iurman/cardiac-companion PR](https://github.com/iurman/cardiac-companion/pull/7) |
+
+These are review branches. No merge or production deployment has been performed. Existing checkouts do not gain the safeguards until the change is integrated. Hosted application CI is separate from the measured local tool checks and may still be running on the latest push.
+
+Full application collection in Commandry requires its normal built workspace packages; Cardiac Companion requires its normal generated local fixture file. These are not complete application journey passes. Firefox/WebKit remain separate engines. Lighthouse uses a guarded patched local browser. The service does not qualify unrelated rendering runtimes, headed display or visual baselines. No host package installation, provider configuration change, database mutation or CRM edit was performed.
 
 ## Sources
 

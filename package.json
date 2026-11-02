@@ -8,7 +8,7 @@
   },
   "scripts": {
     "browser:isolated": "node ./tools/browser-safety/run.mjs --",
-    "browser:check": "node --test ./tools/browser-safety/browser-safety.test.mjs",
+    "browser:check": "node --test ./tools/browser-safety/browser-safety.checks.mjs",
     "setup": "node scripts/setup.mjs",
     "dev": "node scripts/dev.mjs",
     "check": "pnpm format:check && pnpm lint && pnpm typecheck && pnpm boundaries:check && pnpm contracts:check && pnpm lab:check",

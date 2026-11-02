@@ -70,7 +70,7 @@ jobs:
         env:
           COMMANDRY_FOUNDATION_BROWSER: "1"
           COMMANDRY_FOUNDATION_BROWSER_ARTIFACTS: test-results/foundation-owner
-        run: pnpm test:auth-smoke
+        run: pnpm browser:isolated pnpm test:auth-smoke
       - name: Restore generated declaration and verify clean source
         run: |
           git restore -- apps/web/next-env.d.ts

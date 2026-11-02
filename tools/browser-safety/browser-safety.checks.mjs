@@ -137,6 +137,7 @@ test("remote endpoints are restricted to loopback and old remote browsers discon
       {
         connectOptions: {
           wsEndpoint: process.env.SAFE_BROWSER_WS_ENDPOINT,
+          timeout: 30_000,
           exposeNetwork: browserNetwork(),
         },
       },
@@ -164,6 +165,10 @@ test("host forwarding requires explicit local application ports", () => {
   const original = process.env.SAFE_BROWSER_ALLOWED_PORTS;
   try {
     process.env.SAFE_BROWSER_ALLOWED_PORTS = "3000,3141";
+    assert.equal(
+      browserNetwork([41234]),
+      "localhost:41234,127.0.0.1:41234,[::1]:41234",
+    );
     assert.equal(
       browserNetwork(),
       "localhost:3000,127.0.0.1:3000,[::1]:3000,localhost:3141,127.0.0.1:3141,[::1]:3141",

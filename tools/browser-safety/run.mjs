@@ -145,6 +145,7 @@ try {
       "Browser did not pass its sandbox readiness check within 30 seconds.",
     );
   const browser = await chromium.connect(endpoint, {
+    timeout: 30_000,
     exposeNetwork: browserNetwork(),
   });
   try {
