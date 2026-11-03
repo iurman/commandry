@@ -69,6 +69,20 @@ test("packet MCP session gives a local client scoped, audited reads and can be r
     ).status(),
   ).toBe(201);
 
+  let releaseAgentRouting!: () => void;
+  const routingReleased = new Promise<void>((resolve) => {
+    releaseAgentRouting = resolve;
+  });
+  await page.route(
+    (url) =>
+      url.pathname === `/api/v1/execution-packets/${packet.id}/agent-routing`,
+    async (route) => {
+      const response = await route.fetch();
+      await routingReleased;
+      await route.fulfill({ response });
+    },
+    { times: 1 },
+  );
   await page.goto(`/execution-packets/${packet.id}`);
   await expect(
     page.getByRole("heading", { name: "Open scoped MCP reads" }),
@@ -76,8 +90,24 @@ test("packet MCP session gives a local client scoped, audited reads and can be r
   const choice = page.getByRole("combobox", {
     name: "Eligible project-scoped agent",
   });
-  while ((await choice.locator(`option[value="${agent.id}"]`).count()) === 0) {
-    await page.getByRole("button", { name: "Load more local agents" }).click();
+  const agentOption = choice.locator(`option[value="${agent.id}"]`);
+  const moreAgents = page.getByRole("button", {
+    name: "Load more local agents",
+  });
+  await expect(agentOption).toHaveCount(0);
+  releaseAgentRouting();
+  await expect
+    .poll(
+      async () =>
+        (await agentOption.count()) > 0 || (await moreAgents.isVisible()),
+    )
+    .toBe(true);
+  while ((await agentOption.count()) === 0) {
+    const before = await choice.locator("option").count();
+    await moreAgents.click();
+    await expect
+      .poll(() => choice.locator("option").count())
+      .toBeGreaterThan(before);
   }
   await choice.selectOption(agent.id);
   const createdResponsePromise = page.waitForResponse(

@@ -61,6 +61,20 @@ test("packet readiness schedules a scoped fake overnight run and links its morni
     ).status(),
   ).toBe(201);
 
+  let releaseAgentRouting!: () => void;
+  const routingReleased = new Promise<void>((resolve) => {
+    releaseAgentRouting = resolve;
+  });
+  await page.route(
+    (url) =>
+      url.pathname === `/api/v1/execution-packets/${packet.id}/agent-routing`,
+    async (route) => {
+      const response = await route.fetch();
+      await routingReleased;
+      await route.fulfill({ response });
+    },
+    { times: 1 },
+  );
   await page.goto(`/execution-packets/${packet.id}`);
   await expect(
     page.getByRole("heading", { name: "Queue a fake overnight run" }),
@@ -68,15 +82,33 @@ test("packet readiness schedules a scoped fake overnight run and links its morni
   const choice = page.getByRole("combobox", {
     name: "Eligible project-scoped agent",
   });
-  while ((await choice.locator(`option[value="${agent.id}"]`).count()) === 0) {
-    await page.getByRole("button", { name: "Load more local agents" }).click();
+  const agentOption = choice.locator(`option[value="${agent.id}"]`);
+  const moreAgents = page.getByRole("button", {
+    name: "Load more local agents",
+  });
+  await expect(agentOption).toHaveCount(0);
+  releaseAgentRouting();
+  await expect
+    .poll(
+      async () =>
+        (await agentOption.count()) > 0 || (await moreAgents.isVisible()),
+    )
+    .toBe(true);
+  while ((await agentOption.count()) === 0) {
+    const before = await choice.locator("option").count();
+    await moreAgents.click();
+    await expect
+      .poll(() => choice.locator("option").count())
+      .toBeGreaterThan(before);
   }
   await choice.selectOption(agent.id);
   await expect(
     page.getByText("Ready: Agent is assigned to the packet project"),
   ).toBeVisible();
-  const due = new Date(Date.now() + 8000);
-  const localDue = `${due.getFullYear()}-${String(due.getMonth() + 1).padStart(2, "0")}-${String(due.getDate()).padStart(2, "0")}T${String(due.getHours()).padStart(2, "0")}:${String(due.getMinutes()).padStart(2, "0")}:${String(due.getSeconds()).padStart(2, "0")}`;
+  const localDue = await page.evaluate(() => {
+    const due = new Date(Date.now() + 8000);
+    return `${due.getFullYear()}-${String(due.getMonth() + 1).padStart(2, "0")}-${String(due.getDate()).padStart(2, "0")}T${String(due.getHours()).padStart(2, "0")}:${String(due.getMinutes()).padStart(2, "0")}:${String(due.getSeconds()).padStart(2, "0")}`;
+  });
   await page
     .getByLabel("Run after (your local time)")
     .fill(localDue.endsWith(":00") ? localDue.slice(0, -3) : localDue);
