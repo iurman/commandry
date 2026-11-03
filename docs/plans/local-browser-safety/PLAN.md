@@ -1,0 +1,86 @@
+# Local browser and QA isolation
+
+**Status: Operational**
+
+The owner authorized browser and QA tooling containers plus safeguards for all twelve identified non-CRM repositories on November 2, 2026. The owner subsequently authorized merging all twelve PRs into main and verifying main as every repository's default and production source. Full application development containers, host maintenance and CRM changes remain outside this scope.
+
+## Delivery
+
+Each repository has a self-contained `tools/browser-safety/` runner, security floor, launch guard, seccomp policy, smoke test, regression test, and runbook. Chromium runs in a temporary unprivileged container without source, home, credential, profile, or container-socket mounts. Existing test code and outputs stay where they already live. Normal local servers and disposable fixtures remain the source of application data.
+
+The runner uses Debian security Chromium at or above 156.0.8078.73 and the repository's installed Playwright version. Every start verifies real Chromium namespace and Seccomp-BPF status. A loopback-only gateway fixes launch options before forwarding to the documented Playwright run-server transport. Client requests cannot replace the executable or turn off the sandbox. Host port forwarding is limited to explicit application ports; ordinary outbound and LAN networking remain available.
+
+| Repository          | Package directory | Local command                                                                       |
+| ------------------- | ----------------- | ----------------------------------------------------------------------------------- |
+| dontWakeUp          | `.`               | `pnpm browser:isolated pnpm e2e --project=iphone-390x844 --project=android-412x915` |
+| tome-and-quill      | `.`               | `npm run browser:isolated -- npm run e2e`                                           |
+| commandry           | `.`               | `pnpm browser:isolated pnpm test:e2e`                                               |
+| costellourman.party | `.`               | `pnpm browser:isolated pnpm test:e2e`                                               |
+| aviune              | `.`               | `pnpm browser:isolated pnpm test`                                                   |
+| iyulabs             | `.`               | `pnpm browser:isolated pnpm test:e2e`                                               |
+| resupals            | `.`               | `pnpm browser:isolated pnpm test:e2e --project=chromium`                            |
+| foreset             | `.`               | `pnpm browser:isolated pnpm test:e2e`                                               |
+| decideMyFood        | `.`               | `npm run browser:isolated -- npm run test:e2e`                                      |
+| tidefern            | `apps/web`        | `pnpm browser:isolated pnpm test:e2e`                                               |
+| wrenscribe          | `site`            | `npm run browser:isolated -- npm run og`                                            |
+| cardiac-companion   | `web`             | `pnpm browser:isolated pnpm test:e2e`                                               |
+
+## Verification and review
+
+All twelve repositories passed seven guard tests each, 84 total. All twelve passed a real isolated browser smoke with patched Chromium 156.0.8078.73, active PID/network namespaces and Seccomp-BPF, local HTTP, interaction, PNG capture, rejection of an unapproved host port and rejection of unsafe launch-header overrides. Eleven typed Playwright adapter checks passed; Wrenscribe uses the checked JavaScript screenshot entrypoint. Tooling lint passed, including Costello's Biome rules. IYU's required production build passed. DontWakeUp and ResuPals passed their normal commit hooks.
+
+Node checks now have a dedicated dependency-free CI job and a `.checks.mjs` filename so Vitest does not collect Node test cases. Commandry's disposable owner-auth workflow receives only its explicit loopback fixture port. Tidefern exposes its package command at the monorepo root and allows its existing database-free test port 3001. A stale Foreset balance fixture received a focused passing household-date correction; latest main now supplies that same correction and its version is retained. Production account logic is unchanged.
+
+| Repository          | Review                                                                                 |
+| ------------------- | -------------------------------------------------------------------------------------- |
+| dontWakeUp          | [iurman/dontWakeUp PR](https://github.com/iurman/dontWakeUp/pull/3)                    |
+| tome-and-quill      | [iurman/tome-and-quill PR](https://github.com/iurman/tome-and-quill/pull/118)          |
+| commandry           | [iurman/commandry PR](https://github.com/iurman/commandry/pull/57)                     |
+| costellourman.party | [iurman/costellourman.party PR](https://github.com/iurman/costellourman.party/pull/21) |
+| aviune              | [iurman/aviune PR](https://github.com/iurman/aviune/pull/3)                            |
+| iyulabs             | [iurman/iyulabs PR](https://github.com/iurman/iyulabs/pull/3)                          |
+| resupals            | [iurman/resupals PR](https://github.com/iurman/resupals/pull/191)                      |
+| foreset             | [iurman/foreset PR](https://github.com/iurman/foreset/pull/9)                          |
+| decideMyFood        | [iurman/decideMyFood PR](https://github.com/iurman/decideMyFood/pull/5)                |
+| tidefern            | [iurman/tidefern PR](https://github.com/iurman/tidefern/pull/113)                      |
+| wrenscribe          | [iurman/wrenscribe PR](https://github.com/iurman/wrenscribe/pull/3)                    |
+| cardiac-companion   | [iurman/cardiac-companion PR](https://github.com/iurman/cardiac-companion/pull/7)      |
+
+The owner authorized main integration. Six repositories have completed normal merges with ancestry and guard-file verification; the current rollout record below identifies the remaining checks and approvals. Existing local checkouts retain their own working state until explicitly updated. All twelve dedicated browser-policy CI jobs passed after code integration. Longer application qualification is tracked separately from the measured local tool checks. The latest main changes were integrated into Aviune, Foreset, ResuPals, Tidefern and Wrenscribe before handoff. Newly introduced ResuPals help recording, Tidefern byte measurement and Wrenscribe poster generation use the guarded helper. ResuPals additionally passed a real CDP JPEG screencast frame check. Tidefern Lighthouse verifies its local Chromium version.
+
+Tome and Quill's previous CI run passed browser E2E but failed one source-order assertion tied to the previous command text; the corrected test uses the stable browser step name and all 97 focused tests pass. Its full CI is rerunning. Foreset's pre-integration run passed formatting, lint, type checks and 846 tests before its dependency audit failed; the latest main also updates dependencies, and its integrated CI is rerunning. Costello and Cardiac Companion application CI passed on their reviewed code heads. No failed audit or pending application job has been treated as a pass.
+
+Full application collection in Commandry requires its normal built workspace packages; Cardiac Companion requires its normal generated local fixture file. These are not complete application journey passes. Firefox/WebKit remain separate engines. Lighthouse uses a guarded patched local browser. The service does not qualify unrelated rendering runtimes, headed display or visual baselines. No host package installation or CRM edit was performed. Existing deployment pauses are preserved. Foreset production migration 0003 requires explicit authorization before activation.
+
+## Sources
+
+- [Chrome security release](https://chromereleases.googleblog.com/2026/10/stable-channel-update-for-desktop_0562499947.html).
+- [Playwright container and remote browser documentation](https://playwright.dev/docs/docker).
+- [Debian Chromium security package](https://packages.debian.org/bookworm/chromium).
+
+## Main rollout, November 2, 2026
+
+The owner authorized all twelve merges. Both non-main PRs were reapplied onto current main with only the safety commits, preserving the original feature/evidence branches. All twelve GitHub default branches are main. All nine connected Vercel projects report main as their production branch. Vercel provider notification controls are preserved. The createDeployments field controls GitHub deployment records, not automatic Vercel builds; Wrenscribe production already reports its merged main commit. No Vercel deployment control was changed. ResuPals and Costello use Cloudflare Workers; their live Builds settings still require access verification. Commandry's release pipeline and enrolled controller select qualified main releases.
+
+Each normal merge records the previous main and reviewed PR head, then checks that both are ancestors of the resulting main and that the browser guard exists there. Current merge results are recorded in the completed rollout record at handoff.
+
+The full Commandry release qualification exposed pre-existing high/critical dependency findings. The merge branch updates Better Auth and its Drizzle adapter from 1.7.6 to 1.7.15, updates Zod to 4.6.6 throughout the workspace and pins vulnerable transitive Zod and Undici resolutions to patched versions. This remains within the existing auth schema generation and does not add a migration. Production audit after the update reports no high or critical findings. Existing source, contract, unit, populated-upgrade and exact-image gates remain enabled.
+
+## Current merge record
+
+| Repository          | Main integration                                     | Production source                                        |
+| ------------------- | ---------------------------------------------------- | -------------------------------------------------------- |
+| tome-and-quill      | Merged, verified: `4afaf5bf8b9d`                     | Vercel: main verified                                    |
+| commandry           | Qualification running                                | Qualified main controller                                |
+| costellourman.party | Merged, verified: `c83a4a008d55`                     | Main release policy; live Builds settings access pending |
+| aviune              | Merged, verified: `615428df4f62`                     | Vercel: main verified                                    |
+| iyulabs             | Merged plus export follow-up: `7e09b104d22a`                     | Vercel: main verified                                    |
+| foreset             | All CI green; production migration approval required | Vercel: main verified                                    |
+| decideMyFood        | Merged, verified: `63d2072d4340`                     | Vercel: main verified                                    |
+| tidefern            | Qualification running                                | Vercel: main verified                                    |
+| cardiac-companion   | Passing checks; owner review/admin decision required | Vercel: main verified                                    |
+| dontWakeUp          | Qualification running                                | Vercel: main verified                                    |
+| resupals            | Qualification running                                | Main release policy; live Builds settings access pending |
+| wrenscribe          | Merged, verified: `8d7ea78b1a41`                     | Vercel: main verified                                    |
+
+The default branch of every listed GitHub repository is main. No branch-protection rule was disabled. Cardiac Companion main requires one approving review and rejected the normal merge; the owner decision is pending. Foreset requires its additive 2FA migration before Vercel activates the upgraded auth library. Both blockers were presented to the owner while the independent qualification continued.

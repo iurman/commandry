@@ -1,5 +1,4 @@
 import { randomUUID } from "node:crypto";
-import { readFile } from "node:fs/promises";
 import { expect, test } from "@playwright/test";
 
 test("local automation queues one worker summary, records evidence, and gates disabled runs", async ({
@@ -165,7 +164,12 @@ test("local automation queues one worker summary, records evidence, and gates di
   const downloadPromise = page.waitForEvent("download");
   await page.getByRole("button", { name: "Download local export" }).click();
   const downloaded = await downloadPromise;
-  const exported = JSON.parse(await readFile(await downloaded.path(), "utf8"));
+  const stream = await downloaded.createReadStream();
+  if (!stream)
+    throw new Error("Local export download did not produce a readable stream");
+  const chunks: Buffer[] = [];
+  for await (const chunk of stream) chunks.push(Buffer.from(chunk));
+  const exported = JSON.parse(Buffer.concat(chunks).toString("utf8"));
   expect(exported.definition.id).toBe(definition.id);
   expect(exported.sourceOfTruth).toBe("local-only");
   expect(exported.isSynthetic).toBe(true);

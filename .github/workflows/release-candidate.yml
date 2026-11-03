@@ -70,7 +70,7 @@ jobs:
         env:
           COMMANDRY_FOUNDATION_BROWSER: "1"
           COMMANDRY_FOUNDATION_BROWSER_ARTIFACTS: test-results/foundation-owner
-        run: pnpm test:auth-smoke
+        run: pnpm browser:isolated pnpm test:auth-smoke
       - name: Restore generated declaration and verify clean source
         run: |
           git restore -- apps/web/next-env.d.ts
@@ -162,7 +162,7 @@ jobs:
 
       - name: Export the qualified candidate and selected-source browser census
         id: export
-        run: node scripts/ci-release.mjs export "$RUNNER_TEMP/commandry-image"
+        run: pnpm browser:isolated node scripts/ci-release.mjs export "$RUNNER_TEMP/commandry-image"
       - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
         with:
           name: commandry-image-${{ github.run_id }}-${{ github.run_attempt }}-${{ github.sha }}
@@ -210,7 +210,7 @@ jobs:
           PLAYWRIGHT_JSON_OUTPUT_NAME: test-results/browser-results.json
         run: |
           pnpm exec playwright install --with-deps chromium
-          pnpm test:e2e --workers=1 --shard=${{ matrix.shard }}/6 --reporter=line,json
+          pnpm browser:isolated pnpm test:e2e --workers=1 --shard=${{ matrix.shard }}/6 --reporter=line,json
       - name: Verify healthy tested image and clean source after browser tests
         run: node scripts/ci-release.mjs verify "$RUNNER_TEMP/commandry-image"
       - name: Retain browser diagnostics

@@ -6,6 +6,10 @@ the task, then follow links only when needed.
 
 ## Planning and dispatch
 
+- MUST keep the twelve non-CRM repositories in
+  `docs/plans/local-browser-safety/PLAN.md` on `main` as their GitHub default
+  and production source branch. Preserve separately paused deployment controls.
+
 - MUST keep the October 22 security campaign scoped to repository fixes and
   application deployments; host/package maintenance, Portainer and Proxmox
   upgrades remain paused until the owner explicitly releases that hold.
@@ -199,3 +203,7 @@ connection across those categories.
 ## Owner deployment workflow
 
 - During owner-authorized deployment setup, use supplied credentials and store reusable credential files outside the repository without unsolicited credential-rotation commentary.
+
+## Local browser safety
+
+- MUST use the guarded Chromium helpers and the `browser:isolated` package command for browser QA; follow [the local browser safety runbook](tools/browser-safety/README.md). Never bypass the browser version floor or disable its sandbox.
