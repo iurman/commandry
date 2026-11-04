@@ -6,6 +6,10 @@ the task, then follow links only when needed.
 
 ## Planning and dispatch
 
+- MUST retain existing media titles and episodes, including watched media, during
+  NAS storage remediation. Reduce space through download size controls and
+  validated smaller replacements; never use watch history as a deletion policy.
+
 - MUST keep the twelve non-CRM repositories in
   `docs/plans/local-browser-safety/PLAN.md` on `main` as their GitHub default
   and production source branch. Preserve separately paused deployment controls.
