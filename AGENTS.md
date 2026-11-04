@@ -18,6 +18,10 @@ the task, then follow links only when needed.
   plus English for anime when available. Use a title's original language when an
   English track is unavailable; do not delete retained titles for lacking English.
 
+- MUST remediate oversized movies and shows in batches, verify each smaller
+  replacement before changing the NAS copy, and coordinate the seedbox source
+  with Cloud Sync while preserving media titles, episodes and available rollback.
+
 - MUST keep the twelve non-CRM repositories in
   `docs/plans/local-browser-safety/PLAN.md` on `main` as their GitHub default
   and production source branch. Preserve separately paused deployment controls.
