@@ -14,6 +14,10 @@ the task, then follow links only when needed.
   Use remote client controls and magnet links; do not download torrent descriptors
   or media payloads to the laptop during NAS remediation.
 
+- MUST prefer English-only audio for most media replacements and retain Japanese
+  plus English for anime when available. Use a title's original language when an
+  English track is unavailable; do not delete retained titles for lacking English.
+
 - MUST keep the twelve non-CRM repositories in
   `docs/plans/local-browser-safety/PLAN.md` on `main` as their GitHub default
   and production source branch. Preserve separately paused deployment controls.
