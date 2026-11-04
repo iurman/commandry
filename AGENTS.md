@@ -10,6 +10,10 @@ the task, then follow links only when needed.
   NAS storage remediation. Reduce space through download size controls and
   validated smaller replacements; never use watch history as a deletion policy.
 
+- MUST keep torrent and media downloads on the seedbox, not the owner's laptop.
+  Use remote client controls and magnet links; do not download torrent descriptors
+  or media payloads to the laptop during NAS remediation.
+
 - MUST keep the twelve non-CRM repositories in
   `docs/plans/local-browser-safety/PLAN.md` on `main` as their GitHub default
   and production source branch. Preserve separately paused deployment controls.
