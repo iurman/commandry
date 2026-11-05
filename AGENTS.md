@@ -60,6 +60,8 @@ the task, then follow links only when needed.
   command center's permissions. Keep real approval gates and hooks intact, queue
   blocked work for the command center, and continue permitted independent work.
 
+- MUST honor an owner-requested stop after current NAS remediation batches: finish only batches already in progress, retain originals for failed candidates, and start no further replacement downloads or NAS-only remediation until the owner explicitly resumes.
+
 ## Mandatory orientation
 
 Before changing product behavior, data structures, architecture, or UX, read:
