@@ -14,9 +14,13 @@ the task, then follow links only when needed.
   Use remote client controls and magnet links; do not download torrent descriptors
   or media payloads to the laptop during NAS remediation.
 
-- MUST prefer English-only audio for most media replacements and retain Japanese
-  plus English for anime when available. Use a title's original language when an
-  English track is unavailable; do not delete retained titles for lacking English.
+- MUST prioritize TV shows during NAS storage remediation and preserve 4K
+  resolution and HDR when a 4K master is included.
+
+- MUST prefer English audio for English-language media and keep original-language
+  audio plus English when available for non-English media, including anime.
+  Preserve audio when its language or role is unclear, and keep subtitles when
+  removing unused audio tracks. Keep titles with no English audio.
 
 - MUST remediate oversized movies and shows in batches, verify each smaller
   replacement before changing the NAS copy, and coordinate the seedbox source
