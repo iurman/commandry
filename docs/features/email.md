@@ -175,8 +175,8 @@ provider access; fixtures do not establish a live account connection.
 ## Verification and sources
 
 The [implementation plan](../plans/centralized-email/PLAN.md) records the budget,
-source discovery and scope. The verification record will distinguish local
-execution from live adoption. The retained functional, scale and guarded browser
+source discovery and scope. The [verification record](../plans/centralized-email/VERIFICATION.md)
+distinguishes local execution from live adoption. The retained functional, scale and guarded browser
 rigs exercise the actual services, runtime-role SQL, built Next app and Foundation
 MCP while substituting only Resend.
 

@@ -1,6 +1,6 @@
 # Centralized email implementation
 
-**Status: Operational plan, implementation in progress**
+**Status: Operational plan, source implementation complete; live activation pending**
 
 **Owner authorization:** November 8, 2026, Pacific. Unified and individual inboxes,
 dashboard summaries, original messages and attachments, compose/reply, attention
@@ -78,3 +78,7 @@ look complete for direct owner mail. SMTP/MXroute writes stay unavailable until
 that connector and authority are verified. No external test mail is needed for
 fixture qualification. Authorized owner recipients can be used only for a
 labeled delivery check after provider access exists.
+
+## Completion evidence
+
+The [verification record](VERIFICATION.md) records executed checks, measured scale, fixes, retained test rigs and the separate live connection/release gaps. Current main was merged normally to preserve the November 7 public site and `/app` dashboard cutover.

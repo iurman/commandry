@@ -414,6 +414,21 @@ test(
             limit: 100,
           })) as { content: { text: string; offset: number } };
           assert.equal(second.content.offset, 100);
+          const sourceIndex = sources.received.findIndex(
+              (m) => m.externalId === first.externalId,
+            ),
+            removed = sources.received.splice(sourceIndex, 1)[0]!;
+          const unavailable = (await service.execute(owner, "read", {
+            id: first.id,
+          })) as {
+            availability: string;
+            message: MailMessage;
+            content: { text: null };
+          };
+          assert.equal(unavailable.availability, "unavailable");
+          assert.equal(unavailable.message.from, first.from);
+          assert.equal(unavailable.content.text, null);
+          sources.received.splice(sourceIndex, 0, removed);
           const view = (await service.execute(
             owner,
             "overview",
@@ -608,6 +623,7 @@ test(
             accountId: account.id,
             from: "unlisted@iyulabs.com",
             to: ["sender@example.test"],
+            bcc: ["private@example.test"],
             subject: "Re: Reviewed reply",
             text: "Approved fixture reply",
             replyToId: first.id,
@@ -679,6 +695,14 @@ test(
           );
           await worker.process({ kind: "send", id: edited.id });
           assert.equal(sendCalls, 2);
+          const bccSearch = (await service.execute(owner, "messages", {
+            q: "private@example.test",
+          })) as MailPage<MailMessage>;
+          assert.equal(bccSearch.items.length, 1);
+          const literal = (await service.execute(owner, "messages", {
+            q: "%' OR true --",
+          })) as MailPage<MailMessage>;
+          assert.equal(literal.items.length, 0);
           await assert.rejects(
             admin.db.execute(
               sql`update mail_draft set payload='{}'::jsonb where id=${edited.id}::uuid`,

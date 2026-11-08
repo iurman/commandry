@@ -2,7 +2,7 @@
 
 **Status: Operational**
 
-**Last updated:** 2026-11-07
+**Last updated:** 2026-11-08
 
 ## Current phase
 
@@ -19,6 +19,25 @@ A follow-up [HTTPS enforcement fix](../plans/public-site/EXECUTION.md#https-enfo
 now upgrades plain HTTP to the canonical HTTPS origin. The existing certificate,
 public homepage and owner sign-in were verified; the control-only reload preserved
 the running application and containers.
+
+## Centralized email source implementation
+
+The owner-authorized [email feature](../features/email.md) is implemented on
+`feat/centralized-email`, with unified/domain/address views, a Command Center card,
+provider-original reads and attachments, local attention rules/review, immutable
+owner-approved drafts and separate-worker sending. Ten opt-in Foundation MCP tools
+share the same scoped services. [ADR 0020](../decisions/0020-index-provider-email-with-governed-actions.md)
+records the index and action boundaries. Local verification uses real runtime-role
+PostgreSQL, the built web/worker and authenticated MCP with synthetic provider
+transport. No real mailbox index, external send, remote migration or deployment
+is claimed. The [verification record](../plans/centralized-email/VERIFICATION.md)
+records exact outcomes and the remaining provider/activation gates.
+
+The existing forwarding flow is preserved. The primary Resend API connection is
+pending usable account access; direct MXroute mail is explicitly disconnected
+pending its separate mailbox connector/credentials. Provider retention is exposed
+and the index is not an all-time archive. Production activation retains the
+existing reviewed migration, recovery and constrained release gates.
 
 ## Earlier operational records
 

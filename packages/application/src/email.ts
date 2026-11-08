@@ -172,9 +172,31 @@ export function createMailService(
           case "read": {
             const input = mailReadSchema.parse(raw),
               message = await r.message(input.id);
-            const original = await provider(
-              await r.account(message.accountId),
-            ).read(message.direction, message.externalId);
+            const account = await r.account(message.accountId);
+            let original: MailContent;
+            try {
+              original = await provider(account).read(
+                message.direction,
+                message.externalId,
+              );
+            } catch (error) {
+              if (!(error instanceof MailError)) throw error;
+              return {
+                message,
+                content: {
+                  text: null,
+                  html: null,
+                  headers: {},
+                  offset: 0,
+                  nextOffset: null,
+                  totalCharacters: 0,
+                },
+                source: "provider-index",
+                availability: "unavailable",
+                unavailableReason: error.code,
+                untrusted: true,
+              };
+            }
             const text = original.text,
               html = original.html,
               total = Math.max(text?.length ?? 0, html?.length ?? 0);
@@ -194,6 +216,7 @@ export function createMailService(
                 totalCharacters: total,
               },
               source: "provider",
+              availability: "available",
               untrusted: true,
             };
           }

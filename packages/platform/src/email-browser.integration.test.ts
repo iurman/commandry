@@ -1,6 +1,6 @@
 /** Built owner API/UI and real Foundation MCP on a disposable database. Provider network only is faked. */
 import assert from "node:assert/strict";
-import { randomBytes, randomUUID } from "node:crypto";
+import { createHmac, randomBytes, randomUUID } from "node:crypto";
 import { spawn } from "node:child_process";
 import { existsSync } from "node:fs";
 import { mkdir, mkdtemp, rm, symlink, writeFile } from "node:fs/promises";
@@ -56,6 +56,11 @@ test(
       temp = await mkdtemp(join(tmpdir(), "commandry-mail-browser-")),
       keyFile = join(temp, "key");
     await writeFile(keyFile, "re_" + "b".repeat(30), { mode: 0o600 });
+    const webhookKey = join(temp, "webhook-key"),
+      webhookSecret = Buffer.from("synthetic-webhook-signing-secret").toString(
+        "base64",
+      );
+    await writeFile(webhookKey, "whsec_" + webhookSecret, { mode: 0o600 });
     const port = await freePort(),
       origin = `http://127.0.0.1:${port}`,
       secret = randomBytes(32).toString("hex"),
@@ -113,6 +118,7 @@ test(
           RELEASE_SHA: "email-browser-candidate",
           LOCAL_AUTH_MODE: "password",
           INITIAL_ADMIN_EMAIL: ownerEmail,
+          MAIL_RESEND_WEBHOOK_SECRET_FILE: webhookKey,
           MAIL_RESEND_API_KEY_FILE: keyFile,
           MAIL_POLLING: "false",
           COMMANDRY_EMAIL_FIXTURE: "true",
@@ -137,6 +143,7 @@ test(
         createMailWorkerRepository(db.db),
         () => provider,
       );
+    let builtWorker: ReturnType<typeof spawn> | undefined;
     let browser: Awaited<ReturnType<typeof chromium.launch>> | undefined;
     const clients: Client[] = [];
     try {
@@ -202,6 +209,79 @@ test(
         accountId: account.id,
         direction: "sent",
       });
+      const rawEvent = JSON.stringify({
+          type: "email.received",
+          created_at: new Date().toISOString(),
+          data: { email_id: "00000000-0000-4000-8000-000000000001" },
+        }),
+        eventId = "msg_built_http",
+        timestamp = String(Math.floor(Date.now() / 1000));
+      const signature = createHmac(
+        "sha256",
+        Buffer.from(webhookSecret, "base64"),
+      )
+        .update(`${eventId}.${timestamp}.${rawEvent}`)
+        .digest("base64");
+      const signedHeaders = {
+        "svix-id": eventId,
+        "svix-timestamp": timestamp,
+        "svix-signature": "v1," + signature,
+      };
+      for (let i = 0; i < 2; i++)
+        assert.equal(
+          (
+            await fetch(`${origin}/api/v1/email/webhooks/${account.id}`, {
+              method: "POST",
+              headers: signedHeaders,
+              body: rawEvent,
+            })
+          ).status,
+          200,
+        );
+      assert.equal(
+        (
+          await fetch(`${origin}/api/v1/email/webhooks/${account.id}`, {
+            method: "POST",
+            headers: { ...signedHeaders, "svix-signature": "v1,invalid" },
+            body: rawEvent,
+          })
+        ).status,
+        403,
+      );
+      await worker.process({
+        kind: "hydrate",
+        accountId: account.id,
+        externalId: "00000000-0000-4000-8000-000000000001",
+        direction: "received",
+      });
+      builtWorker = spawn(
+        process.execPath,
+        [
+          "--import",
+          resolve(root, "scripts/email-provider-fixture.mjs"),
+          resolve(root, "apps/worker/dist/index.js"),
+        ],
+        {
+          cwd: root,
+          env: {
+            ...process.env,
+            APP_ENV: "local",
+            APP_ORIGIN: origin,
+            DATABASE_URL: runtimeUrl.toString(),
+            BETTER_AUTH_SECRET: secret,
+            APP_ENCRYPTION_KEY: randomBytes(32).toString("hex"),
+            RELEASE_SHA: "email-browser-candidate",
+            LOCAL_AUTH_MODE: "password",
+            INITIAL_ADMIN_EMAIL: ownerEmail,
+            MAIL_RESEND_API_KEY_FILE: keyFile,
+            MAIL_POLLING: "true",
+            COMMANDRY_EMAIL_FIXTURE: "true",
+          },
+          stdio: ["ignore", "pipe", "pipe"],
+        },
+      );
+      builtWorker.stdout?.on("data", () => {});
+      builtWorker.stderr?.on("data", (v) => (tail = (tail + v).slice(-3000)));
       const overview = await post<MailOverview>("/api/v1/email/overview", {});
       assert.deepEqual(overview.counts, {
         received: 70,
@@ -360,12 +440,9 @@ test(
       await expect(
         compose.getByRole("heading", { name: "Exact draft review" }),
       ).toBeVisible();
-      await expect(
-        compose.getByText(
-          "Changed browser reply invalidates the previous approval.",
-          { exact: true },
-        ),
-      ).toBeVisible();
+      await expect(compose.locator("pre")).toHaveText(
+        "Changed browser reply invalidates the previous approval.",
+      );
       await post("/api/v1/email/send", { id: beforeEdit.id }, 409);
       await compose
         .getByRole("button", { name: "Close compose", exact: true })
@@ -409,8 +486,23 @@ test(
       ).items.find((d) => d.subject === "Cross-domain reviewed fixture")!;
       assert.deepEqual(queued.to, ["one@example.test", "two@example.test"]);
       assert.equal(queued.from, "hello@aviune.com");
-      await worker.process({ kind: "send", id: queued.id });
-      await worker.process({ kind: "send", id: queued.id });
+      let acceptedDraft = false;
+      for (let i = 0; i < 80; i++) {
+        if (builtWorker.exitCode !== null) throw new Error(tail);
+        const page = await post<MailPage<MailDraft>>(
+          "/api/v1/email/drafts",
+          {},
+        );
+        if (page.items.find((d) => d.id === queued.id)?.state === "accepted") {
+          acceptedDraft = true;
+          break;
+        }
+        await delay(250);
+      }
+      assert.ok(
+        acceptedDraft,
+        "The built separate pg-boss worker must consume the durable send outbox",
+      );
       assert.equal(
         (
           await post<MailPage<MailDraft>>("/api/v1/email/drafts", {})
@@ -471,6 +563,10 @@ test(
           await page
             .getByLabel("Direction", { exact: true })
             .selectOption("all");
+          await expect(
+            page.getByRole("button", { name: "70 received", exact: true }),
+          ).toBeVisible();
+          await expect(page.locator("li button[aria-pressed]")).toHaveCount(30);
           assert.ok(
             await page.evaluate(
               () => document.documentElement.scrollWidth <= window.innerWidth,
@@ -481,8 +577,14 @@ test(
             path: join(evidence, `${viewport.name}-${theme}.png`),
             fullPage: true,
           });
+          await page
+            .getByRole("region", { name: "Email counts" })
+            .scrollIntoViewIfNeeded();
+          await page.screenshot({
+            path: join(evidence, `${viewport.name}-${theme}-viewport.png`),
+          });
         }
-      await page.goto(origin + "/");
+      await page.goto(origin + "/app");
       await expect(
         page.getByRole("heading", { name: "Email", exact: true }),
       ).toBeVisible();
@@ -624,6 +726,15 @@ test(
           new Promise<void>((r) => web.once("exit", () => r())),
           delay(5000).then(() => {
             web.kill("SIGKILL");
+          }),
+        ]);
+      }
+      if (builtWorker && builtWorker.exitCode === null) {
+        builtWorker.kill("SIGTERM");
+        await Promise.race([
+          new Promise<void>((r) => builtWorker!.once("exit", () => r())),
+          delay(5000).then(() => {
+            builtWorker?.kill("SIGKILL");
           }),
         ]);
       }

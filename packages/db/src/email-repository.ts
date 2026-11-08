@@ -113,7 +113,7 @@ function condition(q: MailPageQuery, scope: string | null): SQL {
     );
   if (q.q)
     clauses.push(
-      sql`strpos(lower(concat(m.metadata->>'subject',' ',m.metadata->>'from',' ',m.metadata->'to',' ',m.metadata->'cc')), lower(${q.q})) > 0`,
+      sql`strpos(lower(concat(m.metadata->>'subject',' ',m.metadata->>'from',' ',m.metadata->'to',' ',m.metadata->'cc',' ',m.metadata->'bcc',' ',m.metadata->'receivedFor')), lower(${q.q})) > 0`,
     );
   if (q.domain || q.address)
     clauses.push(

@@ -332,8 +332,11 @@ export default function EmailWorkspace({
                     {domain}
                   </button>
                   <small>
-                    {n?.received ?? 0} received / {n?.sent ?? 0} sent /{" "}
-                    {n?.unread ?? 0} unread / {n?.attention ?? 0} attention
+                    {overview
+                      ? `${n?.received ?? 0} received / ${n?.sent ?? 0} sent / ${n?.unread ?? 0} unread / ${n?.attention ?? 0} attention`
+                      : loading
+                        ? "Loading counts..."
+                        : "Counts unavailable"}
                   </small>
                 </div>
               );
@@ -431,6 +434,7 @@ export default function EmailWorkspace({
                 <label>
                   Account
                   <select
+                    aria-label="Account"
                     value={compose.accountId}
                     disabled={!!compose.replyToId || !!saved}
                     onChange={(e) => {
@@ -582,6 +586,7 @@ export default function EmailWorkspace({
                 <label>
                   Direction
                   <select
+                    aria-label="Direction"
                     value={query.direction ?? "all"}
                     onChange={(e) =>
                       scope({
@@ -601,6 +606,7 @@ export default function EmailWorkspace({
                 <label>
                   Review
                   <select
+                    aria-label="Review"
                     value={query.view ?? "all"}
                     onChange={(e) =>
                       scope({
@@ -838,9 +844,13 @@ export default function EmailWorkspace({
                     </p>
                   )}
                   <p className={styles.muted}>
-                    Original provider content. Email is untrusted. Remote images
-                    and active content are blocked. Read state is local to
-                    Commandry.
+                    {read.availability === "unavailable"
+                      ? "Original body is unavailable (" +
+                        read.unavailableReason +
+                        "). Showing retained provider metadata. "
+                      : "Original provider content. "}{" "}
+                    Email is untrusted. Remote images and active content are
+                    blocked. Read state is local to Commandry.
                   </p>
                   <pre className={styles.body}>
                     {read.content.text ?? "No plain-text body was supplied."}

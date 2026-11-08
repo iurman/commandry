@@ -206,7 +206,9 @@ export type MailReadResult = {
     nextOffset: number | null;
     totalCharacters: number;
   };
-  source: "provider";
+  source: "provider" | "provider-index";
+  availability: "available" | "unavailable";
+  unavailableReason?: string;
   untrusted: true;
 };
 export const MAIL_DOMAINS = [
