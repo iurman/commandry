@@ -42,6 +42,7 @@ const rules = {
     "config",
     "experience",
   ],
+  site: [],
   lab: [
     "domain",
     "application",
