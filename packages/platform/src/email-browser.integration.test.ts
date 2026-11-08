@@ -301,6 +301,7 @@ test(
         viewport: { width: 1440, height: 1000 },
         colorScheme: "light",
       });
+      await context.tracing.start({ screenshots: true, snapshots: true });
       await context.addCookies(
         cookie
           .split("; ")
@@ -378,6 +379,12 @@ test(
       await page
         .getByRole("button", { name: "Mark resolved", exact: true })
         .click();
+      await expect(
+        page.getByText("Local review saved.", { exact: true }),
+      ).toBeVisible();
+      await expect(
+        page.getByRole("button", { name: "Mark resolved", exact: true }),
+      ).toBeEnabled();
       await page.getByText("Isolated HTML view", { exact: true }).click();
       await expect(page.locator("iframe")).toBeVisible();
       assert.equal(
@@ -700,13 +707,20 @@ test(
           2,
         ),
       );
+      await context.tracing.stop({ path: join(evidence, "trace.zip") });
       await context.close();
     } finally {
       if (browser)
-        for (const context of browser.contexts())
+        for (const context of browser.contexts()) {
+          const dir = resolve(
+            root,
+            process.env.COMMANDRY_EMAIL_ARTIFACTS ?? ".agent/email-browser",
+          );
+          await mkdir(dir, { recursive: true });
+          await context.tracing
+            .stop({ path: join(dir, "trace.zip") })
+            .catch(() => {});
           for (const page of context.pages()) {
-            const dir = resolve(root, ".agent/email-browser");
-            await mkdir(dir, { recursive: true });
             await page
               .screenshot({ path: join(dir, "last-state.png"), fullPage: true })
               .catch(() => {});
@@ -718,6 +732,7 @@ test(
                 .catch(() => "Page unavailable"),
             );
           }
+        }
       for (const client of clients) await client.close();
       await browser?.close();
       if (web.exitCode === null) {
