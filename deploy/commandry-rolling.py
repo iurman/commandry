@@ -109,8 +109,9 @@ PUBLIC_SITE_ROUTE = f"""
 """
 
 
-def proxy_config(active, previous):
+def proxy_config(active, previous, public_site=True):
     require(active in ("web", "web_next") and previous in ("web", "web_next"), "invalid web slot")
+    public = PUBLIC_SITE_ROUTE if public_site else ""
     static = ""
     fallback = ""
     if active != previous:
@@ -139,7 +140,7 @@ def proxy_config(active, previous):
     return f"""# Managed by the constrained Commandry rollout controller.
 :80 {{
     encode zstd gzip
-{PUBLIC_SITE_ROUTE}{static}
+{public}{static}
     handle {{
         reverse_proxy {active}:3000{fallback} {{
             header_up X-Forwarded-Proto https
@@ -404,14 +405,17 @@ class Rollout:
         new_slot = "web_next" if old_slot == "web" else "web"
         self.health(old_slot, marker["IMAGE"], marker["REVISION"], True)
         old_env, old_marker = self.env.read_text(), self.marker.read_text()
+        # First activation waits for the candidate's /app, owner and worker gates.
+        # Later attempts and rollbacks preserve the already-serving public root.
+        public_site = "@public_site" in self.caddyfile.read_text()
         pending = {"version": 1, "revision": revision, "environment": old_env, "marker": old_marker,
-                   "proxy": proxy_config(old_slot, old_slot),
+                   "proxy": proxy_config(old_slot, old_slot, public_site=public_site),
                    "active": {key: value for key, value in active.items() if key != "previous"} if active else None,
                    "oldSlot": old_slot, "newSlot": new_slot, "workerTouched": False}
         json_write(self.journal, pending)
         try:
             self.step = "retire_previous_fallback"
-            self.route(proxy_config(old_slot, old_slot))
+            self.route(proxy_config(old_slot, old_slot, public_site=public_site))
             self.step = "candidate_environment"
             changed = {"COMMANDRY_IMAGE": image, "RELEASE_SHA": revision,
                        "RELEASE_BUILD_TIME": approval["BUILD_TIME"]}

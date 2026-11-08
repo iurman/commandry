@@ -146,6 +146,28 @@ class RolloutTests(unittest.TestCase):
     def test_production_always_pins_the_local_docker_daemon(self):
         self.assertEqual(r.Rollout().safe_env["DOCKER_HOST"], "unix:///var/run/docker.sock")
 
+    def test_first_public_activation_waits_for_candidate_smoke(self):
+        self.rollout.deploy(b"synthetic-input")
+        routes = [call for call in self.rollout.calls if call[1][0] == "route"]
+        self.assertNotIn("@public_site", routes[0][1][1])
+        self.assertEqual(routes[-1][0], "traffic_switch")
+        self.assertIn("@public_site", routes[-1][1][1])
+
+    def test_failed_first_activation_restores_private_root(self):
+        self.rollout.fail = "confirmation"
+        with self.assertRaises(r.Rejected):
+            self.rollout.deploy(b"synthetic-input")
+        self.assert_old()
+        self.assertNotIn("@public_site", self.rollout.caddyfile.read_text())
+
+    def test_failed_later_candidate_preserves_public_root(self):
+        self.rollout.caddyfile.write_text(r.proxy_config("web", "web"))
+        self.rollout.fail = "candidate_owner_read_and_worker_smoke"
+        with self.assertRaises(r.Rejected):
+            self.rollout.deploy(b"synthetic-input")
+        self.assert_old()
+        self.assertIn("@public_site", self.rollout.caddyfile.read_text())
+
     def test_confirmed_candidate_after_real_worker_smoke(self):
         self.rollout.deploy(b"synthetic-input")
         active = json.loads(self.rollout.active.read_text())
