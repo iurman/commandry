@@ -17,6 +17,8 @@ edits were not changed.
 | Workspace check | Passed formatting, lint, type checking, package boundaries, generated contracts and experience-lab checks. Existing lint warnings remain; no lint errors. |
 | Full test command | Passed 190 Vitest files / 3,168 tests, 33 lab tests, 123 host tests, 11 agent-registry tests, four LAN-preview tests and four phone-preview tests. |
 | Production build | Passed with the real Next application, owner email API, signed webhook, attachment route and Foundation MCP. |
+| Workflow and dependency checks | GitHub workflow YAML formatting passed. Production dependency audit passed the high-severity gate and reported one moderate advisory. The PR browser-policy check passed. The full release-candidate workflow runs on main or manual dispatch and was not dispatched for this draft branch. |
+| Production Compose configuration | Template shape passed using the existing container runtime. This validates configuration only; example credentials/images remain invalid for deployment. |
 | Disposable PostgreSQL functional run | Passed seven baseline migration/job tests plus eight email subjourneys and their parent. Real migrations and runtime-role SQL exercised seven-domain counts, multi-recipient deduplication, unknown addresses, more than 100 messages, BCC and literal search, original continuation, unavailable-original metadata fallback, stale triage, scope and live authority checks, webhook replay/order/backoff, draft identity, immutable approvals, retries and permanent send receipts. |
 | Guarded browser run | Passed seven baseline tests and one complete email journey against the final built app. Desktop 1440 x 1000 and phone 390 x 844, each light/dark, covered populated lists, domain/address counts, pagination, original text/isolated HTML, attachments, review, rules, compose/reply and multiple recipients. No page errors were recorded. |
 | Real worker and MCP transport | The browser rig delivered signed webhook HTTP requests, rejected bad signatures and replayed identical events, ran the built pg-boss worker, and exercised ten explicitly granted tools through authenticated Streamable HTTP. Machine approval attempts were denied. Provider acceptance was a fixture, not external delivery. |
@@ -28,6 +30,11 @@ The host preflight tests caught empty optional credential assignments in the
 example environment. Those assignments are now comments; preflight was preserved.
 Original body failures now retain an inspectable metadata view. Search includes
 all original recipient fields. These corrections are included in the final checks.
+
+The moderate dependency finding is [GHSA-67mh-4wv8-2f99](https://github.com/advisories/GHSA-67mh-4wv8-2f99),
+affecting the existing optional esbuild 0.18.20 chain through Better Auth and
+Drizzle Kit. The audit reported zero high or critical findings. This feature did
+not change that dependency chain.
 
 ## Production-scale qualification
 
@@ -90,8 +97,9 @@ available. No watcher or automation was created.
 
 The saved ResuPals key was an unusable development value. No reusable primary
 Resend credential was found in the known private Commandry references. Chrome
-refused the account-access tab while an extension popup was open; dismissal is
-still pending. Consequently actual domain verification, retained-history coverage,
+initially refused the account-access tab while an extension popup was open. A
+later attempt reached the existing account's password step, where owner sign-in
+is pending. Consequently actual domain verification, retained-history coverage,
 original availability, a live webhook and real delivery have not been verified.
 
 Direct `contact@isaacurman.com` mail is independently hosted by MXroute. No usable
@@ -99,7 +107,9 @@ IMAP credentials were found and no MXroute connector is implemented or active.
 The UI labels it disconnected; it is outside the seven-domain Resend population.
 
 No real mailbox ingestion, external send, new account access grant, remote SQL,
-forwarding change or deployment occurred. `MAIL_POLLING` remains off by default.
+forwarding change or production deployment occurred. The existing Vercel
+integration automatically produced a public-site PR preview after the push;
+that preview does not activate private email. `MAIL_POLLING` remains off by default.
 Migration `0076_centralized_email`, private credential mounts, account/project
 binding and any new Commandry webhook require the normal reviewed activation.
 Preserve the existing ResuPals webhook, provider forwarding and inactive Sieve set.

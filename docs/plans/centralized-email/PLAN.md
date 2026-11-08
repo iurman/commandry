@@ -17,8 +17,9 @@ copies. Never restore cardiaccompanion.app or activate the experimental Sieve se
 Direct contact@isaacurman.com mail lives at witcher.mxrouting.net independently.
 The saved ResuPals local key is an unusable short development value. No reusable
 Resend or MXroute API/mailbox credential was found in Commandry credential refs.
-Browser access is currently blocked by an open Chrome extension UI. Continue
-implementation and fixtures; exact operational gaps must remain visible.
+The initial browser attempt was blocked by an open Chrome extension UI. A later
+attempt reached the existing Resend account's password step; owner sign-in is
+pending. Continue fixtures; exact operational gaps must remain visible.
 
 ## Smallest complete implementation
 

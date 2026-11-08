@@ -168,9 +168,10 @@ held for the normal constrained release review.
 Direct contact@isaacurman.com messages live in MXroute independently of Resend.
 No usable IMAP credentials were discovered, and no MXroute connector is active.
 That inbox is explicitly disconnected and outside the seven-domain index.
-The browser access attempt was blocked by an open Chrome extension UI. The
-saved ResuPals local key was only a development value. Those gaps require actual
-provider access; fixtures do not establish a live account connection.
+The initial browser attempt was blocked by an open Chrome extension UI. A later
+attempt reached the existing account's password step and remains open for owner
+sign-in. The saved ResuPals local key was only a development value. Those gaps
+require actual provider access; fixtures do not establish a live account connection.
 
 ## Verification and sources
 
