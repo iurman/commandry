@@ -16,6 +16,17 @@ test("a domain groups a project through a typed link and appears in the evidence
 
   await page.goto("/projects");
   await page.getByRole("link", { name: "Browse portfolio domains" }).click();
+  await expect(page).toHaveURL(/\/domains$/);
+  await expect(
+    page.getByRole("heading", { name: "Domains", exact: true }),
+  ).toBeVisible();
+  await expect(
+    page
+      .getByRole("list", { name: "Domains", exact: true })
+      .getByRole("listitem")
+      .first()
+      .or(page.getByRole("heading", { name: "No domains yet", exact: true })),
+  ).toBeVisible();
   await expect(page.getByText("Loading domains...")).toHaveCount(0);
   await page.getByLabel("Name").fill(`Home ${suffix}`);
   await page.getByLabel("Description").fill("Local home responsibility area");

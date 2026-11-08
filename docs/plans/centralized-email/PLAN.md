@@ -119,3 +119,13 @@ exposed the Observatory upgrade audit's stale 0075 expectation; it is updated fo
 0076 without removing preservation assertions. A scoped backup permission check
 now admits only the two documented root-owned, application-group-readable mail
 credential files while retaining the private configuration guards elsewhere.
+
+The complete smoke run also exposed shared-fixture interference: the scale test
+occupied the single provider-account slot needed by the functional test. Email
+functional, scale and browser fixtures now receive independent disposable database
+clones, preserving the unique-provider constraint and immutable audit records.
+Standalone asset preparation accepts only existing links to the exact expected
+workspace build assets. The complete local smoke suite then passed. A phone
+portfolio-domain test exposed an independent initial-render race; its readiness
+check now requires a loaded result or the hydrated empty state before entering
+form data. All mutation, persistence and evidence assertions remain.
