@@ -11,7 +11,7 @@ test("local shell labels simulated data without claiming live health", async ({
   const navigation = page.getByRole("navigation", { name: "Main navigation" });
   await expect(navigation.getByRole("link", { name: "Home" })).toHaveAttribute(
     "href",
-    "/",
+    "/app",
   );
   await expect(navigation.getByRole("link", { name: "Inbox" })).toBeVisible();
   await expect(

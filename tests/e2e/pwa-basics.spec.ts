@@ -66,6 +66,7 @@ test("local PWA keeps project data online-only and offers generic offline help",
   await expect(page.getByText(/Project content, actions, and API results/)).toBeVisible();
   await context.setOffline(false);
   await page.getByRole("link", { name: "Try Commandry again" }).click();
+  await expect(page).toHaveURL(/\/app$/);
   await expect(page.getByText("Local app reachable")).toBeVisible();
   expect(errors).toEqual([]);
 });

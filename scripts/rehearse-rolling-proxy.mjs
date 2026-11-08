@@ -109,9 +109,11 @@ try {
   const address = await docker("port", names[2], "80");
   assert.match(address, /^127\.0\.0\.1:\d+$/);
   const origin = `http://${address}`;
+  // The private workspace moves between app slots; the public root is separate.
+  const workspace = origin + "/app";
   for (let attempt = 0; attempt < 30; attempt++) {
     try {
-      assert.equal(await (await fetch(origin)).text(), "old");
+      assert.equal(await (await fetch(workspace)).text(), "old");
       break;
     } catch {
       if (attempt === 29)
@@ -123,7 +125,7 @@ try {
   sampler = (async () => {
     while (sampling) {
       try {
-        const response = await fetch(origin, {
+        const response = await fetch(workspace, {
           signal: AbortSignal.timeout(2000),
         });
         const body = await response.text();
@@ -135,7 +137,9 @@ try {
         if (response.status !== 200 || !["old", "new"].includes(body))
           evidence.errors.push(body);
       } catch (error) {
-        evidence.errors.push(error.message);
+        evidence.errors.push(
+          `${error.message}${error.cause?.code ? ` (${error.cause.code})` : ""}`,
+        );
       }
       await delay(25);
     }
@@ -178,7 +182,7 @@ try {
     );
   }
   await route("web_next", "web");
-  assert.equal(await (await fetch(origin)).text(), "new");
+  assert.equal(await (await fetch(workspace)).text(), "new");
   assert.equal(await slow, "old");
   const events = await streamed;
   assert.ok(
@@ -193,7 +197,7 @@ try {
     "new",
   );
   await route("web", "web");
-  assert.equal(await (await fetch(origin)).text(), "old");
+  assert.equal(await (await fetch(workspace)).text(), "old");
   await delay(200);
   sampling = false;
   await sampler;

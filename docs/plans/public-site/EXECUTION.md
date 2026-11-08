@@ -158,7 +158,29 @@ the most recent monthly restore report success. The reviewed source differs
 from installed source controls only in the controller and Caddy template;
 there is no database migration difference.
 
-Activation, exact source, CI and public verification evidence will be recorded
+PR 61 merged normally at `c397ad241c151e2a67aec843d1e6421d4d997e40`.
+Both the prior target and reviewed PR head remain ancestors. At 03:53:07 UTC
+on November 8 (November 7 Pacific), the operator installed the reviewed
+controller and enrolled controls fingerprint
+`361bbf5e5a6b81cfc0b4623d2e368f14e2413982c488a4ac74dd008ba302679e`.
+Migration fingerprint remained unchanged; policy remained enabled. Generated
+live routing did not change during installation.
+
+The first main qualification run, [42444451323](https://github.com/iurman/commandry/actions/runs/42444451323),
+passed source, unit and populated-upgrade/owner checks but failed the proxy
+rehearsal: its continuity requests still expected the private dashboard at `/`.
+No candidate qualified or took traffic. The corrected rehearsal probes `/app`
+while retaining stream, in-flight request, static asset and rollback assertions.
+A local first attempt recorded one transport error; the diagnostic retry passed
+102 samples with zero errors, completed both original requests, served both
+asset generations, restored the old slot and removed its disposable resources.
+
+The same route sweep corrected the shell test and offline retry link to `/app`.
+The offline-help cache advances to v2 so existing service workers receive the
+new link. The PWA browser test now verifies that reconnecting reaches `/app`.
+These follow-ups do not change the enrolled control or migration fingerprints.
+
+Activation, final-source CI and public verification evidence will be recorded
 here before this follow-up is considered complete.
 
 ### Original implementation handoff
