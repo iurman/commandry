@@ -93,3 +93,29 @@ labeled delivery check after provider access exists.
 ## Completion evidence
 
 The [verification record](VERIFICATION.md) records executed checks, measured scale, fixes, retained test rigs and the separate live connection/release gaps. Current main was merged normally to preserve the November 7 public site and `/app` dashboard cutover.
+
+## Authorized activation sequence
+
+1. Requalify the final branch, merge normally and qualify the exact main image.
+2. Retain the current Electra release, database identity, routing and unrelated
+   services. Review/install the changed controls with a private rollback copy.
+3. Mount the approved primary key through the documented root-owned mail files.
+   Preserve the existing ResuPals endpoint and all forwarding rules.
+4. Under the deployment lock, prove a fresh encrypted offsite backup, isolated
+   restore and host recovery, then run the exact approved image's additive 0076
+   migrator. Enroll the reviewed control/migration fingerprints only after those
+   steps are verified. The prior app remains compatible with the additive tables
+   and expanded allowed-operation constraint.
+5. Promote through the constrained rolling controller, retaining the prior slot.
+   Register the primary account to the existing Commandry project through real
+   owner authentication, enable polling and verify both complete traversals.
+6. Verify owner UI, counts, originals, attachment behavior, governed sending and
+   delivery. Add and verify an independent signed Commandry webhook without
+   modifying the ResuPals webhook. Preserve separate opt-in MCP authority.
+
+Electra inventory on November 8 found the existing release and worker healthy,
+about 5.7 GB available memory and 189 GB free disk. The first branch qualification
+exposed the Observatory upgrade audit's stale 0075 expectation; it is updated for
+0076 without removing preservation assertions. A scoped backup permission check
+now admits only the two documented root-owned, application-group-readable mail
+credential files while retaining the private configuration guards elsewhere.

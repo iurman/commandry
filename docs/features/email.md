@@ -151,8 +151,12 @@ response. No bulk mail work runs inside the web process or an HTTP request.
 existing primary account's private API credential outside the repository.
 `MAIL_RESEND_WEBHOOK_SECRET_FILE` references a separate Commandry webhook secret.
 The production Compose template mounts these files read-only, with the signing
-secret available only to web. Use a private root-owned file readable only by
-the container application UID/group. A configured but unreadable or invalid
+secret available only to web. Production uses `/etc/commandry/mail/resend-primary.key`
+and `/etc/commandry/mail/resend-webhook.key`, root-owned with group 1000 and mode
+0640 inside root-owned mode 0700 directories. The backup validator permits that
+read-only application-group access only for these two exact files; all other
+private configuration keeps its existing mode 0600 requirement. Encrypted host
+configuration backup includes the mail files. A configured but unreadable or invalid
 credential fails closed. No key is accepted through the UI, MCP or message body.
 
 During authorized activation, apply the reviewed migration and queue installation,

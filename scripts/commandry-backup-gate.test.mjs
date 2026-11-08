@@ -11,9 +11,52 @@ import {
 import { tmpdir } from "node:os";
 import { resolve } from "node:path";
 import test from "node:test";
+import { mailCredentialFileAllowed } from "./host-backup-config.mjs";
 
 const root = resolve(import.meta.dirname, "..");
 const secret = "SYNTHETIC_SECRET_DO_NOT_LOG";
+
+test("mail credential backup exception cannot expose other configuration or writable secrets", () => {
+  const entry = {
+    uid: 0,
+    gid: 1000,
+    mode: 0o100640,
+    nlink: 1,
+    size: 40,
+    isFile: () => true,
+  };
+  for (const path of ["mail/resend-primary.key", "mail/resend-webhook.key"])
+    assert.equal(mailCredentialFileAllowed(path, entry, 0), true);
+  for (const path of [
+    "commandry.env",
+    "backup.env",
+    "deploy-owner.input",
+    "mail/other.key",
+    "../mail/resend-primary.key",
+  ])
+    assert.equal(mailCredentialFileAllowed(path, entry, 0), false);
+  for (const changes of [
+    { uid: 1000 },
+    { gid: 0 },
+    { mode: 0o100660 },
+    { mode: 0o100644 },
+    { nlink: 2 },
+    { size: 0 },
+    { isFile: () => false },
+  ])
+    assert.equal(
+      mailCredentialFileAllowed(
+        "mail/resend-primary.key",
+        { ...entry, ...changes },
+        0,
+      ),
+      false,
+    );
+  assert.equal(
+    mailCredentialFileAllowed("mail/resend-primary.key", entry, 1000),
+    false,
+  );
+});
 
 test("local rehearsal rejects remote and out-of-scope repositories before any backup", () => {
   for (const repository of [
