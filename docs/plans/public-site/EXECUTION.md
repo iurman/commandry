@@ -129,6 +129,40 @@ Vercel connector required a separate team-scope authorization.
 
 ## Remaining work
 
+### Owner-authorized activation follow-up, November 7, 2026
+
+The owner requested completion of PR 61 and the apex activation. The follow-up
+session verified existing saved operator access and can perform the reviewed
+root control installation through that access. No new owner credential entry
+is required. The live policy is enabled, but the current main candidate was
+held for its changed controls fingerprint. The serving application remains
+`c83cea7dc8cbfeacdcd5c56aeb0cb8bae821ce01`; its worker is healthy.
+
+Review found that the original controller change would enable the public root
+while retiring the fallback, before the candidate's `/app` and owner/worker
+checks passed. The corrected controller retains the existing routing until
+the qualified traffic switch and preserves the prior public/private state on
+rollback. All 24 rollout/qualification tests pass, including three new first
+activation and rollback cases. The correct sequence is reviewed control
+installation and enrollment, then normal qualified application promotion.
+This supersedes the original PR's app-first owner-step ordering.
+
+Focused checks on Node 24.22.2 passed: 137 UI tests across ten files (including
+all three Gravity storage tests), the Node rollout wrapper, web TypeScript and
+scoped ESLint. The original Node 26 storage-test limitation is resolved.
+
+A root-private backup preserves the installed controller, generated Caddy
+configuration, enrollment policy, current release, active slot and seven
+container identities before installation. Existing backup/health services and
+the most recent monthly restore report success. The reviewed source differs
+from installed source controls only in the controller and Caddy template;
+there is no database migration difference.
+
+Activation, exact source, CI and public verification evidence will be recorded
+here before this follow-up is considered complete.
+
+### Original implementation handoff
+
 The apex change needs two steps the implementing session could not complete:
 
 1. The Caddy routing lives in `deploy/commandry-rolling.py`, an enrolled

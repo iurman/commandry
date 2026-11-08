@@ -129,8 +129,44 @@ class RolloutTests(unittest.TestCase):
         self.assertEqual(self.rollout.worker_image, OLD_IMAGE)
         self.assertFalse(self.rollout.journal.exists())
 
+    def test_public_site_route_is_exact_read_only_and_credential_free(self):
+        for active, previous in (("web", "web"), ("web_next", "web")):
+            config = r.proxy_config(active, previous)
+            public = config.index("@public_site")
+            self.assertLess(public, config.index("    handle {"))
+            block = config[public:config.index("    }\n", config.index("handle @public_site")) + 6]
+            self.assertIn("method GET HEAD", block)
+            self.assertIn("path / /robots.txt /sitemap.xml /_site/*", block)
+            self.assertNotIn("/_next", block)
+            for header in ("header_up -Cookie", "header_up -Authorization", "header_down -Set-Cookie"):
+                self.assertIn(header, block)
+            self.assertIn(f"reverse_proxy https://{r.PUBLIC_SITE_HOST}", block)
+            self.assertIn(f"reverse_proxy {active}:3000", config)
+
     def test_production_always_pins_the_local_docker_daemon(self):
         self.assertEqual(r.Rollout().safe_env["DOCKER_HOST"], "unix:///var/run/docker.sock")
+
+    def test_first_public_activation_waits_for_candidate_smoke(self):
+        self.rollout.deploy(b"synthetic-input")
+        routes = [call for call in self.rollout.calls if call[1][0] == "route"]
+        self.assertNotIn("@public_site", routes[0][1][1])
+        self.assertEqual(routes[-1][0], "traffic_switch")
+        self.assertIn("@public_site", routes[-1][1][1])
+
+    def test_failed_first_activation_restores_private_root(self):
+        self.rollout.fail = "confirmation"
+        with self.assertRaises(r.Rejected):
+            self.rollout.deploy(b"synthetic-input")
+        self.assert_old()
+        self.assertNotIn("@public_site", self.rollout.caddyfile.read_text())
+
+    def test_failed_later_candidate_preserves_public_root(self):
+        self.rollout.caddyfile.write_text(r.proxy_config("web", "web"))
+        self.rollout.fail = "candidate_owner_read_and_worker_smoke"
+        with self.assertRaises(r.Rejected):
+            self.rollout.deploy(b"synthetic-input")
+        self.assert_old()
+        self.assertIn("@public_site", self.rollout.caddyfile.read_text())
 
     def test_confirmed_candidate_after_real_worker_smoke(self):
         self.rollout.deploy(b"synthetic-input")

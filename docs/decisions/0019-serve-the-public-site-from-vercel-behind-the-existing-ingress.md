@@ -51,9 +51,14 @@ holds automatic promotion until the owner reviews and re-enrolls the controls.
    link and the PWA start URL point there. `/login` redirects to `/sign-in`;
    `/sign-in` is unchanged. The PWA `id` stays `/` so installed apps keep
    their identity.
-6. The application change ships first through the normal automatic release.
-   The Caddy change ships in the rollout controller and requires the owner's
-   reviewed control installation and re-enrollment before it takes effect.
+6. The owner-authorized operator installs the reviewed rollout controller and
+   enrolls its controls fingerprint before automatic promotion can accept the
+   new application image. The controller preserves the existing public/private
+   root while preparing the candidate. Only after fresh recovery, readiness,
+   authenticated owner reads and a real worker check pass does the traffic
+   switch activate the public route alongside the new private `/app` route.
+   A failed first cutover restores the private root; later failed releases
+   preserve the already-active public site.
 
 ## Consequences
 

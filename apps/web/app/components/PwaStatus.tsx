@@ -29,7 +29,7 @@ export function PwaStatus() {
         return;
       }
       try {
-        const response = await fetch("/", {
+        const response = await fetch("/health/live", {
           method: "HEAD",
           cache: "no-store",
           signal: AbortSignal.timeout(4000),

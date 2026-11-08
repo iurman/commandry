@@ -3,7 +3,7 @@
   "short_name": "Commandry",
   "description": "A local control plane for projects, work, knowledge, operations, and agents.",
   "id": "/",
-  "start_url": "/",
+  "start_url": "/app",
   "scope": "/",
   "display": "standalone",
   "background_color": "#f5f6f8",

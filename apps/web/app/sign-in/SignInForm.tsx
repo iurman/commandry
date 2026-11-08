@@ -27,7 +27,7 @@ export default function SignInForm() {
         setError("Sign-in failed. Check the email and password.");
         return;
       }
-      router.replace("/");
+      router.replace("/app");
       router.refresh();
     } catch {
       setError("Sign-in is unavailable. Try again shortly.");
