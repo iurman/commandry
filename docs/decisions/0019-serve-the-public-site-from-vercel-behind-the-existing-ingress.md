@@ -1,6 +1,6 @@
 # ADR 0019: Serve the public site from Vercel behind the existing ingress
 
-**Status:** Accepted; routing activation pending owner control installation
+**Status:** Accepted; apex routing activated and verified 2026-11-07
 
 **Date:** 2026-11-07
 
@@ -14,8 +14,8 @@ move the private application, database, worker or accounts.
 ## Context
 
 `commandry.site` resolves to Cloudflare, which reaches Caddy on the VPS through
-the named Tunnel. Caddy sends every request to the active web slot. The private
-application owns `/` (its dashboard), `/sign-in`, `/_next/*`, a root-scoped
+the named Tunnel. Before this change, Caddy sent every request to the active web
+slot. The private application owned `/` (its dashboard), `/sign-in`, `/_next/*`, a root-scoped
 service worker, `/api/*`, `/mcp*`, receivers and callbacks. Unauthenticated
 requests to private pages redirect to `/sign-in`.
 
@@ -36,7 +36,7 @@ holds automatic promotion until the owner reviews and re-enrolls the controls.
    `assetPrefix: "/_site"`, plus the icon, touch icon and social image in
    `public/_site/`. Nothing the site serves collides with the application's
    `/_next/*`, `/icon.svg`, `/manifest.webmanifest` or `/sw.js`.
-4. Routing keeps the current origin. Caddy will send exactly these GET/HEAD
+4. Routing keeps the current origin. Caddy sends exactly these GET/HEAD
    requests to the Vercel production alias, with `Cookie` and `Authorization`
    stripped and `Set-Cookie` dropped:
 
@@ -71,8 +71,9 @@ holds automatic promotion until the owner reviews and re-enrolls the controls.
 - Client navigations in the app no longer target `/`. A stale client that
   requests `/` as an RSC payload receives the public site's payload and falls
   back to a full navigation.
-- Until the control installation, `commandry.site/` still serves the private
-  application and the public page is reachable at the Vercel production URL.
+- The reviewed control installation and exact-source qualified rollout activated
+  the apex on November 7, 2026. The Vercel production URL remains independently
+  reachable; activation and rollback evidence is in the execution record.
 
 ## Alternatives considered
 
@@ -87,7 +88,7 @@ holds automatic promotion until the owner reviews and re-enrolls the controls.
 
 ## Follow-up
 
-- Owner: review and install the rollout-controller change, re-enroll the
-  controls fingerprint, and confirm promotion resumes.
+- Completed by the owner-authorized operator: reviewed controller installation,
+  unchanged-migration controls enrollment, qualified promotion and apex/owner QA.
 - Record activation evidence in
   [the execution record](../plans/public-site/EXECUTION.md).

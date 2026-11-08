@@ -2,9 +2,21 @@
 
 **Status: Operational**
 
-**Last updated:** 2026-10-19
+**Last updated:** 2026-11-07
 
 ## Current phase
+
+The public landing page is live at [commandry.site](https://commandry.site/).
+The owner entry is `/login`, redirecting to `/sign-in`, and the private workspace
+is `/app`. The owner-authorized cutover confirmed application revision
+`d8f38529bea25cf9f4c9364ffc47e62cc9a73e3c` on November 7, 2026, at 8:44 PM
+Pacific after all twelve CI jobs, fresh recovery, authenticated reads and a real
+worker check passed. Public-domain QA passed 20 checks and owner/ingress QA
+passed 40. The database, existing ingress and unrelated service were preserved;
+no DNS or migration change was required. The [activation record](../plans/public-site/EXECUTION.md#verified-apex-activation-november-7-2026)
+contains exact source/image, measurements, evidence, rollback and browser limits.
+
+## Earlier operational records
 
 Automatic verified main promotion is active as of `2026-10-19T02:16:34Z`.
 Revision `939ab0da2b0d4bed5e61f10d2a21546e15eda0ec`, including the PR 50
