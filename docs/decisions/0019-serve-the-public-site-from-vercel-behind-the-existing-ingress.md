@@ -60,6 +60,12 @@ holds automatic promotion until the owner reviews and re-enrolls the controls.
    A failed first cutover restores the private root; later failed releases
    preserve the already-active public site.
 
+7. Viewer HTTP for `commandry.site` upgrades to the same canonical HTTPS URI
+   using status 308 before public/private routing. The matcher uses Cloudflare's
+   viewer-protocol header on the existing trusted Tunnel path, so viewer HTTPS
+   and internal HTTP health checks do not loop. Viewer TLS remains terminated
+   by Cloudflare's valid managed certificate.
+
 ## Consequences
 
 - The public page can be published and rolled back on Vercel without touching

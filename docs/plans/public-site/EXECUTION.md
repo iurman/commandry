@@ -368,11 +368,39 @@ zero errors. Its disposable resources were removed. The protocol probes use
 Node's HTTP client because the default fetch client overwrites a custom Host
 header; that initial harness mismatch was corrected before installation.
 
-Installation will preserve root-private controller, Caddy, enrollment and release
-baselines under the deployment lock, validate the exact candidate config with
-the production Caddy image, install/enroll only these reviewed controls with an
-unchanged migration fingerprint, and gracefully reload Caddy in place. The
-qualified serving application image and worker will remain unchanged. A failed
-health or configuration check will restore the prior config and controller/policy
-baseline, retaining the bind-mounted Caddy inode. The ordinary automatic release
-policy and all existing application qualification gates remain in force.
+The operator installed control source `34c285f2c459923e0339428893dd8c37f75885dc`
+and gracefully reloaded Caddy at `2026-11-08T05:57:06Z` (November 7, 9:57 PM
+Pacific). Root-private controller, Caddy, enrollment, release and container
+baselines are retained at `/var/lib/commandry/https-upgrade-20261108`. The new
+controls fingerprint is
+`bb61017619af57a50c11853622d8404fd667dedfc658c28d776e864b3530e1b7`;
+the migration fingerprint is unchanged. The generated candidate differed from
+live routing only by the HTTPS upgrade block. Caddy validated it before reload,
+its bind-mounted inode was preserved, and proxy readiness plus worker health
+passed afterward. Every running container's ID and start time, the application
+release marker and runtime environment remained unchanged. Automatic policy
+retained its prior enabled state; no application-image gate was bypassed. Future
+application releases still require the ordinary full qualification.
+
+All 21 live HTTP checks passed, including GET/HEAD upgrade on the root, owner
+entry, private workspace and public assets; exact query preservation; a POST
+upgrade; resistance to client-supplied forwarded-protocol spoofing through
+Cloudflare; successful HTTPS pages/health; and continued API authentication.
+The guarded Chromium run followed both HTTP root and HTTP login to secure HTTPS
+pages with certificate validation enforced, verified the certificate/security context,
+and found no mixed content or unexpected failed requests. It explicitly confirmed
+the browser's HTTPS health request returned 200. An earlier broad failure check
+included an intentionally canceled application health probe; the final report
+separates that cancellation from network failures. No guard was relaxed.
+
+[HTTP verification](evidence/https-http-report.json) and
+[browser verification](evidence/https-browser-report.json) retain public outcomes
+without credentials. Direct TLS validation again negotiated TLS 1.3 with the
+valid existing certificate. The homepage and owner sign-in remain reachable.
+Temporary Caddy/browser fixtures were removed; shared production timers remain.
+
+Rollback for this control-only change restores the saved Caddy contents in place
+and the saved controller/enrollment under the deployment lock, then validates and
+gracefully reloads the prior Caddy configuration. The installer performs that
+reversal automatically on configuration or health failure. The application and
+database are not changed by this control-only reversal.

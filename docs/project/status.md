@@ -15,6 +15,10 @@ worker check passed. Public-domain QA passed 20 checks and owner/ingress QA
 passed 40. The database, existing ingress and unrelated service were preserved;
 no DNS or migration change was required. The [activation record](../plans/public-site/EXECUTION.md#verified-apex-activation-november-7-2026)
 contains exact source/image, measurements, evidence, rollback and browser limits.
+A follow-up [HTTPS enforcement fix](../plans/public-site/EXECUTION.md#https-enforcement-follow-up-november-7-2026)
+now upgrades plain HTTP to the canonical HTTPS origin. The existing certificate,
+public homepage and owner sign-in were verified; the control-only reload preserved
+the running application and containers.
 
 ## Earlier operational records
 

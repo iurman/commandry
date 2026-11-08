@@ -1,0 +1,29 @@
+{
+  "success": true,
+  "checks": [
+    {
+      "path": "/",
+      "finalUrl": "https://commandry.site/",
+      "secureContext": true,
+      "issuer": "YE1"
+    },
+    {
+      "path": "/login",
+      "finalUrl": "https://commandry.site/sign-in",
+      "secureContext": true,
+      "issuer": "YE1"
+    }
+  ],
+  "mixedContent": [],
+  "failedRequests": [],
+  "canceledHealthProbes": [
+    {
+      "url": "https://commandry.site/health/live",
+      "error": "net::ERR_ABORTED"
+    },
+    {
+      "url": "https://commandry.site/health/live?tls_check=1",
+      "error": "net::ERR_ABORTED"
+    }
+  ]
+}

@@ -1,0 +1,122 @@
+{
+  "success": true,
+  "checks": [
+    {
+      "method": "GET",
+      "path": "/",
+      "status": 308,
+      "location": "https://commandry.site/"
+    },
+    {
+      "method": "HEAD",
+      "path": "/",
+      "status": 308,
+      "location": "https://commandry.site/"
+    },
+    {
+      "method": "GET",
+      "path": "/login",
+      "status": 308,
+      "location": "https://commandry.site/login"
+    },
+    {
+      "method": "HEAD",
+      "path": "/login",
+      "status": 308,
+      "location": "https://commandry.site/login"
+    },
+    {
+      "method": "GET",
+      "path": "/sign-in",
+      "status": 308,
+      "location": "https://commandry.site/sign-in"
+    },
+    {
+      "method": "HEAD",
+      "path": "/sign-in",
+      "status": 308,
+      "location": "https://commandry.site/sign-in"
+    },
+    {
+      "method": "GET",
+      "path": "/app",
+      "status": 308,
+      "location": "https://commandry.site/app"
+    },
+    {
+      "method": "HEAD",
+      "path": "/app",
+      "status": 308,
+      "location": "https://commandry.site/app"
+    },
+    {
+      "method": "GET",
+      "path": "/_site/og.png",
+      "status": 308,
+      "location": "https://commandry.site/_site/og.png"
+    },
+    {
+      "method": "HEAD",
+      "path": "/_site/og.png",
+      "status": 308,
+      "location": "https://commandry.site/_site/og.png"
+    },
+    {
+      "method": "GET",
+      "path": "/login?returnTo=%2Fapp&source=http",
+      "status": 308,
+      "location": "https://commandry.site/login?returnTo=%2Fapp&source=http"
+    },
+    {
+      "method": "HEAD",
+      "path": "/login?returnTo=%2Fapp&source=http",
+      "status": 308,
+      "location": "https://commandry.site/login?returnTo=%2Fapp&source=http"
+    },
+    {
+      "method": "POST",
+      "path": "/mcp/knowledge",
+      "status": 308
+    },
+    {
+      "scheme": "http",
+      "spoof": "https",
+      "status": 308
+    },
+    {
+      "scheme": "https",
+      "spoof": "http",
+      "status": 200
+    },
+    {
+      "scheme": "https",
+      "path": "/",
+      "status": 200
+    },
+    {
+      "scheme": "https",
+      "path": "/login",
+      "status": 307
+    },
+    {
+      "scheme": "https",
+      "path": "/sign-in",
+      "status": 200
+    },
+    {
+      "scheme": "https",
+      "path": "/health/ready",
+      "status": 200
+    },
+    {
+      "scheme": "https",
+      "path": "/api/v1/projects?limit=1",
+      "status": 401
+    },
+    {
+      "name": "HTTP owner entry follows to secure sign-in",
+      "pass": true
+    }
+  ],
+  "unchangedApplication": "d8f38529bea25cf9f4c9364ffc47e62cc9a73e3c"
+}
