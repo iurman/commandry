@@ -1,0 +1,115 @@
+{
+  "checks": [
+    {
+      "name": "desktop: no horizontal overflow",
+      "pass": true,
+      "detail": "0px "
+    },
+    {
+      "name": "laptop: no horizontal overflow",
+      "pass": true,
+      "detail": "0px "
+    },
+    {
+      "name": "tablet: no horizontal overflow",
+      "pass": true,
+      "detail": "0px "
+    },
+    {
+      "name": "phone: no horizontal overflow",
+      "pass": true,
+      "detail": "0px "
+    },
+    {
+      "name": "narrow: no horizontal overflow",
+      "pass": true,
+      "detail": "0px "
+    },
+    {
+      "name": "scene packet moves between frames",
+      "pass": true,
+      "detail": "[[158.38,96.49],[245.7,137.03],[261.99,138],[262,138],[262,138],[262,138]]"
+    },
+    {
+      "name": "sequence advances past Observe",
+      "pass": true,
+      "detail": "Relate"
+    },
+    {
+      "name": "pause holds the current step",
+      "pass": true,
+      "detail": "Relate -> Relate"
+    },
+    {
+      "name": "keyboard selection opens inspector",
+      "pass": true,
+      "detail": "atlas"
+    },
+    {
+      "name": "lens tabs follow arrow keys",
+      "pass": true,
+      "detail": "Work"
+    },
+    {
+      "name": "check dots render while visible",
+      "pass": true,
+      "detail": "4"
+    },
+    {
+      "name": "pause removes check dots",
+      "pass": true,
+      "detail": "0"
+    },
+    {
+      "name": "first tab stop is the skip link",
+      "pass": true,
+      "detail": "Skip to content"
+    },
+    {
+      "name": "reduced motion: no moving dots",
+      "pass": true,
+      "detail": "0"
+    },
+    {
+      "name": "no-JS: copy and steps present",
+      "pass": true,
+      "detail": ""
+    },
+    {
+      "name": "200% text: no horizontal overflow",
+      "pass": true,
+      "detail": "0px "
+    },
+    {
+      "name": "lab LCP <= 2500ms",
+      "pass": true,
+      "detail": "1268ms"
+    },
+    {
+      "name": "lab CLS <= 0.1",
+      "pass": true,
+      "detail": "0.0188 0.019@1248:hero-inner ; 0.000@1825:quiet-link|"
+    },
+    {
+      "name": "no console errors",
+      "pass": true,
+      "detail": ""
+    },
+    {
+      "name": "no failed requests",
+      "pass": true,
+      "detail": ""
+    }
+  ],
+  "console": [],
+  "failedRequests": [],
+  "performance": {
+    "conditions": "390x844 DPR2, CPU 4x slowdown, 150ms RTT, 1.6 Mbps down",
+    "lcp": 1268,
+    "cls": 0.0188,
+    "shifts": [
+      "0.019@1248:hero-inner",
+      "0.000@1825:quiet-link|"
+    ]
+  }
+}

@@ -8,6 +8,10 @@ const sans = Mona_Sans({
   axes: ["wdth"],
   variable: "--font-sans",
   display: "swap",
+  // Fallback faces are defined in globals.css, sized to Mona Sans's measured
+  // widths for body text and for the wider display headings.
+  adjustFontFallback: false,
+  fallback: ["Mona Body Fallback"],
 });
 
 const mono = Martian_Mono({

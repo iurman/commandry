@@ -1,5 +1,32 @@
 @import "tailwindcss";
 
+/* Metric-matched fallbacks so the swap to Mona Sans does not reflow text.
+   size-adjust values were measured against Mona Sans at the weights and
+   widths used here (body: wdth 100/400; display: wdth 106-108/540-560). */
+@font-face {
+  font-family: "Mona Body Fallback";
+  src:
+    local("Arial"), local("ArialMT"), local("Helvetica"),
+    local("Liberation Sans"), local("LiberationSans");
+  font-weight: 100 900;
+  size-adjust: 104.3%;
+  ascent-override: 104.72%;
+  descent-override: 30.74%;
+  line-gap-override: 0%;
+}
+
+@font-face {
+  font-family: "Mona Display Fallback";
+  src:
+    local("Arial Bold"), local("Arial-BoldMT"), local("Helvetica Bold"),
+    local("Liberation Sans Bold"), local("LiberationSans-Bold");
+  font-weight: 100 900;
+  size-adjust: 101.2%;
+  ascent-override: 104.72%;
+  descent-override: 30.74%;
+  line-gap-override: 0%;
+}
+
 /* Commandry public site. One dark theme, derived from the approved mark:
    graphite tile #17212b, paper stroke #f5f6f8 and ice-blue nodes #a7c8ff. */
 :root {
@@ -28,6 +55,7 @@
   --page: min(78rem, 100% - 2 * var(--gutter));
   --gutter: clamp(1rem, 4vw, 2.5rem);
   --font-sans-stack: var(--font-sans), ui-sans-serif, system-ui, sans-serif;
+  --font-display-stack: "Mona Sans", "Mona Display Fallback", sans-serif;
   --font-mono-stack: var(--font-mono), ui-monospace, monospace;
   color-scheme: dark;
 }
@@ -2251,4 +2279,42 @@ main:focus {
   .lens-line {
     transition: none;
   }
+}
+
+/* Large text and narrow screens: badges wrap inside their group instead of
+   running past the panel, and the brief's under-sheet stays inside the page. */
+.checks-scene[data-layout="tall"] .badge {
+  max-width: 54%;
+}
+
+.checks-scene[data-layout="wide"] .badge {
+  max-width: 32%;
+}
+
+.badge {
+  white-space: normal;
+  text-align: left;
+  line-height: 1.2;
+  padding-block: 0.3rem;
+}
+
+@media (max-width: 640px) {
+  .brief::before {
+    transform: translate(0, 10px) rotate(0.6deg);
+  }
+}
+
+.checks :where(.badge, .readout-name, .readout-list li) {
+  overflow-wrap: anywhere;
+}
+
+.hero-title,
+.section-title,
+.status-title,
+.lens-title,
+.brief-title,
+.inspector-title,
+.readout-name,
+.missing-title {
+  font-family: var(--font-display-stack);
 }

@@ -278,6 +278,65 @@ for (const [name, width, height] of viewports) {
   await context.close();
 }
 
+// Lab performance: phone viewport, 4x CPU slowdown, throttled network.
+{
+  const { context, page } = await open({
+    viewport: { width: 390, height: 844 },
+    deviceScaleFactor: 2,
+  });
+  const cdp = await context.newCDPSession(page);
+  await cdp.send("Emulation.setCPUThrottlingRate", { rate: 4 });
+  await cdp.send("Network.enable");
+  await cdp.send("Network.emulateNetworkConditions", {
+    offline: false,
+    latency: 150,
+    downloadThroughput: (1.6 * 1024 * 1024) / 8,
+    uploadThroughput: (750 * 1024) / 8,
+  });
+  await page.addInitScript(() => {
+    window.__lcp = 0;
+    window.__cls = 0;
+    new PerformanceObserver((list) => {
+      for (const entry of list.getEntries()) window.__lcp = entry.startTime;
+    }).observe({ type: "largest-contentful-paint", buffered: true });
+    new PerformanceObserver((list) => {
+      for (const entry of list.getEntries())
+        if (!entry.hadRecentInput) {
+          window.__cls += entry.value;
+          window.__shifts = (window.__shifts ?? []).concat(
+            `${entry.value.toFixed(3)}@${Math.round(entry.startTime)}:` +
+              (entry.sources ?? [])
+                .map(
+                  (source) =>
+                    source.node?.className?.baseVal ??
+                    source.node?.className ??
+                    source.node?.nodeName,
+                )
+                .join("|"),
+          );
+        }
+    }).observe({ type: "layout-shift", buffered: true });
+  });
+  await page.goto(base, { waitUntil: "networkidle" });
+  await page.waitForTimeout(3000);
+  const metrics = await page.evaluate(() => ({
+    lcp: Math.round(window.__lcp),
+    cls: Number(window.__cls.toFixed(4)),
+    shifts: window.__shifts ?? [],
+  }));
+  report.performance = {
+    conditions: "390x844 DPR2, CPU 4x slowdown, 150ms RTT, 1.6 Mbps down",
+    ...metrics,
+  };
+  check("lab LCP <= 2500ms", metrics.lcp <= 2500, `${metrics.lcp}ms`);
+  check(
+    "lab CLS <= 0.1",
+    metrics.cls <= 0.1,
+    `${metrics.cls} ${metrics.shifts.join(" ; ")}`,
+  );
+  await context.close();
+}
+
 check(
   "no console errors",
   report.console.length === 0,
