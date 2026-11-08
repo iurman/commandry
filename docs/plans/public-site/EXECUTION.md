@@ -113,7 +113,19 @@ HTML with canonical `https://commandry.site`, title, description and
 
 ## Release
 
-Filled in at integration; see the section below the remaining work.
+| Item | Value |
+| --- | --- |
+| Source on `main` | `0b90f7e6c4dc11052f7f93bec4802a19f464296d` (site), evidence follow-up `8d86829` |
+| Integration | Fast-forward push to `main` (no branch protection; hooks ran) |
+| Vercel project | `commandry-site` (`prj_USXvnAUvRlQqK32lzAYEO1xAo3H9`), team `iyulabs`, root `apps/site`, Node 24.x, production branch `main` |
+| Production deployment | `dpl_5ZXpS8Y7gBZjSYsVv7WvBWMeetn7`, READY, target production, commit `0b90f7e` |
+| Production URL | https://commandry-site.vercel.app |
+| Previews | Vercel Authentication on previews only; `X-Robots-Tag: noindex` |
+| Production QA | 20/20 against the live URL ([report](evidence/qa-report-production.json)); lab LCP 1400 ms, CLS 0.019 |
+| Main CI | "Source and contracts" and "Unit and local tests" passed for `8d86829` with `apps/site` included; image build and browser jobs were still running at handoff and were not waited on, per the brief |
+
+Project creation and settings used the authenticated Vercel CLI because the
+Vercel connector required a separate team-scope authorization.
 
 ## Remaining work
 
@@ -127,7 +139,12 @@ The apex change needs two steps the implementing session could not complete:
    by the agent.
 
 The cutover change (private app `/app` + `/login`, Caddy route split, tests)
-is prepared as a pull request for owner review. Until it is installed,
+is [PR 61](https://github.com/iurman/commandry/pull/61). Its generated Caddy
+configuration was run in the local Caddy image against echo upstreams (public
+paths received no `Cookie` or `Authorization` and returned no `Set-Cookie`;
+`POST /`, `/sign-in`, `/login`, `/app`, `/_next/static/*` and `POST /mcp` reached
+the app with credentials intact) and against the real Vercel deployment
+(`/`, CSS, social image, robots and sitemap all 200 with correct types). Until it is installed,
 `commandry.site/` keeps serving the private application exactly as before.
 
 ## Rollback
