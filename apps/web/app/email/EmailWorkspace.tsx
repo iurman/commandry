@@ -1070,10 +1070,10 @@ export default function EmailWorkspace({
               </div>
             )}
             <p>
-              <strong>MXroute: disconnected.</strong> Direct mail to
-              contact@isaacurman.com requires separate mailbox credentials.
-              Resend forwards are not original MXroute messages. The existing
-              provider forwarder and inactive Sieve set are preserved.
+              <strong>MXroute: disconnected.</strong> Direct owner mail requires
+              separate mailbox credentials. Resend forwards are not original
+              MXroute messages. The existing provider forwarder and inactive
+              Sieve set are preserved.
             </p>
             <details>
               <summary>Optional agent triage</summary>

@@ -1,6 +1,6 @@
 # Centralized email
 
-**Status: Operational source implementation; production activation pending**
+**Status: Operational; primary seven-domain Resend connection activated**
 
 **Owner decision:** November 8, 2026, Pacific.
 
@@ -159,15 +159,14 @@ private configuration keeps its existing mode 0600 requirement. Encrypted host
 configuration backup includes the mail files. A configured but unreadable or invalid
 credential fails closed. No key is accepted through the UI, MCP or message body.
 
-During authorized activation, apply the reviewed migration and queue installation,
-configure the private account key, register the primary account to the deliberately
-chosen project, enable polling and verify both complete traversals. Add a separate
-Commandry webhook only when endpoint activation is authorized. Preserve the
-existing ResuPals endpoint. Verify exact source/image, owner session, all seven
-identities, worker, original content/attachment and final-head release gates.
-No production migration, deployment, forwarding change or external test send was
-performed as part of local implementation. New DDL and Compose changes remain
-held for the normal constrained release review.
+The owner-authorized production activation applied migration 0076, configured
+private credential mounts, bound the primary account to the existing Commandry
+project and enabled the separate worker. Both provider-accessible populations
+were traversed. A separate signed Commandry webhook is enabled alongside the
+preserved ResuPals endpoint. Exact approved sending, permanent replay receipt,
+provider delivery and the live delivery projection passed. The
+[activation record](../plans/centralized-email/EXECUTION.md) retains exact source,
+image, recovery, evidence and limitations.
 
 Direct contact@isaacurman.com messages live in MXroute independently of Resend.
 No usable IMAP credentials were discovered, and no MXroute connector is active.
@@ -176,16 +175,17 @@ The owner completed browser sign-in after the initial popup/password blockers.
 Read-only discovery confirmed the isaacurman Pro workspace, all seven Verified
 domains, original receiving records across all seven and the enabled existing
 ResuPals webhook with successful receiving events. One existing delivery-check
-original was opened in the provider UI. This does not establish Commandry API
-coverage or a connected production mailbox index. The owner explicitly approved
+original was opened in the provider UI. That UI discovery preceded the subsequent
+API and production qualification. The owner explicitly approved
 the `commandry-email` Full access / All domains key, private storage and Commandry
 verification. It was created once and stored in an owner-only file outside the
 repository. The actual provider adapter then passed live read-only verification
 of all seven verified identities, complete current received/sent traversals and
 original reads in both directions. Live attachment availability remains unverified
-because no eligible list reference advertised an attachment. No new send or
-production activation was performed. Resend offers Sending access or Full access,
-with no read-only option. The saved ResuPals local key was only a development value.
+because no eligible list reference advertised an attachment. The initial
+read-only probe sent no new message. The later production activation and
+own-address delivery check are recorded above. Resend offers Sending access or
+Full access, with no read-only option. The saved ResuPals local key was only a development value.
 
 ## Verification and sources
 

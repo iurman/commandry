@@ -1,6 +1,6 @@
 # Centralized email implementation
 
-**Status: Operational plan, source implementation complete; owner-authorized release in progress**
+**Status: Operational; primary connection activated and release verification retained**
 
 **Owner authorization:** November 8, 2026, Pacific. Unified and individual inboxes,
 dashboard summaries, original messages and attachments, compose/reply, attention
@@ -29,7 +29,9 @@ owner, created once and stored in an owner-only file outside the repository.
 After popup recovery, the actual Commandry provider adapter passed read-only
 live qualification: all seven verified identities, complete current sent/received
 traversals and original reads in both directions. No eligible list reference
-advertised an attachment. No send or production activation was performed.
+advertised an attachment. That initial read-only probe sent no message. The later owner-authorized
+[activation](EXECUTION.md) connected the production index, signed webhook and
+governed sending.
 
 ## Smallest complete implementation
 
@@ -91,6 +93,9 @@ fixture qualification. Authorized owner recipients can be used only for a
 labeled delivery check after provider access exists.
 
 ## Completion evidence
+
+The [activation record](EXECUTION.md) records the completed primary connection,
+reviewed migration, normal rolling release, real delivery and retained limits.
 
 The [verification record](VERIFICATION.md) records executed checks, measured scale, fixes, retained test rigs and the separate live connection/release gaps. Current main was merged normally to preserve the November 7 public site and `/app` dashboard cutover.
 
