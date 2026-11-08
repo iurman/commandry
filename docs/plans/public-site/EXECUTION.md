@@ -180,6 +180,17 @@ The offline-help cache advances to v2 so existing service workers receive the
 new link. The PWA browser test now verifies that reconnecting reaches `/app`.
 These follow-ups do not change the enrolled control or migration fingerprints.
 
+The next qualification run, [42445010003](https://github.com/iurman/commandry/actions/runs/42445010003),
+passed source, unit, image/security/proxy and populated-upgrade/owner gates.
+Its phone-320 Work relationship scenario exposed a pre-existing test race:
+the test selected its next blocker after the incoming row appeared but before
+the preceding save's asynchronous refresh completed and cleared the selection.
+The failure artifact shows the completed-save message, an empty selection and
+a disabled submit button. This component and test were unchanged by the cutover.
+The test now waits for the explicit completed-save message before its next
+selection, retaining every mutation, evidence and readiness assertion. No
+application behavior, timeout, retry policy or test population is weakened.
+
 Activation, final-source CI and public verification evidence will be recorded
 here before this follow-up is considered complete.
 

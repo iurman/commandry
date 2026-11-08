@@ -71,6 +71,9 @@ test("project tasks form audited subtasks and blockers that change brief and ove
       .getByRole("list", { name: "incoming work relationships" })
       .getByText(parent.title),
   ).toBeVisible();
+  await expect(
+    page.getByText("Work relationship saved and audited.", { exact: true }),
+  ).toBeVisible();
   await page
     .getByLabel("Relationship", { exact: true })
     .selectOption("blocked_by");
