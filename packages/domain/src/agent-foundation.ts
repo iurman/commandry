@@ -3,6 +3,10 @@ import { createHash } from "node:crypto";
 export const FOUNDATION_OPERATIONS = Object.freeze([
   "foundation.read",
   "work.read",
+  "mail.read",
+  "mail.triage",
+  "mail.draft",
+  "mail.send",
   "resources.read",
   "observatory.read",
   "observatory.signals.read",
@@ -79,7 +83,8 @@ export type FoundationOperationPolicy = {
   readonly scope: "project";
   readonly risk: "read_only" | "reversible" | "sensitive";
   readonly requiredCapability: FoundationOperation;
-  readonly approval: "automatic_with_grant" | "owner_only";
+  readonly approval:
+    "automatic_with_grant" | "owner_only" | "exact_owner_approval";
   readonly auditEvent: FoundationOperation;
   readonly concurrency:
     "read_snapshot" | "expected_version" | "immutable_create";
@@ -115,6 +120,30 @@ export const FOUNDATION_OPERATION_POLICIES = Object.freeze({
     "read_only",
     "automatic_with_grant",
     "read_snapshot",
+  ),
+  "mail.read": operationPolicy(
+    "mail.read",
+    "read_only",
+    "automatic_with_grant",
+    "read_snapshot",
+  ),
+  "mail.triage": operationPolicy(
+    "mail.triage",
+    "reversible",
+    "automatic_with_grant",
+    "expected_version",
+  ),
+  "mail.draft": operationPolicy(
+    "mail.draft",
+    "reversible",
+    "automatic_with_grant",
+    "immutable_create",
+  ),
+  "mail.send": operationPolicy(
+    "mail.send",
+    "sensitive",
+    "exact_owner_approval",
+    "immutable_create",
   ),
   "resources.read": operationPolicy(
     "resources.read",

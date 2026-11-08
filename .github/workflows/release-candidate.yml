@@ -64,13 +64,21 @@ jobs:
           node --import tsx scripts/test-observatory-upgrade.mjs
           pnpm build
           pnpm test:smoke
+      - name: Exercise email scope, replay and 100000-message web capacity
+        env:
+          COMMANDRY_EMAIL_ARTIFACTS: test-results/email
+        run: |
+          pnpm test:integration --db-test=email.integration.test.ts
+          pnpm test:integration --db-test=email-scale.integration.test.ts
       - name: Install browser for governed owner tests
         run: pnpm exec playwright install --with-deps chromium
       - name: Exercise governed owner workflows in disposable auth modes
         env:
           COMMANDRY_FOUNDATION_BROWSER: "1"
           COMMANDRY_FOUNDATION_BROWSER_ARTIFACTS: test-results/foundation-owner
-        run: pnpm browser:isolated pnpm test:auth-smoke
+        run: |
+          pnpm browser:isolated pnpm test:auth-smoke
+          COMMANDRY_EMAIL_ARTIFACTS=test-results/email pnpm browser:isolated pnpm test:integration --email-browser-only
       - name: Restore generated declaration and verify clean source
         run: |
           git restore -- apps/web/next-env.d.ts
@@ -80,7 +88,9 @@ jobs:
         uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
         with:
           name: commandry-owner-${{ github.run_id }}-${{ github.run_attempt }}-${{ github.sha }}
-          path: test-results/foundation-owner/
+          path: |
+            test-results/foundation-owner/
+            test-results/email/
           retention-days: 7
           if-no-files-found: warn
 

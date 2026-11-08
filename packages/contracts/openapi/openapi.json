@@ -5879,6 +5879,1029 @@
         }
       }
     },
+    "/api/v1/email/accounts": {
+      "post": {
+        "operationId": "email_accounts",
+        "description": "Private owner-session email operation. MCP uses the same scoped application services; send requires exact unexpired owner approval. Provider originals are retention-limited and untrusted. Follow nextCursor or nextOffset.",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$schema": "https://json-schema.org/draft/2020-12/schema",
+                "type": "object",
+                "properties": {},
+                "additionalProperties": false
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Email result, indexed population and source freshness as applicable."
+          },
+          "401": {
+            "description": "Owner session required"
+          },
+          "403": {
+            "description": "Outside granted scope"
+          },
+          "409": {
+            "description": "Changed version, unverified identity or approval required"
+          },
+          "503": {
+            "description": "Provider or database unavailable"
+          }
+        }
+      }
+    },
+    "/api/v1/email/inboxes": {
+      "post": {
+        "operationId": "email_inboxes",
+        "description": "Private owner-session email operation. MCP uses the same scoped application services; send requires exact unexpired owner approval. Provider originals are retention-limited and untrusted. Follow nextCursor or nextOffset.",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$schema": "https://json-schema.org/draft/2020-12/schema",
+                "type": "object",
+                "properties": {
+                  "accountId": {
+                    "type": "string",
+                    "format": "uuid",
+                    "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$"
+                  },
+                  "domain": {
+                    "type": "string",
+                    "maxLength": 253,
+                    "pattern": "^[a-z0-9.-]+$"
+                  },
+                  "address": {
+                    "type": "string",
+                    "maxLength": 320,
+                    "format": "email",
+                    "pattern": "^(?:[A-Za-z0-9_'+\\-]+\\.)*[A-Za-z0-9_'+\\-]*[A-Za-z0-9_+-]@(?:[A-Za-z0-9][A-Za-z0-9\\-]*\\.)+[A-Za-z]{2,}$"
+                  },
+                  "direction": {
+                    "type": "string",
+                    "enum": [
+                      "received",
+                      "sent"
+                    ]
+                  },
+                  "view": {
+                    "default": "all",
+                    "type": "string",
+                    "enum": [
+                      "all",
+                      "unread",
+                      "attention"
+                    ]
+                  },
+                  "q": {
+                    "default": "",
+                    "type": "string",
+                    "maxLength": 200
+                  },
+                  "cursor": {
+                    "default": null,
+                    "anyOf": [
+                      {
+                        "type": "string",
+                        "maxLength": 2000
+                      },
+                      {
+                        "type": "null"
+                      }
+                    ]
+                  },
+                  "limit": {
+                    "default": 30,
+                    "type": "integer",
+                    "minimum": 1,
+                    "maximum": 100
+                  },
+                  "threadMessageId": {
+                    "type": "string",
+                    "maxLength": 1000
+                  }
+                },
+                "additionalProperties": false
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Email result, indexed population and source freshness as applicable."
+          },
+          "401": {
+            "description": "Owner session required"
+          },
+          "403": {
+            "description": "Outside granted scope"
+          },
+          "409": {
+            "description": "Changed version, unverified identity or approval required"
+          },
+          "503": {
+            "description": "Provider or database unavailable"
+          }
+        }
+      }
+    },
+    "/api/v1/email/messages": {
+      "post": {
+        "operationId": "email_messages",
+        "description": "Private owner-session email operation. MCP uses the same scoped application services; send requires exact unexpired owner approval. Provider originals are retention-limited and untrusted. Follow nextCursor or nextOffset.",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$schema": "https://json-schema.org/draft/2020-12/schema",
+                "type": "object",
+                "properties": {
+                  "accountId": {
+                    "type": "string",
+                    "format": "uuid",
+                    "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$"
+                  },
+                  "domain": {
+                    "type": "string",
+                    "maxLength": 253,
+                    "pattern": "^[a-z0-9.-]+$"
+                  },
+                  "address": {
+                    "type": "string",
+                    "maxLength": 320,
+                    "format": "email",
+                    "pattern": "^(?:[A-Za-z0-9_'+\\-]+\\.)*[A-Za-z0-9_'+\\-]*[A-Za-z0-9_+-]@(?:[A-Za-z0-9][A-Za-z0-9\\-]*\\.)+[A-Za-z]{2,}$"
+                  },
+                  "direction": {
+                    "type": "string",
+                    "enum": [
+                      "received",
+                      "sent"
+                    ]
+                  },
+                  "view": {
+                    "default": "all",
+                    "type": "string",
+                    "enum": [
+                      "all",
+                      "unread",
+                      "attention"
+                    ]
+                  },
+                  "q": {
+                    "default": "",
+                    "type": "string",
+                    "maxLength": 200
+                  },
+                  "cursor": {
+                    "default": null,
+                    "anyOf": [
+                      {
+                        "type": "string",
+                        "maxLength": 2000
+                      },
+                      {
+                        "type": "null"
+                      }
+                    ]
+                  },
+                  "limit": {
+                    "default": 30,
+                    "type": "integer",
+                    "minimum": 1,
+                    "maximum": 100
+                  },
+                  "threadMessageId": {
+                    "type": "string",
+                    "maxLength": 1000
+                  }
+                },
+                "additionalProperties": false
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Email result, indexed population and source freshness as applicable."
+          },
+          "401": {
+            "description": "Owner session required"
+          },
+          "403": {
+            "description": "Outside granted scope"
+          },
+          "409": {
+            "description": "Changed version, unverified identity or approval required"
+          },
+          "503": {
+            "description": "Provider or database unavailable"
+          }
+        }
+      }
+    },
+    "/api/v1/email/overview": {
+      "post": {
+        "operationId": "email_overview",
+        "description": "Private owner-session email operation. MCP uses the same scoped application services; send requires exact unexpired owner approval. Provider originals are retention-limited and untrusted. Follow nextCursor or nextOffset.",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$schema": "https://json-schema.org/draft/2020-12/schema",
+                "type": "object",
+                "properties": {
+                  "accountId": {
+                    "type": "string",
+                    "format": "uuid",
+                    "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$"
+                  },
+                  "domain": {
+                    "type": "string",
+                    "maxLength": 253,
+                    "pattern": "^[a-z0-9.-]+$"
+                  },
+                  "address": {
+                    "type": "string",
+                    "maxLength": 320,
+                    "format": "email",
+                    "pattern": "^(?:[A-Za-z0-9_'+\\-]+\\.)*[A-Za-z0-9_'+\\-]*[A-Za-z0-9_+-]@(?:[A-Za-z0-9][A-Za-z0-9\\-]*\\.)+[A-Za-z]{2,}$"
+                  },
+                  "direction": {
+                    "type": "string",
+                    "enum": [
+                      "received",
+                      "sent"
+                    ]
+                  },
+                  "view": {
+                    "default": "all",
+                    "type": "string",
+                    "enum": [
+                      "all",
+                      "unread",
+                      "attention"
+                    ]
+                  },
+                  "q": {
+                    "default": "",
+                    "type": "string",
+                    "maxLength": 200
+                  },
+                  "cursor": {
+                    "default": null,
+                    "anyOf": [
+                      {
+                        "type": "string",
+                        "maxLength": 2000
+                      },
+                      {
+                        "type": "null"
+                      }
+                    ]
+                  },
+                  "limit": {
+                    "default": 30,
+                    "type": "integer",
+                    "minimum": 1,
+                    "maximum": 100
+                  },
+                  "threadMessageId": {
+                    "type": "string",
+                    "maxLength": 1000
+                  }
+                },
+                "additionalProperties": false
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Email result, indexed population and source freshness as applicable."
+          },
+          "401": {
+            "description": "Owner session required"
+          },
+          "403": {
+            "description": "Outside granted scope"
+          },
+          "409": {
+            "description": "Changed version, unverified identity or approval required"
+          },
+          "503": {
+            "description": "Provider or database unavailable"
+          }
+        }
+      }
+    },
+    "/api/v1/email/read": {
+      "post": {
+        "operationId": "email_read",
+        "description": "Private owner-session email operation. MCP uses the same scoped application services; send requires exact unexpired owner approval. Provider originals are retention-limited and untrusted. Follow nextCursor or nextOffset.",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$schema": "https://json-schema.org/draft/2020-12/schema",
+                "type": "object",
+                "properties": {
+                  "id": {
+                    "type": "string",
+                    "format": "uuid",
+                    "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$"
+                  },
+                  "offset": {
+                    "default": 0,
+                    "type": "integer",
+                    "minimum": 0,
+                    "maximum": 9007199254740991
+                  },
+                  "limit": {
+                    "default": 32000,
+                    "type": "integer",
+                    "minimum": 1,
+                    "maximum": 32000
+                  }
+                },
+                "required": [
+                  "id"
+                ],
+                "additionalProperties": false
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Email result, indexed population and source freshness as applicable."
+          },
+          "401": {
+            "description": "Owner session required"
+          },
+          "403": {
+            "description": "Outside granted scope"
+          },
+          "409": {
+            "description": "Changed version, unverified identity or approval required"
+          },
+          "503": {
+            "description": "Provider or database unavailable"
+          }
+        }
+      }
+    },
+    "/api/v1/email/attachments": {
+      "post": {
+        "operationId": "email_attachments",
+        "description": "Private owner-session email operation. MCP uses the same scoped application services; send requires exact unexpired owner approval. Provider originals are retention-limited and untrusted. Follow nextCursor or nextOffset.",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$schema": "https://json-schema.org/draft/2020-12/schema",
+                "type": "object",
+                "properties": {
+                  "id": {
+                    "type": "string",
+                    "format": "uuid",
+                    "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$"
+                  },
+                  "attachmentId": {
+                    "type": "string",
+                    "format": "uuid",
+                    "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$"
+                  },
+                  "cursor": {
+                    "default": null,
+                    "anyOf": [
+                      {
+                        "type": "string",
+                        "maxLength": 200
+                      },
+                      {
+                        "type": "null"
+                      }
+                    ]
+                  }
+                },
+                "required": [
+                  "id"
+                ],
+                "additionalProperties": false
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Email result, indexed population and source freshness as applicable."
+          },
+          "401": {
+            "description": "Owner session required"
+          },
+          "403": {
+            "description": "Outside granted scope"
+          },
+          "409": {
+            "description": "Changed version, unverified identity or approval required"
+          },
+          "503": {
+            "description": "Provider or database unavailable"
+          }
+        }
+      }
+    },
+    "/api/v1/email/drafts": {
+      "post": {
+        "operationId": "email_drafts",
+        "description": "Private owner-session email operation. MCP uses the same scoped application services; send requires exact unexpired owner approval. Provider originals are retention-limited and untrusted. Follow nextCursor or nextOffset.",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$schema": "https://json-schema.org/draft/2020-12/schema",
+                "type": "object",
+                "properties": {
+                  "accountId": {
+                    "type": "string",
+                    "format": "uuid",
+                    "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$"
+                  },
+                  "domain": {
+                    "type": "string",
+                    "maxLength": 253,
+                    "pattern": "^[a-z0-9.-]+$"
+                  },
+                  "address": {
+                    "type": "string",
+                    "maxLength": 320,
+                    "format": "email",
+                    "pattern": "^(?:[A-Za-z0-9_'+\\-]+\\.)*[A-Za-z0-9_'+\\-]*[A-Za-z0-9_+-]@(?:[A-Za-z0-9][A-Za-z0-9\\-]*\\.)+[A-Za-z]{2,}$"
+                  },
+                  "direction": {
+                    "type": "string",
+                    "enum": [
+                      "received",
+                      "sent"
+                    ]
+                  },
+                  "view": {
+                    "default": "all",
+                    "type": "string",
+                    "enum": [
+                      "all",
+                      "unread",
+                      "attention"
+                    ]
+                  },
+                  "q": {
+                    "default": "",
+                    "type": "string",
+                    "maxLength": 200
+                  },
+                  "cursor": {
+                    "default": null,
+                    "anyOf": [
+                      {
+                        "type": "string",
+                        "maxLength": 2000
+                      },
+                      {
+                        "type": "null"
+                      }
+                    ]
+                  },
+                  "limit": {
+                    "default": 30,
+                    "type": "integer",
+                    "minimum": 1,
+                    "maximum": 100
+                  },
+                  "threadMessageId": {
+                    "type": "string",
+                    "maxLength": 1000
+                  }
+                },
+                "additionalProperties": false
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Email result, indexed population and source freshness as applicable."
+          },
+          "401": {
+            "description": "Owner session required"
+          },
+          "403": {
+            "description": "Outside granted scope"
+          },
+          "409": {
+            "description": "Changed version, unverified identity or approval required"
+          },
+          "503": {
+            "description": "Provider or database unavailable"
+          }
+        }
+      }
+    },
+    "/api/v1/email/draft": {
+      "post": {
+        "operationId": "email_draft",
+        "description": "Private owner-session email operation. MCP uses the same scoped application services; send requires exact unexpired owner approval. Provider originals are retention-limited and untrusted. Follow nextCursor or nextOffset.",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$schema": "https://json-schema.org/draft/2020-12/schema",
+                "type": "object",
+                "properties": {
+                  "key": {
+                    "type": "string",
+                    "format": "uuid",
+                    "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$"
+                  },
+                  "draft": {
+                    "type": "object",
+                    "properties": {
+                      "accountId": {
+                        "type": "string",
+                        "format": "uuid",
+                        "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$"
+                      },
+                      "from": {
+                        "type": "string",
+                        "maxLength": 320,
+                        "format": "email",
+                        "pattern": "^(?:[A-Za-z0-9_'+\\-]+\\.)*[A-Za-z0-9_'+\\-]*[A-Za-z0-9_+-]@(?:[A-Za-z0-9][A-Za-z0-9\\-]*\\.)+[A-Za-z]{2,}$"
+                      },
+                      "to": {
+                        "minItems": 1,
+                        "maxItems": 50,
+                        "type": "array",
+                        "items": {
+                          "type": "string",
+                          "maxLength": 320,
+                          "format": "email",
+                          "pattern": "^(?:[A-Za-z0-9_'+\\-]+\\.)*[A-Za-z0-9_'+\\-]*[A-Za-z0-9_+-]@(?:[A-Za-z0-9][A-Za-z0-9\\-]*\\.)+[A-Za-z]{2,}$"
+                        }
+                      },
+                      "cc": {
+                        "maxItems": 50,
+                        "type": "array",
+                        "items": {
+                          "type": "string",
+                          "maxLength": 320,
+                          "format": "email",
+                          "pattern": "^(?:[A-Za-z0-9_'+\\-]+\\.)*[A-Za-z0-9_'+\\-]*[A-Za-z0-9_+-]@(?:[A-Za-z0-9][A-Za-z0-9\\-]*\\.)+[A-Za-z]{2,}$"
+                        }
+                      },
+                      "bcc": {
+                        "maxItems": 50,
+                        "type": "array",
+                        "items": {
+                          "type": "string",
+                          "maxLength": 320,
+                          "format": "email",
+                          "pattern": "^(?:[A-Za-z0-9_'+\\-]+\\.)*[A-Za-z0-9_'+\\-]*[A-Za-z0-9_+-]@(?:[A-Za-z0-9][A-Za-z0-9\\-]*\\.)+[A-Za-z]{2,}$"
+                        }
+                      },
+                      "subject": {
+                        "type": "string",
+                        "minLength": 1,
+                        "maxLength": 998
+                      },
+                      "text": {
+                        "type": "string",
+                        "minLength": 1,
+                        "maxLength": 100000
+                      },
+                      "replyToId": {
+                        "default": null,
+                        "anyOf": [
+                          {
+                            "type": "string",
+                            "format": "uuid",
+                            "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$"
+                          },
+                          {
+                            "type": "null"
+                          }
+                        ]
+                      },
+                      "supersedesId": {
+                        "default": null,
+                        "anyOf": [
+                          {
+                            "type": "string",
+                            "format": "uuid",
+                            "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$"
+                          },
+                          {
+                            "type": "null"
+                          }
+                        ]
+                      }
+                    },
+                    "required": [
+                      "accountId",
+                      "from",
+                      "to",
+                      "subject",
+                      "text"
+                    ],
+                    "additionalProperties": false
+                  }
+                },
+                "required": [
+                  "key",
+                  "draft"
+                ],
+                "additionalProperties": false
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Email result, indexed population and source freshness as applicable."
+          },
+          "401": {
+            "description": "Owner session required"
+          },
+          "403": {
+            "description": "Outside granted scope"
+          },
+          "409": {
+            "description": "Changed version, unverified identity or approval required"
+          },
+          "503": {
+            "description": "Provider or database unavailable"
+          }
+        }
+      }
+    },
+    "/api/v1/email/triage": {
+      "post": {
+        "operationId": "email_triage",
+        "description": "Private owner-session email operation. MCP uses the same scoped application services; send requires exact unexpired owner approval. Provider originals are retention-limited and untrusted. Follow nextCursor or nextOffset.",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$schema": "https://json-schema.org/draft/2020-12/schema",
+                "type": "object",
+                "properties": {
+                  "id": {
+                    "type": "string",
+                    "format": "uuid",
+                    "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$"
+                  },
+                  "expectedVersion": {
+                    "type": "integer",
+                    "exclusiveMinimum": 0,
+                    "maximum": 9007199254740991
+                  },
+                  "unread": {
+                    "type": "boolean"
+                  },
+                  "attention": {
+                    "type": "string",
+                    "enum": [
+                      "open",
+                      "reviewed",
+                      "resolved"
+                    ]
+                  },
+                  "summary": {
+                    "type": "string",
+                    "maxLength": 8000
+                  }
+                },
+                "required": [
+                  "id",
+                  "expectedVersion"
+                ],
+                "additionalProperties": false
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Email result, indexed population and source freshness as applicable."
+          },
+          "401": {
+            "description": "Owner session required"
+          },
+          "403": {
+            "description": "Outside granted scope"
+          },
+          "409": {
+            "description": "Changed version, unverified identity or approval required"
+          },
+          "503": {
+            "description": "Provider or database unavailable"
+          }
+        }
+      }
+    },
+    "/api/v1/email/getRules": {
+      "post": {
+        "operationId": "email_getRules",
+        "description": "Private owner-session email operation. MCP uses the same scoped application services; send requires exact unexpired owner approval. Provider originals are retention-limited and untrusted. Follow nextCursor or nextOffset.",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$schema": "https://json-schema.org/draft/2020-12/schema",
+                "type": "object",
+                "properties": {
+                  "id": {
+                    "type": "string",
+                    "format": "uuid",
+                    "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$"
+                  }
+                },
+                "required": [
+                  "id"
+                ],
+                "additionalProperties": false
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Email result, indexed population and source freshness as applicable."
+          },
+          "401": {
+            "description": "Owner session required"
+          },
+          "403": {
+            "description": "Outside granted scope"
+          },
+          "409": {
+            "description": "Changed version, unverified identity or approval required"
+          },
+          "503": {
+            "description": "Provider or database unavailable"
+          }
+        }
+      }
+    },
+    "/api/v1/email/rules": {
+      "post": {
+        "operationId": "email_rules",
+        "description": "Private owner-session email operation. MCP uses the same scoped application services; send requires exact unexpired owner approval. Provider originals are retention-limited and untrusted. Follow nextCursor or nextOffset.",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$schema": "https://json-schema.org/draft/2020-12/schema",
+                "type": "object",
+                "properties": {
+                  "accountId": {
+                    "type": "string",
+                    "format": "uuid",
+                    "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$"
+                  },
+                  "expectedVersion": {
+                    "type": "integer",
+                    "minimum": 0,
+                    "maximum": 9007199254740991
+                  },
+                  "rules": {
+                    "maxItems": 100,
+                    "type": "array",
+                    "items": {
+                      "type": "object",
+                      "properties": {
+                        "id": {
+                          "type": "string",
+                          "format": "uuid",
+                          "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$"
+                        },
+                        "field": {
+                          "type": "string",
+                          "enum": [
+                            "subject",
+                            "from",
+                            "recipient"
+                          ]
+                        },
+                        "contains": {
+                          "type": "string",
+                          "minLength": 1,
+                          "maxLength": 200
+                        },
+                        "reason": {
+                          "type": "string",
+                          "minLength": 1,
+                          "maxLength": 300
+                        },
+                        "enabled": {
+                          "type": "boolean"
+                        }
+                      },
+                      "required": [
+                        "id",
+                        "field",
+                        "contains",
+                        "reason",
+                        "enabled"
+                      ],
+                      "additionalProperties": false
+                    }
+                  }
+                },
+                "required": [
+                  "accountId",
+                  "expectedVersion",
+                  "rules"
+                ],
+                "additionalProperties": false
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Email result, indexed population and source freshness as applicable."
+          },
+          "401": {
+            "description": "Owner session required"
+          },
+          "403": {
+            "description": "Outside granted scope"
+          },
+          "409": {
+            "description": "Changed version, unverified identity or approval required"
+          },
+          "503": {
+            "description": "Provider or database unavailable"
+          }
+        }
+      }
+    },
+    "/api/v1/email/account": {
+      "post": {
+        "operationId": "email_account",
+        "description": "Private owner-session email operation. MCP uses the same scoped application services; send requires exact unexpired owner approval. Provider originals are retention-limited and untrusted. Follow nextCursor or nextOffset.",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$schema": "https://json-schema.org/draft/2020-12/schema",
+                "type": "object",
+                "properties": {
+                  "projectId": {
+                    "type": "string",
+                    "format": "uuid",
+                    "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$"
+                  },
+                  "name": {
+                    "type": "string",
+                    "minLength": 1,
+                    "maxLength": 100
+                  }
+                },
+                "required": [
+                  "projectId",
+                  "name"
+                ],
+                "additionalProperties": false
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Email result, indexed population and source freshness as applicable."
+          },
+          "401": {
+            "description": "Owner session required"
+          },
+          "403": {
+            "description": "Outside granted scope"
+          },
+          "409": {
+            "description": "Changed version, unverified identity or approval required"
+          },
+          "503": {
+            "description": "Provider or database unavailable"
+          }
+        }
+      }
+    },
+    "/api/v1/email/approve": {
+      "post": {
+        "operationId": "email_approve",
+        "description": "Private owner-session email operation. MCP uses the same scoped application services; send requires exact unexpired owner approval. Provider originals are retention-limited and untrusted. Follow nextCursor or nextOffset.",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$schema": "https://json-schema.org/draft/2020-12/schema",
+                "type": "object",
+                "properties": {
+                  "id": {
+                    "type": "string",
+                    "format": "uuid",
+                    "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$"
+                  }
+                },
+                "required": [
+                  "id"
+                ],
+                "additionalProperties": false
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Email result, indexed population and source freshness as applicable."
+          },
+          "401": {
+            "description": "Owner session required"
+          },
+          "403": {
+            "description": "Outside granted scope"
+          },
+          "409": {
+            "description": "Changed version, unverified identity or approval required"
+          },
+          "503": {
+            "description": "Provider or database unavailable"
+          }
+        }
+      }
+    },
+    "/api/v1/email/send": {
+      "post": {
+        "operationId": "email_send",
+        "description": "Private owner-session email operation. MCP uses the same scoped application services; send requires exact unexpired owner approval. Provider originals are retention-limited and untrusted. Follow nextCursor or nextOffset.",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$schema": "https://json-schema.org/draft/2020-12/schema",
+                "type": "object",
+                "properties": {
+                  "id": {
+                    "type": "string",
+                    "format": "uuid",
+                    "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$"
+                  }
+                },
+                "required": [
+                  "id"
+                ],
+                "additionalProperties": false
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Email result, indexed population and source freshness as applicable."
+          },
+          "401": {
+            "description": "Owner session required"
+          },
+          "403": {
+            "description": "Outside granted scope"
+          },
+          "409": {
+            "description": "Changed version, unverified identity or approval required"
+          },
+          "503": {
+            "description": "Provider or database unavailable"
+          }
+        }
+      }
+    },
     "/health/live": {
       "get": {
         "operationId": "getLiveness",
@@ -37437,13 +38460,17 @@
           },
           "operations": {
             "minItems": 1,
-            "maxItems": 20,
+            "maxItems": 24,
             "type": "array",
             "items": {
               "type": "string",
               "enum": [
                 "foundation.read",
                 "work.read",
+                "mail.read",
+                "mail.triage",
+                "mail.draft",
+                "mail.send",
                 "resources.read",
                 "observatory.read",
                 "observatory.signals.read",
@@ -37513,13 +38540,17 @@
           },
           "operations": {
             "minItems": 1,
-            "maxItems": 20,
+            "maxItems": 24,
             "type": "array",
             "items": {
               "type": "string",
               "enum": [
                 "foundation.read",
                 "work.read",
+                "mail.read",
+                "mail.triage",
+                "mail.draft",
+                "mail.send",
                 "resources.read",
                 "observatory.read",
                 "observatory.signals.read",
@@ -37619,13 +38650,17 @@
               },
               "operations": {
                 "minItems": 1,
-                "maxItems": 20,
+                "maxItems": 24,
                 "type": "array",
                 "items": {
                   "type": "string",
                   "enum": [
                     "foundation.read",
                     "work.read",
+                    "mail.read",
+                    "mail.triage",
+                    "mail.draft",
+                    "mail.send",
                     "resources.read",
                     "observatory.read",
                     "observatory.signals.read",
@@ -37745,13 +38780,17 @@
                 },
                 "operations": {
                   "minItems": 1,
-                  "maxItems": 20,
+                  "maxItems": 24,
                   "type": "array",
                   "items": {
                     "type": "string",
                     "enum": [
                       "foundation.read",
                       "work.read",
+                      "mail.read",
+                      "mail.triage",
+                      "mail.draft",
+                      "mail.send",
                       "resources.read",
                       "observatory.read",
                       "observatory.signals.read",

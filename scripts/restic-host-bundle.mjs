@@ -6,6 +6,7 @@ import { fileURLToPath } from "node:url";
 import { detectContainerRuntime } from "./container-runtime.mjs";
 import {
   localBackupConfig,
+  mailCredentialFileAllowed,
   parsePrivateConfig,
   productionBackupEnvironment,
   trustedSource,
@@ -28,15 +29,24 @@ function validDigest(value) {
   return typeof value === "string" && /^[0-9a-f]{64}$/.test(value);
 }
 
-function sourceTree(path, uid) {
+function sourceTree(path, uid, configRoot) {
   const entry = lstatSync(path);
+  const mailCredential =
+    configRoot &&
+    mailCredentialFileAllowed(
+      relative(configRoot, path).split(sep).join("/"),
+      entry,
+      uid,
+    );
   if (
     entry.uid !== uid ||
-    (entry.mode & 0o777) !== (entry.isDirectory() ? 0o700 : 0o600)
+    (!mailCredential &&
+      (entry.mode & 0o777) !== (entry.isDirectory() ? 0o700 : 0o600))
   )
     fail("SOURCE_MODE");
   if (entry.isDirectory()) {
-    for (const name of readdirSync(path)) sourceTree(resolve(path, name), uid);
+    for (const name of readdirSync(path))
+      sourceTree(resolve(path, name), uid, configRoot);
   } else if (!entry.isFile()) {
     fail("SOURCE_TYPE");
   } else if (entry.nlink !== 1) {
@@ -219,7 +229,7 @@ try {
   let configuration;
   if (backupMode) {
     phase = "SOURCE";
-    sourceTree(configDir, uid);
+    sourceTree(configDir, uid, configDir);
     const state = lstatSync(stateDir);
     if (
       !state.isDirectory() ||

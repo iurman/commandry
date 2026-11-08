@@ -1,5 +1,6 @@
 "use client";
 
+import { EmailOverview } from "./email/EmailOverview";
 import { useEffect, useState } from "react";
 import type {
   LocalAttentionSignal,
@@ -202,6 +203,8 @@ export default function HomePage() {
           health.
         </p>
       </div>
+
+      <EmailOverview />
 
       <div className="cmd-panel-grid">
         <StatePanel

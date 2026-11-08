@@ -47,6 +47,10 @@ const token = "af_" + "A".repeat(43);
 const machineOperations = [
   "foundation.read",
   "work.read",
+  "mail.read",
+  "mail.triage",
+  "mail.draft",
+  "mail.send",
   "resources.read",
   "observatory.read",
   "observatory.signals.read",
@@ -139,7 +143,7 @@ const invalidDatetimes = [
   new Date(createdAt),
 ];
 
-test("machine operations include exactly nineteen opt-in capabilities", () => {
+test("machine operations include exactly twenty-four opt-in capabilities", () => {
   assert.deepEqual(foundationMachineOperationSchema.options, machineOperations);
   for (const operation of machineOperations) {
     assert.equal(foundationMachineOperationSchema.parse(operation), operation);

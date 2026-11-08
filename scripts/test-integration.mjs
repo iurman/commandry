@@ -2,7 +2,16 @@ import { spawn } from "node:child_process";
 import { randomBytes, randomUUID } from "node:crypto";
 import assert from "node:assert/strict";
 import { existsSync } from "node:fs";
-import { cp, mkdir, mkdtemp, readFile, readdir, rm } from "node:fs/promises";
+import {
+  cp,
+  lstat,
+  mkdir,
+  mkdtemp,
+  readFile,
+  readdir,
+  realpath,
+  rm,
+} from "node:fs/promises";
 import { createServer } from "node:net";
 import { tmpdir } from "node:os";
 import { join, resolve } from "node:path";
@@ -52,40 +61,59 @@ async function prepareStandaloneWebAssets() {
   await mkdir(join(root, "apps/web/.next/standalone/apps/web/.next"), {
     recursive: true,
   });
-  await cp(
-    join(root, "apps/web/.next/static"),
-    join(root, "apps/web/.next/standalone/apps/web/.next/static"),
-    { recursive: true },
-  );
-  await cp(
-    join(root, "apps/web/public"),
-    join(root, "apps/web/.next/standalone/apps/web/public"),
-    { recursive: true },
-  );
+  for (const [source, destination] of [
+    [
+      "apps/web/.next/static",
+      "apps/web/.next/standalone/apps/web/.next/static",
+    ],
+    ["apps/web/public", "apps/web/.next/standalone/apps/web/public"],
+  ]) {
+    const from = join(root, source),
+      to = join(root, destination);
+    const entry = await lstat(to).catch((error) => {
+      if (error.code !== "ENOENT") throw error;
+      return null;
+    });
+    // The email scale/browser rigs may already link these exact built assets.
+    if (entry?.isSymbolicLink()) {
+      assert.equal(await realpath(to), await realpath(from));
+      continue;
+    }
+    await cp(from, to, { recursive: true });
+  }
 }
 
 async function runTests(connectionString, runtimePassword, testPath) {
-  if (testPath !== "packages/platform/src/observatory-logo.integration.test.ts")
+  const isolatedDatabase = {
+    "packages/platform/src/observatory-logo.integration.test.ts":
+      "commandry_logo_integration",
+    "packages/db/src/email.integration.test.ts": "commandry_mail_integration",
+    "packages/db/src/email-scale.integration.test.ts": "commandry_mail_scale",
+    "packages/platform/src/email-browser.integration.test.ts":
+      "commandry_mail_browser",
+  }[testPath];
+  if (!isolatedDatabase)
     return runTestsInDatabase(connectionString, runtimePassword, testPath);
 
   // Logo review retains immutable owner provenance. Keep its complete fixture
   // database separate from later single-owner authentication and recovery tests.
+  // Email's singular provider account and owner fixtures need the same isolation.
   const manager = postgres.getPgClient("postgres", "127.0.0.1");
   await manager.connect();
   try {
     await manager.query(
-      "CREATE DATABASE commandry_logo_integration WITH TEMPLATE commandry_integration",
+      `CREATE DATABASE ${isolatedDatabase} WITH TEMPLATE commandry_integration`,
     );
     try {
       const isolatedUrl = new URL(connectionString);
-      isolatedUrl.pathname = "/commandry_logo_integration";
+      isolatedUrl.pathname = "/" + isolatedDatabase;
       await runTestsInDatabase(
         isolatedUrl.toString(),
         runtimePassword,
         testPath,
       );
     } finally {
-      await manager.query("DROP DATABASE commandry_logo_integration");
+      await manager.query(`DROP DATABASE ${isolatedDatabase}`);
     }
   } finally {
     await manager.end();
@@ -1402,6 +1430,12 @@ try {
         runtimePassword,
         `packages/db/src/${file}`,
       );
+  } else if (process.argv.includes("--email-browser-only")) {
+    await runTests(
+      connectionString,
+      runtimePassword,
+      "packages/platform/src/email-browser.integration.test.ts",
+    );
   } else if (process.argv.includes("--foundation-workflows-only")) {
     await runTests(
       connectionString,
@@ -1504,7 +1538,8 @@ try {
         .filter(
           (file) =>
             file.endsWith(".integration.test.ts") &&
-            file !== "foundation.integration.test.ts",
+            file !== "foundation.integration.test.ts" &&
+            file !== "email-browser.integration.test.ts",
         )
         .sort();
       for (const file of platformTests)

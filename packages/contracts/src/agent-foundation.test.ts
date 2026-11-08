@@ -377,6 +377,10 @@ test("operations are the exact foundation family", () => {
   assert.deepEqual(foundation.foundationOperationSchema.options, [
     "foundation.read",
     "work.read",
+    "mail.read",
+    "mail.triage",
+    "mail.draft",
+    "mail.send",
     "resources.read",
     "observatory.read",
     "observatory.signals.read",
@@ -427,6 +431,10 @@ test("Work read is explicit in actor capabilities without expanding existing cli
   assert.deepEqual(foundationMachineOperationSchema.options, [
     operations[0],
     "work.read",
+    "mail.read",
+    "mail.triage",
+    "mail.draft",
+    "mail.send",
     "resources.read",
     "observatory.read",
     "observatory.signals.read",
@@ -520,6 +528,10 @@ test("task proposal declarations preserve explicit capabilities and machine issu
   };
   assert.deepEqual(foundationMachineOperationSchema.options, [
     ...existingOperations.slice(0, 2),
+    "mail.read",
+    "mail.triage",
+    "mail.draft",
+    "mail.send",
     "resources.read",
     "observatory.read",
     "observatory.signals.read",

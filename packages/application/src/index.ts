@@ -93,3 +93,5 @@ export * from "./observatory-provider-projection";
 export * from "./observatory-work";
 
 export * from "./cloudflare-inventory";
+
+export * from "./email";

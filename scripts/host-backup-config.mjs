@@ -6,6 +6,23 @@ function fail(code) {
   throw new Error(code);
 }
 
+// These two read-only bind mounts are readable by the image's node group.
+// Their enclosing configuration directories remain root-owned mode 0700.
+export function mailCredentialFileAllowed(relativePath, entry, uid) {
+  return (
+    uid === 0 &&
+    entry.uid === 0 &&
+    entry.gid === 1000 &&
+    entry.isFile() &&
+    entry.nlink === 1 &&
+    entry.size > 0 &&
+    (entry.mode & 0o777) === 0o640 &&
+    ["mail/resend-primary.key", "mail/resend-webhook.key"].includes(
+      relativePath,
+    )
+  );
+}
+
 export function privateFile(path, minimumSize = 1) {
   if (!isAbsolute(path)) fail("PRIVATE_FILE");
   const entry = lstatSync(path);
