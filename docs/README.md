@@ -11,6 +11,7 @@ docs are organized by the question a reader is trying to answer.
 
 ## What are we building, and why?
 
+- [Public website plan](plans/public-site/PLAN.md) and [Opus 5.5 implementation prompt](plans/public-site/OPUS-5.5-PROMPT.md) - owner-approved public landing-page scope, Vercel deployment, preserved sign-in and launch acceptance
 - [Vision](product/vision.md) — product definition, promise, and long-term loop
 - [Principles](product/principles.md) — durable rules that shape every feature
 - [Personas and use cases](product/personas-and-use-cases.md) — who it serves
