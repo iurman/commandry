@@ -168,10 +168,15 @@ held for the normal constrained release review.
 Direct contact@isaacurman.com messages live in MXroute independently of Resend.
 No usable IMAP credentials were discovered, and no MXroute connector is active.
 That inbox is explicitly disconnected and outside the seven-domain index.
-The initial browser attempt was blocked by an open Chrome extension UI. A later
-attempt reached the existing account's password step and remains open for owner
-sign-in. The saved ResuPals local key was only a development value. Those gaps
-require actual provider access; fixtures do not establish a live account connection.
+The owner completed browser sign-in after the initial popup/password blockers.
+Read-only discovery confirmed the isaacurman Pro workspace, all seven Verified
+domains, original receiving records across all seven and the enabled existing
+ResuPals webhook with successful receiving events. One existing delivery-check
+original was opened in the provider UI. This does not establish Commandry API
+coverage or a connected mailbox index. The prepared `commandry-email` key remains
+uncreated pending owner confirmation: Resend offers Sending access or Full access,
+with no read-only option, and Full access covers all domains. The saved ResuPals
+local key was only a development value.
 
 ## Verification and sources
 

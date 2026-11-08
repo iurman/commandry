@@ -67,7 +67,9 @@ timeouts and one-page checkpoints. Requalify the deployment host before activati
 
 Local evidence remains in `.agent/email-scale-result.json`,
 `.agent/email-browser/result.json` and the populated full-page and viewport PNGs
-under `.agent/email-browser/`. The screenshots use fictional `example.test` mail.
+under `.agent/email-browser/`. The application screenshots use fictional
+`example.test` mail. A separate `resend-key-approval.jpg` captures the unsubmitted
+provider permission form and contains no full credential or message body.
 Raw command logs are retained at `/tmp/commandry-email-check.log`,
 `/tmp/commandry-email-full-test.log`, `/tmp/commandry-email-build.log`,
 `/tmp/commandry-email-integration.log`, `/tmp/commandry-email-browser.log`,
@@ -96,11 +98,22 @@ available. No watcher or automation was created.
 ## Live connection and release gaps
 
 The saved ResuPals key was an unusable development value. No reusable primary
-Resend credential was found in the known private Commandry references. Chrome
-initially refused the account-access tab while an extension popup was open. A
-later attempt reached the existing account's password step, where owner sign-in
-is pending. Consequently actual domain verification, retained-history coverage,
-original availability, a live webhook and real delivery have not been verified.
+Resend credential was found in the known private Commandry references. After the
+initial popup/password blockers, the owner completed browser sign-in. Read-only
+provider UI discovery confirmed the isaacurman Pro workspace, all seven expected
+domains marked Verified, original receiving records addressed to all seven and
+the single enabled existing ResuPals webhook. Its visible receiving events showed
+Success. One earlier owner delivery-check original was opened successfully, with
+its original sender, recipient, subject and body. No new delivery check was sent.
+
+This browser evidence does not establish Commandry API connectivity, complete
+retained-history coverage, attachment availability or new webhook delivery into
+Commandry. The `commandry-email` API key form is prepared but unsubmitted. Resend
+offers Sending access or Full access, with no read-only option; Full access covers
+all domains and can manage account resources. Creating that dedicated credential
+and retaining it privately outside the repository awaits explicit owner
+confirmation under the browser security-sensitive-access rule. Existing keys,
+domains and webhook settings were not modified.
 
 Direct `contact@isaacurman.com` mail is independently hosted by MXroute. No usable
 IMAP credentials were found and no MXroute connector is implemented or active.

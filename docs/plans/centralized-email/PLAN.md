@@ -17,9 +17,12 @@ copies. Never restore cardiaccompanion.app or activate the experimental Sieve se
 Direct contact@isaacurman.com mail lives at witcher.mxrouting.net independently.
 The saved ResuPals local key is an unusable short development value. No reusable
 Resend or MXroute API/mailbox credential was found in Commandry credential refs.
-The initial browser attempt was blocked by an open Chrome extension UI. A later
-attempt reached the existing Resend account's password step; owner sign-in is
-pending. Continue fixtures; exact operational gaps must remain visible.
+The owner completed browser sign-in. Live read-only discovery confirmed the
+isaacurman Pro workspace, all seven Verified domains, original receiving records
+for all seven domains and the enabled existing ResuPals webhook. The prepared
+`commandry-email` key needs owner confirmation: Resend offers Sending access or
+Full access, with no read-only option; Full access covers all domains. No key has
+been created. Continue fixtures; exact operational gaps must remain visible.
 
 ## Smallest complete implementation
 
