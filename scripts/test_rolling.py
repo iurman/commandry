@@ -146,6 +146,14 @@ class RolloutTests(unittest.TestCase):
     def test_production_always_pins_the_local_docker_daemon(self):
         self.assertEqual(r.Rollout().safe_env["DOCKER_HOST"], "unix:///var/run/docker.sock")
 
+    def test_viewer_http_is_upgraded_before_public_and_private_routing(self):
+        for public_site in (False, True):
+            config = r.proxy_config("web_next", "web", public_site=public_site)
+            self.assertIn("host commandry.site", config)
+            self.assertIn("header X-Forwarded-Proto http", config)
+            self.assertIn("redir @insecure https://commandry.site{uri} 308", config)
+            self.assertLess(config.index("redir @insecure"), config.index("    handle"))
+
     def test_first_public_activation_waits_for_candidate_smoke(self):
         self.rollout.deploy(b"synthetic-input")
         routes = [call for call in self.rollout.calls if call[1][0] == "route"]

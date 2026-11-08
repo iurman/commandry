@@ -89,6 +89,17 @@ def json_write(path, value):
     atomic(path, json.dumps(value, sort_keys=True) + "\n")
 
 
+# The Tunnel supplies Cloudflare's viewer protocol. Internal health requests
+# have neither this host nor header and must remain on the private HTTP network.
+HTTPS_REDIRECT = """
+    @insecure {
+        host commandry.site
+        header X-Forwarded-Proto http
+    }
+    redir @insecure https://commandry.site{uri} 308
+"""
+
+
 # ADR 0019: only the public landing page and its own namespaced assets go to
 # the Vercel deployment. Owner credentials are never forwarded, Vercel cannot
 # set cookies on this origin, and every other path and method stays private.
@@ -140,7 +151,7 @@ def proxy_config(active, previous, public_site=True):
     return f"""# Managed by the constrained Commandry rollout controller.
 :80 {{
     encode zstd gzip
-{public}{static}
+{HTTPS_REDIRECT}{public}{static}
     handle {{
         reverse_proxy {active}:3000{fallback} {{
             header_up X-Forwarded-Proto https

@@ -2,6 +2,13 @@
 :80 {
     encode zstd gzip
 
+    # Only Cloudflare viewer HTTP is upgraded; internal health stays private.
+    @insecure {
+        host commandry.site
+        header X-Forwarded-Proto http
+    }
+    redir @insecure https://commandry.site{uri} 308
+
     # ADR 0019: the public landing page and its namespaced assets.
     @public_site {
         method GET HEAD

@@ -338,3 +338,41 @@ contents. Public content can still be rolled back independently on Vercel.
 Future qualified releases preserve the already-active public route during
 candidate preparation and failed-candidate rollback. Do not pause the ongoing
 watchdog or shared backup/collector services as task cleanup.
+
+
+## HTTPS enforcement follow-up, November 7, 2026
+
+The owner reported an insecure site entry. Direct certificate validation found
+an already-valid Let's Encrypt certificate for `commandry.site` and
+`*.commandry.site`, negotiated with TLS 1.3. The certificate expires on
+December 14, 2026, at 20:54:59 UTC. The actual defect was that plain HTTP returned
+200 instead of upgrading to HTTPS. The Cloudflare token could read the zone but
+returned HTTP 403 for SSL settings; the dashboard needed an authenticator code.
+No Cloudflare account/security settings or DNS records were changed.
+
+The reviewed Caddy change upgrades only the canonical host when Cloudflare's
+viewer-protocol header is `http`, using HTTP 308 and preserving the entire URI.
+Cloudflare [sets and overwrites that header from the actual viewer protocol](https://developers.cloudflare.com/fundamentals/reference/http-headers/#x-forwarded-proto).
+[Caddy documents 308 for method-preserving redirects](https://caddyserver.com/docs/caddyfile/directives/redir).
+HTTPS requests and internal HTTP health requests do not match, preventing an
+origin/Tunnel redirect loop. The named Tunnel remains the only public route
+into the private Caddy listener. Other hostnames and Cloudflare settings retain
+their existing behavior. This does not provision a new certificate or enable
+an insecure certificate exception.
+
+Before installation, 25 rollout/qualification tests and the Node wrapper passed.
+The real disposable Caddy rehearsal passed the GET/HEAD/POST upgrade cases,
+canonical URI/query preservation, HTTPS/internal/other-host exclusions, stream
+completion, both asset generations and rollback, with 99 continuity samples and
+zero errors. Its disposable resources were removed. The protocol probes use
+Node's HTTP client because the default fetch client overwrites a custom Host
+header; that initial harness mismatch was corrected before installation.
+
+Installation will preserve root-private controller, Caddy, enrollment and release
+baselines under the deployment lock, validate the exact candidate config with
+the production Caddy image, install/enroll only these reviewed controls with an
+unchanged migration fingerprint, and gracefully reload Caddy in place. The
+qualified serving application image and worker will remain unchanged. A failed
+health or configuration check will restore the prior config and controller/policy
+baseline, retaining the bind-mounted Caddy inode. The ordinary automatic release
+policy and all existing application qualification gates remain in force.

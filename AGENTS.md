@@ -159,6 +159,10 @@ planned behavior as though it already exists.
 
 ## Implementation guardrails
 
+- MUST verify the public site's certificate and HTTP-to-HTTPS upgrade on the
+  actual domain, including owner login; preserve internal health checks and
+  private API/MCP methods when changing proxy redirects.
+
 - MUST keep owner-selected Observatory check motion in the existing design system: quiet unlabeled dots with short trails, no permanent check paths or arrowheads, and an inspection guide only on demand.
 
 - MUST verify Observatory check transmissions as visibly moving directional packets between resources or their named groups. Badge pulses and activity counters alone do not establish this acceptance.
