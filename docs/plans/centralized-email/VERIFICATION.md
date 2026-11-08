@@ -23,6 +23,7 @@ edits were not changed.
 | Guarded browser run | Passed seven baseline tests and one complete email journey against the final built app. Desktop 1440 x 1000 and phone 390 x 844, each light/dark, covered populated lists, domain/address counts, pagination, original text/isolated HTML, attachments, review, rules, compose/reply and multiple recipients. No page errors were recorded. |
 | Real worker and MCP transport | The browser rig delivered signed webhook HTTP requests, rejected bad signatures and replayed identical events, ran the built pg-boss worker, and exercised ten explicitly granted tools through authenticated Streamable HTTP. Machine approval attempts were denied. Provider acceptance was a fixture, not external delivery. |
 | Negative control | Temporarily removing the finite-expiry guards made the malformed-expiry tests fail. The guards were restored and the positive tests passed. |
+| Live provider read-only qualification | After explicit owner key approval, the actual Commandry adapter verified all seven identities, completed both current provider-accessible list traversals, and read an existing received and sent owner delivery-check original. The transport rejected non-GET requests. No message body, signed URL or full credential was persisted in the evidence. No eligible list metadata advertised an attachment, so live attachment availability remains unverified. |
 
 The browser review corrected stable control names, a save-completion race in the
 test, stale sidebar counts after triage and temporary zero counts during refresh.
@@ -69,7 +70,11 @@ Local evidence remains in `.agent/email-scale-result.json`,
 `.agent/email-browser/result.json` and the populated full-page and viewport PNGs
 under `.agent/email-browser/`. The application screenshots use fictional
 `example.test` mail. A separate `resend-key-approval.jpg` captures the unsubmitted
-provider permission form and contains no full credential or message body.
+provider permission form and contains no full credential or message body. The
+creation receipt is `resend-key-created.jpg`. Sanitized live provider results are
+in `.agent/email-live-read-result.json`; its executed log is
+`/tmp/commandry-email-live-read.log`. The credential is retained privately outside
+the repository with file mode 0600 in an owner-only directory.
 Raw command logs are retained at `/tmp/commandry-email-check.log`,
 `/tmp/commandry-email-full-test.log`, `/tmp/commandry-email-build.log`,
 `/tmp/commandry-email-integration.log`, `/tmp/commandry-email-browser.log`,
@@ -106,16 +111,21 @@ the single enabled existing ResuPals webhook. Its visible receiving events showe
 Success. One earlier owner delivery-check original was opened successfully, with
 its original sender, recipient, subject and body. No new delivery check was sent.
 
-This browser evidence does not establish Commandry API connectivity, complete
-retained-history coverage, attachment availability or new webhook delivery into
-Commandry. The owner explicitly approved the dedicated `commandry-email` key,
-Full access / All domains permission, private storage outside the repository and
-Commandry verification. Resend offers Sending access or Full access, with no
-read-only option; Full access can manage account resources. Add was clicked once.
-Another Chrome extension popup blocked automation before the result could be
-observed or the one-time credential captured. Creation success is unconfirmed;
-the tab is retained for recovery without refreshing or repeating Add. No key is
-stored or in use yet. Existing keys, domains and webhook settings were not modified.
+The owner explicitly approved the dedicated `commandry-email` key, Full access /
+All domains permission, private storage outside the repository and Commandry
+verification. Resend offers Sending access or Full access, with no read-only
+option; Full access can manage account resources. Add was clicked once. After a
+second popup blocker was cleared, the one-time result was captured directly into
+the private file without printing the credential. The key inventory confirmed one
+dedicated key. Existing keys, domains and webhook settings were not modified.
+
+The actual Commandry adapter then made five GET requests against Resend: domain
+verification, complete current sent/received traversals and two original reads.
+All seven configured domains were verified. Existing delivery-check originals in
+both directions returned body content. Live attachment availability remains
+unverified because no eligible list metadata advertised one. This is provider API
+qualification, not a production mailbox index or a claim of all-time history.
+No new external send or webhook delivery into Commandry was executed.
 
 Direct `contact@isaacurman.com` mail is independently hosted by MXroute. No usable
 IMAP credentials were found and no MXroute connector is implemented or active.
