@@ -108,18 +108,20 @@ its original sender, recipient, subject and body. No new delivery check was sent
 
 This browser evidence does not establish Commandry API connectivity, complete
 retained-history coverage, attachment availability or new webhook delivery into
-Commandry. The `commandry-email` API key form is prepared but unsubmitted. Resend
-offers Sending access or Full access, with no read-only option; Full access covers
-all domains and can manage account resources. Creating that dedicated credential
-and retaining it privately outside the repository awaits explicit owner
-confirmation under the browser security-sensitive-access rule. Existing keys,
-domains and webhook settings were not modified.
+Commandry. The owner explicitly approved the dedicated `commandry-email` key,
+Full access / All domains permission, private storage outside the repository and
+Commandry verification. Resend offers Sending access or Full access, with no
+read-only option; Full access can manage account resources. Add was clicked once.
+Another Chrome extension popup blocked automation before the result could be
+observed or the one-time credential captured. Creation success is unconfirmed;
+the tab is retained for recovery without refreshing or repeating Add. No key is
+stored or in use yet. Existing keys, domains and webhook settings were not modified.
 
 Direct `contact@isaacurman.com` mail is independently hosted by MXroute. No usable
 IMAP credentials were found and no MXroute connector is implemented or active.
 The UI labels it disconnected; it is outside the seven-domain Resend population.
 
-No real mailbox ingestion, external send, new account access grant, remote SQL,
+No real mailbox ingestion, external send, remote SQL,
 forwarding change or production deployment occurred. The existing Vercel
 integration automatically produced a public-site PR preview after the push;
 that preview does not activate private email. `MAIL_POLLING` remains off by default.

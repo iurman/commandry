@@ -173,10 +173,13 @@ Read-only discovery confirmed the isaacurman Pro workspace, all seven Verified
 domains, original receiving records across all seven and the enabled existing
 ResuPals webhook with successful receiving events. One existing delivery-check
 original was opened in the provider UI. This does not establish Commandry API
-coverage or a connected mailbox index. The prepared `commandry-email` key remains
-uncreated pending owner confirmation: Resend offers Sending access or Full access,
-with no read-only option, and Full access covers all domains. The saved ResuPals
-local key was only a development value.
+coverage or a connected mailbox index. The owner explicitly approved the
+`commandry-email` Full access / All domains key, private storage and Commandry
+verification. Creation was submitted once, but another Chrome extension popup
+blocked the result before key capture. Its success remains unconfirmed; preserve
+the current tab without refreshing or resubmitting. No credential is stored or
+in use yet. Resend offers Sending access or Full access, with no read-only option.
+The saved ResuPals local key was only a development value.
 
 ## Verification and sources
 

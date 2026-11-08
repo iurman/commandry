@@ -20,9 +20,11 @@ Resend or MXroute API/mailbox credential was found in Commandry credential refs.
 The owner completed browser sign-in. Live read-only discovery confirmed the
 isaacurman Pro workspace, all seven Verified domains, original receiving records
 for all seven domains and the enabled existing ResuPals webhook. The prepared
-`commandry-email` key needs owner confirmation: Resend offers Sending access or
-Full access, with no read-only option; Full access covers all domains. No key has
-been created. Continue fixtures; exact operational gaps must remain visible.
+`commandry-email` key was explicitly approved by the owner: Resend offers Sending
+access or Full access, with no read-only option; Full access covers all domains.
+Creation was submitted once, but another Chrome extension popup blocked the
+result before the one-time key could be captured. Preserve that tab without
+refreshing or resubmitting. No credential has been stored or used yet.
 
 ## Smallest complete implementation
 
