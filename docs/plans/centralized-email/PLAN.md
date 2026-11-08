@@ -22,7 +22,7 @@ implementation and fixtures; exact operational gaps must remain visible.
 
 ## Smallest complete implementation
 
-1. Commit this plan and ADR 0019. Add strict email contracts and domain policies.
+1. Commit this plan and ADR 0020. Add strict email contracts and domain policies.
 2. Add an additive metadata index, recipients, rules, immutable versioned drafts,
    exact owner approvals, audits, provider cursors and durable worker outbox.
 3. Implement Resend REST pagination, receiving-specific reads, attachments,

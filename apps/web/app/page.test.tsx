@@ -77,6 +77,7 @@ describe("Command Center", () => {
     ).toEqual([
       ["Home", "/"],
       ["Inbox", "/inbox"],
+      ["Email", "/email"],
       ["Projects", "/projects"],
       ["Work", "/work"],
       ["Knowledge", "/knowledge"],

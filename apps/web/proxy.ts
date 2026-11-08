@@ -18,6 +18,7 @@ const publicPaths = new Set([
 export function isMachineAuthPath(pathname: string, method: string): boolean {
   if (method !== "POST") return false;
   return (
+    /^\/api\/v1\/email\/webhooks\/[0-9a-f-]{36}$/.test(pathname) ||
     pathname === "/mcp" ||
     pathname === "/mcp/knowledge" ||
     /^\/mcp\/foundation\/[0-9a-fA-F-]{36}$/.test(pathname) ||

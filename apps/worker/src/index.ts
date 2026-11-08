@@ -1,3 +1,7 @@
+import { createMailWorker } from "@commandry/application";
+import { createMailWorkerRepository } from "@commandry/db";
+import { createResendMailProvider, MAIL_QUEUE } from "@commandry/platform";
+import { mailJobSchema } from "@commandry/contracts";
 import { randomUUID } from "node:crypto";
 import {
   createAgentContextService,
@@ -702,12 +706,43 @@ const operationalSourceTimer = setInterval(
   5000,
 );
 operationalSourceTimer.unref();
+const mailProvider = createResendMailProvider(
+  config.mailResendApiKeyFile ? { keyFile: config.mailResendApiKeyFile } : {},
+);
+const mailWorker = createMailWorker(
+  createMailWorkerRepository(database.db),
+  () => mailProvider,
+);
+await transport.boss.work(MAIL_QUEUE, async ([job]) => {
+  if (!job || !config.mailPolling) return;
+  await mailWorker.process(mailJobSchema.parse(job.data));
+});
+let schedulingMail = false;
+async function scheduleMail() {
+  if (schedulingMail || !config.mailPolling) return;
+  schedulingMail = true;
+  try {
+    for (const job of await mailWorker.pending())
+      await transport.boss.send(MAIL_QUEUE, job, {
+        singletonKey: JSON.stringify(job),
+        singletonSeconds: 5,
+      });
+  } catch {
+    log("error", "mail.scheduling_unavailable", {});
+  } finally {
+    schedulingMail = false;
+  }
+}
+await scheduleMail();
+const mailTimer = setInterval(() => void scheduleMail(), 5000);
+mailTimer.unref();
 log("info", "worker.started", { workerId });
 
 let stopping = false;
 async function shutdown(signal: string) {
   if (stopping) return;
   stopping = true;
+  clearInterval(mailTimer);
   clearInterval(timer);
   clearInterval(realSourceTimer);
   clearInterval(providerStatusTimer);

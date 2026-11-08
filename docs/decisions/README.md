@@ -39,7 +39,7 @@ contributors need. They do not record minor implementation details.
 | [0017](0017-confirm-observatory-presentation-defaults.md) | Confirm the owner's Observatory presentation defaults and resolve OQ-039 | Accepted |
 | [0018](0018-promote-verified-main-releases-with-two-web-slots.md) | Promote verified main releases through two private web slots | Accepted |
 
-| [0019](0019-index-provider-email-with-governed-actions.md) | Index provider email with governed actions | Accepted for local implementation |
+| [0020](0020-index-provider-email-with-governed-actions.md) | Index provider email with governed actions | Accepted for local implementation |
 
 ## Creating an ADR
 

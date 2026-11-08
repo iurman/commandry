@@ -65,6 +65,9 @@ const environmentSchema = z.object({
     (value) => (value === "" ? undefined : value),
     z.enum(["true", "false"]).optional(),
   ),
+  MAIL_RESEND_API_KEY_FILE: optionalString,
+  MAIL_RESEND_WEBHOOK_SECRET_FILE: optionalString,
+  MAIL_POLLING: z.enum(["true", "false"]).default("false"),
   OBSERVATORY_NAMECHEAP_USERNAME: optionalString,
   OBSERVATORY_NAMECHEAP_KEY_FILE: optionalString,
   OBSERVATORY_NAMECHEAP_CLIENT_IP: optionalString,
@@ -112,6 +115,9 @@ export type RuntimeConfig = {
   dbPoolMax: number;
   bossPoolMax: number;
   providerStatusPolling: boolean;
+  mailResendApiKeyFile?: string;
+  mailResendWebhookSecretFile?: string;
+  mailPolling: boolean;
   operationalSourcePolling: boolean;
   observatoryNamecheapUsername?: string;
   observatoryNamecheapKeyFile?: string;
@@ -303,6 +309,13 @@ export function loadRuntimeConfig(
       value.PROVIDER_STATUS_POLLING === "true" ||
       (value.PROVIDER_STATUS_POLLING === undefined &&
         value.APP_ENV === "production"),
+    mailPolling: value.MAIL_POLLING === "true",
+    ...(value.MAIL_RESEND_API_KEY_FILE
+      ? { mailResendApiKeyFile: value.MAIL_RESEND_API_KEY_FILE }
+      : {}),
+    ...(value.MAIL_RESEND_WEBHOOK_SECRET_FILE
+      ? { mailResendWebhookSecretFile: value.MAIL_RESEND_WEBHOOK_SECRET_FILE }
+      : {}),
     operationalSourcePolling:
       value.OPERATIONAL_SOURCE_POLLING === "true" ||
       (value.OPERATIONAL_SOURCE_POLLING === undefined &&

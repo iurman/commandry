@@ -44,6 +44,9 @@ import {
   type SyntheticRun,
 } from "@commandry/domain";
 
+export const MAIL_QUEUE = "commandry-mail-v1";
+export const MAIL_DEAD_LETTER_QUEUE = "commandry-mail-dlq";
+
 export const SYNTHETIC_QUEUE = "commandry-synthetic-v1";
 export const SYNTHETIC_DEAD_LETTER_QUEUE = "commandry-synthetic-dlq";
 export const SYNTHETIC_EVENT_IMPORT_QUEUE =
@@ -92,6 +95,13 @@ export async function installPgBossSchema(options: {
   const boss = new PgBoss(bossOptions(options.connectionString, 1, true));
   await boss.start();
   try {
+    await boss.createQueue(MAIL_DEAD_LETTER_QUEUE);
+    await boss.createQueue(MAIL_QUEUE, {
+      retryLimit: 3,
+      retryDelay: 30,
+      retryBackoff: true,
+      deadLetter: MAIL_DEAD_LETTER_QUEUE,
+    });
     await boss.createQueue(SYNTHETIC_DEAD_LETTER_QUEUE);
     await boss.createQueue(SYNTHETIC_QUEUE, {
       retryLimit: 3,

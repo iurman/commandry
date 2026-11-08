@@ -19,6 +19,8 @@ x-runtime-env: &runtime-env
   RELEASE_BUILD_TIME: ${RELEASE_BUILD_TIME:?Set the release build time}
   DB_POOL_MAX: ${DB_POOL_MAX:-5}
   BOSS_POOL_MAX: ${BOSS_POOL_MAX:-5}
+  MAIL_POLLING: ${MAIL_POLLING:-false}
+  MAIL_RESEND_API_KEY_FILE: ${MAIL_RESEND_API_KEY_FILE:-}
 
 services:
   postgres:
@@ -62,6 +64,20 @@ services:
     command: ["node", "apps/web/server.js"]
     environment:
       <<: *runtime-env
+      MAIL_RESEND_WEBHOOK_SECRET_FILE: ${MAIL_RESEND_WEBHOOK_SECRET_FILE:-}
+    volumes:
+      - type: bind
+        source: ${MAIL_RESEND_API_KEY_FILE:-/dev/null}
+        target: ${MAIL_RESEND_API_KEY_FILE:-/run/commandry-disabled-mail-key}
+        read_only: true
+        bind:
+          create_host_path: false
+      - type: bind
+        source: ${MAIL_RESEND_WEBHOOK_SECRET_FILE:-/dev/null}
+        target: ${MAIL_RESEND_WEBHOOK_SECRET_FILE:-/run/commandry-disabled-mail-webhook}
+        read_only: true
+        bind:
+          create_host_path: false
     depends_on:
       migrate:
         condition: service_completed_successfully
@@ -92,6 +108,12 @@ services:
       OBSERVATORY_CLOUDFLARE_ACCOUNT_ID: ${OBSERVATORY_CLOUDFLARE_ACCOUNT_ID:-}
       OBSERVATORY_CLOUDFLARE_TOKEN_FILE: ${OBSERVATORY_CLOUDFLARE_TOKEN_FILE:-}
     volumes:
+      - type: bind
+        source: ${MAIL_RESEND_API_KEY_FILE:-/dev/null}
+        target: ${MAIL_RESEND_API_KEY_FILE:-/run/commandry-disabled-mail-key}
+        read_only: true
+        bind:
+          create_host_path: false
       - type: bind
         source: ${OBSERVATORY_NAMECHEAP_KEY_FILE:-/dev/null}
         target: ${OBSERVATORY_NAMECHEAP_KEY_FILE:-/run/commandry-disabled-namecheap-key}

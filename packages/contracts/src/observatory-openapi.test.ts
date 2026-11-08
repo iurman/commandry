@@ -310,7 +310,11 @@ describe("generated owner Observatory HTTP contract", () => {
     for (const path of actual)
       expect(Object.keys(document.paths[path]!)).toEqual(["post"]);
     expect(Object.keys(document.paths[imagePath]!)).toEqual(["get"]);
-    const prior = paths.filter((path) => !path.startsWith(base)).sort();
+    const prior = paths
+      .filter(
+        (path) => !path.startsWith(base) && !path.startsWith("/api/v1/email/"),
+      )
+      .sort();
     expect(prior).toHaveLength(210);
     expect(
       createHash("sha256").update(JSON.stringify(prior)).digest("hex"),

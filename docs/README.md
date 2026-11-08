@@ -30,6 +30,7 @@ docs are organized by the question a reader is trying to answer.
 
 ## Feature specifications
 
+- [Centralized email](features/email.md) - provider index, views, triage and scoped MCP actions
 - [Command Center](features/command-center.md)
 - [Capture and triage](features/capture-and-triage.md)
 - [Project workspaces](features/project-workspaces.md)

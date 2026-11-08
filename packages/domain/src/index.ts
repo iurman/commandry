@@ -49,3 +49,5 @@ export * from "./agent-foundation";
 export * from "./observatory";
 
 export * from "./observatory-source-access";
+
+export * from "./email";

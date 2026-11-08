@@ -99,6 +99,10 @@ test("operation policies enumerate every operation without expanding owner autho
   assert.deepEqual(FOUNDATION_OPERATIONS, [
     "foundation.read",
     "work.read",
+    "mail.read",
+    "mail.triage",
+    "mail.draft",
+    "mail.send",
     "resources.read",
     "observatory.read",
     "observatory.signals.read",
@@ -141,15 +145,21 @@ test("operation policies enumerate every operation without expanding owner autho
     assert.equal(policy.idempotency, "principal_operation_key");
     assert.equal(
       policy.approval,
-      ownerOnly.includes(operation) ? "owner_only" : "automatic_with_grant",
+      operation === "mail.send"
+        ? "exact_owner_approval"
+        : ownerOnly.includes(operation)
+          ? "owner_only"
+          : "automatic_with_grant",
     );
     assert.equal(
       policy.risk,
-      ownerOnly.includes(operation) &&
-        operation !== "work.proposal.read" &&
-        operation !== "memory.read"
+      operation === "mail.send" ||
+        (ownerOnly.includes(operation) &&
+          operation !== "work.proposal.read" &&
+          operation !== "memory.read")
         ? "sensitive"
-        : operation === "foundation.read" ||
+        : operation === "mail.read" ||
+            operation === "foundation.read" ||
             operation === "work.read" ||
             operation === "resources.read" ||
             operation.startsWith("observatory.") ||
@@ -163,7 +173,8 @@ test("operation policies enumerate every operation without expanding owner autho
     );
     assert.equal(
       policy.concurrency,
-      operation === "foundation.read" ||
+      operation === "mail.read" ||
+        operation === "foundation.read" ||
         operation === "work.read" ||
         operation === "resources.read" ||
         operation.startsWith("observatory.") ||
@@ -173,7 +184,9 @@ test("operation policies enumerate every operation without expanding owner autho
         operation === "memory.read" ||
         operation === "work.proposal.read"
         ? "read_snapshot"
-        : operation === "memory.revise" || ownerOnly.includes(operation)
+        : operation === "mail.triage" ||
+            operation === "memory.revise" ||
+            ownerOnly.includes(operation)
           ? "expected_version"
           : "immutable_create",
     );

@@ -1,3 +1,5 @@
+import { getMailService } from "../../../../lib/email";
+import { createMailMcpOperations } from "../../../../lib/email-mcp";
 import { createMcpHandler } from "@modelcontextprotocol/server";
 import { FoundationError } from "@commandry/domain";
 import { foundationActorSchema } from "@commandry/contracts";
@@ -48,6 +50,7 @@ export async function POST(
     const handler = createMcpHandler(
       () =>
         createFoundationMcpServer(machine, token, actor, {
+          mail: createMailMcpOperations(getMailService(), token, actor),
           evaluation,
           inventory,
           work,

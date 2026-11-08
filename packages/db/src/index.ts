@@ -90,3 +90,7 @@ export * from "./observatory-views-repository";
 export * from "./observatory-source-repository";
 
 export * from "./observatory-work-repository";
+
+export * from "./email-repository";
+export * from "./email-worker-repository";
+export * as emailSchema from "./email-schema";

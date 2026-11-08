@@ -4,6 +4,7 @@ export default defineConfig({
   dialect: "postgresql",
   schema: [
     "./src/schema.ts",
+    "./src/email-schema.ts",
     "./src/foundation-schema.ts",
     "./src/foundation-evaluation-schema.ts",
     "./src/foundation-import-schema.ts",

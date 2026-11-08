@@ -8,6 +8,7 @@ export function AppShell({
   current?:
     | "Home"
     | "Inbox"
+    | "Email"
     | "Projects"
     | "Work"
     | "Knowledge"
@@ -48,6 +49,13 @@ export function AppShell({
             href="/inbox"
           >
             Inbox
+          </a>
+          <a
+            href="/email"
+            aria-current={current === "Email" ? "page" : undefined}
+            className={`cmd-nav-link ${current === "Email" ? "cmd-nav-current" : ""}`}
+          >
+            Email
           </a>
           <a
             aria-current={current === "Projects" ? "page" : undefined}

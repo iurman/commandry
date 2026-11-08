@@ -42,6 +42,10 @@ export const foundationMachineOperationSchema =
   foundationOperationSchema.extract([
     "foundation.read",
     "work.read",
+    "mail.read",
+    "mail.triage",
+    "mail.draft",
+    "mail.send",
     "resources.read",
     "observatory.read",
     "observatory.signals.read",

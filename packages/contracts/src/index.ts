@@ -3518,3 +3518,5 @@ export * from "./observatory-logos";
 export * from "./endpoint-checks";
 
 export * from "./cloudflare-inventory";
+
+export * from "./email";

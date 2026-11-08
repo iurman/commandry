@@ -1,4 +1,4 @@
-# ADR 0019: Index provider email with governed actions
+# ADR 0020: Index provider email with governed actions
 
 **Status:** Accepted for owner-authorized local implementation
 

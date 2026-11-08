@@ -20,3 +20,5 @@ export * from "./endpoint-check";
 export * from "./cloudflare-inventory";
 
 export * from "./namecheap-inventory";
+
+export * from "./resend-mail";

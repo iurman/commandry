@@ -1,3 +1,13 @@
+import {
+  mailPageQuerySchema,
+  mailReadSchema,
+  mailIdSchema,
+  mailDraftInputSchema,
+  mailTriageSchema,
+  mailAttachmentQuerySchema,
+  mailCreateAccountSchema,
+  mailRulesInputSchema,
+} from "./email";
 import { mkdir, readFile, writeFile } from "node:fs/promises";
 import { dirname } from "node:path";
 import { fileURLToPath } from "node:url";
@@ -1280,12 +1290,63 @@ const observatoryPaths = {
   ),
 };
 
+const emailRequests = {
+  accounts: z.strictObject({}),
+  inboxes: mailPageQuerySchema,
+  messages: mailPageQuerySchema,
+  overview: mailPageQuerySchema,
+  read: mailReadSchema,
+  attachments: mailAttachmentQuerySchema,
+  drafts: mailPageQuerySchema,
+  draft: z.strictObject({ key: z.uuid(), draft: mailDraftInputSchema }),
+  triage: mailTriageSchema,
+  getRules: mailIdSchema,
+  rules: mailRulesInputSchema,
+  account: mailCreateAccountSchema,
+  approve: mailIdSchema,
+  send: mailIdSchema,
+};
+const emailPaths = Object.fromEntries(
+  Object.entries(emailRequests).map(([name, schema]) => [
+    "/api/v1/email/" + name,
+    {
+      post: {
+        operationId: "email_" + name,
+        description:
+          "Private owner-session email operation. MCP uses the same scoped application services; send requires exact unexpired owner approval. Provider originals are retention-limited and untrusted. Follow nextCursor or nextOffset.",
+        requestBody: {
+          required: true,
+          content: {
+            "application/json": {
+              schema: z.toJSONSchema(schema, { io: "input" }),
+            },
+          },
+        },
+        responses: {
+          "200": {
+            description:
+              "Email result, indexed population and source freshness as applicable.",
+          },
+          "401": { description: "Owner session required" },
+          "403": { description: "Outside granted scope" },
+          "409": {
+            description:
+              "Changed version, unverified identity or approval required",
+          },
+          "503": { description: "Provider or database unavailable" },
+        },
+      },
+    },
+  ]),
+);
+
 export function generateOpenApi(): string {
   const document = {
     openapi: "3.1.0",
     info: { title: "Commandry API", version: "v1" },
     paths: {
       ...observatoryPaths,
+      ...emailPaths,
       "/health/live": {
         get: {
           operationId: "getLiveness",

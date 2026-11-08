@@ -1402,6 +1402,12 @@ try {
         runtimePassword,
         `packages/db/src/${file}`,
       );
+  } else if (process.argv.includes("--email-browser-only")) {
+    await runTests(
+      connectionString,
+      runtimePassword,
+      "packages/platform/src/email-browser.integration.test.ts",
+    );
   } else if (process.argv.includes("--foundation-workflows-only")) {
     await runTests(
       connectionString,
@@ -1504,7 +1510,8 @@ try {
         .filter(
           (file) =>
             file.endsWith(".integration.test.ts") &&
-            file !== "foundation.integration.test.ts",
+            file !== "foundation.integration.test.ts" &&
+            file !== "email-browser.integration.test.ts",
         )
         .sort();
       for (const file of platformTests)

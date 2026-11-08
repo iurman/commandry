@@ -109,3 +109,7 @@ first implementation, owner-issued credentials, retrieval population, audit,
 and verification. Production activation and all four tools have been verified
 with native Codex on Kronos; Claude compatibility and real coding-task usability
 remain unverified. The local packet preview remains separate.
+
+## Centralized email access
+
+The owner-authorized [email workflow](../features/email.md#mcp-discovery) adds explicit project-scoped mail reads, triage, immutable drafts and owner-approved sends through the existing Foundation endpoint. Existing grants gain no mail operations. Local verification and production activation are separate.
