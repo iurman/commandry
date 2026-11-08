@@ -1,29 +1,31 @@
 # Centralized email verification
 
-**Status: Operational local verification; live provider connection and release pending**
+**Status: Operational; local qualification and primary production activation**
 
 **Verified:** November 8, 2026, UTC.
 
 The [implementation plan](PLAN.md) and [feature contract](../../features/email.md)
-are implemented on `feat/centralized-email`. Current main `b3eaf25` was merged
+were delivered through [PR 62](https://github.com/iurman/commandry/pull/62).
+The [activation record](EXECUTION.md) contains production evidence; the initial
+local and read-only provider results below remain historical evidence. Current main `b3eaf25` was merged
 normally, preserving the public homepage, private `/app` dashboard and existing
 deployment controls. The original `ops/vps-activation` checkout and its owner
 edits were not changed.
 
 ## Executed checks
 
-| Check | Result and scope |
-| --- | --- |
-| Workspace check | Passed formatting, lint, type checking, package boundaries, generated contracts and experience-lab checks. Existing lint warnings remain; no lint errors. |
-| Full test command | Passed 190 Vitest files / 3,168 tests, 33 lab tests, 123 host tests, 11 agent-registry tests, four LAN-preview tests and four phone-preview tests. |
-| Production build | Passed with the real Next application, owner email API, signed webhook, attachment route and Foundation MCP. |
-| Workflow and dependency checks | GitHub workflow YAML formatting passed. Production dependency audit passed the high-severity gate and reported one moderate advisory. The PR browser-policy check passed. The full release-candidate workflow runs on main or manual dispatch and was not dispatched for this draft branch. |
-| Production Compose configuration | Template shape passed using the existing container runtime. This validates configuration only; example credentials/images remain invalid for deployment. |
-| Disposable PostgreSQL functional run | Passed seven baseline migration/job tests plus eight email subjourneys and their parent. Real migrations and runtime-role SQL exercised seven-domain counts, multi-recipient deduplication, unknown addresses, more than 100 messages, BCC and literal search, original continuation, unavailable-original metadata fallback, stale triage, scope and live authority checks, webhook replay/order/backoff, draft identity, immutable approvals, retries and permanent send receipts. |
-| Guarded browser run | Passed seven baseline tests and one complete email journey against the final built app. Desktop 1440 x 1000 and phone 390 x 844, each light/dark, covered populated lists, domain/address counts, pagination, original text/isolated HTML, attachments, review, rules, compose/reply and multiple recipients. No page errors were recorded. |
-| Real worker and MCP transport | The browser rig delivered signed webhook HTTP requests, rejected bad signatures and replayed identical events, ran the built pg-boss worker, and exercised ten explicitly granted tools through authenticated Streamable HTTP. Machine approval attempts were denied. Provider acceptance was a fixture, not external delivery. |
-| Negative control | Temporarily removing the finite-expiry guards made the malformed-expiry tests fail. The guards were restored and the positive tests passed. |
-| Live provider read-only qualification | After explicit owner key approval, the actual Commandry adapter verified all seven identities, completed both current provider-accessible list traversals, and read an existing received and sent owner delivery-check original. The transport rejected non-GET requests. No message body, signed URL or full credential was persisted in the evidence. No eligible list metadata advertised an attachment, so live attachment availability remains unverified. |
+| Check                                 | Result and scope                                                                                                                                                                                                                                                                                                                                                                                                                                                                     |
+| ------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
+| Workspace check                       | Passed formatting, lint, type checking, package boundaries, generated contracts and experience-lab checks. Existing lint warnings remain; no lint errors.                                                                                                                                                                                                                                                                                                                            |
+| Full test command                     | Passed 190 Vitest files / 3,168 tests, 33 lab tests, 123 host tests, 11 agent-registry tests, four LAN-preview tests and four phone-preview tests.                                                                                                                                                                                                                                                                                                                                   |
+| Production build                      | Passed with the real Next application, owner email API, signed webhook, attachment route and Foundation MCP.                                                                                                                                                                                                                                                                                                                                                                         |
+| Workflow and dependency checks        | GitHub workflow YAML formatting passed. Production dependency audit passed the high-severity gate and reported one moderate advisory. The PR browser-policy check passed. Final branch run 42527269117 passed, followed by all twelve main release jobs in run 42528495916 attempt 2. The exact published image was promoted through the normal rolling controller.                                                                                                                  |
+| Production Compose configuration      | Template shape passed using the existing container runtime. This validates configuration only; example credentials/images remain invalid for deployment.                                                                                                                                                                                                                                                                                                                             |
+| Disposable PostgreSQL functional run  | Passed seven baseline migration/job tests plus eight email subjourneys and their parent. Real migrations and runtime-role SQL exercised seven-domain counts, multi-recipient deduplication, unknown addresses, more than 100 messages, BCC and literal search, original continuation, unavailable-original metadata fallback, stale triage, scope and live authority checks, webhook replay/order/backoff, draft identity, immutable approvals, retries and permanent send receipts. |
+| Guarded browser run                   | Passed seven baseline tests and one complete email journey against the final built app. Desktop 1440 x 1000 and phone 390 x 844, each light/dark, covered populated lists, domain/address counts, pagination, original text/isolated HTML, attachments, review, rules, compose/reply and multiple recipients. No page errors were recorded.                                                                                                                                          |
+| Real worker and MCP transport         | The browser rig delivered signed webhook HTTP requests, rejected bad signatures and replayed identical events, ran the built pg-boss worker, and exercised ten explicitly granted tools through authenticated Streamable HTTP. Machine approval attempts were denied. Provider acceptance was a fixture, not external delivery.                                                                                                                                                      |
+| Negative control                      | Temporarily removing the finite-expiry guards made the malformed-expiry tests fail. The guards were restored and the positive tests passed.                                                                                                                                                                                                                                                                                                                                          |
+| Live provider read-only qualification | After explicit owner key approval, the actual Commandry adapter verified all seven identities, completed both current provider-accessible list traversals, and read an existing received and sent owner delivery-check original. The transport rejected non-GET requests. No message body, signed URL or full credential was persisted in the evidence. No eligible list metadata advertised an attachment, so live attachment availability remains unverified.                      |
 
 The browser review corrected stable control names, a save-completion race in the
 test, stale sidebar counts after triage and temporary zero counts during refresh.
@@ -66,7 +68,9 @@ timeouts and one-page checkpoints. Requalify the deployment host before activati
 
 ## Evidence and reproduction
 
-Local evidence remains in `.agent/email-scale-result.json`,
+The original measured scale receipt remains in
+`.agent/email-scale-qualification-original.json`; later full smoke runs also write
+`.agent/email-scale-result.json`. Browser evidence is in
 `.agent/email-browser/result.json` and the populated full-page and viewport PNGs
 under `.agent/email-browser/`. The application screenshots use fictional
 `example.test` mail. A separate `resend-key-approval.jpg` captures the unsubmitted
@@ -100,7 +104,7 @@ remove the clusters and keys in cleanup. Review evidence and the existing source
 worktree are intentionally retained. User browser tabs and shared runtimes remain
 available. No watcher or automation was created.
 
-## Live connection and release gaps
+## Initial connection history and retained limits
 
 The saved ResuPals key was an unusable development value. No reusable primary
 Resend credential was found in the known private Commandry references. After the
@@ -131,13 +135,15 @@ Direct `contact@isaacurman.com` mail is independently hosted by MXroute. No usab
 IMAP credentials were found and no MXroute connector is implemented or active.
 The UI labels it disconnected; it is outside the seven-domain Resend population.
 
-No real mailbox ingestion, external send, remote SQL,
-forwarding change or production deployment occurred. The existing Vercel
-integration automatically produced a public-site PR preview after the push;
-that preview does not activate private email. `MAIL_POLLING` remains off by default.
-Migration `0076_centralized_email`, private credential mounts, account/project
-binding and any new Commandry webhook require the normal reviewed activation.
-Preserve the existing ResuPals webhook, provider forwarding and inactive Sieve set.
-After usable access exists, verify the provider account, all seven identities,
-both paginated populations and an explicitly authorized delivery check. These are
-remaining operational checks, not local passes.
+Those initial local checks performed no production ingestion, remote migration
+or send. Subsequent owner-authorized activation applied the reviewed migration,
+connected the real index and independent signed webhook, and verified an exact
+approved own-address delivery. The existing Vercel preview remained separate
+from private email activation. `MAIL_POLLING` stays off by default in the template
+and is explicitly enabled in the private production configuration.
+
+The [activation record](EXECUTION.md) retains the live results and the production
+HTML-rewrite correction. Final public DOM, browser and scoped MCP receipts are
+retained in the QA ledger and [PR 62 release closure](https://github.com/iurman/commandry/pull/62).
+Live original-file download remains unverified because no eligible original
+advertised an attachment. Direct MXroute is a separate disconnected connector.

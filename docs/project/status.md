@@ -20,24 +20,28 @@ now upgrades plain HTTP to the canonical HTTPS origin. The existing certificate,
 public homepage and owner sign-in were verified; the control-only reload preserved
 the running application and containers.
 
-## Centralized email source implementation
+## Centralized email activation
 
-The owner-authorized [email feature](../features/email.md) is implemented on
-`feat/centralized-email`, with unified/domain/address views, a Command Center card,
-provider-original reads and attachments, local attention rules/review, immutable
-owner-approved drafts and separate-worker sending. Ten opt-in Foundation MCP tools
-share the same scoped services. [ADR 0020](../decisions/0020-index-provider-email-with-governed-actions.md)
-records the index and action boundaries. Local verification uses real runtime-role
-PostgreSQL, the built web/worker and authenticated MCP with synthetic provider
-transport. No real mailbox index, external send, remote migration or deployment
-is claimed. The [verification record](../plans/centralized-email/VERIFICATION.md)
-records exact outcomes and the remaining provider/activation gates.
+Centralized [email](../features/email.md) is live at `/email`, with a Command
+Center summary at `/app`. PR 62 was merged normally and revision `ebaa2c9`
+activated at `2026-11-08T22:49:13Z` after all twelve main release jobs, fresh
+offsite recovery, owner sign-in, protected reads and a real worker check.
+Migration 0076 preserved all 134 resource identities/parents, 15 projects,
+93 project-resource bindings and three existing client grants.
 
-The existing forwarding flow is preserved. The primary Resend API connection is
-pending usable account access; direct MXroute mail is explicitly disconnected
-pending its separate mailbox connector/credentials. Provider retention is exposed
-and the index is not an all-time archive. Production activation retains the
-existing reviewed migration, recovery and constrained release gates.
+The real worker traversed seven verified Resend domains, indexing 62 received
+and 82 sent references across 16 observed addresses. A subsequent exactly
+approved own-address send was delivered, its signed webhook projected delivery,
+and replay retained the same permanent provider receipt. Gmail received the
+forwarded test in Spam. Original message content and headers were verified on
+demand. An independent Commandry webhook preserves the existing ResuPals webhook
+and forwarding flow. Direct MXroute remains a separate disconnected connector.
+
+The [activation record](../plans/centralized-email/EXECUTION.md) retains exact
+image, recovery, delivery, operational limits and the live hydration correction.
+The [verification record](../plans/centralized-email/VERIFICATION.md) separates
+synthetic scale coverage from real provider adoption. Existing machine credentials
+gain no email access; the deployed Foundation tools require explicit mail grants.
 
 ## Earlier operational records
 
