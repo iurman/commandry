@@ -6,7 +6,7 @@ export const dynamic = "force-dynamic";
 
 export default function SignInPage() {
   const config = loadRuntimeConfig();
-  if (config.humanAuthMode !== "password") redirect("/");
+  if (config.humanAuthMode !== "password") redirect("/app");
   const production = config.appEnv === "production";
   return (
     <main className="cmd-auth-page" id="main-content">

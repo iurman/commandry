@@ -75,7 +75,7 @@ describe("Command Center", () => {
     expect(
       links.map((link) => [link.textContent, link.getAttribute("href")]),
     ).toEqual([
-      ["Home", "/"],
+      ["Home", "/app"],
       ["Inbox", "/inbox"],
       ["Projects", "/projects"],
       ["Work", "/work"],

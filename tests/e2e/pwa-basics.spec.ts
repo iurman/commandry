@@ -10,7 +10,7 @@ test("local PWA keeps project data online-only and offers generic offline help",
   const manifest = await manifestResponse.json();
   expect(manifest).toMatchObject({
     name: "Commandry",
-    start_url: "/",
+    start_url: "/app",
     scope: "/",
     display: "standalone",
   });

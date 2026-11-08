@@ -89,6 +89,26 @@ def json_write(path, value):
     atomic(path, json.dumps(value, sort_keys=True) + "\n")
 
 
+# ADR 0019: only the public landing page and its own namespaced assets go to
+# the Vercel deployment. Owner credentials are never forwarded, Vercel cannot
+# set cookies on this origin, and every other path and method stays private.
+PUBLIC_SITE_HOST = "commandry-site.vercel.app"
+PUBLIC_SITE_ROUTE = f"""
+    @public_site {{
+        method GET HEAD
+        path / /robots.txt /sitemap.xml /_site/*
+    }}
+    handle @public_site {{
+        reverse_proxy https://{PUBLIC_SITE_HOST} {{
+            header_up Host {PUBLIC_SITE_HOST}
+            header_up -Cookie
+            header_up -Authorization
+            header_down -Set-Cookie
+        }}
+    }}
+"""
+
+
 def proxy_config(active, previous):
     require(active in ("web", "web_next") and previous in ("web", "web_next"), "invalid web slot")
     static = ""
@@ -119,7 +139,7 @@ def proxy_config(active, previous):
     return f"""# Managed by the constrained Commandry rollout controller.
 :80 {{
     encode zstd gzip
-{static}
+{PUBLIC_SITE_ROUTE}{static}
     handle {{
         reverse_proxy {active}:3000{fallback} {{
             header_up X-Forwarded-Proto https

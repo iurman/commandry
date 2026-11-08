@@ -129,6 +129,20 @@ class RolloutTests(unittest.TestCase):
         self.assertEqual(self.rollout.worker_image, OLD_IMAGE)
         self.assertFalse(self.rollout.journal.exists())
 
+    def test_public_site_route_is_exact_read_only_and_credential_free(self):
+        for active, previous in (("web", "web"), ("web_next", "web")):
+            config = r.proxy_config(active, previous)
+            public = config.index("@public_site")
+            self.assertLess(public, config.index("    handle {"))
+            block = config[public:config.index("    }\n", config.index("handle @public_site")) + 6]
+            self.assertIn("method GET HEAD", block)
+            self.assertIn("path / /robots.txt /sitemap.xml /_site/*", block)
+            self.assertNotIn("/_next", block)
+            for header in ("header_up -Cookie", "header_up -Authorization", "header_down -Set-Cookie"):
+                self.assertIn(header, block)
+            self.assertIn(f"reverse_proxy https://{r.PUBLIC_SITE_HOST}", block)
+            self.assertIn(f"reverse_proxy {active}:3000", config)
+
     def test_production_always_pins_the_local_docker_daemon(self):
         self.assertEqual(r.Rollout().safe_env["DOCKER_HOST"], "unix:///var/run/docker.sock")
 

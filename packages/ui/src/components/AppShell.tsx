@@ -38,7 +38,7 @@ export function AppShell({
           <a
             aria-current={current === "Home" ? "page" : undefined}
             className={`cmd-nav-link ${current === "Home" ? "cmd-nav-current" : ""}`}
-            href="/"
+            href="/app"
           >
             Home
           </a>

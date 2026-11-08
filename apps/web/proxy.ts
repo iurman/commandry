@@ -4,6 +4,7 @@ import { getAuth } from "./lib/auth";
 
 const publicPaths = new Set([
   "/sign-in",
+  "/login",
   "/health/live",
   "/health/ready",
   "/version",
