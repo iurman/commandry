@@ -1,6 +1,6 @@
 # ADR 0020: Index provider email with governed actions
 
-**Status:** Accepted for owner-authorized local implementation
+**Status:** Accepted; owner-authorized implementation and release
 
 **Date:** 2026-11-08
 
@@ -9,7 +9,9 @@
 The owner requested centralized mail across seven consolidated Resend domains,
 unified and per-address views, dashboard attention and agent access on November
 8. This is an explicit product decision within ADRs 0001, 0004 and 0010-0012.
-It does not authorize production release or broader agent/account grants.
+The owner subsequently authorized merge and production activation on November 8.
+This does not grant broader machine authority or remove release qualification,
+recovery, identity and exact-draft action checks.
 
 ## Decision
 

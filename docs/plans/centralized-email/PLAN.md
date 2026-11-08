@@ -1,11 +1,15 @@
 # Centralized email implementation
 
-**Status: Operational plan, source implementation complete; live activation pending**
+**Status: Operational plan, source implementation complete; owner-authorized release in progress**
 
 **Owner authorization:** November 8, 2026, Pacific. Unified and individual inboxes,
 dashboard summaries, original messages and attachments, compose/reply, attention
-triage and scoped agent access are authorized. Production activation, new account
-access grants and unrelated infrastructure changes retain their existing gates.
+triage and scoped agent access are authorized. The owner subsequently explicitly
+authorized continuing through merge, delivery checks and production activation
+without routine approval pauses. Release qualification, backup/restore, reviewed
+migration/control installation, exact draft approval and existing routing
+preservation remain required checks, not requests for repeated release permission.
+The dedicated Resend key is already approved and captured.
 
 ## Source discovery and preservation
 

@@ -6,6 +6,8 @@ the task, then follow links only when needed.
 
 ## Planning and dispatch
 
+- MUST carry an explicitly owner-authorized release through merge, activation and live verification without asking again for routine steps within that authorization.
+
 - MUST keep the owner-approved public website scoped to a Vercel-deployed
   informational landing page at `commandry.site`, with working owner sign-in,
   no signup or early-access funnel, and the existing private application preserved;
