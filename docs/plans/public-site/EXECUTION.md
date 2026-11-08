@@ -191,6 +191,15 @@ The test now waits for the explicit completed-save message before its next
 selection, retaining every mutation, evidence and readiness assertion. No
 application behavior, timeout, retry policy or test population is weakened.
 
+A further boundary check reproduced an internal-host redirect in the new login
+alias: a Next.js request based at `https://0.0.0.0:3000/login` produced
+`https://0.0.0.0:3000/sign-in`, even with the public forwarded headers. The alias
+now returns a relative `Location: /sign-in`, preserving the browser's public
+origin and `Cache-Control: no-store`. The existing PWA scenario also checks the
+actual HTTP redirect with redirects disabled. Local handler checks confirm the
+public-origin destination. The phone relationship shard passed on the
+synchronized test before this final application correction.
+
 Activation, final-source CI and public verification evidence will be recorded
 here before this follow-up is considered complete.
 

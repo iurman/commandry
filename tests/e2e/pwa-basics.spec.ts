@@ -5,6 +5,10 @@ test("local PWA keeps project data online-only and offers generic offline help",
   context,
   request,
 }) => {
+  const login = await request.get("/login", { maxRedirects: 0 });
+  expect(login.status()).toBe(307);
+  expect(login.headers().location).toBe("/sign-in");
+  expect(login.headers()["cache-control"]).toContain("no-store");
   const manifestResponse = await request.get("/manifest.webmanifest");
   expect(manifestResponse.status()).toBe(200);
   const manifest = await manifestResponse.json();
