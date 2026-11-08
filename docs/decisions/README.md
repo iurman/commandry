@@ -38,6 +38,7 @@ contributors need. They do not record minor implementation details.
 | [0016](0016-project-the-operational-observatory.md) | Project the operational Observatory with conserved complete membership | Accepted |
 | [0017](0017-confirm-observatory-presentation-defaults.md) | Confirm the owner's Observatory presentation defaults and resolve OQ-039 | Accepted |
 | [0018](0018-promote-verified-main-releases-with-two-web-slots.md) | Promote verified main releases through two private web slots | Accepted |
+| [0019](0019-serve-the-public-site-from-vercel-behind-the-existing-ingress.md) | Serve the public site from Vercel behind the existing ingress | Accepted; routing activation pending |
 
 | [0020](0020-index-provider-email-with-governed-actions.md) | Index provider email with governed actions | Accepted for local implementation |
 

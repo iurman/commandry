@@ -5,6 +5,7 @@ import { mkdtempSync, readFileSync, rmSync, writeFileSync } from "node:fs";
 import { dirname, join, resolve } from "node:path";
 import { setTimeout as delay } from "node:timers/promises";
 import { detectContainerRuntime } from "./container-runtime.mjs";
+import { request as httpRequest } from "node:http";
 
 const [caddyImage, output] = process.argv.slice(2);
 assert.match(caddyImage ?? "", /^\S+@sha256:[a-f0-9]{64}$/);
@@ -109,9 +110,11 @@ try {
   const address = await docker("port", names[2], "80");
   assert.match(address, /^127\.0\.0\.1:\d+$/);
   const origin = `http://${address}`;
+  // The private workspace moves between app slots; the public root is separate.
+  const workspace = origin + "/app";
   for (let attempt = 0; attempt < 30; attempt++) {
     try {
-      assert.equal(await (await fetch(origin)).text(), "old");
+      assert.equal(await (await fetch(workspace)).text(), "old");
       break;
     } catch {
       if (attempt === 29)
@@ -119,11 +122,60 @@ try {
       await delay(200);
     }
   }
+  function viewerRequest(path, headers, method = "GET") {
+    return new Promise((resolve, reject) => {
+      const request = httpRequest(
+        origin + path,
+        { method, headers },
+        (response) => {
+          let body = "";
+          response.setEncoding("utf8");
+          response.on("data", (chunk) => {
+            body += chunk;
+          });
+          response.on("end", () =>
+            resolve({
+              status: response.statusCode,
+              location: response.headers.location,
+              body,
+            }),
+          );
+        },
+      );
+      request.on("error", reject);
+      request.setTimeout(5000, () =>
+        request.destroy(new Error("Viewer probe timed out")),
+      );
+      request.end(method === "POST" ? "synthetic" : undefined);
+    });
+  }
+  // Cloudflare's viewer protocol is distinct from the private HTTP transport.
+  for (const method of ["GET", "HEAD", "POST"]) {
+    const response = await viewerRequest(
+      "/login?from=http&check=1",
+      { Host: "commandry.site", "X-Forwarded-Proto": "http" },
+      method,
+    );
+    assert.equal(response.status, 308);
+    assert.equal(
+      response.location,
+      "https://commandry.site/login?from=http&check=1",
+    );
+  }
+  for (const headers of [
+    {},
+    { Host: "commandry.site", "X-Forwarded-Proto": "https" },
+    { Host: "unrelated.example", "X-Forwarded-Proto": "http" },
+  ]) {
+    const response = await viewerRequest("/app", headers);
+    assert.equal(response.status, 200);
+    assert.equal(response.body, "old");
+  }
   sampling = true;
   sampler = (async () => {
     while (sampling) {
       try {
-        const response = await fetch(origin, {
+        const response = await fetch(workspace, {
           signal: AbortSignal.timeout(2000),
         });
         const body = await response.text();
@@ -135,7 +187,9 @@ try {
         if (response.status !== 200 || !["old", "new"].includes(body))
           evidence.errors.push(body);
       } catch (error) {
-        evidence.errors.push(error.message);
+        evidence.errors.push(
+          `${error.message}${error.cause?.code ? ` (${error.cause.code})` : ""}`,
+        );
       }
       await delay(25);
     }
@@ -178,7 +232,7 @@ try {
     );
   }
   await route("web_next", "web");
-  assert.equal(await (await fetch(origin)).text(), "new");
+  assert.equal(await (await fetch(workspace)).text(), "new");
   assert.equal(await slow, "old");
   const events = await streamed;
   assert.ok(
@@ -193,7 +247,7 @@ try {
     "new",
   );
   await route("web", "web");
-  assert.equal(await (await fetch(origin)).text(), "old");
+  assert.equal(await (await fetch(workspace)).text(), "old");
   await delay(200);
   sampling = false;
   await sampler;
@@ -207,6 +261,8 @@ try {
     previousStatic: "served",
     newStatic: "served",
     rollback: "old restored",
+    httpsUpgrade:
+      "viewer HTTP upgraded; HTTPS, internal and other hosts unchanged",
     sampleCount: evidence.samples.length,
   });
 } finally {

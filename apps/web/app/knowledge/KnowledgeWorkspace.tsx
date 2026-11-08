@@ -159,7 +159,7 @@ export default function KnowledgeWorkspace({
   return (
     <AppShell current="Knowledge">
       <nav className="cmd-breadcrumb" aria-label="Breadcrumb">
-        <a href="/">Command Center</a>
+        <a href="/app">Command Center</a>
         <span aria-hidden="true">/</span>
         <span>Knowledge</span>
       </nav>

@@ -1,7 +1,31 @@
 # Only reachable from the private Compose network through the named Tunnel.
 :80 {
     encode zstd gzip
-    reverse_proxy web:3000 {
-        header_up X-Forwarded-Proto https
+
+    # Only Cloudflare viewer HTTP is upgraded; internal health stays private.
+    @insecure {
+        host commandry.site
+        header X-Forwarded-Proto http
+    }
+    redir @insecure https://commandry.site{uri} 308
+
+    # ADR 0019: the public landing page and its namespaced assets.
+    @public_site {
+        method GET HEAD
+        path / /robots.txt /sitemap.xml /_site/*
+    }
+    handle @public_site {
+        reverse_proxy https://commandry-site.vercel.app {
+            header_up Host commandry-site.vercel.app
+            header_up -Cookie
+            header_up -Authorization
+            header_down -Set-Cookie
+        }
+    }
+
+    handle {
+        reverse_proxy web:3000 {
+            header_up X-Forwarded-Proto https
+        }
     }
 }

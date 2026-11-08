@@ -1,0 +1,172 @@
+{
+  "origin": "https://commandry.site",
+  "checks": [
+    {
+      "name": "exact merged release",
+      "pass": true
+    },
+    {
+      "name": "anonymous root is public HTML",
+      "pass": true
+    },
+    {
+      "name": "public root sets no cookies",
+      "pass": true
+    },
+    {
+      "name": "public assets are namespaced",
+      "pass": true
+    },
+    {
+      "name": "public asset /_site/_next/static/immutable/media/9721f9d4df761ffd-s.p.44lcgfy9cmdxl.woff2",
+      "pass": true
+    },
+    {
+      "name": "public asset /_site/_next/static/immutable/media/c89730c3ffa99552.p.0k598lr1gf18t.woff2",
+      "pass": true
+    },
+    {
+      "name": "public asset /_site/_next/static/immutable/chunks/1nnos1n9u_iq7.css",
+      "pass": true
+    },
+    {
+      "name": "public asset /_site/_next/static/immutable/chunks/2hrfaoik40ti7.js",
+      "pass": true
+    },
+    {
+      "name": "public asset /_site/_next/static/immutable/chunks/0bya2oxch6iv7.js",
+      "pass": true
+    },
+    {
+      "name": "public asset /_site/_next/static/immutable/chunks/3ip9ukd66xj-3.js",
+      "pass": true
+    },
+    {
+      "name": "public asset /_site/_next/static/immutable/chunks/turbopack-2d8u74rc6xm96.js",
+      "pass": true
+    },
+    {
+      "name": "public asset /_site/_next/static/immutable/chunks/3ul-vyawgf6gp.js",
+      "pass": true
+    },
+    {
+      "name": "public asset /_site/_next/static/immutable/chunks/22iprgrdpv687.js",
+      "pass": true
+    },
+    {
+      "name": "public asset /_site/icon.svg",
+      "pass": true
+    },
+    {
+      "name": "public asset /_site/apple-icon.png",
+      "pass": true
+    },
+    {
+      "name": "public asset /_site/_next/static/immutable/chunks/0c0hxoamwjsbw.js",
+      "pass": true
+    },
+    {
+      "name": "metadata /robots.txt",
+      "pass": true
+    },
+    {
+      "name": "metadata /sitemap.xml",
+      "pass": true
+    },
+    {
+      "name": "social PNG dimensions and content type",
+      "pass": true
+    },
+    {
+      "name": "unknown public asset returns 404",
+      "pass": true
+    },
+    {
+      "name": "preserved GET /sign-in",
+      "pass": true,
+      "detail": "HTTP 200"
+    },
+    {
+      "name": "preserved GET /api/v1/projects?limit=1",
+      "pass": true,
+      "detail": "HTTP 401"
+    },
+    {
+      "name": "private cache /api/v1/projects?limit=1",
+      "pass": true
+    },
+    {
+      "name": "preserved POST /",
+      "pass": true,
+      "detail": "HTTP 307"
+    },
+    {
+      "name": "preserved POST /mcp",
+      "pass": true,
+      "detail": "HTTP 403"
+    },
+    {
+      "name": "preserved POST /mcp/knowledge",
+      "pass": true,
+      "detail": "HTTP 401"
+    },
+    {
+      "name": "private cache /mcp/knowledge",
+      "pass": true
+    },
+    {
+      "name": "GET /login compatibility",
+      "pass": true
+    },
+    {
+      "name": "HEAD /login compatibility",
+      "pass": true
+    },
+    {
+      "name": "anonymous private workspace remains protected",
+      "pass": true
+    },
+    {
+      "name": "fresh browser public homepage",
+      "pass": true
+    },
+    {
+      "name": "sign-in reaches /app",
+      "pass": true
+    },
+    {
+      "name": "Home targets private workspace",
+      "pass": true
+    },
+    {
+      "name": "authenticated protected read",
+      "pass": true
+    },
+    {
+      "name": "private read not publicly cacheable",
+      "pass": true
+    },
+    {
+      "name": "private application assets load",
+      "pass": true
+    },
+    {
+      "name": "existing application service worker controls session",
+      "pass": true
+    },
+    {
+      "name": "signed-in root remains public through service worker",
+      "pass": true
+    },
+    {
+      "name": "probe session signs out",
+      "pass": true
+    },
+    {
+      "name": "signed-out probe loses protected access",
+      "pass": true
+    }
+  ],
+  "success": true,
+  "revision": "d8f38529bea25cf9f4c9364ffc47e62cc9a73e3c"
+}

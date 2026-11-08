@@ -5,12 +5,16 @@ test("local PWA keeps project data online-only and offers generic offline help",
   context,
   request,
 }) => {
+  const login = await request.get("/login", { maxRedirects: 0 });
+  expect(login.status()).toBe(307);
+  expect(login.headers().location).toBe("/sign-in");
+  expect(login.headers()["cache-control"]).toContain("no-store");
   const manifestResponse = await request.get("/manifest.webmanifest");
   expect(manifestResponse.status()).toBe(200);
   const manifest = await manifestResponse.json();
   expect(manifest).toMatchObject({
     name: "Commandry",
-    start_url: "/",
+    start_url: "/app",
     scope: "/",
     display: "standalone",
   });
@@ -66,6 +70,7 @@ test("local PWA keeps project data online-only and offers generic offline help",
   await expect(page.getByText(/Project content, actions, and API results/)).toBeVisible();
   await context.setOffline(false);
   await page.getByRole("link", { name: "Try Commandry again" }).click();
+  await expect(page).toHaveURL(/\/app$/);
   await expect(page.getByText("Local app reachable")).toBeVisible();
   expect(errors).toEqual([]);
 });

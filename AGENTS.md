@@ -6,6 +6,15 @@ the task, then follow links only when needed.
 
 ## Planning and dispatch
 
+- MUST keep the owner-approved public website scoped to a Vercel-deployed
+  informational landing page at `commandry.site`, with working owner sign-in,
+  no signup or early-access funnel, and the existing private application preserved;
+  use `docs/plans/public-site/PLAN.md` and its Opus prompt for implementation.
+- MUST carry an invoked public-site implementation through normal integration
+  into `main` and verified Vercel/custom-domain publication without optional
+  full-application CI waits; preserve hooks, actual branch protections and
+  separately held private-application deployments.
+
 - MUST keep the twelve non-CRM repositories in
   `docs/plans/local-browser-safety/PLAN.md` on `main` as their GitHub default
   and production source branch. Preserve separately paused deployment controls.
@@ -149,6 +158,10 @@ planned behavior as though it already exists.
 - Keep links relative inside repository Markdown.
 
 ## Implementation guardrails
+
+- MUST verify the public site's certificate and HTTP-to-HTTPS upgrade on the
+  actual domain, including owner login; preserve internal health checks and
+  private API/MCP methods when changing proxy redirects.
 
 - MUST keep owner-selected Observatory check motion in the existing design system: quiet unlabeled dots with short trails, no permanent check paths or arrowheads, and an inspection guide only on demand.
 

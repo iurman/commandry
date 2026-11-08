@@ -247,6 +247,16 @@ Self-hosting makes these first-class operational work:
 Commandry should monitor its own application state, but an external check must
 monitor `commandry.site` so a total VPS or Tunnel failure is still visible.
 
+## Public site
+
+The public landing page is a separate static package, `apps/site`, deployed by
+the Vercel project `commandry-site` from `main`. Caddy will route only `/`,
+`/_site/*`, `/robots.txt` and `/sitemap.xml` to it; every other path stays on
+the private application. See
+[ADR 0019](../decisions/0019-serve-the-public-site-from-vercel-behind-the-existing-ingress.md)
+and the [execution record](../plans/public-site/EXECUTION.md). This does not
+change the private application's hosting described above.
+
 ## Vercel and Neon path
 
 Next.js and standard PostgreSQL preserve a managed alternative:

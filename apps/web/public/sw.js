@@ -1,4 +1,4 @@
-const cacheName = "commandry-offline-help-v1";
+const cacheName = "commandry-offline-help-v2";
 
 self.addEventListener("install", (event) => {
   event.waitUntil(
