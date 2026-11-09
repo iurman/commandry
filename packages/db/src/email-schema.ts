@@ -33,8 +33,8 @@ export const mailAccount = pgTable(
     enabled: boolean("enabled").notNull().default(true),
     lastSyncedAt: timestamp("last_synced_at", { withTimezone: true }),
     error: text("error"),
-    receivedCursor: uuid("received_cursor"),
-    sentCursor: uuid("sent_cursor"),
+    receivedCursor: text("received_cursor"),
+    sentCursor: text("sent_cursor"),
     receivedComplete: boolean("received_complete").notNull().default(false),
     sentComplete: boolean("sent_complete").notNull().default(false),
     receivedDue: timestamp("received_due", { withTimezone: true })
@@ -50,7 +50,7 @@ export const mailAccount = pgTable(
   (t) => [
     uniqueIndex("mail_account_primary_resend").on(t.provider),
     index("mail_account_project").on(t.projectId),
-    check("mail_account_provider", sql`${t.provider} = 'resend'`),
+    check("mail_account_provider", sql`${t.provider} in ('resend','mxroute')`),
   ],
 );
 export const mailMessage = pgTable(

@@ -2,7 +2,10 @@ import { loadRuntimeConfig } from "@commandry/config";
 import { createMailService, type MailOperation } from "@commandry/application";
 import { createMailAccessRepository } from "@commandry/db";
 import { MailError } from "@commandry/domain";
-import { createResendMailProvider } from "@commandry/platform";
+import {
+  createResendMailProvider,
+  createMxrouteMailProvider,
+} from "@commandry/platform";
 import {
   foundationFailure,
   foundationOwnerIdentity,
@@ -19,7 +22,15 @@ export function getMailService() {
     createMailAccessRepository(getDatabase().db, {
       environment: config.appEnv,
     }),
-    () => provider,
+    (account) =>
+      account.provider === "mxroute"
+        ? createMxrouteMailProvider(
+            config.mailMxroutePasswordFile
+              ? { passwordFile: config.mailMxroutePasswordFile }
+              : {},
+          )
+        : provider,
+    { appOrigin: config.appOrigin },
   );
 }
 export async function ownerMail(

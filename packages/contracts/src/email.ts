@@ -19,8 +19,19 @@ export const mailRuleSchema = z.strictObject({
   enabled: z.boolean(),
 });
 export type MailRule = z.infer<typeof mailRuleSchema>;
+export const mailImapReferenceSchema = z.strictObject({
+  folder: z
+    .string()
+    .min(1)
+    .max(512)
+    .refine((s) => !/[\r\n\0]/.test(s)),
+  uidValidity: z.string().regex(/^[0-9]{1,10}$/),
+  uid: z.number().int().min(1).max(4294967295),
+  seen: z.boolean().optional(),
+});
 export const mailMetadataSchema = z.object({
   externalId: id,
+  imap: mailImapReferenceSchema.optional(),
   direction: mailDirectionSchema,
   from: header(),
   to: z.array(header()).max(100),
@@ -83,7 +94,7 @@ export type MailAccount = {
   id: string;
   projectId: string;
   name: string;
-  provider: "resend";
+  provider: "resend" | "mxroute";
   domains: string[];
   verifiedDomains: string[];
   verifiedAt: string | null;
@@ -159,6 +170,7 @@ export const mailAttachmentQuerySchema = z.strictObject({
   cursor: z.string().max(200).nullable().default(null),
 });
 export const mailCreateAccountSchema = z.strictObject({
+  provider: z.enum(["resend", "mxroute"]).default("resend"),
   projectId: id,
   name: z.string().trim().min(1).max(100),
 });
@@ -189,6 +201,7 @@ export type MailAttachment = {
   size: number;
   contentId?: string;
   disposition?: "inline" | "attachment";
+  ownerDownload?: boolean;
   downloadUrl?: string;
   expiresAt?: string;
 };

@@ -21,6 +21,7 @@ x-runtime-env: &runtime-env
   BOSS_POOL_MAX: ${BOSS_POOL_MAX:-5}
   MAIL_POLLING: ${MAIL_POLLING:-false}
   MAIL_RESEND_API_KEY_FILE: ${MAIL_RESEND_API_KEY_FILE:-}
+  MAIL_MXROUTE_PASSWORD_FILE: ${MAIL_MXROUTE_PASSWORD_FILE:-}
 
 services:
   postgres:
@@ -67,6 +68,12 @@ services:
       MAIL_RESEND_WEBHOOK_SECRET_FILE: ${MAIL_RESEND_WEBHOOK_SECRET_FILE:-}
     volumes:
       - type: bind
+        source: ${MAIL_MXROUTE_PASSWORD_FILE:-/dev/null}
+        target: ${MAIL_MXROUTE_PASSWORD_FILE:-/run/commandry-disabled-mxroute-key}
+        read_only: true
+        bind:
+          create_host_path: false
+      - type: bind
         source: ${MAIL_RESEND_API_KEY_FILE:-/dev/null}
         target: ${MAIL_RESEND_API_KEY_FILE:-/run/commandry-disabled-mail-key}
         read_only: true
@@ -108,6 +115,12 @@ services:
       OBSERVATORY_CLOUDFLARE_ACCOUNT_ID: ${OBSERVATORY_CLOUDFLARE_ACCOUNT_ID:-}
       OBSERVATORY_CLOUDFLARE_TOKEN_FILE: ${OBSERVATORY_CLOUDFLARE_TOKEN_FILE:-}
     volumes:
+      - type: bind
+        source: ${MAIL_MXROUTE_PASSWORD_FILE:-/dev/null}
+        target: ${MAIL_MXROUTE_PASSWORD_FILE:-/run/commandry-disabled-mxroute-key}
+        read_only: true
+        bind:
+          create_host_path: false
       - type: bind
         source: ${MAIL_RESEND_API_KEY_FILE:-/dev/null}
         target: ${MAIL_RESEND_API_KEY_FILE:-/run/commandry-disabled-mail-key}

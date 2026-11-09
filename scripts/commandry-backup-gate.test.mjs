@@ -25,7 +25,11 @@ test("mail credential backup exception cannot expose other configuration or writ
     size: 40,
     isFile: () => true,
   };
-  for (const path of ["mail/resend-primary.key", "mail/resend-webhook.key"])
+  for (const path of [
+    "mail/resend-primary.key",
+    "mail/resend-webhook.key",
+    "mail/mxroute-password.key",
+  ])
     assert.equal(mailCredentialFileAllowed(path, entry, 0), true);
   for (const path of [
     "commandry.env",

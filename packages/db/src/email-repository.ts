@@ -36,7 +36,7 @@ export function mailAccountRecord(row: Row): MailAccount {
     id: String(row.id),
     projectId: String(row.project_id),
     name: String(row.name),
-    provider: "resend",
+    provider: row.provider as MailAccount["provider"],
     domains: row.domains as string[],
     verifiedDomains: row.verified_domains as string[],
     verifiedAt: mailIso(row.verified_at),
@@ -206,7 +206,7 @@ function records(
         },
       ];
       await tx.execute(
-        sql`insert into mail_account(id,project_id,name,domains,rules) values (${input.id}::uuid,${input.projectId}::uuid,${input.name},${JSON.stringify(input.domains)}::jsonb,${JSON.stringify(defaultRules)}::jsonb)`,
+        sql`insert into mail_account(id,project_id,name,provider,domains,rules,retention_days) values (${input.id}::uuid,${input.projectId}::uuid,${input.name},${input.provider},${JSON.stringify(input.domains)}::jsonb,${JSON.stringify(defaultRules)}::jsonb,${input.provider === "mxroute" ? 0 : 30})`,
       );
       return account(input.id);
     },

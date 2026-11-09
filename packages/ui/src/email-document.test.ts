@@ -54,4 +54,21 @@ describe("isolated email documents", () => {
     );
     expect(emailContentId("<logo@mail>")).toBe("logo@mail");
   });
+  it("accepts authorized raster data for CID images while refusing active data types", () => {
+    const result = createEmailDocument(
+      '<img src="cid:logo"><img src="cid:active">',
+      {
+        remoteImages: false,
+        inlineImages: {
+          logo: "data:image/png;base64,aGVsbG8=",
+          active: "data:image/svg+xml;base64,aGVsbG8=",
+        },
+      },
+    );
+    const doc = new DOMParser().parseFromString(result.document, "text/html");
+    expect(doc.querySelectorAll("img[src]")).toHaveLength(1);
+    expect(doc.querySelector("img")?.getAttribute("src")).toBe(
+      "data:image/png;base64,aGVsbG8=",
+    );
+  });
 });

@@ -6773,6 +6773,14 @@
                 "$schema": "https://json-schema.org/draft/2020-12/schema",
                 "type": "object",
                 "properties": {
+                  "provider": {
+                    "default": "resend",
+                    "type": "string",
+                    "enum": [
+                      "resend",
+                      "mxroute"
+                    ]
+                  },
                   "projectId": {
                     "type": "string",
                     "format": "uuid",

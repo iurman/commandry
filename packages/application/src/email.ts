@@ -40,6 +40,7 @@ export type MailOperation =
   | "overview"
   | "read"
   | "attachments"
+  | "download"
   | "drafts"
   | "draft"
   | "triage"
@@ -61,6 +62,7 @@ export interface MailRecords {
     projectId: string;
     name: string;
     domains: string[];
+    provider: MailAccount["provider"];
   }): Promise<MailAccount>;
   messages(query: MailPageQuery): Promise<MailPage<MailMessage>>;
   inboxes(query: MailPageQuery): Promise<MailPage<MailInbox>>;
@@ -89,6 +91,12 @@ export interface MailAccessPort {
     action: (records: MailRecords) => Promise<T>,
   ): Promise<T>;
 }
+export type MailDownload = {
+  body: ReadableStream<Uint8Array>;
+  contentType: string;
+  filename: string;
+  inline: boolean;
+};
 export interface MailProvider {
   domains(): Promise<string[]>;
   list(
@@ -98,13 +106,19 @@ export interface MailProvider {
   read(
     direction: "received" | "sent",
     externalId: string,
+    metadata?: MailMetadata,
   ): Promise<MailContent>;
   attachments(
     direction: "received" | "sent",
     externalId: string,
     cursor: string | null,
     attachmentId?: string,
+    metadata?: MailMetadata,
   ): Promise<MailPage<MailAttachment>>;
+  download?(
+    metadata: MailMetadata,
+    attachmentId: string,
+  ): Promise<MailDownload>;
   send(draft: MailDraft): Promise<{ id: string }>;
 }
 export function mailCapability(
@@ -122,7 +136,7 @@ export function mailCapability(
 export function createMailService(
   port: MailAccessPort,
   provider: (account: MailAccount) => MailProvider,
-  options: { now?: () => Date } = {},
+  options: { now?: () => Date; appOrigin?: string } = {},
 ) {
   const clock = options.now ?? (() => new Date());
   return {
@@ -135,22 +149,29 @@ export function createMailService(
         if (mailCapability(operation) === null && !r.owner)
           throw new MailError("FORBIDDEN");
         switch (operation) {
-          case "accounts":
+          case "accounts": {
+            const items = await r.accounts();
+            const mailbox = items.find((a) => a.provider === "mxroute");
             return {
-              items: await r.accounts(),
+              items,
               mxroute: {
-                state: "disconnected",
+                state: mailbox?.enabled ? "connected" : "disconnected",
                 address: "contact@isaacurman.com",
-                reason:
-                  "Independent MXroute IMAP credentials are not configured. Direct mailbox mail is outside this index.",
+                reason: mailbox?.enabled
+                  ? "Read-only direct mailbox; source folders and provider originals."
+                  : "Direct MXroute mailbox is not configured.",
               },
             };
+          }
           case "account": {
             const input = mailCreateAccountSchema.parse(raw);
             return r.createAccount({
               ...input,
               id: randomUUID(),
-              domains: [...MAIL_DOMAINS],
+              domains:
+                input.provider === "mxroute"
+                  ? ["isaacurman.com"]
+                  : [...MAIL_DOMAINS],
             });
           }
           case "messages":
@@ -178,6 +199,7 @@ export function createMailService(
               original = await provider(account).read(
                 message.direction,
                 message.externalId,
+                message,
               );
             } catch (error) {
               if (!(error instanceof MailError)) throw error;
@@ -223,12 +245,39 @@ export function createMailService(
           case "attachments": {
             const input = mailAttachmentQuerySchema.parse(raw),
               m = await r.message(input.id);
-            return provider(await r.account(m.accountId)).attachments(
+            const account = await r.account(m.accountId);
+            const page = await provider(account).attachments(
               m.direction,
               m.externalId,
               input.cursor,
               input.attachmentId,
+              m,
             );
+            if (account.provider === "mxroute" && options.appOrigin)
+              page.items = page.items.map((a) => ({
+                ...a,
+                ownerDownload: true,
+                downloadUrl: new URL(
+                  `/api/v1/email/attachment/${m.id}/${a.id}`,
+                  options.appOrigin,
+                ).href,
+              }));
+            return page;
+          }
+          case "download": {
+            const input = mailAttachmentQuerySchema.parse(raw);
+            if (!input.attachmentId) throw new MailError("INVALID_INPUT");
+            const m = await r.message(input.id);
+            const p = provider(await r.account(m.accountId));
+            if (p.download) return p.download(m, input.attachmentId);
+            const page = await p.attachments(
+              m.direction,
+              m.externalId,
+              null,
+              input.attachmentId,
+              m,
+            );
+            return { redirect: page.items[0]?.downloadUrl };
           }
           case "triage":
             return r.triage(mailTriageSchema.parse(raw));
@@ -251,6 +300,8 @@ export function createMailService(
               input?.draft,
             );
             const account = await r.account(draft.accountId);
+            if (account.provider === "mxroute")
+              throw new MailError("FORBIDDEN");
             requireMailIdentity(account, draft.from, clock());
             let inReplyTo: string | null = null,
               references: string[] = [];
@@ -317,7 +368,10 @@ export function createMailService(
           case "approve": {
             const { id } = mailIdSchema.parse(raw),
               d = await r.draft(id);
-            requireMailIdentity(await r.account(d.accountId), d.from, clock());
+            const account = await r.account(d.accountId);
+            if (account.provider === "mxroute")
+              throw new MailError("FORBIDDEN");
+            requireMailIdentity(account, d.from, clock());
             if (!["draft", "approved"].includes(d.state))
               throw new MailError("VERSION_CONFLICT");
             return r.approve(
@@ -330,7 +384,10 @@ export function createMailService(
               d = await r.draft(id);
             if (["accepted", "queued", "sending"].includes(d.state)) return d;
             requireMailApproval(d, clock());
-            requireMailIdentity(await r.account(d.accountId), d.from, clock());
+            const account = await r.account(d.accountId);
+            if (account.provider === "mxroute")
+              throw new MailError("FORBIDDEN");
+            requireMailIdentity(account, d.from, clock());
             return r.queue(id);
           }
         }
@@ -398,6 +455,7 @@ export function createMailWorker(
         const { draft, account, retrying } = claim;
         try {
           requireMailApproval(draft, clock());
+          if (account.provider === "mxroute") throw new MailError("FORBIDDEN");
           const live = await provider(account).domains();
           requireMailIdentity(
             {
