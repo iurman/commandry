@@ -50,6 +50,15 @@ test(
     await writeFile(keyFile, "re_" + "s".repeat(30), { mode: 0o600 });
     await db.db
       .insert(project)
+      .values(
+        Array.from({ length: 25 }, (_, i) => ({
+          id: `00000000-0000-4000-8000-${String(i + 1).padStart(12, "0")}`,
+          name: `Earlier pagination fixture ${i + 1}`,
+        })),
+      )
+      .onConflictDoNothing();
+    await db.db
+      .insert(project)
       .values({ id: projectId, name: "Email scale qualification" });
     await db.db.execute(
       sql`insert into mail_account(id,project_id,name,provider,domains) values(${accountId}::uuid,${projectId}::uuid,'Scale fixture',${provider},${JSON.stringify(provider === "mxroute" ? ["isaacurman.com"] : MAIL_DOMAINS)}::jsonb)`,
@@ -125,7 +134,7 @@ test(
       const r = await fetch(origin + "/api/v1/projects?limit=20");
       assert.equal(r.status, 200);
       const page = (await r.json()) as { items: { id: string }[] };
-      assert.ok(page.items.some((p) => p.id === projectId));
+      assert.ok(page.items.length > 0 && page.items.length <= 20);
       return performance.now() - start;
     }
     try {
@@ -141,6 +150,33 @@ test(
         await delay(100);
       }
       assert.ok(ready, tail);
+      // A populated database need not put this fixture on its first page.
+      // Prove reachability once, then time the same ordinary paged read.
+      let cursor: string | null = null;
+      let fixtureReached = false;
+      const cursors = new Set<string>();
+      do {
+        const response: Response = await fetch(
+          origin +
+            "/api/v1/projects?limit=20" +
+            (cursor ? "&cursor=" + encodeURIComponent(cursor) : ""),
+        );
+        assert.equal(response.status, 200);
+        const page = (await response.json()) as {
+          items: { id: string }[];
+          nextCursor: string | null;
+        };
+        fixtureReached ||= page.items.some((p) => p.id === projectId);
+        cursor = page.nextCursor;
+        if (cursor) {
+          assert.ok(!cursors.has(cursor));
+          cursors.add(cursor);
+        }
+      } while (cursor);
+      assert.ok(
+        fixtureReached,
+        "Scale fixture must remain reachable through project pagination",
+      );
       for (let i = 0; i < 20; i++) baseline.push(await ordinaryRead());
       worker = spawn(
         process.execPath,
