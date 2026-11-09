@@ -207,6 +207,8 @@ export default function EmailWorkspace({
   }
   function open(id: string) {
     readEpoch.current++;
+    setError("");
+    setFeedback("");
     setRead(null);
     setAttachments(emptyPage);
     setReadState("loading");
@@ -742,6 +744,8 @@ export default function EmailWorkspace({
                 disabled={busy}
                 onClick={() => {
                   readEpoch.current++;
+                  setError("");
+                  setFeedback("");
                   setRead(null);
                   setAttachments(emptyPage);
                   setReadState("loading");

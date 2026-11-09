@@ -740,6 +740,11 @@ test(
           await expect(
             frame.getByRole("heading", { name: "HTML-only original" }),
           ).toBeVisible();
+          await expect(
+            page
+              .getByRole("alert")
+              .filter({ hasText: "Original mail is unavailable" }),
+          ).toHaveCount(0);
           await expect(frame.locator("h1")).toHaveCSS(
             "color",
             "rgb(26, 80, 120)",
