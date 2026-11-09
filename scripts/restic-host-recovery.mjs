@@ -147,6 +147,10 @@ async function waitForPostgres(admin) {
         "exec",
         postgres,
         "pg_isready",
+        // The image's temporary initialization server listens only on a socket.
+        // Wait for the final server so role queries cannot race its shutdown.
+        "-h",
+        "127.0.0.1",
         "-U",
         admin,
         "-d",
