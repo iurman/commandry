@@ -156,7 +156,7 @@ test(
       let fixtureReached = false;
       const cursors = new Set<string>();
       do {
-        const response = await fetch(
+        const response: Response = await fetch(
           origin +
             "/api/v1/projects?limit=20" +
             (cursor ? "&cursor=" + encodeURIComponent(cursor) : ""),
