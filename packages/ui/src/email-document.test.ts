@@ -5,11 +5,12 @@ import { createEmailDocument, emailContentId } from "./email-document";
 describe("isolated email documents", () => {
   it("retains original formatting while removing active/navigation markup and unsafe URLs", () => {
     const result = createEmailDocument(
-      '<style>td{color:red}</style><table><tr><td onclick="alert(1)">Original</td></tr></table><script>bad()</script><meta http-equiv="refresh" content="0;url=https://evil.test"><iframe src="https://evil.test"></iframe><form><input></form><svg onload="bad()"></svg><a href="javascript:bad()">Bad</a><a href="https://example.test/page" ping="https://evil.test">Good</a>',
+      '<title>Mail window title</title><style>td{color:red}</style><table><tr><td onclick="alert(1)">Original</td></tr></table><script>bad()</script><meta http-equiv="refresh" content="0;url=https://evil.test"><iframe src="https://evil.test"></iframe><form><input></form><svg onload="bad()"></svg><a href="javascript:bad()">Bad</a><a href="https://example.test/page" ping="https://evil.test">Good</a>',
       { remoteImages: false, inlineImages: {} },
     );
     const doc = new DOMParser().parseFromString(result.document, "text/html");
     expect(doc.querySelector("td")?.textContent).toBe("Original");
+    expect(doc.body.textContent).not.toContain("Mail window title");
     expect(doc.querySelector("td")?.hasAttribute("onclick")).toBe(false);
     expect(
       doc.querySelectorAll(

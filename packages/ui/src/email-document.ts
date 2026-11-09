@@ -22,7 +22,7 @@ export function createEmailDocument(
     ),
   );
   const discard = new Set(
-    "script noscript iframe frame frameset object embed template svg math form input button select textarea meta base link audio video source track canvas".split(
+    "script noscript title iframe frame frameset object embed template svg math form input button select textarea meta base link audio video source track canvas".split(
       " ",
     ),
   );
