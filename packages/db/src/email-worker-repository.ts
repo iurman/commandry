@@ -305,7 +305,7 @@ export async function acceptMailWebhook(
   const digest = createHash("sha256").update(input.raw).digest("hex");
   await db.transaction(async (tx) => {
     const accounts = await tx.execute(
-      sql`select id from mail_account where id=${input.accountId}::uuid and enabled for share`,
+      sql`select id from mail_account where id=${input.accountId}::uuid and provider='resend' and enabled for share`,
     );
     if (!accounts.rows.length) throw new MailError("NOT_FOUND");
     const result = await tx.execute(

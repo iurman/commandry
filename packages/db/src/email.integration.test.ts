@@ -736,6 +736,27 @@ test(
           assert.equal(mailbox.provider, "mxroute");
           assert.deepEqual(mailbox.domains, ["isaacurman.com"]);
           assert.equal(mailbox.retentionDays, 0);
+          await assert.rejects(
+            acceptMailWebhook(runtime.db, {
+              accountId: mailbox.id,
+              id: "mxroute-cross-provider-control",
+              raw: "synthetic signed Resend event",
+              externalId: randomUUID(),
+              direction: "received",
+              status: "received",
+              occurredAt: now().toISOString(),
+            }),
+            denied("NOT_FOUND"),
+          );
+          const rejectedEvents = await admin.db.execute(
+            sql`select count(*)::int n from mail_event where account_id=${mailbox.id}::uuid`,
+          );
+          assert.equal(
+            rejectedEvents.rows[0]!.n,
+            0,
+            "Resend events must not enter the direct IMAP account",
+          );
+
           const source: MailMetadata = {
             ...metadata("received", "contact@isaacurman.com"),
             imap: { folder: "INBOX", uidValidity: "18", uid: 1, seen: true },

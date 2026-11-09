@@ -149,7 +149,9 @@ bridges durable queued drafts and pending source references into jobs. Each
 reconciliation job handles one page, checkpoints atomically and preserves the
 previous cursor on failure. Advisory account locks and draft leases protect
 concurrent jobs. Signed raw webhook bytes are verified before ingestion; durable
-Svix-ID/payload-digest deduplication commits before acknowledgement. Hydration
+Svix-ID/payload-digest deduplication commits before acknowledgement. Only Resend
+accounts accept these signed events; the direct IMAP account is populated solely
+through its read-only reconciliation worker. Hydration
 and delivery projection happen in the worker. Database failures produce a retryable
 response. No bulk mail work runs inside the web process or an HTTP request.
 
