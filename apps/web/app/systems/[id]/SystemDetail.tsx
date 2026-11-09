@@ -47,7 +47,11 @@ export default function SystemDetail({ systemId }: { systemId: string }) {
     setRevision((current) => current + 1);
     try {
       const saved = await apiJson<SystemSummary>(path);
-      setSystem(saved);
+      setSystem((current) =>
+        current && (current.id !== saved.id || current.version > saved.version)
+          ? current
+          : saved,
+      );
     } catch (cause) {
       setError(
         cause instanceof Error
