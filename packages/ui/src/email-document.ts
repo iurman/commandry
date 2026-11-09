@@ -72,7 +72,13 @@ export function createEmailDocument(
       if (/^cid:/i.test(src)) {
         const id = emailContentId(src);
         contentIds.add(id);
-        safe = url(options.inlineImages[id] ?? "", ["https:"]);
+        const inline = options.inlineImages[id] ?? "";
+        safe =
+          /^data:image\/(png|jpeg|gif|webp|avif);base64,[a-z0-9+/=]+$/i.test(
+            inline,
+          )
+            ? inline
+            : url(inline, ["https:"]);
       } else if (
         /^data:image\/(png|jpeg|gif|webp|avif);base64,[a-z0-9+/=\s]+$/i.test(
           src,

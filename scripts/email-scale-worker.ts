@@ -1,4 +1,4 @@
-/** Test-only separate worker. Synthetic Resend responses; no external network. */
+/** Test-only separate worker. Synthetic provider transports; no external network. */
 import { createHash } from "node:crypto";
 import { readFileSync } from "node:fs";
 import {
@@ -6,7 +6,11 @@ import {
   createMailWorkerRepository,
 } from "../packages/db/src/index";
 import { createMailWorker } from "../packages/application/src/index";
-import { createResendMailProvider } from "../packages/platform/src/index";
+import {
+  createResendMailProvider,
+  createMxrouteMailProvider,
+} from "../packages/platform/src/index";
+import type { MxrouteClient } from "../packages/platform/src/index";
 import { MAIL_DOMAINS } from "../packages/contracts/src/index";
 
 async function main() {
@@ -15,6 +19,7 @@ async function main() {
     accountId: string;
     keyFile: string;
     count: number;
+    provider?: "resend" | "mxroute";
   };
   if (new URL(input.url).hostname !== "127.0.0.1" || input.count !== 100000)
     throw new Error("Use the isolated scale harness");
@@ -86,11 +91,69 @@ async function main() {
       has_more: offset + data.length < input.count,
     });
   };
-  const provider = createResendMailProvider({
-    keyFile: input.keyFile,
-    fetch: fixtureFetch,
-    minimumIntervalMs: 0,
-  });
+  const provider =
+    input.provider === "mxroute"
+      ? createMxrouteMailProvider({
+          passwordFile: input.keyFile,
+          createClient: () =>
+            ({
+              on() {},
+              close() {},
+              async connect() {},
+              async list() {
+                return [{ path: "INBOX", flags: new Set<string>() }];
+              },
+              async mailboxOpen() {
+                return { uidValidity: 18n, uidNext: input.count + 1 };
+              },
+              async *fetch(range: string) {
+                const [start, end] = range.split(":").map(Number);
+                for (let n = start!; n <= end!; n++)
+                  yield {
+                    uid: n,
+                    seq: n,
+                    flags: new Set<string>(),
+                    internalDate: new Date(Date.UTC(2026, 10, 8) - n * 1000),
+                    envelope: {
+                      from: [{ address: `sender-${n}@example.test` }],
+                      to: [{ address: "contact@isaacurman.com" }],
+                      subject:
+                        (n % 20 === 0 ? "Urgent: " : "Indexed source: ") +
+                        createHash("sha256")
+                          .update(String(n))
+                          .digest("hex")
+                          .repeat(23),
+                      messageId: `<${n}@example.test>`,
+                    },
+                    bodyStructure: {
+                      type: "multipart/mixed",
+                      childNodes: [
+                        { part: "1", type: "text/plain", size: 102400 },
+                        ...(n % 5 === 0
+                          ? [
+                              {
+                                part: "2",
+                                type: "application/pdf",
+                                disposition: "attachment",
+                                size: 2097152,
+                              },
+                            ]
+                          : []),
+                      ],
+                    },
+                  };
+              },
+              async download() {
+                bodyReads++;
+                throw new Error("Scale sync must never fetch MIME bytes");
+              },
+            }) as unknown as MxrouteClient,
+        })
+      : createResendMailProvider({
+          keyFile: input.keyFile,
+          fetch: fixtureFetch,
+          minimumIntervalMs: 0,
+        });
   const worker = createMailWorker(
     createMailWorkerRepository(db.db),
     () => provider,
@@ -119,6 +182,7 @@ async function main() {
       JSON.stringify({
         result: {
           count: input.count,
+          provider: input.provider ?? "resend",
           pages,
           bodyReads,
           attachmentBytes,

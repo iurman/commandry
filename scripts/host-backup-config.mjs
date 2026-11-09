@@ -6,7 +6,7 @@ function fail(code) {
   throw new Error(code);
 }
 
-// These two read-only bind mounts are readable by the image's node group.
+// These exact read-only bind mounts are readable by the image's node group.
 // Their enclosing configuration directories remain root-owned mode 0700.
 export function mailCredentialFileAllowed(relativePath, entry, uid) {
   return (
@@ -17,9 +17,11 @@ export function mailCredentialFileAllowed(relativePath, entry, uid) {
     entry.nlink === 1 &&
     entry.size > 0 &&
     (entry.mode & 0o777) === 0o640 &&
-    ["mail/resend-primary.key", "mail/resend-webhook.key"].includes(
-      relativePath,
-    )
+    [
+      "mail/resend-primary.key",
+      "mail/resend-webhook.key",
+      "mail/mxroute-password.key",
+    ].includes(relativePath)
   );
 }
 

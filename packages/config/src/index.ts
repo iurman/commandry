@@ -66,6 +66,7 @@ const environmentSchema = z.object({
     z.enum(["true", "false"]).optional(),
   ),
   MAIL_RESEND_API_KEY_FILE: optionalString,
+  MAIL_MXROUTE_PASSWORD_FILE: optionalString,
   MAIL_RESEND_WEBHOOK_SECRET_FILE: optionalString,
   MAIL_POLLING: z.enum(["true", "false"]).default("false"),
   OBSERVATORY_NAMECHEAP_USERNAME: optionalString,
@@ -116,6 +117,7 @@ export type RuntimeConfig = {
   bossPoolMax: number;
   providerStatusPolling: boolean;
   mailResendApiKeyFile?: string;
+  mailMxroutePasswordFile?: string;
   mailResendWebhookSecretFile?: string;
   mailPolling: boolean;
   operationalSourcePolling: boolean;
@@ -310,6 +312,9 @@ export function loadRuntimeConfig(
       (value.PROVIDER_STATUS_POLLING === undefined &&
         value.APP_ENV === "production"),
     mailPolling: value.MAIL_POLLING === "true",
+    ...(value.MAIL_MXROUTE_PASSWORD_FILE
+      ? { mailMxroutePasswordFile: value.MAIL_MXROUTE_PASSWORD_FILE }
+      : {}),
     ...(value.MAIL_RESEND_API_KEY_FILE
       ? { mailResendApiKeyFile: value.MAIL_RESEND_API_KEY_FILE }
       : {}),

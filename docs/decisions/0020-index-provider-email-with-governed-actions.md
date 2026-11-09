@@ -59,3 +59,17 @@ agent replies were rejected. New DDL remains held for the normal release review.
 
 See the [implementation plan](../plans/centralized-email/PLAN.md) for source
 verification, scale budgets, tests and operational gaps.
+
+
+## Direct mailbox extension, November 8, 2026
+
+The owner explicitly requested direct MXroute connection and available-folder
+backfill, then supplied the existing1Password source after the independent release.
+Adopt read-only IMAP using stable mailbox/UIDVALIDITY/UID references and separate
+worker checkpoints, retaining providers as the original-content authority. A
+bounded single-message MIME read or single attachment stream is permitted on
+explicit authorized demand; it writes no archive and never performs bulk sync.
+No SMTP action is added. Existing mail.read/triage and account/project audit
+boundaries apply; direct-account draft/approve/send are refused. The
+[adoption plan](../plans/centralized-email/MXROUTE.md) defines exact budgets,
+credential/migration controls, remote read-only behavior and verification.

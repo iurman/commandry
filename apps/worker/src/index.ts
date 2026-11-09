@@ -1,6 +1,10 @@
 import { createMailWorker } from "@commandry/application";
 import { createMailWorkerRepository } from "@commandry/db";
-import { createResendMailProvider, MAIL_QUEUE } from "@commandry/platform";
+import {
+  createResendMailProvider,
+  createMxrouteMailProvider,
+  MAIL_QUEUE,
+} from "@commandry/platform";
 import { mailJobSchema } from "@commandry/contracts";
 import { randomUUID } from "node:crypto";
 import {
@@ -711,7 +715,14 @@ const mailProvider = createResendMailProvider(
 );
 const mailWorker = createMailWorker(
   createMailWorkerRepository(database.db),
-  () => mailProvider,
+  (account) =>
+    account.provider === "mxroute"
+      ? createMxrouteMailProvider(
+          config.mailMxroutePasswordFile
+            ? { passwordFile: config.mailMxroutePasswordFile }
+            : {},
+        )
+      : mailProvider,
 );
 await transport.boss.work(MAIL_QUEUE, async ([job]) => {
   if (!job || !config.mailPolling) return;

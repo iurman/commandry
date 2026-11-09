@@ -67,7 +67,7 @@ async function upsert(
     m.status = observation.status;
   const reasons = mailAttentionReasons(m, rules);
   await tx.execute(
-    sql`insert into mail_message(id,account_id,external_id,direction,occurred_at,metadata,unread,reasons,status_at) values(${id}::uuid,${accountId}::uuid,${m.externalId}::uuid,${m.direction},${m.occurredAt}::timestamptz,${JSON.stringify(m)}::jsonb,${m.direction === "received"},${JSON.stringify(reasons)}::jsonb,${statusAt}::timestamptz) on conflict(account_id,external_id,direction) do update set metadata=excluded.metadata,reasons=excluded.reasons,status_at=excluded.status_at`,
+    sql`insert into mail_message(id,account_id,external_id,direction,occurred_at,metadata,unread,reasons,status_at) values(${id}::uuid,${accountId}::uuid,${m.externalId}::uuid,${m.direction},${m.occurredAt}::timestamptz,${JSON.stringify(m)}::jsonb,${m.direction === "received" && !m.imap?.seen},${JSON.stringify(reasons)}::jsonb,${statusAt}::timestamptz) on conflict(account_id,external_id,direction) do update set metadata=excluded.metadata,reasons=excluded.reasons,status_at=excluded.status_at`,
   );
   for (const address of addresses)
     await tx.execute(
@@ -106,8 +106,8 @@ export function createMailWorkerRepository(
             const values = sql`verified_domains=${JSON.stringify(verifiedDomains.filter((d) => account.domains.includes(d)))}::jsonb,verified_at=${clock()}::timestamptz,last_synced_at=${clock()}::timestamptz,error=null`;
             await tx.execute(
               direction === "received"
-                ? sql`update mail_account set ${values},received_cursor=${cursor}::uuid,received_complete=received_complete or ${cursor === null},received_due=${new Date(clock().getTime() + (cursor ? 1000 : 300000))}::timestamptz where id=${id}::uuid`
-                : sql`update mail_account set ${values},sent_cursor=${cursor}::uuid,sent_complete=sent_complete or ${cursor === null},sent_due=${new Date(clock().getTime() + (cursor ? 1000 : 300000))}::timestamptz where id=${id}::uuid`,
+                ? sql`update mail_account set ${values},received_cursor=${cursor},received_complete=received_complete or ${cursor === null},received_due=${new Date(clock().getTime() + (cursor ? 1000 : 300000))}::timestamptz where id=${id}::uuid`
+                : sql`update mail_account set ${values},sent_cursor=${cursor},sent_complete=sent_complete or ${cursor === null},sent_due=${new Date(clock().getTime() + (cursor ? 1000 : 300000))}::timestamptz where id=${id}::uuid`,
             );
           },
           async events(externalId, direction) {

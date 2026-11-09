@@ -726,6 +726,171 @@ test(
         },
       );
       await t.test(
+        "direct mailbox checkpoints, owner attachment reads and read-only action policy",
+        async () => {
+          const mailbox = (await service.execute(owner, "account", {
+            provider: "mxroute",
+            projectId,
+            name: "Synthetic direct mailbox",
+          })) as MailAccount;
+          assert.equal(mailbox.provider, "mxroute");
+          assert.deepEqual(mailbox.domains, ["isaacurman.com"]);
+          assert.equal(mailbox.retentionDays, 0);
+          const source: MailMetadata = {
+            ...metadata("received", "contact@isaacurman.com"),
+            imap: { folder: "INBOX", uidValidity: "18", uid: 1, seen: true },
+          };
+          const attachmentId = randomUUID();
+          let lists = 0;
+          const direct: MailProvider = {
+            async domains() {
+              return [];
+            },
+            async list(_direction, cursor) {
+              lists++;
+              return {
+                items: cursor ? [] : [source],
+                nextCursor: cursor ? null : "imap-text-checkpoint",
+              };
+            },
+            async read(_direction, id, m) {
+              assert.equal(id, source.externalId);
+              assert.deepEqual(m?.imap, source.imap);
+              return {
+                metadata: source,
+                text: "Decoded direct original",
+                html: '<img src="cid:logo">',
+                headers: { "message-id": source.messageId! },
+              };
+            },
+            async attachments() {
+              return {
+                items: [
+                  {
+                    id: attachmentId,
+                    filename: "logo.png",
+                    contentType: "image/png",
+                    size: 4,
+                    contentId: "logo",
+                  },
+                ],
+                nextCursor: null,
+              };
+            },
+            async download(m, id) {
+              assert.equal(m.externalId, source.externalId);
+              assert.equal(id, attachmentId);
+              return {
+                body: new ReadableStream({
+                  start(c) {
+                    c.enqueue(new Uint8Array([1, 2, 3, 4]));
+                    c.close();
+                  },
+                }),
+                contentType: "image/png",
+                filename: "logo.png",
+                inline: true,
+              };
+            },
+            async send() {
+              throw new Error("Read-only account attempted SMTP");
+            },
+          };
+          const access = createMailAccessRepository(runtime.db, {
+            environment: "test",
+            now,
+          });
+          const directService = createMailService(access, () => direct, {
+            now,
+            appOrigin: "https://commandry.example.test",
+          });
+          const directWorker = createMailWorker(workerPort, () => direct, now);
+          await directWorker.process({
+            kind: "reconcile",
+            accountId: mailbox.id,
+            direction: "received",
+          });
+          let state = (await directService.execute(owner, "accounts", {})) as {
+            items: MailAccount[];
+            mxroute: { state: string };
+          };
+          assert.equal(
+            state.items.find((a) => a.id === mailbox.id)?.receivedCursor,
+            "imap-text-checkpoint",
+          );
+          assert.equal(state.mxroute.state, "connected");
+          await directWorker.process({
+            kind: "reconcile",
+            accountId: mailbox.id,
+            direction: "received",
+          });
+          state = (await directService.execute(
+            owner,
+            "accounts",
+            {},
+          )) as typeof state;
+          assert.equal(
+            state.items.find((a) => a.id === mailbox.id)?.receivedComplete,
+            true,
+          );
+          assert.equal(lists, 2);
+          const page = (await directService.execute(owner, "messages", {
+            accountId: mailbox.id,
+          })) as MailPage<MailMessage>;
+          assert.equal(page.items.length, 1);
+          assert.equal(page.items[0]!.unread, false);
+          const message = page.items[0]!;
+          const original = (await directService.execute(owner, "read", {
+            id: message.id,
+          })) as { content: { text: string } };
+          assert.equal(original.content.text, "Decoded direct original");
+          const files = (await directService.execute(owner, "attachments", {
+            id: message.id,
+          })) as MailPage<{ downloadUrl: string; ownerDownload: boolean }>;
+          assert.equal(
+            files.items[0]!.downloadUrl,
+            `https://commandry.example.test/api/v1/email/attachment/${message.id}/${attachmentId}`,
+          );
+          assert.equal(files.items[0]!.ownerDownload, true);
+          const stream = (await directService.execute(owner, "download", {
+            id: message.id,
+            attachmentId,
+          })) as { body: ReadableStream<Uint8Array> };
+          assert.equal(
+            (await new Response(stream.body).arrayBuffer()).byteLength,
+            4,
+          );
+          await assert.rejects(
+            directService.execute(
+              machine(other.token, "mail.read", otherProject),
+              "read",
+              { id: message.id },
+            ),
+            denied("NOT_FOUND"),
+          );
+          await assert.rejects(
+            directService.execute(owner, "draft", {
+              key: randomUUID(),
+              draft: {
+                accountId: mailbox.id,
+                from: "contact@isaacurman.com",
+                to: ["test@example.test"],
+                subject: "Read-only control",
+                text: "Do not send",
+              },
+            }),
+            denied("FORBIDDEN"),
+          );
+          const existing = await admin.db.execute(
+            sql`select received_cursor,sent_cursor from mail_account where id=${account.id}::uuid`,
+          );
+          assert.ok(
+            existing.rows.length === 1,
+            "Existing Resend account preserved",
+          );
+        },
+      );
+      await t.test(
         "expires approval, rejects revocation, and audits denial without disclosing originals",
         async () => {
           const d = (await service.execute(owner, "draft", {

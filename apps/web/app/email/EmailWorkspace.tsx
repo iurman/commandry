@@ -220,7 +220,7 @@ export default function EmailWorkspace({
     window.history.replaceState(null, "", "/email?" + p.toString());
   }
   function startCompose(value?: MailDraftInput) {
-    const a = accounts[0];
+    const a = accounts.find((a) => a.provider === "resend");
     if (!a) return;
     setCompose(value ?? blankDraft(a.id, "hello@" + a.domains[0]));
     setSaved(null);
@@ -289,7 +289,7 @@ export default function EmailWorkspace({
           </Button>
           <Button
             variant="primary"
-            disabled={!accounts.length || busy}
+            disabled={!accounts.some((a) => a.provider === "resend") || busy}
             onClick={() => startCompose()}
           >
             Compose
@@ -450,11 +450,13 @@ export default function EmailWorkspace({
                       });
                     }}
                   >
-                    {accounts.map((a) => (
-                      <option key={a.id} value={a.id}>
-                        {a.name}
-                      </option>
-                    ))}
+                    {accounts
+                      .filter((a) => a.provider === "resend")
+                      .map((a) => (
+                        <option key={a.id} value={a.id}>
+                          {a.name}
+                        </option>
+                      ))}
                   </select>
                 </label>
                 <label>
@@ -783,6 +785,12 @@ export default function EmailWorkspace({
                     </dd>
                     <dt>Delivery</dt>
                     <dd>{read.message.status}</dd>
+                    {read.message.imap && (
+                      <>
+                        <dt>Mailbox folder</dt>
+                        <dd>{read.message.imap.folder}</dd>
+                      </>
+                    )}
                     <dt>Provider reference</dt>
                     <dd>
                       {read.message.externalId} / {read.message.direction}
@@ -815,7 +823,17 @@ export default function EmailWorkspace({
                       ),
                     )}
                     <Button
-                      disabled={busy}
+                      disabled={
+                        busy ||
+                        accounts.find((a) => a.id === read.message.accountId)
+                          ?.provider === "mxroute"
+                      }
+                      title={
+                        accounts.find((a) => a.id === read.message.accountId)
+                          ?.provider === "mxroute"
+                          ? "Direct MXroute is read-only"
+                          : undefined
+                      }
                       onClick={() => {
                         const m = read.message;
                         const a = accounts.find((a) => a.id === m.accountId)!;
@@ -1008,9 +1026,11 @@ export default function EmailWorkspace({
                   delivery hydration.
                 </p>
                 <p>
-                  Provider retention: {a.retentionDays} days. Indexed metadata
-                  can outlive original bodies and attachments. This is not an
-                  all-time archive.
+                  {a.provider === "mxroute"
+                    ? "Direct mailbox is read-only. Original availability follows its source folders."
+                    : `Provider retention: ${a.retentionDays} days.`}{" "}
+                  Indexed metadata can outlive original bodies and attachments.
+                  This is not an all-time archive.
                 </p>
                 <p>
                   {a.verifiedDomains.length} currently verified sending domains.
@@ -1096,10 +1116,16 @@ export default function EmailWorkspace({
               </div>
             )}
             <p>
-              <strong>MXroute: disconnected.</strong> Direct owner mail requires
-              separate mailbox credentials. Resend forwards are not original
-              MXroute messages. The existing provider forwarder and inactive
-              Sieve set are preserved.
+              <strong>
+                MXroute:{" "}
+                {accounts.some((a) => a.provider === "mxroute" && a.enabled)
+                  ? "connected, read-only"
+                  : "disconnected"}
+                .
+              </strong>{" "}
+              All selectable source folders are scanned. Folder names appear
+              with originals. Reads and local review never change mailbox flags
+              or routing.
             </p>
             <details>
               <summary>Optional agent triage</summary>

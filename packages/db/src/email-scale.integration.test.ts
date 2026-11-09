@@ -34,6 +34,10 @@ test(
   "100000-message reference index preserves web capacity with bounded separate-worker memory",
   { timeout: 600000 },
   async () => {
+    const provider =
+      process.env.COMMANDRY_EMAIL_SCALE_PROVIDER === "mxroute"
+        ? "mxroute"
+        : "resend";
     const db = createDatabase({ connectionString: url, max: 2 }),
       root = process.cwd(),
       accountId = randomUUID(),
@@ -48,7 +52,7 @@ test(
       .insert(project)
       .values({ id: projectId, name: "Email scale qualification" });
     await db.db.execute(
-      sql`insert into mail_account(id,project_id,name,domains) values(${accountId}::uuid,${projectId}::uuid,'Scale fixture',${JSON.stringify(MAIL_DOMAINS)}::jsonb)`,
+      sql`insert into mail_account(id,project_id,name,provider,domains) values(${accountId}::uuid,${projectId}::uuid,'Scale fixture',${provider},${JSON.stringify(provider === "mxroute" ? ["isaacurman.com"] : MAIL_DOMAINS)}::jsonb)`,
     );
     const port = await freePort(),
       origin = `http://127.0.0.1:${port}`;
@@ -149,6 +153,7 @@ test(
           accountId,
           keyFile,
           count: 100000,
+          provider,
         }),
       );
       let output = "",
@@ -196,6 +201,7 @@ test(
       assert.ok(webSamples.length > 0);
       assert.ok(Math.max(...webSamples.map((m) => m.rss)) < 512 * 1024 * 1024);
       const evidence = {
+        provider,
         qualification:
           "synthetic 100000 metadata references; 20% 2MiB attachment descriptors, zero body or attachment bytes",
         worker: resultLine,
@@ -214,7 +220,7 @@ test(
             1000,
         },
         limits:
-          "One separate worker, two concurrently invoked page jobs serialized per account by advisory lock. Fixture rate limiter disabled for a sustained CPU/index stress bound; not measured Resend throughput or VPS capacity.",
+          "One separate worker, two concurrently invoked page jobs serialized per account by advisory lock. External fixture transport runs without network delay for a sustained CPU/index stress bound; not measured provider throughput or VPS capacity.",
       };
       const evidenceDirectory = resolve(
         root,

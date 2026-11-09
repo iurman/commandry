@@ -35,7 +35,8 @@ export function EmailBody({
     [loading, setLoading] = useState(false),
     [imageStatus, setImageStatus] = useState("");
   const lifecycle = useRef({ generation: 0 }),
-    imageLock = useRef(false);
+    imageLock = useRef(false),
+    imageAbort = useRef<AbortController | null>(null);
   const domReady = useSyncExternalStore(
     subscribe,
     clientSnapshot,
@@ -52,6 +53,7 @@ export function EmailBody({
     const state = lifecycle.current;
     return () => {
       state.generation++;
+      imageAbort.current?.abort();
     };
   }, []);
 
@@ -60,13 +62,15 @@ export function EmailBody({
     if (imageLock.current) return;
     imageLock.current = true;
     const current = lifecycle.current.generation;
+    const controller = new AbortController();
+    imageAbort.current = controller;
     setRemoteImages(true);
     setLoading(true);
     setImageStatus("");
     let loaded = 0,
       failed = 0;
-    // A user-selected batch resolves metadata only. Image bytes go directly to
-    // the provider, with no-referrer and no shared-server byte copying.
+    // Resend images load directly. Direct IMAP raster parts use an authorized,
+    // bounded owner read so the sandbox never needs an owner cookie.
     const requested = remaining.length ? remaining : prepared.contentIds;
     if (!remaining.length) setInlineImages({});
     const batch = requested
@@ -95,10 +99,65 @@ export function EmailBody({
           });
           const fresh = page.items.find((a) => a.id === attachment.id),
             url = new URL(fresh?.downloadUrl ?? "");
-          if (url.protocol !== "https:" || url.username || url.password)
+          if (
+            (url.protocol !== "https:" &&
+              !(
+                fresh?.ownerDownload && url.origin === window.location.origin
+              )) ||
+            url.username ||
+            url.password
+          )
             throw new Error("Unavailable image");
+          let image = url.href;
+          if (fresh?.ownerDownload) {
+            if (
+              url.origin !== window.location.origin ||
+              url.pathname !== `/api/v1/email/attachment/${id}/${attachment.id}`
+            )
+              throw new Error("Unavailable image");
+            const response = await fetch(url, {
+              credentials: "same-origin",
+              cache: "no-store",
+              signal: controller.signal,
+            });
+            if (
+              !response.ok ||
+              !/^image\/(png|jpeg|gif|webp|avif)(;|$)/i.test(
+                response.headers.get("content-type") ?? "",
+              )
+            )
+              throw new Error("Unavailable image");
+            const reader = response.body?.getReader();
+            if (!reader) throw new Error("Unavailable image");
+            const chunks: Uint8Array<ArrayBuffer>[] = [];
+            let bytes = 0;
+            try {
+              for (;;) {
+                const next = await reader.read();
+                if (next.done) break;
+                bytes += next.value.byteLength;
+                if (bytes > 2097152) {
+                  await reader.cancel();
+                  throw new Error(
+                    "Embedded image exceeds 2 MiB; use its attachment.",
+                  );
+                }
+                chunks.push(new Uint8Array(next.value));
+              }
+            } finally {
+              reader.releaseLock();
+            }
+            image = await new Promise<string>((resolve, reject) => {
+              const file = new FileReader();
+              file.onload = () => resolve(String(file.result));
+              file.onerror = () => reject(new Error("Unavailable image"));
+              file.readAsDataURL(
+                new Blob(chunks, { type: attachment.contentType }),
+              );
+            });
+          }
           if (current === lifecycle.current.generation)
-            setInlineImages((v) => ({ ...v, [cid]: url.href }));
+            setInlineImages((v) => ({ ...v, [cid]: image }));
           loaded++;
         } catch {
           failed++;

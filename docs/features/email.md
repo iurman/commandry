@@ -175,8 +175,19 @@ provider delivery and the live delivery projection passed. The
 image, recovery, evidence and limitations.
 
 Direct contact@isaacurman.com messages live in MXroute independently of Resend.
-No usable IMAP credentials were discovered, and no MXroute connector is active.
-That inbox is explicitly disconnected and outside the seven-domain index.
+The separately registered `mxroute` account uses the existing mailbox credential
+through `MAIL_MXROUTE_PASSWORD_FILE`. Read-only IMAP metadata reconciliation covers
+all selectable source folders with a durable folder/UIDVALIDITY/UID checkpoint.
+Originals and selected MIME parts remain at MXroute; mailbox resets/deletions
+make the old original unavailable. Local read/review does not change source flags.
+The direct account does not support SMTP, draft approval or send. A connection is
+reported only after owner registration; source coverage and failures remain visible.
+The [direct mailbox plan](../plans/centralized-email/MXROUTE.md) records activation
+status, scale limits and verification. A selected owner attachment can stream
+through the authenticated route with bounded bytes/concurrency and no archive.
+Embedded raster images use an authorized client read after consent and render as
+in-memory raster data inside the sandbox, without sharing owner cookies with it.
+
 The owner completed browser sign-in after the initial popup/password blockers.
 Read-only discovery confirmed the isaacurman Pro workspace, all seven Verified
 domains, original receiving records across all seven and the enabled existing
