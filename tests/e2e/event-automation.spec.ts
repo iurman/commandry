@@ -29,6 +29,16 @@ test("synthetic event routine creates a source-linked worker run and records dis
   await page.getByLabel("Name").fill(`Investigate ${suffix}`);
   const projectChoice = page.getByLabel("Project", { exact: true });
   const option = projectChoice.locator(`option[value="${project.id}"]`);
+  await expect
+    .poll(
+      async () =>
+        (await option.count()) +
+        (await page
+          .getByRole("button", { name: "Load more project choices" })
+          .count()),
+      { timeout: 30_000 },
+    )
+    .toBeGreaterThan(0);
   while ((await option.count()) === 0) {
     const before = await projectChoice.locator("option").count();
     await page
