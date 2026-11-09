@@ -61,6 +61,32 @@ complete backfill with unchanged grants/services/forwarding. Retain failed and
 final evidence. Direct MXroute activation remains a separate final credential
 step under the owner's sequencing instruction.
 
+## Recovery startup correction
+
+PR 64 merged as `38d2705`. All twelve final-main jobs passed on the first attempt,
+but the normal rolling release rejected its fresh recovery gate before touching
+the business worker or routing. The isolated database/web restore passed. A full
+standalone gate repeated the host-recovery failure, and an instrumented copy of
+the unchanged host drill identified a role-query connection failure after socket
+readiness had reported success. PostgreSQL's image starts a temporary socket-only
+server during initialization, then stops it before starting the final server.
+
+The correction makes that drill wait on `127.0.0.1` TCP readiness. On the existing
+VPS, the original probe reproduced `ISOLATED_POSTGRES` with a missing socket at
+the role query; the otherwise identical TCP-ready copy passed the complete
+isolated host-role/configuration drill. Both attempts removed their disposable
+containers/volumes and the temporary diagnostic script. Production data and
+services were not changed by the reproduction.
+
+This changes one controlled host script and its release fingerprint. Qualify the
+new main image, preserve the installed script/policy for rollback, install only
+the reviewed readiness correction under the deployment lock, and pass the full
+official fresh backup/restore/host-recovery gate. Then enroll the exact reviewed
+fingerprint and clear only the rejected PR 64 attempt's hold, allowing the normal
+controller to repeat all its gates for the newly qualified main. Do not weaken
+readiness, skip recovery or claim the rendered-email release is live before its
+actual confirmation and real-message checks.
+
 ## Primary sources
 
 - [Received content and CID format](https://resend.com/docs/api-reference/emails/retrieve-received-email)
