@@ -27,7 +27,7 @@ const journal = JSON.parse(
 );
 assert.equal(
   journal.entries.at(-1).idx,
-  76,
+  77,
   "Review this audit when the migration sequence changes",
 );
 const directory = await mkdtemp(
@@ -236,8 +236,71 @@ try {
   assert.equal(before.project.length, 15);
   assert.equal(before.real_integration_state.length, 4);
   assert.ok(before.metric_sample.length >= 16);
+  // Also exercise the live predecessor's populated UUID cursors, not only an
+  // empty new mail table reached from the original 0067 inventory.
+  const mailPredecessor = join(directory, "migrations-through-0076");
+  await cp(migrationsDir, mailPredecessor, { recursive: true });
+  await writeFile(
+    join(mailPredecessor, "meta/_journal.json"),
+    JSON.stringify({
+      ...journal,
+      entries: journal.entries.filter((entry) => entry.idx <= 76),
+    }),
+  );
+  await migrateDatabase({
+    connectionString: adminUrl,
+    migrationsDir: mailPredecessor,
+  });
+  assert.deepEqual(
+    await snapshot(),
+    before,
+    "Mail predecessor preserves all canonical records and grants",
+  );
+  const mailAccountId = randomUUID(),
+    mailMessageId = randomUUID(),
+    externalId = randomUUID(),
+    cursor = randomUUID();
+  await admin.pool.query(
+    "insert into mail_account(id,project_id,name,domains,received_cursor,sent_cursor) values($1,$2,'Existing Resend cursor fixture','[\"iyulabs.com\"]'::jsonb,$3,$3)",
+    [mailAccountId, fixture.projects[0].id, cursor],
+  );
+  await admin.pool.query(
+    "insert into mail_message(id,account_id,external_id,direction,occurred_at,metadata) values($1,$2,$3,'received',now(),$4::jsonb)",
+    [
+      mailMessageId,
+      mailAccountId,
+      externalId,
+      JSON.stringify({ externalId, subject: "Existing metadata retained" }),
+    ],
+  );
+  const mailBefore = (
+    await admin.pool.query(
+      "select to_jsonb(t) record from mail_message t order by id",
+    )
+  ).rows;
   for (let attempt = 0; attempt < 2; attempt++) {
     await migrateDatabase({ connectionString: adminUrl, migrationsDir });
+    assert.deepEqual(
+      (
+        await admin.pool.query(
+          "select to_jsonb(t) record from mail_message t order by id",
+        )
+      ).rows,
+      mailBefore,
+      "Mail identities and original metadata remain unchanged",
+    );
+    const account = (
+      await runtime.pool.query(
+        "select provider,received_cursor,sent_cursor,pg_typeof(received_cursor)::text as cursor_type from mail_account where id=$1",
+        [mailAccountId],
+      )
+    ).rows[0];
+    assert.deepEqual(account, {
+      provider: "resend",
+      received_cursor: cursor,
+      sent_cursor: cursor,
+      cursor_type: "text",
+    });
     assert.deepEqual(
       await snapshot(),
       before,
