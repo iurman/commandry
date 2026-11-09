@@ -187,6 +187,8 @@ export type MailAttachment = {
   filename: string;
   contentType: string;
   size: number;
+  contentId?: string;
+  disposition?: "inline" | "attachment";
   downloadUrl?: string;
   expiresAt?: string;
 };

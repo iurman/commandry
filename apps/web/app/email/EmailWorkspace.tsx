@@ -17,6 +17,7 @@ import {
   type MailRule,
 } from "@commandry/contracts";
 import { mailApi } from "./api";
+import { EmailBody } from "./EmailBody";
 import styles from "./email.module.css";
 
 const errorText = (e: unknown) =>
@@ -92,6 +93,7 @@ export default function EmailWorkspace({
   const epoch = useRef(0),
     readEpoch = useRef(0),
     mutationLock = useRef(false);
+  const [readAttempt, setReadAttempt] = useState(0);
   useEffect(() => {
     let active = true;
     mailApi<{ items: MailAccount[] }>("accounts")
@@ -157,7 +159,7 @@ export default function EmailWorkspace({
     return () => {
       if (readEpoch.current === version) readEpoch.current = version + 1;
     };
-  }, [selected]);
+  }, [selected, readAttempt]);
   async function act(action: () => Promise<void>) {
     if (mutationLock.current) return;
     mutationLock.current = true;
@@ -736,6 +738,18 @@ export default function EmailWorkspace({
           {selected && (
             <section className={styles.panel} aria-label="Selected email">
               <Button onClick={closeMessage}>Close message</Button>
+              <Button
+                disabled={busy}
+                onClick={() => {
+                  readEpoch.current++;
+                  setRead(null);
+                  setAttachments(emptyPage);
+                  setReadState("loading");
+                  setReadAttempt((v) => v + 1);
+                }}
+              >
+                Reload original
+              </Button>
               {!read ? (
                 <p>
                   {readState === "error"
@@ -849,46 +863,54 @@ export default function EmailWorkspace({
                         read.unavailableReason +
                         "). Showing retained provider metadata. "
                       : "Original provider content. "}{" "}
-                    Email is untrusted. Remote images and active content are
-                    blocked. Read state is local to Commandry.
+                    Email is untrusted. Active content is blocked. Read state is
+                    local to Commandry.
                   </p>
-                  <pre className={styles.body}>
-                    {read.content.text ?? "No plain-text body was supplied."}
-                  </pre>
-                  {read.content.html &&
-                    read.content.nextOffset === null &&
-                    read.content.offset === 0 && (
-                      <details>
-                        <summary>Isolated HTML view</summary>
-                        <iframe
-                          className={styles.html}
-                          title="Isolated original email HTML"
-                          sandbox=""
-                          referrerPolicy="no-referrer"
-                          srcDoc={
-                            "<meta http-equiv=\"Content-Security-Policy\" content=\"default-src 'none'; style-src 'unsafe-inline'; img-src data:; base-uri 'none'; form-action 'none'\">" +
-                            read.content.html
-                          }
-                        />
-                      </details>
-                    )}
+                  <EmailBody
+                    key={read.message.id}
+                    id={read.message.id}
+                    text={read.content.text}
+                    html={read.content.html}
+                    complete={read.content.nextOffset === null}
+                    attachments={attachments}
+                  />
                   {read.content.nextOffset !== null && (
                     <Button
                       disabled={busy}
                       onClick={() =>
                         void act(async () => {
+                          const version = readEpoch.current;
                           const next = await mailApi<MailReadResult>("read", {
                             id: selected,
                             offset: read.content.nextOffset,
                           });
+                          if (version !== readEpoch.current) return;
+                          if (
+                            next.availability !== "available" ||
+                            next.content.offset !== read.content.nextOffset ||
+                            next.content.totalCharacters !==
+                              read.content.totalCharacters
+                          )
+                            throw new Error(
+                              "The original changed or became unavailable. Reopen it to retry.",
+                            );
                           setRead({
                             ...next,
                             content: {
                               ...next.content,
+                              offset: 0,
                               text:
-                                (read.content.text ?? "") +
-                                (next.content.text ?? ""),
-                              html: null,
+                                read.content.text === null &&
+                                next.content.text === null
+                                  ? null
+                                  : (read.content.text ?? "") +
+                                    (next.content.text ?? ""),
+                              html:
+                                read.content.html === null &&
+                                next.content.html === null
+                                  ? null
+                                  : (read.content.html ?? "") +
+                                    (next.content.html ?? ""),
                             },
                           });
                         })

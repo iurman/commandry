@@ -7,6 +7,7 @@ export { LocalBackupCard } from "./components/LocalBackupCard";
 export { LocalReleaseRehearsalCard } from "./components/LocalReleaseRehearsalCard";
 export { LocalReleasePreflightCard } from "./components/LocalReleasePreflightCard";
 export { Button } from "./components/Button";
+export { createEmailDocument, emailContentId } from "./email-document";
 export { StatePanel } from "./components/StatePanel";
 export { StatusBadge } from "./components/StatusBadge";
 export { RecordCard } from "./components/RecordCard";

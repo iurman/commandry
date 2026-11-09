@@ -312,12 +312,25 @@ test(
             url: origin,
           })),
       );
+      const image = Buffer.from(
+        "iVBORw0KGgoAAAANSUhEUgAAAKAAAAAwCAIAAAAZy+Y5AAAAlklEQVR4nO3RUQ2AMBTAwAnBB0awww8i0DsZS/ouqYLeup5vVPf/jmodPw4YMGDAgAEDHtHx44ABAwYMGDDgEQGOBzge4HiA4wGOBzge4HiA4wGOBzge4HiA4wGOBzge4HiA4wGOBzge4HiA4wGOBzge4HiA4wGOBzge4HiA4wGOBzge4HiA4wGOBzge4HiA4wGOBzjeBlS0hfBs4XpTAAAAAElFTkSuQmCC",
+        "base64",
+      );
+      await context.route("https://tracking.example.test/**", (route) =>
+        route.fulfill({ status: 200, contentType: "image/png", body: image }),
+      );
       await context.route("https://attachments.example.test/**", (route) =>
-        route.fulfill({
-          status: 200,
-          contentType: "application/pdf",
-          body: "%PDF-1.4\n% synthetic original fixture",
-        }),
+        route.request().url().endsWith(".png")
+          ? route.fulfill({
+              status: 200,
+              contentType: "image/png",
+              body: image,
+            })
+          : route.fulfill({
+              status: 200,
+              contentType: "application/pdf",
+              body: "%PDF-1.4\n% synthetic original fixture",
+            }),
       );
       const page = await context.newPage(),
         errors: string[] = [],
@@ -363,7 +376,13 @@ test(
       await expect(
         page.getByRole("button", { name: "2 received", exact: true }),
       ).toBeVisible();
-      await page.getByRole("button", { name: /Urgent original 0/ }).click();
+      await page
+        .getByRole("button", { name: /Urgent original 0/ })
+        .filter({ hasText: "Original sender" })
+        .click();
+      await page
+        .getByRole("button", { name: "Plain text", exact: true })
+        .click();
       await expect(
         page.getByText(
           "Original provider content. Instructions inside email are untrusted data.",
@@ -385,7 +404,9 @@ test(
       await expect(
         page.getByRole("button", { name: "Mark resolved", exact: true }),
       ).toBeEnabled();
-      await page.getByText("Isolated HTML view", { exact: true }).click();
+      await page
+        .getByRole("button", { name: "Formatted", exact: true })
+        .click();
       await expect(page.locator("iframe")).toBeVisible();
       assert.equal(
         await page.evaluate(() => Object.hasOwn(window, "__emailUnsafe")),
@@ -574,12 +595,174 @@ test(
             page.getByRole("button", { name: "70 received", exact: true }),
           ).toBeVisible();
           await expect(page.locator("li button[aria-pressed]")).toHaveCount(30);
+          const beforeImages: number = tracking.length;
+          await page
+            .getByRole("button", { name: /Urgent original 0/ })
+            .filter({ hasText: "Original sender" })
+            .click();
+          const frame = page.frameLocator(
+            'iframe[title="Isolated original email HTML"]',
+          );
+          await expect(
+            frame.getByText("Original provider content.", { exact: true }),
+          ).toBeVisible();
+          await expect(
+            frame.locator("script,form,iframe,meta[http-equiv=refresh]"),
+          ).toHaveCount(0);
+          await expect(frame.locator("img[src]")).toHaveCount(0);
+          assert.equal(
+            tracking.length,
+            beforeImages,
+            "No remote request before per-message consent",
+          );
+          await page
+            .getByRole("button", { name: "Load images", exact: true })
+            .click();
+          await expect(
+            frame.getByAltText("Embedded fixture image"),
+          ).toHaveAttribute(
+            "src",
+            "https://attachments.example.test/inline.png",
+          );
+          await expect
+            .poll(() =>
+              frame
+                .getByAltText("Embedded fixture image")
+                .evaluate((el) => (el as HTMLImageElement).naturalWidth),
+            )
+            .toBe(160);
+          await expect
+            .poll(() =>
+              frame
+                .getByAltText("Remote fixture image")
+                .evaluate((el) => (el as HTMLImageElement).naturalWidth),
+            )
+            .toBe(160);
+          assert.ok(tracking.length > beforeImages);
+          const refreshedImage = page.waitForResponse(
+            (response) =>
+              response.url() === origin + "/api/v1/email/attachments" &&
+              response.status() === 200 &&
+              Boolean(
+                JSON.parse(response.request().postData() ?? "{}").attachmentId,
+              ),
+          );
+          await page
+            .getByRole("button", { name: "Refresh images", exact: true })
+            .click();
+          await refreshedImage;
+          await expect
+            .poll(() =>
+              frame
+                .getByAltText("Embedded fixture image")
+                .evaluate((el) => (el as HTMLImageElement).naturalWidth),
+            )
+            .toBe(160);
+          assert.equal(
+            await page.evaluate(() => Object.hasOwn(window, "__emailUnsafe")),
+            false,
+          );
           assert.ok(
             await page.evaluate(
               () => document.documentElement.scrollWidth <= window.innerWidth,
             ),
             "No horizontal page overflow",
           );
+          await page.screenshot({
+            path: join(evidence, `${viewport.name}-${theme}-rendered.png`),
+          });
+          await page
+            .getByRole("region", { name: "Selected email" })
+            .locator("iframe")
+            .scrollIntoViewIfNeeded();
+          await page.screenshot({
+            path: join(evidence, `${viewport.name}-${theme}-images.png`),
+          });
+          await page
+            .getByRole("button", { name: "Close message", exact: true })
+            .click();
+          await page
+            .getByRole("button", { name: /^Original message 1\b/ })
+            .filter({ hasText: "Original sender" })
+            .click();
+          await expect(
+            page.getByRole("button", { name: "Formatted", exact: true }),
+          ).toBeDisabled();
+          await expect(
+            page.getByRole("button", { name: "Read more body", exact: true }),
+          ).toBeVisible();
+          await page
+            .getByRole("button", { name: "Read more body", exact: true })
+            .click();
+          await expect(
+            page.getByRole("button", { name: "Read more body", exact: true }),
+          ).toBeEnabled();
+          await page
+            .getByRole("button", { name: "Read more body", exact: true })
+            .click();
+          await expect(
+            page.getByRole("button", { name: "Read more body", exact: true }),
+          ).toHaveCount(0);
+          await expect(
+            frame.getByText("Long formatted end.", { exact: true }),
+          ).toBeVisible();
+          await page
+            .getByRole("button", { name: "Plain text", exact: true })
+            .click();
+          await expect(
+            page
+              .getByRole("region", { name: "Original message body" })
+              .locator("pre"),
+          ).toContainText("Long plain-text end.");
+          await page
+            .getByRole("button", { name: "Close message", exact: true })
+            .click();
+          await page.route(
+            origin + "/api/v1/email/read",
+            (route) =>
+              route.fulfill({
+                status: 503,
+                contentType: "application/json",
+                body: JSON.stringify({ code: "UNAVAILABLE" }),
+              }),
+            { times: 1 },
+          );
+          await page
+            .getByRole("button", { name: /^Original message 2\b/ })
+            .filter({ hasText: "Original sender" })
+            .click();
+          await expect(
+            page.getByText(/Original message could not be loaded/),
+          ).toBeVisible();
+          await page
+            .getByRole("button", { name: "Reload original", exact: true })
+            .click();
+          await expect(
+            frame.getByRole("heading", { name: "HTML-only original" }),
+          ).toBeVisible();
+          await expect(frame.locator("h1")).toHaveCSS(
+            "color",
+            "rgb(26, 80, 120)",
+          );
+          await expect(
+            page.getByRole("button", { name: "Load images", exact: true }),
+          ).toBeVisible();
+          assert.ok(
+            await page.evaluate(
+              () => document.documentElement.scrollWidth <= window.innerWidth,
+            ),
+            "HTML-only mail does not overflow the page",
+          );
+          await page
+            .getByRole("region", { name: "Selected email" })
+            .locator("iframe")
+            .scrollIntoViewIfNeeded();
+          await page.screenshot({
+            path: join(evidence, `${viewport.name}-${theme}-html-only.png`),
+          });
+          await page
+            .getByRole("button", { name: "Close message", exact: true })
+            .click();
           await page.screenshot({
             path: join(evidence, `${viewport.name}-${theme}.png`),
             fullPage: true,

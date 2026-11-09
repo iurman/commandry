@@ -39,6 +39,8 @@ const received = {
       filename: "original.pdf",
       content_type: "application/pdf",
       size: 123,
+      content_id: "original@example.test",
+      content_disposition: "inline",
     },
   ],
   text: "Original, not the forwarding wrapper",
@@ -88,6 +90,8 @@ describe("Resend provider protocol", () => {
     expect(original.metadata.inReplyTo).toBe("<parent@example.test>");
     const page = await provider.attachments("received", id, null);
     expect(page.items[0]?.id).toBe(attachmentId);
+    expect(page.items[0]?.contentId).toBe("original@example.test");
+    expect(page.items[0]?.disposition).toBe("inline");
     expect(page.items[0]?.downloadUrl).toBeUndefined();
     const fresh = await provider.attachments(
       "received",
@@ -98,7 +102,7 @@ describe("Resend provider protocol", () => {
     expect(fresh.items[0]?.downloadUrl).toBe(
       "https://example.resend.com/signed",
     );
-    expect(paths).toContain(`/emails/receiving/${id}`);
+    expect(paths).toContain(`/emails/receiving/${id}?html_format=cid`);
     expect(paths).toContain(`/emails/receiving?limit=100&after=${id}`);
   });
   it("validates verified sending capabilities and stable send idempotency", async () => {
