@@ -48,9 +48,15 @@ not arbitrary full bodies or attachment contents.
 ## Content, threading and attention
 
 Bodies and original headers are retrieved on demand through the receiving API for
-incoming mail and sent API for outgoing mail. Text is rendered as text. Optional
-HTML uses an empty sandbox and a restrictive CSP blocking scripts, forms, frames,
-remote images and network access. Long content has character continuation.
+incoming mail and sent API for outgoing mail. Formatted HTML and plain-text views
+preserve the original content. HTML is sanitized in an inert template and uses a
+sandbox without scripts, same-origin access, forms or top navigation. A restrictive
+CSP blocks active content and remote resources. Load images permits HTTPS images
+and resolves embedded CID references from fresh authorized attachment metadata for
+that message. The UI explains that remote senders may observe image requests;
+consent resets when another message is opened. Safe links open separately with
+noopener and no referrer. Long content has character continuation; complete HTML
+is retained across every page and rendered only once all its pages are loaded.
 Attachment lists have continuation, and each actual download fetches a fresh
 provider URL. Signed URLs are never stored in the index. Original file bytes are
 not copied into Commandry or fetched by bulk reconciliation.

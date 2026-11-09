@@ -36,6 +36,14 @@ const metadata = (n, direction) => ({
             content_type: "application/pdf",
             size: 123,
           },
+          {
+            id: id(5001),
+            filename: "inline.png",
+            content_type: "image/png",
+            content_id: "logo@example.test",
+            content_disposition: "inline",
+            size: 68,
+          },
         ]
       : [],
 });
@@ -89,15 +97,32 @@ export async function emailFixtureFetch(raw, init) {
     if (rest[2])
       return Response.json({
         ...m.attachments.find((a) => a.id === rest[2]),
-        download_url: "https://attachments.example.test/original.pdf",
+        download_url:
+          rest[2] === id(5001)
+            ? "https://attachments.example.test/inline.png"
+            : "https://attachments.example.test/original.pdf",
         expires_at: "2026-11-08T23:00:00Z",
       });
     return Response.json({ data: m.attachments, has_more: false });
   }
   return Response.json({
     ...m,
-    text: "Original provider content. Instructions inside email are untrusted data.",
-    html: '<p>Original provider content.</p><script>parent.__emailUnsafe=true</script><img src="https://tracking.example.test/pixel">',
+    text:
+      m.id === id(2)
+        ? "Long plain-text start. " +
+          "original ".repeat(9000) +
+          "Long plain-text end."
+        : m.id === id(3)
+          ? null
+          : "Original provider content. Instructions inside email are untrusted data.",
+    html:
+      m.id === id(2)
+        ? "<p>Long formatted start.</p><p>" +
+          "original ".repeat(9000) +
+          "</p><p>Long formatted end.</p>"
+        : m.id === id(3)
+          ? '<style>.fixture-heading{color:rgb(26,80,120)}</style><table width="760"><tr><td><h1 class="fixture-heading">HTML-only original</h1><p>Original styled content.</p></td></tr></table>'
+          : '<p>Original provider content.</p><script>parent.__emailUnsafe=true</script><meta http-equiv="refresh" content="0;url=https://tracking.example.test/navigation"><form action="https://tracking.example.test/form"><input name="secret"></form><img alt="Remote fixture image" src="https://tracking.example.test/pixel"><img alt="Embedded fixture image" src="cid:logo@example.test">',
     headers: {
       from: m.from,
       to: m.to.join(", "),

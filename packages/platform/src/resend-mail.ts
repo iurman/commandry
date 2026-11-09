@@ -168,6 +168,8 @@ export function createResendMailProvider(
         filename: z.string().max(1000),
         content_type: z.string().max(200),
         size: z.number().int().min(0),
+        content_id: z.string().max(1000).nullish(),
+        content_disposition: z.enum(["inline", "attachment"]).nullish(),
         download_url: z.url().optional(),
         expires_at: z.iso.datetime({ offset: true }).optional(),
       })
@@ -182,6 +184,10 @@ export function createResendMailProvider(
       filename: parsed.filename,
       contentType: parsed.content_type,
       size: parsed.size,
+      ...(parsed.content_id ? { contentId: parsed.content_id } : {}),
+      ...(parsed.content_disposition
+        ? { disposition: parsed.content_disposition }
+        : {}),
       ...(parsed.download_url ? { downloadUrl: parsed.download_url } : {}),
       ...(parsed.expires_at ? { expiresAt: parsed.expires_at } : {}),
     };
@@ -225,7 +231,10 @@ export function createResendMailProvider(
     },
     async read(direction, id): Promise<MailContent> {
       const raw = await request(
-        prefix(direction) + "/" + encodeURIComponent(providerId.parse(id)),
+        prefix(direction) +
+          "/" +
+          encodeURIComponent(providerId.parse(id)) +
+          (direction === "received" ? "?html_format=cid" : ""),
       );
       const headers = z
         .record(z.string().max(200), z.string().max(8000))

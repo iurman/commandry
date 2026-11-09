@@ -222,6 +222,7 @@ connection across those categories.
 ## Owner deployment workflow
 
 - During owner-authorized deployment setup, use supplied credentials and store reusable credential files outside the repository without unsolicited credential-rotation commentary.
+- When the owner defers a credential blocker, complete and deploy the authorized independent work before returning to that credential step.
 
 ## Local browser safety
 
